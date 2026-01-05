@@ -1,0 +1,325 @@
+spring:
+  application:
+    name: deployment-manager
+  logging:
+    level:
+      org.springframework.security: ${SPRING_SECURITY_LOG_LEVEL:INFO}
+      com.epam.aidial.deployment.manager: ${APP_LOG_LEVEL:INFO}
+      org.hibernate.SQL: ${HIBERNATE_SQL_LOG_LEVEL:INFO}
+      org.hibernate.type.descriptor.sql.BasicBinder: ${HIBERNATE_BINDER_LOG_LEVEL:INFO}
+  jpa:
+    properties:
+      hibernate:
+        boot:
+          allow_jdbc_metadata_access: true
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/${datasource.vendor}/
+    baseline-on-migrate: true
+    baseline-version: 1.1
+  mvc:
+    async:
+      request-timeout: 600000 # 10 min
+
+app:
+  kubernetes:
+    connect-type: ${K8S_CONNECT_TYPE:CONFIG_FILE}
+    config_file:
+      kube-config: ${user.home}/.kube/config
+      contexts:
+        deploy-context: ${K8S_DEPLOY_CONTEXT:}
+    token:
+      master-url: ${K8S_MASTER_URL:}
+      oauth-token: ${K8S_OAUTH_TOKEN:}
+
+  registry:
+    url: ${DOCKER_REGISTRY:test-docker-registry}
+    protocol: ${DOCKER_REGISTRY_PROTOCOL:https}
+    auth: ${DOCKER_REGISTRY_AUTH:NONE}
+    user: ${DOCKER_REGISTRY_USER:}
+    password: ${DOCKER_REGISTRY_PASSWORD:}
+    trusted-private-registries: ${TRUSTED_PRIVATE_REGISTRIES:}
+
+  git:
+    trusted-private-repos: ${TRUSTED_PRIVATE_GIT_REPOS:}
+
+  pipeline:
+    log-reader:
+      max-log-count: ${PIPELINE_RUNNER_MAX_LOG_COUNT:10000}
+      max-log-length: ${PIPELINE_RUNNER_MAX_LOG_LENGTH:10000}
+
+  sse:
+    heartbeat:
+      interval: 10000
+
+  build:
+    secrets:
+      git:
+        credentials-file: .git-credentials
+        config-file: .gitconfig
+        ssh-key-file: id_rsa
+        ssh-known-hosts-file: known_hosts
+        secret-volume-name: git-secret-volume
+        root-home-dir: /root
+    mcp-proxy:
+      images:
+        alpine: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE:registry.deltixhub.com/ai/dial/mcp_proxy_alpine:latest}
+        debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN:registry.deltixhub.com/ai/dial/mcp_proxy_debian:latest}
+  build-namespace: ${K8S_BUILD_NAMESPACE:default}
+  git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:latest}
+  builder-image: gcr.io/kaniko-project/executor:latest
+  analyser-image: anchore/syft:latest
+  copy-image: quay.io/skopeo/stable:latest
+  docker-config-path: /kaniko/.docker/config.json
+  knative:
+    deploy:
+      namespace: ${K8S_KNATIVE_DEPLOYMENT_NAMESPACE:default}
+      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:300}
+      undeploy-timeout: ${K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC:300}
+  nim:
+    deploy:
+      namespace: ${K8S_NIM_DEPLOYMENT_NAMESPACE:default}
+      startup-timeout: ${K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
+      use-cluster-internal-url: ${K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
+  kserve:
+    deploy:
+      namespace: ${K8S_KSERVE_DEPLOYMENT_NAMESPACE:default}
+      startup-timeout: ${K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
+      use-cluster-internal-url: ${K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
+  image-name-format: app-%s
+  image-label: latest
+  image-build-timeout-sec: 300
+  image-build-logs-size-limit: 1000
+  heartbeat-period-sec: 30
+  max-error-log-lines: 20
+  max-error-log-chars: 1000
+  secrets-volume-mount-path: ${SECRETS_VOLUME_MOUNT_PATH:/etc/secrets}
+  resource-cleaner-cron: ${RESOURCE_CLEANER_CRON:0 0 5 * * *}
+  resource-cleaner-take-size: ${RESOURCE_CLEANER_TAKE_SIZE:100}
+  resource-cleaner-scheduler-lock-at-most-for: ${RESOURCE_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
+  component-cleaner-cron: ${COMPONENT_CLEANER_CRON:0 0 5 * * *}
+  component-cleaner-scheduler-lock-at-most-for: ${COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
+  deployment-reconcile-cron: ${DEPLOYMENT_RECONCILE_CRON:0 0 */2 * * *}
+  deployment-reconcile-scheduler-lock-at-most-for: ${DEPLOYMENT_RECONCILE_SCHEDULER_LOCK_AT_MOST_FOR:30m}
+  deployment-pending-check-cron: ${DEPLOYMENT_PENDING_CHECK_CRON:0 */15 * * * *}
+  deployment-pending-check-scheduler-lock-at-most-for: ${DEPLOYMENT_PENDING_CHECK_SCHEDULER_LOCK_AT_MOST_FOR:5m}
+  deployment-bootstrap-enabled: ${DEPLOYMENT_BOOTSTRAP_ENABLED:true}
+  deployment-bootstrap-batch-size: ${DEPLOYMENT_BOOTSTRAP_BATCH_SIZE:50}
+  deployment-bootstrap-threads: ${DEPLOYMENT_BOOTSTRAP_THREADS:2}
+  deployment-reconcile-pending-cut-off-mins: ${DEPLOYMENT_RECONCILE_PENDING_CUT_OFF_MINS:10}
+  watcher-failure-reset-interval-ms: ${WATCHER_FAILURE_RESET_INTERVAL_MS:600000}
+  deployment-reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
+  cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}
+  knative-service-config:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    spec:
+      template:
+        metadata:
+          annotations:
+            "[autoscaling.knative.dev/initial-scale]": ${KNATIVE_SERVICE_DEFAULT_INITIAL_SCALE:1}
+            "[autoscaling.knative.dev/min-scale]": ${KNATIVE_SERVICE_DEFAULT_MIN_SCALE:0}
+            "[autoscaling.knative.dev/max-scale]": ${KNATIVE_SERVICE_DEFAULT_MAX_SCALE:3}
+            "[autoscaling.knative.dev/window]": ${KNATIVE_SERVICE_DEFAULT_WINDOW:300s}
+        spec:
+          idleTimeoutSeconds: 300
+          containerConcurrency: 50
+          automountServiceAccountToken: false
+  knative-service-container-config:
+    name: app-container
+    imagePullPolicy: Always
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "250M"
+        ephemeral-storage: "500M"
+      limits:
+        cpu: "1000m"
+        memory: "4G"
+        ephemeral-storage: "1G"
+  inference-service-config:
+    apiVersion: "serving.kserve.io/v1beta1"
+    kind: InferenceService
+  nim-service-config:
+    apiVersion: apps.nvidia.com/v1alpha1
+    kind: NIMService
+    spec:
+      image:
+        pullPolicy: IfNotPresent
+        pullSecrets:
+          - ${NIM_SERVICE_NGC_SECRET:ngc-secret}
+      authSecret: ${NIM_SERVICE_NGC_AUTH_SECRET:ngc-api-secret}
+      replicas: 1
+      storage:
+        pvc:
+          create: true
+          storageClass: default
+          size: 20Gi
+          volumeAccessMode: ReadWriteOnce
+      resources:
+        limits:
+          "[nvidia.com/gpu]": 1 # nvidia.com/gpu must be encapsulated into "[]" otherwise it cannot be read by Spring
+      expose:
+        service:
+          type: ClusterIP
+          port: 8000
+  builder-job-config:
+    apiVersion: batch/v1
+    kind: Job
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          volumes:
+            - name: workspace-volume
+              emptyDir: { }
+  init-builder-container-config:
+    name: init-container
+    image: ${app.git-clone-image}
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /workspace
+  builder-container-config:
+    name: builder-container
+    image: ${app.builder-image}
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /workspace
+  builder-secret-config:
+    apiVersion: v1
+    kind: Secret
+  analyzer-job-config:
+    apiVersion: batch/v1
+    kind: Job
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+  analyzer-container-config:
+    name: builder-container
+    image: ${app.analyser-image}
+  copy-image-job-config:
+    apiVersion: batch/v1
+    kind: Job
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+  copy-image-container-config:
+    name: builder-container
+    image: ${app.copy-image}
+  customizable-trace-interceptor:
+    enabled: ${CUSTOMIZABLE_TRACE_INTERCEPTOR_ENABLED:true}
+    messages:
+      ENTER: "${CUSTOMIZABLE_TRACE_INTERCEPTOR_ENTER_MESSAGE:'Enter:$[methodName](): $[arguments]'}"
+      EXIT: "${CUSTOMIZABLE_INTERCEPTOR_EXIT_MESSAGE:'Exit:$[methodName]():in $[invocationTime] ms, returnValue: $[returnValue]'}"
+      EXCEPTION: "${CUSTOMIZABLE_TRACE_INTERCEPTOR_EXCEPTION_MESSAGE:'Exception:$[methodName](): in $[invocationTime] ms'}"
+  trace-log-advisor:
+    expression: "@annotation(com.epam.aidial.deployment.manager.configuration.logging.LogExecution) || @within(com.epam.aidial.deployment.manager.configuration.logging.LogExecution)"
+
+config:
+  rest:
+    security:
+      mode: ${CONFIG_REST_SECURITY_MODE:none}
+      email-claim: ${SECURITY_EMAIL_CLAIM:unique_name}
+      disable-swagger-authorization: ${DISABLE_SWAGGER_AUTHORIZATION:false}
+      default:
+        allowedRoles: ConfigAdmin,admin
+
+azure:
+  auth:
+    type: ${AUTH_AZURE_TYPE:none}
+    clientId: ${AZURE_CLIENT_ID}
+    tenantId: ${AZURE_TENANT_ID}
+    clientSecret: ${AZURE_CLIENT_SECRET}
+
+http:
+  client:
+    connectTimeout: ${HTTP_CLIENT_CONNECT_TIMEOUT:30000}
+    readTimeout: ${HTTP_CLIENT_READ_TIMEOUT:60000}
+    writeTimeout: ${HTTP_CLIENT_WRITE_TIMEOUT:60000}
+
+datasource:
+  vendor: ${DATASOURCE_VENDOR:H2}
+  auth:
+    type: ${DATASOURCE_AUTH_TYPE:basic}
+
+h2:
+  datasource:
+    url: jdbc:h2:file:${H2_FILE:./deployment_manager};${H2_OPS:CIPHER=AES;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
+    driver-class-name: org.h2.Driver
+    username: sa
+    masterKey: ${H2_DATASOURCE_MASTER_KEY}
+    encryptedFileKey: ${H2_DATASOURCE_ENCRYPTED_FILE_KEY}
+    password: ${H2_DATASOURCE_PASSWORD}
+
+postgres:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DATABASE:testdb}?${POSTGRES_OPS:}
+    driver-class-name: org.postgresql.Driver
+    username: ${POSTGRES_DATASOURCE_USERNAME:postgres}
+    password: ${POSTGRES_DATASOURCE_PASSWORD:postgres}
+
+sqlserver:
+  datasource:
+    url: jdbc:sqlserver://${MS_SQL_SERVER_HOST:localhost}:${MS_SQL_SERVER_PORT:1433};database=${MS_SQL_SERVER_DATABASE:testdb};${MS_SQL_SERVER_OPS:encrypt=false;}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    username: ${MS_SQL_SERVER_DATASOURCE_USERNAME:sa}
+    password: ${MS_SQL_SERVER_DATASOURCE_PASSWORD:SQLServerPassword1}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health
+  endpoint:
+    health:
+      show-details: always
+  server:
+    port: 9464
+
+otel:
+  sdk:
+    disabled: ${OTEL_SDK_DISABLED:true}
+  service:
+    name: dial-deployment-manager-backend
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
+      traces:
+        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+        protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
+      metrics:
+        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+        protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
+      logs:
+        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+        protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
+  logs:
+    exporter: ${OTEL_LOGS_EXPORTER:otlp}
+  traces:
+    exporter: ${OTEL_TRACES_EXPORTER:otlp}
+  metrics:
+    exporter: ${OTEL_METRICS_EXPORTER:otlp}
+
+server:
+  tomcat:
+    accesslog:
+      pattern: "request: method=%m uri=\"%U\" response: statuscode=%s bytes=%b duration=%D(ms) client: remoteip=%a user=%u useragent=\"%{User-Agent}i\""
+      enabled: ${TOMCAT_ACCESSLOG_ENABLED:false}
+
+logger:
+  configuration:
+    path: ${LOG_CONFIG_PATH:log-config/logging.levels.json}
+    interval: ${LOG_CONFIG_INTERVAL:10}

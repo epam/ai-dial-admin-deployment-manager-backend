@@ -1,0 +1,46 @@
+{
+  "tools": [
+    {
+      "name": "tool_1",
+      "description": "Description of Tool 1",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "param1": {
+            "type": "string",
+            "description": "First parameter"
+          },
+          "param2": {
+            "type": "integer",
+            "description": "Second parameter"
+          }
+        },
+        "required": [
+          "param1"
+        ]
+      }
+    },
+    {
+      "name": "tool_2",
+      "description": "Description of Tool 2",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "paramA": {
+            "type": "string",
+            "description": "Parameter A"
+          },
+          "paramB": {
+            "type": "boolean",
+            "description": "Parameter B"
+          }
+        },
+        "required": [
+          "paramA",
+          "paramB"
+        ]
+      }
+    }
+  ],
+  "nextCursor": "next-cursor-value"
+}

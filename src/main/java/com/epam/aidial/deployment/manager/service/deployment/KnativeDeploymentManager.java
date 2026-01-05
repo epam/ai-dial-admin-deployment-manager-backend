@@ -1,0 +1,270 @@
+package com.epam.aidial.deployment.manager.service.deployment;
+
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
+import com.epam.aidial.deployment.manager.configuration.KnativeDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
+import com.epam.aidial.deployment.manager.kubernetes.KubernetesConditionConstants;
+import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
+import com.epam.aidial.deployment.manager.model.DeploymentStatus;
+import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
+import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
+import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
+import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
+import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
+import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import io.fabric8.knative.pkg.apis.Condition;
+import io.fabric8.knative.serving.v1.Service;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Slf4j
+@Component
+@LogExecution
+public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployment, Service> {
+
+    protected static final String SERVICE_NAME_LABEL = "serving.knative.dev/service";
+
+    private final KnativeManifestGenerator knativeManifestGenerator;
+    private final ImageDefinitionService imageDefinitionService;
+    private final K8sKnativeClient k8sKnativeClient;
+    private final HealthCheckProvider healthCheckProvider;
+
+    private final String serviceContainer;
+
+    public KnativeDeploymentManager(
+            K8sClient k8sClient,
+            ManifestGenerator manifestGenerator,
+            KnativeManifestGenerator knativeManifestGenerator,
+            DeploymentRepository deploymentRepository,
+            ImageDefinitionService imageDefinitionService,
+            ContainerPortResolver containerPortResolver,
+            DisposableResourceManager disposableResourceManager,
+            CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+            HealthCheckProvider healthCheckProvider,
+            K8sKnativeClient k8sKnativeClient,
+            KnativeDeployProperties knativeDeployProperties,
+            @Value("${app.knative-service-container-config.name}") String serviceContainer
+    ) {
+        super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
+                containerPortResolver, ciliumNetworkPolicyCreator, knativeDeployProperties.getNamespace(),
+                knativeDeployProperties.getStartupTimeout(), null);
+        this.knativeManifestGenerator = knativeManifestGenerator;
+        this.imageDefinitionService = imageDefinitionService;
+        this.healthCheckProvider = healthCheckProvider;
+        this.k8sKnativeClient = k8sKnativeClient;
+        this.serviceContainer = serviceContainer;
+    }
+
+    @Override
+    protected String getServiceName(UUID id) {
+        return K8sNamingUtils.generateMcpPrefixedName(id.toString());
+    }
+
+    @Override
+    protected Optional<Deployment> getDeploymentOptional(UUID id) {
+        return deploymentRepository.getById(id).map(deployment -> {
+            if (deployment instanceof McpDeployment || deployment instanceof InterceptorDeployment) {
+                return deployment;
+            }
+            throw new IllegalArgumentException(
+                    "Deployment type should be 'MCP' or 'Interceptor' for Knative service deployment. Deployment: "
+                            + deployment.getId());
+        });
+    }
+
+    @Override
+    protected Service prepareServiceSpec(Deployment deployment) {
+        var imageDefinition = imageDefinitionService.getImageDefinition(deployment.getImageDefinitionId())
+                .orElseThrow(notFound("ImageDefinition", deployment.getImageDefinitionId()));
+
+        var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
+        var userDefinedSensitiveFileEnvs = filterEnvsByExactType(deployment, SensitiveFileEnvVar.class);
+        var userDefinedSimpleEnvs = filterEnvsByExactType(deployment, SimpleEnvVar.class);
+
+        var containerPort = resolveContainerPort(deployment::getContainerPort);
+
+        return knativeManifestGenerator.serviceConfig(
+                deployment.getId().toString(),
+                userDefinedSimpleEnvs,
+                userDefinedSensitiveEnvs,
+                userDefinedSensitiveFileEnvs,
+                imageDefinition.getImageName(),
+                deployment.getInitialScale(),
+                deployment.getMinScale(),
+                deployment.getMaxScale(),
+                deployment.getResources(),
+                containerPort);
+    }
+
+    @Override
+    protected void createService(String namespace, Service service) {
+        k8sKnativeClient.createService(namespace, service);
+    }
+
+    @Override
+    protected void updateService(String namespace, Service service) {
+        k8sKnativeClient.updateService(namespace, service);
+    }
+
+    @Override
+    protected void deleteService(String namespace, String name) {
+        k8sKnativeClient.deleteServiceAndAllRunningPods(namespace, name);
+    }
+
+    @Override
+    protected Service getService(String namespace, String name) {
+        return k8sKnativeClient.getService(namespace, name);
+    }
+
+    @Override
+    protected List<Pod> getServicePods(String namespace, String name) {
+        return k8sKnativeClient.getServicePods(namespace, name).getItems();
+    }
+
+    @Override
+    protected Pod getServicePod(String namespace, String name, String podName) {
+        return k8sKnativeClient.getServicePod(namespace, name, podName);
+    }
+
+    @Override
+    protected boolean isPodReady(PodStatus podStatus) {
+        var containerStatus = podStatus.getContainerStatuses().stream()
+                .filter(status -> serviceContainer.equals(status.getName()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Container %s is missing in service pod".formatted(serviceContainer)));
+        return containerStatus.getState().getWaiting() == null;
+    }
+
+    @Override
+    protected String getContainerName(Pod pod) {
+        return serviceContainer;
+    }
+
+    @Override
+    protected String getServiceNameLabel() {
+        return SERVICE_NAME_LABEL;
+    }
+
+    @Override
+    protected void saveDisposableResource(UUID id, String namespace) {
+        disposableResourceManager.saveKnativeServiceResource(id, namespace);
+    }
+
+    @Override
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(UUID id, String namespace) {
+        return disposableResourceManager.markKnativeServiceResourceForCleanup(id, namespace);
+    }
+
+    @Override
+    protected DeploymentStatus mapStatus(Service service) {
+        var status = service.getStatus();
+        if (status == null || status.getConditions() == null) {
+            return DeploymentStatus.PENDING;
+        }
+
+        var readyCondition = findReadyCondition(status.getConditions());
+        if (readyCondition == null) {
+            return DeploymentStatus.PENDING;
+        }
+
+        if (KubernetesConditionConstants.STATUS_TRUE.equals(readyCondition.getStatus())) {
+            return DeploymentStatus.RUNNING;
+        } else if (KubernetesConditionConstants.STATUS_FALSE.equals(readyCondition.getStatus())) {
+            return DeploymentStatus.CRASHED;
+        } else {
+            return DeploymentStatus.PENDING;
+        }
+    }
+
+    @Override
+    protected String resolveServiceUrl(Service service, Deployment deployment) {
+        var name = service.getMetadata().getName();
+        var status = service.getStatus();
+
+        if (status == null || status.getConditions() == null) {
+            log.debug("Service {} has no status or conditions available.", name);
+            return null;
+        }
+
+        logConditions(name, status.getConditions());
+        if (hasReadyCondition(status.getConditions())) {
+            if (StringUtils.isBlank(status.getUrl())) {
+                throw new IllegalStateException("Knative Service '%s' is ready, but its URL is empty."
+                        .formatted(name));
+            }
+            return status.getUrl();
+        }
+
+        return null;
+    }
+
+    @Override
+    protected void performHealthChecks(Deployment deployment, String serviceUrl, long startTime) {
+        var podInitTime = System.currentTimeMillis() - startTime;
+        log.info("Deployment '{}' container is ready at {} (startup {}ms)", deployment.getId(), serviceUrl, podInitTime);
+        healthCheckProvider.waitReady(deployment.getId(), serviceUrl,
+                getRemainingDuration(deployment.getId(), podInitTime));
+    }
+
+    private Duration getRemainingDuration(UUID id, long podInitTime) {
+        var totalDuration = Duration.ofSeconds(startupTimeoutSec);
+        var remainingDuration = totalDuration.minus(Duration.ofMillis(podInitTime));
+        if (remainingDuration.isNegative() || remainingDuration.isZero()) {
+            log.warn("No time remaining for health check after pod initialization for deployment '{}'", id);
+            remainingDuration = Duration.ZERO;
+        }
+        return remainingDuration;
+    }
+
+    private boolean hasReadyCondition(List<Condition> conditions) {
+        var readyConditionOptional = conditions.stream()
+                .filter(c -> KubernetesConditionConstants.CONDITION_READY.equals(c.getType()))
+                .findFirst();
+
+        if (readyConditionOptional.isEmpty()) {
+            return false;
+        }
+
+        var readyCondition = readyConditionOptional.get();
+        return KubernetesConditionConstants.STATUS_TRUE.equals(readyCondition.getStatus());
+    }
+
+    private Condition findReadyCondition(List<Condition> conditions) {
+        for (var condition : conditions) {
+            if (KubernetesConditionConstants.CONDITION_READY.equals(condition.getType())) {
+                return condition;
+            }
+        }
+        return null;
+    }
+
+    private void logConditions(String serviceName, List<Condition> conditions) {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
+        for (var condition : conditions) {
+            log.debug("Service: {}, condition: {}, status: {}, reason: {}, message: {}",
+                    serviceName, condition.getType(), condition.getStatus(), condition.getReason(),
+                    condition.getMessage());
+        }
+    }
+}

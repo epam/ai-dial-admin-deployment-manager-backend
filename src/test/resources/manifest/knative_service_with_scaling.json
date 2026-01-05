@@ -1,0 +1,41 @@
+{
+  "apiVersion" : "serving.knative.dev/v1",
+  "kind" : "Service",
+  "metadata" : {
+    "name" : "mcp-scaling-app"
+  },
+  "spec" : {
+    "template" : {
+      "metadata" : {
+        "annotations" : {
+          "autoscaling.knative.dev/initial-scale" : "0",
+          "autoscaling.knative.dev/max-scale" : "10",
+          "autoscaling.knative.dev/window" : "300s",
+          "autoscaling.knative.dev/min-scale" : "0"
+        }
+      },
+      "spec" : {
+        "automountServiceAccountToken" : false,
+        "containerConcurrency" : 50,
+        "containers" : [ {
+          "image" : "my-registry/scaling-image:v1",
+          "imagePullPolicy" : "Always",
+          "name" : "app-container",
+          "resources" : {
+            "limits" : {
+              "cpu" : "1000m",
+              "memory" : "4G",
+              "ephemeral-storage" : "1G"
+            },
+            "requests" : {
+              "cpu" : "500m",
+              "memory" : "1G",
+              "ephemeral-storage" : "500M"
+            }
+          }
+        } ],
+        "idleTimeoutSeconds" : 300
+      }
+    }
+  }
+}

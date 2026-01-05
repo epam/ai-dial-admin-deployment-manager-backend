@@ -1,0 +1,64 @@
+services:
+  deployment-manager-backend:
+    container_name: ai-dial-admin-deployment-manager-backend
+    image: aidial/ai-dial-admin-deployment-manager-backend:latest
+    ports:
+      - "8080:8080"
+      - "15006:5006"
+      - "9464:9464"
+    volumes:
+      - ./data:/app/data
+      - ~/.kube:/root/.kube
+    environment:
+      CONFIG_REST_SECURITY_MODE: "none"
+      DEBUG_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5006"
+      DISABLE_SWAGGER_AUTHORIZATION: true
+      DATASOURCE_VENDOR: H2 # could be: H2, POSTGRES, MS_SQL_SERVER
+      # H2 database
+      H2_DATASOURCE_MASTER_KEY: t8+npcgNMiipR+kHMb8zXAjgA3IedCXC
+      H2_DATASOURCE_ENCRYPTED_FILE_KEY: 9vW1l/Eg+1J3YXpCsyR6AUI4ptMtI6pjkktePuUQts+wKVAauoP5CG21z5WTzp91xBcEww==
+      H2_DATASOURCE_PASSWORD: password
+      # POSTGRES database
+      POSTGRES_HOST: postgres
+      # MS_SQL_SERVER database
+      MS_SQL_SERVER_HOST: sqlserver
+      MS_SQL_SERVER_OPS: encrypt=false;
+
+  keycloak:
+    container_name: ai-dial-admin-deployment-manager-backend-keycloak
+    image: quay.io/keycloak/keycloak:25.0.4
+    ports:
+      - "8888:8080"
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./.keycloak/data:/opt/keycloak/data/
+    profiles:
+      - keycloak
+
+  postgres:
+    image: postgres:17.4
+    container_name: ai-dial-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.postgresql/data:/var/lib/postgresql/data
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU18-ubuntu-22.04
+    container_name: ai-dial-ms-sql-server
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: SQLServerPassword1
+    ports:
+      - "1433:1433"
+    volumes:
+      # scripts located in "/mssql-server-setup-scripts.d/" are executed on first container startup
+      # https://learn.microsoft.com/en-us/sql/relational-databases/collations/set-or-change-the-server-collation
+      - ./.sqlserver/init:/mssql-server-setup-scripts.d/

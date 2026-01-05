@@ -1,0 +1,20 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "autoscaling.knative.dev/initial-scale": "1",
+          "autoscaling.knative.dev/max-scale": "3",
+          "autoscaling.knative.dev/window": "300s"
+        }
+      },
+      "spec": {
+        "idleTimeoutSeconds": 300,
+        "containerConcurrency": 50,
+        "automountServiceAccountToken": false
+      }
+    }
+  }
+}

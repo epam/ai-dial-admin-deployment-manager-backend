@@ -1,0 +1,29 @@
+{
+  "resources": [
+    {
+      "uri": "https://example.com/resources/resource_1",
+      "name": "resource_1",
+      "description": "Description of Resource 1",
+      "mimeType": "text/plain",
+      "annotations": {
+        "audience": [
+          "user"
+        ],
+        "priority": 0.5
+      }
+    },
+    {
+      "uri": "https://example.com/resources/resource2",
+      "name": "resource_2",
+      "description": "Description of Resource 2",
+      "mimeType": "text/plain",
+      "annotations": {
+        "audience": [
+          "user"
+        ],
+        "priority": 0.5
+      }
+    }
+  ],
+  "nextCursor": "next-cursor-value"
+}

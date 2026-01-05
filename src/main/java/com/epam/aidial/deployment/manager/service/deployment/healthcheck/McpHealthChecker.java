@@ -1,0 +1,60 @@
+package com.epam.aidial.deployment.manager.service.deployment.healthcheck;
+
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.service.McpClientFactory;
+import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.support.RetryTemplate;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.util.function.Function;
+
+@Slf4j
+@Component
+@LogExecution
+@RequiredArgsConstructor
+public class McpHealthChecker implements HealthChecker {
+
+    private final McpClientFactory mcpClientFactory;
+    private final McpEndpointPathResolver mcpEndpointPathResolver;
+    @Qualifier("mcpHealthCheckerRetryTemplateFactory")
+    private final Function<Duration, RetryTemplate> retryTemplateFactory;
+
+    @Override
+    public boolean supports(Deployment deployment) {
+        return deployment instanceof McpDeployment;
+    }
+
+    @Override
+    public void waitReady(String serviceUrl, Deployment deployment, Duration remainingDuration) {
+        if (!(deployment instanceof McpDeployment mcpDeployment)) {
+            throw new IllegalArgumentException("McpHealthChecker only supports MCP deployments");
+        }
+
+        var endpointPath = mcpEndpointPathResolver.resolveEndpointPath(mcpDeployment);
+        var retryTemplate = retryTemplateFactory.apply(remainingDuration);
+
+        log.debug("Waiting for MCP service to be ready at URL: {} with remaining duration: {}", serviceUrl, remainingDuration);
+        try {
+            retryTemplate.execute(context -> {
+                try (var mcpClient = mcpClientFactory.create(serviceUrl, endpointPath, mcpDeployment.getTransport())) {
+                    mcpClient.initialize();
+                    log.debug("MCP client initialized successfully for URL: {}", serviceUrl);
+                    return null;
+                } catch (Exception e) {
+                    log.debug("MCP client initialization failed for URL: {}, retrying...", serviceUrl, e);
+                    throw new RuntimeException("MCP client initialization failed", e);
+                }
+            });
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("MCP service failed to become ready at URL: " + serviceUrl, e);
+        }
+        log.debug("MCP service is ready at URL: {}", serviceUrl);
+    }
+
+}

@@ -1,0 +1,24 @@
+{
+  "apiVersion": "serving.kserve.io/v1beta1",
+  "kind": "InferenceService",
+  "metadata": {
+    "name": "dm-scaling-inference-app"
+  },
+  "spec": {
+    "predictor": {
+      "maxReplicas": 5,
+      "minReplicas": 1,
+      "model": {
+        "env": [],
+        "modelFormat": {
+          "name": "huggingface"
+        },
+        "resources": {
+          "limits": {},
+          "requests": {}
+        },
+        "storageUri": "s3://my-bucket/scaling-model"
+      }
+    }
+  }
+}

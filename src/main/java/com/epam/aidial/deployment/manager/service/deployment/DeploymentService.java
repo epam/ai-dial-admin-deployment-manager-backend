@@ -1,0 +1,339 @@
+package com.epam.aidial.deployment.manager.service.deployment;
+
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
+import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
+import com.epam.aidial.deployment.manager.model.DeploymentStatus;
+import com.epam.aidial.deployment.manager.model.EnvVar;
+import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
+import com.epam.aidial.deployment.manager.model.EnvVarValue;
+import com.epam.aidial.deployment.manager.model.ImageDefinition;
+import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.PodInfo;
+import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import com.epam.aidial.deployment.manager.utils.EnvVarChangeDetector;
+import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@LogExecution
+@RequiredArgsConstructor
+public class DeploymentService {
+
+    private final DeploymentRepository deploymentRepository;
+    private final ImageDefinitionService imageDefinitionService;
+    private final DeploymentMapper deploymentMapper;
+    private final DeploymentManagerProvider deploymentManagerProvider;
+    private final SecurityClaimsExtractor securityClaimsExtractor;
+
+    @Value("${app.deployment-reserved-env-names}")
+    private final List<String> reservedEnvNames;
+
+    @Transactional(readOnly = true)
+    public Collection<Deployment> getAllDeployments() {
+        return deploymentRepository.getAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Collection<Deployment> getAllDeployments(UUID imageDefinitionId) {
+        return deploymentRepository.getAllByImageDefinitionId(imageDefinitionId);
+    }
+
+    @Transactional(readOnly = true)
+    public Collection<Deployment> getAllDeploymentsByType(List<DeploymentTypeDto> types) {
+        if (CollectionUtils.isEmpty(types)) {
+            throw new IllegalArgumentException("Deployment types list cannot be empty or null");
+        }
+
+        if (types.size() == 1) {
+            return deploymentRepository.getAllByType(types.get(0));
+        } else {
+            return deploymentRepository.getAllByType(types);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Deployment> getDeployment(UUID id) {
+        return getDeployment(id, true);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Deployment> getDeployment(UUID id, boolean resolveSecrets) {
+        var deployment = deploymentRepository.getById(id);
+        if (resolveSecrets) {
+            deployment.ifPresent(value -> deploymentManagerProvider.provide(id).resolveSecrets(value));
+        }
+        return deployment;
+    }
+
+    @Transactional
+    public Deployment createDeployment(CreateDeployment request) {
+        var envsPartition = validateAndPartitionEnvs(request.getMetadata());
+
+        var id = UUID.randomUUID();
+        var deploymentManager = deploymentManagerProvider.provide(request);
+        var envs = saveEnvVars(deploymentManager, id, envsPartition);
+        var deployment = deploymentMapper.toDeployment(request, id, envs);
+
+        if (request.getImageDefinitionId() != null) {
+            var imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
+            deployment.setImageDefinitionName(imageDefinition.getName());
+            deployment.setImageDefinitionVersion(imageDefinition.getVersion());
+        }
+
+        // Set author information - use provided author or extract from security context
+        if (StringUtils.isBlank(request.getAuthor())) {
+            deployment.setAuthor(securityClaimsExtractor.getEmail());
+        } else {
+            deployment.setAuthor(request.getAuthor());
+        }
+
+        var savedDeployment = deploymentRepository.save(deployment);
+        savedDeployment.setEnvs(envs); // we do not save secret values into DB
+        return savedDeployment;
+    }
+
+    @Transactional
+    public Deployment updateDeployment(UUID id, CreateDeployment request) {
+        ImageDefinition imageDefinition = null;
+        if (request.getImageDefinitionId() != null) {
+            imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
+        }
+
+        var envsPartition = validateAndPartitionEnvs(request.getMetadata());
+        var existingDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+        var existingStatus = existingDeployment.getStatus();
+
+        if (existingStatus.isIntermediate()) {
+            throw new IllegalStateException("Deployment '%s' has an intermediate status '%s'. Update is not allowed"
+                    .formatted(id, existingStatus));
+        }
+
+        var deploymentManager = deploymentManagerProvider.provide(id);
+        var existingDeploymentWithResolvedSecrets = deploymentManager.resolveSecrets(existingDeployment);
+
+        List<EnvVar> envs = existingDeploymentWithResolvedSecrets.getEnvs();
+
+        boolean envsAreChanged = EnvVarChangeDetector.areEnvsChanged(envs, request.getMetadata());
+        if (envsAreChanged) {
+            deploymentManager.cleanupSecrets(id, existingDeployment.getEnvs());
+            envs = saveEnvVars(deploymentManager, id, envsPartition);
+        }
+
+        var deployment = deploymentMapper.toDeployment(request, id, envs);
+        deployment.setUrl(existingDeployment.getUrl());
+
+        var status = existingStatus == DeploymentStatus.STOPPED ? DeploymentStatus.NOT_DEPLOYED : existingStatus;
+        deployment.setStatus(status);
+
+        if (imageDefinition != null) {
+            deployment.setImageDefinitionName(imageDefinition.getName());
+            deployment.setImageDefinitionVersion(imageDefinition.getVersion());
+        }
+
+        var updatedDeployment = deploymentRepository.update(id, deployment);
+
+        boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
+        if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForRollingUpdate) {
+            deploymentManager.rollingUpdate(id);
+        } else if (updatedDeployment.getStatus() == DeploymentStatus.CRASHED) {
+            updatedDeployment = deploymentManager.undeploy(id);
+        }
+
+        updatedDeployment.setEnvs(envs); // we do not save secret values into DB
+        return updatedDeployment;
+    }
+
+    @Transactional
+    public void deleteDeployment(UUID id) {
+        undeploy(id);
+        deploymentRepository.deleteById(id);
+    }
+
+    public Deployment deploy(UUID id) {
+        var deploymentManager = deploymentManagerProvider.provide(id);
+        var deployment = deploymentManager.deploy(id);
+        return deploymentManager.resolveSecrets(deployment);
+    }
+
+    public Deployment undeploy(UUID id) {
+        var deploymentManager = deploymentManagerProvider.provide(id);
+        var deployment = deploymentManager.undeploy(id);
+        return deploymentManager.resolveSecrets(deployment);
+    }
+
+    @Transactional
+    public Deployment duplicateDeployment(UUID etalonDeploymentId, String cloneDeploymentName) {
+        // Get the etalon deployment with secrets resolved
+        var etalonDeployment = getDeployment(etalonDeploymentId, true)
+                .orElseThrow(() -> new EntityNotFoundException("Etalon deployment not found by id: %s".formatted(etalonDeploymentId)));
+
+        var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentName);
+
+        return createDeployment(createDeployment);
+    }
+
+    @Transactional
+    public void updateImageDefinitionForDeployments(UUID imageDefinitionId, List<UUID> deployments) {
+        // loading image definition to verify that it is built
+        var imageDefinition = loadImageDefinitionOrThrow(imageDefinitionId);
+        deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deployments);
+        deployments.forEach(this::rollingUpdate);
+    }
+
+    private void rollingUpdate(UUID id) {
+        var deployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+        var deploymentManager = deploymentManagerProvider.provide(id);
+        if (deployment.getStatus() == DeploymentStatus.RUNNING) {
+            try {
+                deploymentManager.rollingUpdate(id);
+            } catch (Exception e) {
+                log.warn("Failed to perform rolling update. Deployment '{}'", id, e);
+            }
+        } else if (deployment.getStatus() == DeploymentStatus.CRASHED) {
+            try {
+                deploymentManager.undeploy(id);
+            } catch (Exception e) {
+                log.warn("Failed to stop deployment. Deployment '{}'", id, e);
+            }
+        }
+    }
+
+    public List<PodInfo> getActiveInstances(UUID id) {
+        return deploymentManagerProvider.provide(id)
+                .getActiveInstances(id);
+    }
+
+    public List<PodInfo> getInstances(UUID id) {
+        return deploymentManagerProvider.provide(id)
+                .getInstances(id);
+    }
+
+    private EnvPartition validateAndPartitionEnvs(DeploymentMetadata metadata) {
+        var envDefs = ListUtils.emptyIfNull(metadata.getEnvs()).stream()
+                .collect(Collectors.toMap(EnvVarDefinition::getName, Function.identity()));
+
+        envDefs.keySet().forEach(this::validateEnvNameNotReserved);
+
+        Map<String, EnvVarValue> sens = new HashMap<>();
+        Map<String, EnvVarValue> nonSens = new HashMap<>();
+        Map<String, EnvVarValue> sensFile = new HashMap<>();
+
+        envDefs.forEach((key, envDef) -> {
+            Map<String, EnvVarValue> typedEnvCollection;
+            var mountType = envDef.getMountType();
+            switch (mountType) {
+                case CONTENT -> typedEnvCollection = nonSens;
+                case SECURE_CONTENT -> typedEnvCollection = sens;
+                case SECURE_FILE -> typedEnvCollection = sensFile;
+                default ->
+                        throw new IllegalStateException("Unexpected mount type '%s' for `%s' env variable".formatted(mountType, key));
+            }
+            typedEnvCollection.put(key, envDef.getValue());
+        });
+
+        // Validate base64 encoding for sensitive file content
+        sensFile.forEach((key, value) -> validateBase64Encoding(key, value.getValue()));
+
+        // Return the original sensFile content for secret creation (not the _FILE suffix versions)
+        return new EnvPartition(sens, nonSens, sensFile);
+    }
+
+    private List<EnvVar> saveEnvVars(DeploymentManager deploymentManager, UUID deploymentId, EnvPartition partition) {
+        var sensitive = deploymentManager.provisionSecrets(deploymentId, partition);
+        var simple = toSimpleEnvs(partition.nonSensitive());
+        return ListUtils.union(sensitive, simple);
+    }
+
+    private ImageDefinition loadImageDefinitionOrThrow(UUID id) {
+        var imageDefinition = imageDefinitionService.getImageDefinition(id)
+                .orElseThrow(notFound("ImageDefinition", id));
+        if (imageDefinition.getBuildStatus() != ImageStatus.BUILD_SUCCESSFUL) {
+            throw new IllegalStateException("Unable to perform requested operation: image '%s' is not built"
+                    .formatted(id));
+        }
+        return imageDefinition;
+    }
+
+    private static List<SimpleEnvVar> toSimpleEnvs(Map<String, EnvVarValue> envs) {
+        return envs.entrySet().stream()
+                .map(e -> new SimpleEnvVar(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    private static <T> Supplier<EntityNotFoundException> notFound(String what, T id) {
+        return () -> new EntityNotFoundException("%s not found: %s".formatted(what, id));
+    }
+
+    private void validateEnvNameNotReserved(String name) {
+        if (reservedEnvNames.contains(name)) {
+            throw new IllegalArgumentException("Environment variable name '%s' is reserved and cannot be used"
+                    .formatted(name));
+        }
+    }
+
+    private static void validateBase64Encoding(String name, String value) {
+        if (value == null) {
+            return;
+        }
+        if (!isBase64Encoded(value)) {
+            throw new IllegalArgumentException("Env variable '%s' should contain base64-encoded file content. Actual content: %s"
+                    .formatted(name, value));
+        }
+    }
+
+    private static boolean isBase64Encoded(String value) {
+        try {
+            byte[] decodedBytes = Base64.decodeBase64(value);
+            String reEncoded = Base64.encodeBase64String(decodedBytes);
+            return value.equals(reEncoded);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isApplicableForRollingUpdate(Deployment existing, Deployment updated, boolean envsAreChanged) {
+        boolean isGrpcUpdated = false;
+        if (existing instanceof NimDeployment existingNim
+                && updated instanceof NimDeployment updatedNim) {
+            isGrpcUpdated = !Objects.equals(existingNim.getContainerGrpcPort(), updatedNim.getContainerGrpcPort());
+        }
+        return envsAreChanged
+                || !Objects.equals(existing.getImageDefinitionId(), updated.getImageDefinitionId())
+                || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
+                || !Objects.equals(existing.getInitialScale(), updated.getInitialScale())
+                || !Objects.equals(existing.getMinScale(), updated.getMinScale())
+                || !Objects.equals(existing.getMaxScale(), updated.getMaxScale())
+                || !Objects.equals(existing.getResources(), updated.getResources())
+                || !CollectionUtils.isEqualCollection(existing.getAllowedDomains(), updated.getAllowedDomains())
+                || isGrpcUpdated;
+    }
+
+}

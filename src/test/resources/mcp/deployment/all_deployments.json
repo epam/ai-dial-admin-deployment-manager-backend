@@ -1,0 +1,83 @@
+[
+  {
+    "$type": "mcp",
+    "id": "decade00-0000-4000-a000-000000000000",
+    "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
+    "imageDefinitionName": "test-image",
+    "imageDefinitionVersion": "1.2.3",
+    "name": "example deployment 1",
+    "description": "Description of example deployment 1",
+    "author": "user1@test.com",
+    "envs": [
+      {
+        "$type": "simple",
+        "name": "NAME_ONE",
+        "value": {
+          "$type": "simple",
+          "value": "value_one"
+        }
+      }
+    ],
+    "metadata": {
+      "envs": [
+        {
+          "name": "NAME_ONE",
+          "description": "A test environment variable one"
+        }
+      ]
+    },
+    "initialScale": 1,
+    "minScale": 0,
+    "maxScale": 2,
+    "resources": {
+      "limits": {"cpu": "10"},
+      "requests": {"cpu": "5"}
+    },
+    "status": "running",
+    "url": "http://example.com/deployment1",
+    "transport": "http_streaming",
+    "containerPort": 8082,
+    "createdAt": 1745996228431,
+    "updatedAt": 1745996228431
+  },
+  {
+    "$type": "mcp",
+    "id": "decade00-0000-4000-a000-000000000001",
+    "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
+    "imageDefinitionName": "test-image-1",
+    "imageDefinitionVersion": "1.0.0",
+    "name": "example deployment 2",
+    "description": "Description of example deployment 2",
+    "author": "user2@test.com",
+    "envs": [
+      {
+        "$type": "simple",
+        "name": "NAME_TWO",
+        "value": {
+          "$type": "simple",
+          "value": "value_two"
+        }
+      }
+    ],
+    "metadata": {
+      "envs": [
+        {
+          "name": "NAME_TWO",
+          "description": "A test environment variable two"
+        }
+      ]
+    },
+    "initialScale": 1,
+    "minScale": 0,
+    "maxScale": 2,
+    "resources": {
+      "limits": {"cpu": "10"},
+      "requests": {"cpu": "5"}
+    },
+    "status": "not_deployed",
+    "transport": "sse",
+    "mcpEndpointPath": "/some-path",
+    "createdAt": 1745996228431,
+    "updatedAt": 1745996228431
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "apiVersion": "serving.kserve.io/v1beta1",
+  "kind": "InferenceService",
+  "metadata": {
+    "name": "dm-resource-inference-app"
+  },
+  "spec": {
+    "predictor": {
+      "model": {
+        "env": [],
+        "modelFormat": {
+          "name": "huggingface"
+        },
+        "resources": {
+          "limits": {
+            "cpu": "2000m",
+            "memory": "8Gi"
+          },
+          "requests": {
+            "memory": "2Gi"
+          }
+        },
+        "storageUri": "s3://my-bucket/resource-model"
+      }
+    }
+  }
+}

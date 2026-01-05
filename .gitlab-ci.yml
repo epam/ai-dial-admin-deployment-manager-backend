@@ -1,0 +1,201 @@
+include:
+  - local: Security-Scanning.gitlab-ci.yml
+
+services:
+  - name: docker:dind
+    command: ["--tls=false"]
+
+variables:
+  ### HELM-related variables ###
+  HELM_PRIVATE_REPO: "false"
+  HELM_REPO: https://charts.epam-rail.com
+  CHART: "dial-extension"
+  VERSION: "1.0.4"
+
+  ARM_TENANT_ID: "b41b72d0-4e9f-4c26-8a69-f949f367c91d"
+  AZURE_DEFAULTS_GROUP: "epm-rtc"
+  CLUSTER_NAME: "aks-imfeid-demo-001"
+  NAMESPACE: "ai-dial-test"
+
+  # Development environment
+  development_DEPLOY_ENV: "true"
+  development_RELEASE: "ai-dial-test-admin-backend-mcp"
+  development_HELM_EXTRA_VALUES_FILE: "helm/azure.yaml"
+  development_ENV_URL: "https://ai-dial-admin-test.imf-eid.projects.epam.com"
+  ##############################
+
+  ### Docker-related variables ###
+  DOCKERFILE_PATH: "."
+  DOCKER_REPO: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+  DOCKER_USER: ${ARTIFACTORY_USER}
+  DOCKER_PASS: ${ARTIFACTORY_PASS}
+  DOCKER_PATH: ai/dial/ai-dial-admin-deployment-manager-backend
+  DOCKER_PATH_AL: ai/dial/mcp_proxy_alpine
+  DOCKER_PATH_DEB: ai/dial/mcp_proxy_debian
+  DOCKERFILE_PATH_AL: "./docs/alpine"
+  DOCKERFILE_PATH_DEB: "./docs/debian"
+  DOCKER_ADDITIONAL_TAG: ""
+  DOCKER_BUILD_ARGS: ""
+  DOCKER_REGISTRY_SERVER: "registry-dev.deltixhub.com"
+  DOCKER_HOST: "tcp://docker:2375"
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_DRIVER: overlay2
+
+stages:
+  - test
+  - security-scanning
+  - scanning-reports-validation
+  - build
+  - tag
+  - publish # publish Docker images
+  - deploy
+
+build:
+  stage: build
+  image: gradle:8.5-jdk21
+  before_script:
+    - GRADLE_USER_HOME="$(pwd)/.gradle"
+    - export GRADLE_USER_HOME
+    - chmod +x gradlew
+    - groupadd docker
+    - whoami
+    - usermod -aG docker root
+    - gpasswd -a root docker
+    - ls
+    - curl -fsSL https://app.testcontainers.cloud/bash | bash
+  script: ./gradlew build
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+      - .gradle
+  tags:
+    - DockerExecutor
+    - Linux
+  rules:
+    - if: "$CI_PIPELINE_SOURCE == 'merge_request_event'"
+    - if: "$CI_COMMIT_BRANCH == 'development'"
+    - if: "$CI_COMMIT_TAG"
+
+"Tag branch":
+  image: alpine/git:v2.32.0
+  stage: tag
+  script:
+    - ver=$(git describe --abbrev=0 --tags | cut -f-2 -d '.') || ver=0.0
+    - minor_tag=$(git describe --abbrev=0 --tags | cut -f 3 -d '.') || minor_tag=0
+    - release_tag=${ver}.$(( minor_tag+1 ))
+    - git remote set-url origin https://$GITLAB_ROBOT_NAME:$GITLAB_ROBOT_PUSH_TOKEN@$CI_SERVER_HOST/$CI_PROJECT_PATH.git
+    - git config user.name $GITLAB_ROBOT_NAME
+    - git config user.email ${GITLAB_ROBOT_EMAIL}
+    - git diff --quiet && git diff --staged --quiet || git commit -am "RobotBuild ${release_tag}"
+    - git tag ${release_tag}
+    - git push origin HEAD:${CI_COMMIT_REF_NAME} --tags
+  dependencies: []
+  rules:
+    - if: "$CI_COMMIT_REF_SLUG =~ /^release-/ && $CI_COMMIT_MESSAGE !~ /^RobotBuild/"
+  tags:
+    - kubernetes
+
+publish-docker:
+  stage: publish
+  image: docker:stable
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - name: docker:dind
+      entrypoint: ["env", "-u", "DOCKER_HOST"]
+      command: ["dockerd-entrypoint.sh"]
+  before_script:
+    - export DOCKER_API_VERSION=1.44
+    - mkdir -p $HOME/.docker
+    # Use DOCKER_AUTH_CONFIG for login to deltix repo
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  script:
+    - docker build ${DOCKER_BUILD_ARGS} --pull --tag ${REPOSITORY}/${DOCKER_PATH}:${DOCKER_TAG} ${DOCKERFILE_PATH}
+    - docker push ${REPOSITORY}/${DOCKER_PATH}:$DOCKER_TAG
+    - >
+      if [ ! -z "$DOCKER_ADDITIONAL_TAG" ]; then
+        docker tag ${REPOSITORY}/${DOCKER_PATH}:$DOCKER_TAG ${REPOSITORY}/${DOCKER_PATH}:${DOCKER_ADDITIONAL_TAG}
+        docker push ${REPOSITORY}/${DOCKER_PATH}:${DOCKER_ADDITIONAL_TAG}
+      fi
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        DOCKER_ADDITIONAL_TAG: latest
+        REPOSITORY: ${ARTIFACTORY_DOCKER_REPOSITORY}
+    - if: $CI_COMMIT_BRANCH  == "development"
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_REF_SLUG}
+        DOCKER_ADDITIONAL_TAG: alpha
+        REPOSITORY: ${ARTIFACTORY_DOCKER_DEV_REPOSITORY}
+  tags:
+    - Linux
+    - DockerExecutor
+
+publish-mcp-docker:
+  stage: publish
+  image: docker:stable
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - name: docker:dind
+      entrypoint: ["env", "-u", "DOCKER_HOST"]
+      command: ["dockerd-entrypoint.sh"]
+  before_script:
+    - mkdir -p $HOME/.docker
+    # Use DOCKER_AUTH_CONFIG for login to deltix repo
+    - echo $DOCKER_AUTH_CONFIG > $HOME/.docker/config.json
+  script:
+    - docker build ${DOCKER_BUILD_ARGS} --pull --tag ${REPOSITORY}/${DOCKER_PATH_AL}:${DOCKER_TAG} ${DOCKERFILE_PATH_AL}
+    - docker build ${DOCKER_BUILD_ARGS} --pull --tag ${REPOSITORY}/${DOCKER_PATH_DEB}:${DOCKER_TAG} ${DOCKERFILE_PATH_DEB}
+    - docker push ${REPOSITORY}/${DOCKER_PATH_AL}:$DOCKER_TAG
+    - >
+      if [ ! -z "$DOCKER_ADDITIONAL_TAG" ]; then
+        docker tag ${REPOSITORY}/${DOCKER_PATH_AL}:$DOCKER_TAG ${REPOSITORY}/${DOCKER_PATH_AL}:${DOCKER_ADDITIONAL_TAG}
+        docker push ${REPOSITORY}/${DOCKER_PATH_AL}:${DOCKER_ADDITIONAL_TAG}
+      fi
+    - docker push ${REPOSITORY}/${DOCKER_PATH_DEB}:$DOCKER_TAG
+    - >
+      if [ ! -z "$DOCKER_ADDITIONAL_TAG" ]; then
+        docker tag ${REPOSITORY}/${DOCKER_PATH_DEB}:$DOCKER_TAG ${REPOSITORY}/${DOCKER_PATH_DEB}:${DOCKER_ADDITIONAL_TAG}
+        docker push ${REPOSITORY}/${DOCKER_PATH_DEB}:${DOCKER_ADDITIONAL_TAG}
+      fi
+  dependencies: []
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKER_TAG: ${CI_COMMIT_TAG}
+        DOCKER_ADDITIONAL_TAG: latest
+        REPOSITORY: ${ARTIFACTORY_DOCKER_REPOSITORY}
+  tags:
+    - Linux
+    - DockerExecutor
+
+trigger_deploy:
+  stage: deploy
+  image: alpine/curl:latest
+  script:
+    - - "curl -X POST --fail -F token=$TRIGGER_TOKEN -F ref=master https://gitlab.deltixhub.com/api/v4/projects/2957/trigger/pipeline"
+  only:
+    - development
+  tags:
+    - Linux
+    - DockerExecutor
+
+trigger_deploy_stg:
+  stage: deploy
+  image: alpine/curl:latest
+  script:
+    - - "curl -X POST --fail -F token=$TRIGGER_TOKEN_STG -F ref=master https://gitlab.deltixhub.com/api/v4/projects/2843/trigger/pipeline"
+  only:
+    - development
+  tags:
+    - Linux
+    - DockerExecutor

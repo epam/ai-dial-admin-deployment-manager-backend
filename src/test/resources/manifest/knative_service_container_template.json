@@ -1,0 +1,16 @@
+{
+  "name": "app-container",
+  "imagePullPolicy": "Always",
+  "resources": {
+    "requests": {
+      "cpu": "500m",
+      "memory": "1G",
+      "ephemeral-storage": "500M"
+    },
+    "limits": {
+      "cpu": "1000m",
+      "memory": "4G",
+      "ephemeral-storage": "1G"
+    }
+  }
+}

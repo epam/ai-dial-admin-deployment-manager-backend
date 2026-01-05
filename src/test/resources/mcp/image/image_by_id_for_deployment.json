@@ -1,0 +1,17 @@
+{
+  "$type": "mcp",
+  "id": "decade00-0000-4000-a000-000000000000",
+  "name": "test-image",
+  "description": "Test image definition",
+  "source": {
+    "$type": "docker",
+    "imageUri": "aidial/echo-mcp:latest"
+  },
+  "buildStatus": "build_successful",
+  "version": "1.0.0",
+  "license": "test-license",
+  "topics": [],
+  "transportType": "local",
+  "createdAt": 1749111276300,
+  "updatedAt": 1749111276300
+}

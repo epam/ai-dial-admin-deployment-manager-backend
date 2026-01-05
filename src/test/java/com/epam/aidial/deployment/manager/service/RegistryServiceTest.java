@@ -1,0 +1,192 @@
+package com.epam.aidial.deployment.manager.service;
+
+import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
+import com.epam.aidial.deployment.manager.configuration.RegistryProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Test;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+
+class RegistryServiceTest {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private static String expectedBase64(String user, String pass) {
+        return Base64.getEncoder().encodeToString((user + ":" + pass).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private RegistryService newService(String registry, URI registryProtocol, String imageFormat, DockerAuthScheme authScheme,
+                                       String user, String password, String trustedPrivateRegistries) {
+        RegistryProperties registryProperties = new RegistryProperties();
+        registryProperties.setUrl(registry);
+        registryProperties.setProtocol(registryProtocol);
+        registryProperties.setAuth(authScheme);
+        registryProperties.setUser(user);
+        registryProperties.setPassword(password);
+        
+        if (StringUtils.isBlank(trustedPrivateRegistries)) {
+            registryProperties.setTrustedPrivateRegistries(new ArrayList<>());
+        } else {
+            try {
+                List<RegistryProperties.TrustedPrivateRegistry> registries = MAPPER.readValue(
+                        trustedPrivateRegistries, new TypeReference<>() {}
+                );
+                registryProperties.setTrustedPrivateRegistries(registries);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid JSON format for trusted-private-registries: " + e.getMessage(), e);
+            }
+        }
+
+        return new RegistryService(registryProperties, imageFormat);
+    }
+
+    @Test
+    void validate_shouldThrow_whenBasicAndUserBlank() {
+        RegistryService service = newService("my.registry", URI.create("https"), "%s", DockerAuthScheme.BASIC, "   ", "pass", null);
+
+        IllegalStateException ex = catchThrowableOfType(service::validate, IllegalStateException.class);
+
+        assertThat(ex).isInstanceOf(IllegalStateException.class).hasMessageContaining("User and password are required for BASIC docker registry authentication.");
+    }
+
+    @Test
+    void validate_shouldThrow_whenBasicAndPasswordNull() {
+        RegistryService service = newService("my.registry", URI.create("https"), "%s", DockerAuthScheme.BASIC, "user", null, null);
+
+        IllegalStateException ex = catchThrowableOfType(service::validate, IllegalStateException.class);
+
+        assertThat(ex).isInstanceOf(IllegalStateException.class).hasMessageContaining("User and password are required for BASIC docker registry authentication.");
+    }
+
+    @Test
+    void validate_shouldPass_whenBasicAndCredentialsPresent() {
+        RegistryService service = newService("my.registry", URI.create("https"), "%s", DockerAuthScheme.BASIC, "user", "pass", null);
+
+        assertThatCode(service::validate).doesNotThrowAnyException();
+    }
+
+    @Test
+    void dockerConfig_shouldContainMainRegistryAuth_whenBasic() throws Exception {
+        String registry = "my.registry:5000";
+        URI protocol = URI.create("https");
+        String user = "user";
+        String pass = "p@ss:word";
+
+        RegistryService service = newService(registry, protocol, "%s", DockerAuthScheme.BASIC, user, pass, null);
+
+        String json = service.dockerConfig();
+
+        Map<String, Object> root = MAPPER.readValue(json, new TypeReference<>() {
+        });
+        assertThat(root).containsKey("auths");
+
+        Map<String, Object> auths = (Map<String, Object>) root.get("auths");
+        String expectedKey = "%s://%s/v2".formatted(protocol.toString(), registry);
+
+        assertThat(auths).containsKey(expectedKey);
+
+        Map<String, String> authCfg = (Map<String, String>) auths.get(expectedKey);
+        assertThat(authCfg.get("auth")).isEqualTo(expectedBase64(user, pass));
+    }
+
+    @Test
+    void dockerConfig_shouldIncludeTrustedPrivateRegistries_whenProvided() throws Exception {
+        String mainRegistry = "main.registry";
+        URI protocol = URI.create("https");
+
+        String trusted = """
+                [
+                  {"registry":"priv1.example.com","authScheme":"BASIC","user":"u1","password":"p1","protocol":"http"},
+                  {"registry":"priv2.example.com","authScheme":"BASIC","user":"u2","password":"p2"},
+                  {"registry":"ignored.example.com","authScheme":"TOKEN","user":"x","password":"y"},
+                  {"registry":"skip.example.com","authScheme":"BASIC","user":"", "password":"p3"}
+                ]
+                """;
+
+        RegistryService service = newService(mainRegistry, protocol, "%s", DockerAuthScheme.BASIC, "main", "mPass", trusted);
+
+        String json = service.dockerConfig();
+
+        Map<String, Object> root = MAPPER.readValue(json, new TypeReference<>() {
+        });
+        Map<String, Object> auths = (Map<String, Object>) root.get("auths");
+
+        String mainKey = "%s://%s/v2".formatted(protocol.toString(), mainRegistry);
+
+        assertThat(auths).containsKey(mainKey);
+        assertThat(auths.get(mainKey)).extracting("auth").isEqualTo(expectedBase64("main", "mPass"));
+
+        // Trusted registry 1 (http protocol specified)
+        String priv1Key = "http://priv1.example.com/v2";
+        assertThat(auths).containsKey(priv1Key);
+        assertThat(auths.get(priv1Key)).extracting("auth").isEqualTo(expectedBase64("u1", "p1"));
+
+        // Trusted registry 2 (default https)
+        String priv2Key = "https://priv2.example.com/v2";
+        assertThat(auths).containsKey(priv2Key);
+        assertThat(auths.get(priv2Key)).extracting("auth").isEqualTo(expectedBase64("u2", "p2"));
+
+        // TOKEN authScheme should be ignored
+        assertThat(auths).doesNotContainKey("https://ignored.example.com/v2");
+
+        // BASIC with blank user should be ignored
+        assertThat(auths).doesNotContainKey("https://skip.example.com/v2");
+    }
+
+    @Test
+    void dockerConfig_shouldThrowOnInvalidJson_whenTrustedRegistriesInvalid() {
+        String mainRegistry = "main.registry";
+        URI protocol = URI.create("https");
+
+        String badTrusted = "not-json";
+
+        IllegalArgumentException ex = catchThrowableOfType(
+                () -> newService(mainRegistry, protocol, "%s", DockerAuthScheme.BASIC, "main", "mPass", badTrusted),
+                IllegalArgumentException.class
+        );
+
+        assertThat(ex).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid JSON format for trusted-private-registries");
+    }
+
+    @Test
+    void dockerConfig_shouldMatchExpectedJsonConstant() throws Exception {
+        String mainRegistry = "main.registry";
+        URI protocol = URI.create("https");
+
+        String trusted = """
+                [
+                  {"registry":"priv1.example.com","authScheme":"BASIC","user":"u1","password":"p1","protocol":"http"},
+                  {"registry":"priv2.example.com","authScheme":"BASIC","user":"u2","password":"p2"}
+                ]
+                """;
+
+        RegistryService service = newService(mainRegistry, protocol, "%s", DockerAuthScheme.BASIC, "main", "mPass", trusted);
+
+        String actualJson = service.dockerConfig();
+
+        // Expected JSON
+        String expectedJson = """
+                {
+                  "auths": {
+                    "https://main.registry/v2": { "auth": "bWFpbjptUGFzcw==" },
+                    "http://priv1.example.com/v2": { "auth": "dTE6cDE=" },
+                    "https://priv2.example.com/v2": { "auth": "dTI6cDI=" }
+                  }
+                }
+                """;
+
+        assertThat(MAPPER.readTree(actualJson)).isEqualTo(MAPPER.readTree(expectedJson));
+    }
+}

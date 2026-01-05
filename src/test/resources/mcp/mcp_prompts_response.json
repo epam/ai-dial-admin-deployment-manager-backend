@@ -1,0 +1,27 @@
+{
+  "prompts": [
+    {
+      "name": "prompt_1",
+      "description": "Description of Prompt 1",
+      "arguments": [
+        {
+          "name": "argument_1",
+          "description": "Description of Argument 1",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "prompt_2",
+      "description": "Description of Prompt 2",
+      "arguments": [
+        {
+          "name": "argument_1",
+          "description": "Description of Argument 1",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "nextCursor": "next-cursor-value"
+}

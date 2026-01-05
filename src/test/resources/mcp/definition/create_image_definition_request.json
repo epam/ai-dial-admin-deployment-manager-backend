@@ -1,0 +1,14 @@
+{
+  "$type": "mcp",
+  "name": "echo-mcp",
+  "description": "new description",
+  "version": "1.0.0",
+  "source": {
+    "$type": "docker",
+    "imageUri": "aidial/echo-mcp:1.0"
+  },
+  "license": "MIT",
+  "topics": ["test"],
+  "transportType": "local",
+  "allowedDomains": ["first-test-domain", "second-test-domain"]
+}

@@ -1,0 +1,14 @@
+{
+  "apiVersion": "serving.kserve.io/v1beta1",
+  "kind": "InferenceService",
+  "spec": {
+    "predictor": {
+      "model": {
+        "modelFormat": {
+          "name": "huggingface"
+        }
+      }
+    }
+  }
+}
+
