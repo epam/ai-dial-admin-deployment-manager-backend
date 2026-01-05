@@ -31,4 +31,4 @@ updates:
           - "*"
         exclude-patterns:
           - "epam/ai-dial-ci/*"
-    open-pull-requests-limit: 10x
+    open-pull-requests-limit: 10
