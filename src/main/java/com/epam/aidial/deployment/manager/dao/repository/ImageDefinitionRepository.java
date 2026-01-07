@@ -4,7 +4,6 @@ import com.epam.aidial.deployment.manager.dao.entity.AdapterImageDefinitionEntit
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.McpImageDefinitionEntity;
-import com.epam.aidial.deployment.manager.dao.entity.NimImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.jpa.ImageDefinitionJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionMapper;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionViewMapper;
@@ -138,7 +137,7 @@ public class ImageDefinitionRepository {
             case MCP -> McpImageDefinitionEntity.class;
             case ADAPTER -> AdapterImageDefinitionEntity.class;
             case INTERCEPTOR -> InterceptorImageDefinitionEntity.class;
-            case NIM -> NimImageDefinitionEntity.class;
+            case NIM -> throw new IllegalArgumentException("NIM image definitions are not supported");
             case INFERENCE ->
                     throw new IllegalArgumentException("InferenceService image definitions are not supported");
         };

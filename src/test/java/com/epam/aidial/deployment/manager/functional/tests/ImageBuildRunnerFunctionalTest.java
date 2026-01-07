@@ -270,8 +270,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     private static Stream<Arguments> getNonMcpImageDefinitions() {
         return Stream.of(
                 Arguments.of(FunctionalTestHelper.createInterceptorImageDefinition()),
-                Arguments.of(FunctionalTestHelper.createAdapterImageDefinition()),
-                Arguments.of(FunctionalTestHelper.createNimImageDefinition())
+                Arguments.of(FunctionalTestHelper.createAdapterImageDefinition())
         );
     }
 

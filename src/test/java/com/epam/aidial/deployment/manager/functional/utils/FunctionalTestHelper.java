@@ -13,7 +13,6 @@ import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
-import com.epam.aidial.deployment.manager.model.NimImageDefinition;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
@@ -128,20 +127,6 @@ public class FunctionalTestHelper {
                 .version("1.0.0")
                 .description("adapterDesc")
                 .license("adapterLicense")
-                .source(source)
-                .topics(getTopics())
-                .author("test-author")
-                .allowedDomains(List.of())
-                .build();
-    }
-
-    public static ImageDefinition createNimImageDefinition() {
-        var source = new DockerImageSource("http://test-uri-nim", List.of("entry-nim"));
-        return NimImageDefinition.builder()
-                .name("nimImage")
-                .version("1.0.0")
-                .description("nimDesc")
-                .license("nimLicense")
                 .source(source)
                 .topics(getTopics())
                 .author("test-author")
