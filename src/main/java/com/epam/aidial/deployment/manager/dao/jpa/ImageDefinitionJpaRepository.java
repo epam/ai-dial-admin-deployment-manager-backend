@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.dao.jpa;
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageStatus;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -63,6 +65,9 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
 
     @Query("SELECT i FROM ImageDefinitionEntity i WHERE TYPE(i) = :type")
     List<ImageDefinitionEntity> findAllByType(@Param("type") Class<? extends ImageDefinitionEntity> type);
+    
+    @Query("SELECT i FROM ImageDefinitionEntity i WHERE TYPE(i) = :type")
+    Page<ImageDefinitionEntity> findAllByType(@Param("type") Class<? extends ImageDefinitionEntity> type, Pageable pageable);
 
     List<ImageDefinitionEntity> findAllByName(@Param("name") String name);
 

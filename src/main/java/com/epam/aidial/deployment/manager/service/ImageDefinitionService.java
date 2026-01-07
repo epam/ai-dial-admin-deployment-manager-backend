@@ -14,6 +14,8 @@ import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,23 +35,23 @@ public class ImageDefinitionService {
     private final SecurityClaimsExtractor securityClaimsExtractor;
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitions() {
-        return imageDefinitionRepository.getAllImageDefinitions();
+    public Page<ImageDefinition> getAllImageDefinitions(Pageable pageable) {
+        return imageDefinitionRepository.getAllImageDefinitions(pageable);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(DeploymentTypeDto type) {
-        return imageDefinitionRepository.getAllImageDefinitionsByType(type);
+    public Page<ImageDefinition> getAllImageDefinitionsByType(DeploymentTypeDto type, Pageable pageable) {
+        return imageDefinitionRepository.getAllImageDefinitionsByType(type, pageable);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(DeploymentTypeDto type) {
-        return imageDefinitionRepository.getAllImageDefinitionViewsByType(type);
+    public Page<ImageDefinitionView> getImageDefinitionViewsByType(DeploymentTypeDto type, Pageable pageable) {
+        return imageDefinitionRepository.getAllImageDefinitionViewsByType(type, pageable);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinitionView> getImageDefinitionViews() {
-        return imageDefinitionRepository.getAllImageDefinitionViews();
+    public Page<ImageDefinitionView> getImageDefinitionViews(Pageable pageable) {
+        return imageDefinitionRepository.getAllImageDefinitionViews(pageable);
     }
 
     @Transactional(readOnly = true)

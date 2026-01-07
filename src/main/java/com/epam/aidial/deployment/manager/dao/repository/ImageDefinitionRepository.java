@@ -14,7 +14,11 @@ import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,17 +40,15 @@ public class ImageDefinitionRepository {
     @Value("${app.image-build-logs-size-limit}")
     private final int buildLogsSizeLimit;
 
-    public Collection<ImageDefinition> getAllImageDefinitions() {
-        return imageDefinitionJpaRepository.findAll().stream()
-                .map(mapper::toImageDefinition)
-                .collect(Collectors.toList());
+    public Page<ImageDefinition> getAllImageDefinitions(Pageable pageable) {
+        return imageDefinitionJpaRepository.findAll(pageable)
+                .map(mapper::toImageDefinition);
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(DeploymentTypeDto type) {
+    public Page<ImageDefinition> getAllImageDefinitionsByType(DeploymentTypeDto type, Pageable pageable) {
         var entityClazz = detectEntityClazz(type);
-        return imageDefinitionJpaRepository.findAllByType(entityClazz).stream()
-                .map(mapper::toImageDefinition)
-                .collect(Collectors.toList());
+        return imageDefinitionJpaRepository.findAllByType(entityClazz, pageable)
+                .map(mapper::toImageDefinition);
     }
 
     public Collection<ImageDefinition> getAllImageDefinitionsByName(String name) {
@@ -122,15 +124,26 @@ public class ImageDefinitionRepository {
         imageDefinitionJpaRepository.saveAndFlush(entity);
     }
 
-    public List<ImageDefinitionView> getAllImageDefinitionViews() {
-        var imageDefinitions = imageDefinitionJpaRepository.findAll();
-        return viewMapper.toViews(imageDefinitions);
+    public Page<ImageDefinitionView> getAllImageDefinitionViews(Pageable pageable) {
+        List<ImageDefinitionEntity> allEntities = imageDefinitionJpaRepository.findAll();
+        return getImageDefinitionViewPage(pageable, allEntities);
     }
 
-    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(DeploymentTypeDto type) {
+    public Page<ImageDefinitionView> getAllImageDefinitionViewsByType(DeploymentTypeDto type, Pageable pageable) {
         var entityClazz = detectEntityClazz(type);
-        var imageDefinitions = imageDefinitionJpaRepository.findAllByType(entityClazz);
-        return viewMapper.toViews(imageDefinitions);
+        List<ImageDefinitionEntity> allEntitiesByType = imageDefinitionJpaRepository.findAllByType(entityClazz);
+        return getImageDefinitionViewPage(pageable, allEntitiesByType);
+    }
+
+    @NotNull
+    private PageImpl<ImageDefinitionView> getImageDefinitionViewPage(Pageable pageable, List<ImageDefinitionEntity> entities) {
+        List<ImageDefinitionView> views = viewMapper.toViews(entities);
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), views.size());
+        List<ImageDefinitionView> pageContent = start < end ? views.subList(start, end) : List.of();
+
+        return new PageImpl<>(pageContent, pageable, views.size());
     }
 
     private static Class<? extends ImageDefinitionEntity> detectEntityClazz(DeploymentTypeDto type) {
