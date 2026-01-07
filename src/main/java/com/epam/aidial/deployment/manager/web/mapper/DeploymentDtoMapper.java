@@ -214,8 +214,6 @@ public abstract class DeploymentDtoMapper {
 
     @Named("constructFullUrl")
     protected String constructFullUrl(Deployment deployment) {
-        // TODO: This method is currently invoked on the deployment/list endpoint, which may impact performance.
-        // Consider moving URL resolution to the deploymentsDetails/get endpoint only.
         if (deployment.getUrl() == null) {
             return null;
         }
@@ -225,7 +223,7 @@ public abstract class DeploymentDtoMapper {
             return deployment.getUrl() + endpointPath;
         }
 
-        // For non-MCP deployments or if there's an error, return the base URL
+        // For non-MCP deployments, return the base URL
         return deployment.getUrl();
     }
 

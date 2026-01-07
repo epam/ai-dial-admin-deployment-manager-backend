@@ -33,7 +33,6 @@ public abstract class AbstractModelDeploymentManager<D extends Deployment, S ext
                 ciliumNetworkPolicyCreator, namespace, startupTimeoutSec, defaultContainerPort);
     }
 
-
     @Override
     protected boolean isPodReady(PodStatus podStatus) {
         var containerStatus = podStatus.getContainerStatuses().stream().findFirst()

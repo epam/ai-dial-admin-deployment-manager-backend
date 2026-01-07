@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.web.handler;
 
-
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -80,7 +79,7 @@ public class DefaultExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(Exception.class)
     public ErrorView handleGeneralError(HttpServletRequest req, Exception ex) {
-        log.warn("[{}] Request: {} raised ", req.getMethod(), req.getServletPath(), ex);
+        log.warn("[{}] Request: {} raised exception", req.getMethod(), req.getServletPath(), ex);
 
         return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
