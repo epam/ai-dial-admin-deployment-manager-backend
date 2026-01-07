@@ -225,33 +225,33 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         var deploymentOptional = getDeploymentOptional(deploymentId);
         if (deploymentOptional.isEmpty()) {
-            log.warn("{}: deployment {} not found in DB. Skipping", initiator, deploymentId);
+            log.warn("{}: deployment '{}' not found in DB. Skipping", initiator, deploymentId);
             return false;
         }
         var deployment = deploymentOptional.get();
 
         var status = config.isServiceIsMissing() ? DeploymentStatus.NOT_DEPLOYED : mapStatus(service);
         if (log.isDebugEnabled()) {
-            log.debug("{}: started state sync for deployment {} with DB status {} and K8s status {}. Service: {}",
+            log.debug("{}: started state sync for deployment '{}' with DB status {} and K8s status {}. Service: {}",
                     initiator, deploymentId, deployment.getStatus(), status, Serialization.asYaml(service));
         }
 
         try {
             // If statuses match, no update needed
             if (status == deployment.getStatus()) {
-                log.debug("{}: deployment {} status is already {}, no update required", initiator, deploymentId, status);
+                log.debug("{}: deployment '{}' status is already {}, no update required", initiator, deploymentId, status);
                 return false;
             }
 
             if (status.isInactive()) {
                 if (deployment.getStatus().isInactive()
                         || (deployment.getStatus() == DeploymentStatus.PENDING && config.isIgnorePendingOnServiceNotFound())) {
-                    log.debug("{}: deployment {} not found in Kubernetes and marked as {} in DB. Skipping",
+                    log.debug("{}: deployment '{}' not found in Kubernetes and marked as {} in DB. Skipping",
                             initiator, deploymentId, deployment.getStatus());
                     return false;
                 }
 
-                log.info("{}: deployment {} not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
+                log.info("{}: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
                         initiator, deploymentId, deployment.getStatus());
                 deployment.setUrl(null);
                 deployment.setStatus(DeploymentStatus.STOPPED);
@@ -264,13 +264,13 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 // No need to look for deployments stuck in 'stopping' state because if stopping fails/hangs,
                 //   state will be changed to 'stopped' and the cleaner will pick it up on the next scheduled run
                 if (deployment.getStatus() == DeploymentStatus.STOPPING) {
-                    log.debug("{}: deployment {} is active in Kubernetes but stopping was already initiated. Skipping", initiator, deploymentId);
+                    log.debug("{}: deployment '{}' is active in Kubernetes but stopping was already initiated. Skipping", initiator, deploymentId);
                     return false;
                 }
 
                 var serviceName = getServiceName(deploymentId);
 
-                log.info("{}: deployment {} appears RUNNING in K8s (service '{}'), triggering readiness check to set URL",
+                log.info("{}: deployment '{}' appears RUNNING in K8s (service '{}'), triggering readiness check to set URL",
                         initiator, deploymentId, serviceName);
                 try {
                     var serviceUrl = resolveServiceUrl(service, deployment);
@@ -279,22 +279,22 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     deployment.setUrl(serviceUrl);
                     deployment.setStatus(DeploymentStatus.RUNNING);
                     deploymentRepository.update(deploymentId, deployment);
-                    log.info("{}: deployment {} marked RUNNING in DB after successful readiness check", initiator, deploymentId);
+                    log.info("{}: deployment '{}' marked RUNNING in DB after successful readiness check", initiator, deploymentId);
                     return true;
                 } catch (Exception e) {
                     deploymentRepository.updateStatus(deploymentId, DeploymentStatus.CRASHED);
-                    log.warn("{}: error during readiness check for deployment {}", initiator, deploymentId, e);
+                    log.warn("{}: error during readiness check for deployment '{}'", initiator, deploymentId, e);
                     return false;
                 }
             }
 
             // For other statuses, just update the status
-            log.info("{}: updating deployment {} status from {} to {}", initiator, deploymentId, deployment.getStatus(), status);
+            log.info("{}: updating deployment '{}' status from {} to {}", initiator, deploymentId, deployment.getStatus(), status);
             deploymentRepository.updateStatus(deploymentId, status);
             return true;
 
         } catch (Exception e) {
-            log.error("{}: unexpected error for deployment {}", initiator, deploymentId, e);
+            log.error("{}: unexpected error for deployment '{}'", initiator, deploymentId, e);
             throw e;
         }
     }
@@ -417,7 +417,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         var pod = getServicePod(namespace, serviceName, podName);
         if (pod == null) {
-            log.warn("Pod {} not found for deployment {}", podName, serviceName);
+            log.warn("Pod '{}' not found for deployment '{}'", podName, serviceName);
             return null;
         }
 
@@ -490,14 +490,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     private List<DisposableResource> markDisposableResourcesForCleanup(UUID id, String namespace) {
-        log.trace("markDisposableResourcesForCleanup. id={}, namespace={}", id, namespace);
+        log.trace("markDisposableResourcesForCleanup. id='{}', namespace='{}'", id, namespace);
         var serviceDisposableResources = markServiceDisposableResourcesForCleanup(id, namespace);
         log.debug("Service disposable resources marked for cleanup: {}", serviceDisposableResources);
 
         List<DisposableResource> disposableResources = new ArrayList<>(serviceDisposableResources);
 
         var cnpName = CiliumNetworkPolicyCreator.getPolicyName(getServiceName(id));
-        log.trace("markDisposableResourcesForCleanup. Cilium Network Policy name resolved: {}", cnpName);
+        log.trace("markDisposableResourcesForCleanup. Cilium Network Policy name resolved: '{}'", cnpName);
 
         var cnpDisposableResources = disposableResourceManager.markCiliumNetworkPolicyResourceForCleanup(id, namespace, cnpName);
         log.debug("Cilium Network Policy disposable resources marked for cleanup: {}", cnpDisposableResources);
@@ -508,33 +508,33 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     private void createCiliumNetworkPolicy(UUID groupId, List<String> allowedDomains) {
-        log.trace("createCiliumNetworkPolicy. groupId={}, allowedDomains={}", groupId, allowedDomains);
+        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}", groupId, allowedDomains);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
             return;
         }
         var serviceNameLabel = getServiceNameLabel();
         var serviceName = getServiceName(groupId);
-        log.trace("createCiliumNetworkPolicy. serviceNameLabel={}, serviceName={}", serviceNameLabel, serviceName);
+        log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
 
         var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains);
 
         disposableResourceManager.saveK8sResources(List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
-        log.trace("createCiliumNetworkPolicy. Saved Cilium Network Policy as disposable resource for groupId={} in namespace={}", groupId, namespace);
+        log.trace("createCiliumNetworkPolicy. Saved Cilium Network Policy as disposable resource for groupId='{}' in namespace='{}'", groupId, namespace);
 
         k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("createCiliumNetworkPolicy. Created Cilium Network Policy: {}", ciliumNetworkPolicy);
     }
 
     private void updateCiliumNetworkPolicy(UUID groupId, List<String> allowedDomains) {
-        log.trace("updateCiliumNetworkPolicy. groupId={}, allowedDomains={}", groupId, allowedDomains);
+        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}", groupId, allowedDomains);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
             return;
         }
         var serviceNameLabel = getServiceNameLabel();
         var serviceName = getServiceName(groupId);
-        log.trace("updateCiliumNetworkPolicy. serviceNameLabel={}, serviceName={}", serviceNameLabel, serviceName);
+        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
 
         var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains);
 
@@ -543,10 +543,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     private void deleteCiliumNetworkPolicy(String name) {
-        log.trace("deleteCiliumNetworkPolicy. name={}", name);
+        log.trace("deleteCiliumNetworkPolicy. name='{}'", name);
         try {
             k8sClient.deleteCiliumNetworkPolicy(namespace, name);
-            log.trace("deleteCiliumNetworkPolicy. Deleted Cilium Network Policy '{}' in namespace={}", name, namespace);
+            log.trace("deleteCiliumNetworkPolicy. Deleted Cilium Network Policy '{}' in namespace='{}'", name, namespace);
         } catch (Exception e) {
             String message = "Failed to delete Cilium Network Policy '%s' in namespace: %s"
                     .formatted(name, namespace);

@@ -109,7 +109,7 @@ public abstract class AbstractK8sResourceClient<T extends HasMetadata, L extends
 
                 // Log details from the first (and expected only) status object
                 var details = results.get(0);
-                log.info("{} '{}' (UID: {}) deletion successfully initiated in namespace '{}'.",
+                log.info("{} '{}' (UID: '{}') deletion successfully initiated in namespace '{}'.",
                         getResourceName(), details.getName(), details.getUid(), namespace);
             } else {
                 // List is empty, meaning the resource was not found.

@@ -9,15 +9,15 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ComponentScheduledCleaner {
+public class ScheduledComponentCleanup {
 
-    private final ComponentCleaner cleaner;
+    private final ComponentCleanupService componentCleanupService;
 
     @Scheduled(cron = "${app.component-cleaner-cron}")
     @SchedulerLock(name = "cleanComponents", lockAtMostFor = "${app.component-cleaner-scheduler-lock-at-most-for:10m}")
-    public void cleanDisposableResources() {
+    public void cleanComponents() {
         log.info("Starting scheduled component clean-up...");
-        cleaner.deleteAllPersisted();
+        componentCleanupService.deleteAllPersisted();
         log.info("Finished scheduled component clean-up.");
     }
 

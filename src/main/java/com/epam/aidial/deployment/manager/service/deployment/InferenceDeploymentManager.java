@@ -143,13 +143,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var status = service.getStatus();
         if (status == null) {
-            log.debug("mapStatus. serviceName: {}. status is undefined", serviceName);
+            log.debug("mapStatus. serviceName: '{}'. status is undefined", serviceName);
             return DeploymentStatus.PENDING;
         }
 
         var modelStatus = status.getModelStatus();
         if (modelStatus == null) {
-            log.debug("mapStatus. serviceName: {}. modelStatus is undefined", serviceName);
+            log.debug("mapStatus. serviceName: '{}'. modelStatus is undefined", serviceName);
             return DeploymentStatus.PENDING;
         }
 
@@ -157,13 +157,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         var states = modelStatus.getStates();
 
         if (states == null) {
-            log.debug("mapStatus. serviceName: {}. modelStatus.states is undefined", serviceName);
+            log.debug("mapStatus. serviceName: '{}'. modelStatus.states is undefined", serviceName);
             return DeploymentStatus.PENDING;
         }
 
         States.ActiveModelState activeModelState = states.getActiveModelState();
 
-        log.debug("mapStatus. serviceName: {}. transitionStatus: {}. activeModelState: {}", serviceName,
+        log.debug("mapStatus. serviceName: '{}'. transitionStatus: {}. activeModelState: {}", serviceName,
                 transitionStatus, activeModelState);
 
         // Check for CRASHED state first
@@ -189,7 +189,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var status = service.getStatus();
         if (status == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. status is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. status is undefined", serviceName);
             return null;
         }
 
@@ -201,17 +201,17 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     private String getClusterInternalUrl(InferenceServiceStatus status, String serviceName) {
         var address = status.getAddress();
         if (address == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. address is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. address is undefined", serviceName);
             return null;
         }
         var url = address.getUrl();
-        log.info("resolveServiceUrl. serviceName: {}. Using cluster internal URL: {}", serviceName, url);
+        log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
         return url;
     }
 
     private String getStatusUrl(InferenceServiceStatus status, String serviceName) {
         var url = status.getUrl();
-        log.info("resolveServiceUrl. serviceName: {}. Using external URL: {}", serviceName, url);
+        log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         return url;
     }
 }

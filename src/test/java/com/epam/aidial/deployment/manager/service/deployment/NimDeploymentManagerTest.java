@@ -273,7 +273,7 @@ class NimDeploymentManagerTest {
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("Failed to deploy service")
                 .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("NIM deployment source should be NGC registry. Deployment: " + DEPLOYMENT_ID);
+                .hasRootCauseMessage("NIM deployment source should be NGC registry. Deployment: '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test

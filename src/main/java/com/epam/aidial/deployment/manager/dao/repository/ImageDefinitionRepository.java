@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class ImageDefinitionRepository {
@@ -68,11 +70,13 @@ public class ImageDefinitionRepository {
     public ImageDefinition saveImageDefinition(ImageDefinition imageDefinition) {
         var entity = mapper.toImageDefinitionEntity(imageDefinition);
         var savedEntity = imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Image definition '{}' saved successfully", savedEntity.getId());
         return mapper.toImageDefinition(savedEntity);
     }
 
     public void deleteImageDefinitionById(UUID id) {
         imageDefinitionJpaRepository.deleteById(id);
+        log.debug("Image definition '{}' deleted successfully", id);
     }
 
     public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition) {
@@ -82,24 +86,29 @@ public class ImageDefinitionRepository {
         mapper.updateEntityFromDomain(updatedImageDefinition, existingEntity);
 
         var savedEntity = imageDefinitionJpaRepository.saveAndFlush(existingEntity);
+        log.debug("Image definition '{}' updated successfully", id);
         return mapper.toImageDefinition(savedEntity);
     }
 
     public void updateBuildStatus(UUID id, ImageStatus buildStatus) {
         var persistenceStatus = mapper.toImageStatusDto(buildStatus);
         imageDefinitionJpaRepository.updateBuildStatus(id, persistenceStatus);
+        log.debug("Build status updated for image definition '{}' to: {}", id, buildStatus);
     }
 
     public void setImageName(UUID id, String imageName) {
         imageDefinitionJpaRepository.setImageName(id, imageName);
+        log.debug("Image name set for image definition '{}' to: {}", id, imageName);
     }
 
     public void setBuiltAt(UUID id, Long builtAt) {
         imageDefinitionJpaRepository.setBuiltAt(id, builtAt);
+        log.debug("BuiltAt set for image definition '{}' to: {}", id, builtAt);
     }
 
     public void resetBuildLogs(UUID id) {
         imageDefinitionJpaRepository.resetBuildLogs(id);
+        log.debug("Build logs reset for image definition '{}'", id);
     }
 
     public void addBuildLogs(UUID id, List<String> logs) {
@@ -119,6 +128,7 @@ public class ImageDefinitionRepository {
         }
 
         imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Build logs added for image definition '{}', {} log entries added", id, logs.size());
     }
 
     public List<ImageDefinitionView> getAllImageDefinitionViews() {

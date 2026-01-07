@@ -201,7 +201,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         var status = service.getStatus();
 
         if (status == null || status.getConditions() == null) {
-            log.debug("Service {} has no status or conditions available.", name);
+            log.debug("Service '{}' has no status or conditions available.", name);
             return null;
         }
 
@@ -262,7 +262,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
             return;
         }
         for (var condition : conditions) {
-            log.debug("Service: {}, condition: {}, status: {}, reason: {}, message: {}",
+            log.debug("Service: '{}', condition: {}, status: {}, reason: {}, message: {}",
                     serviceName, condition.getType(), condition.getStatus(), condition.getReason(),
                     condition.getMessage());
         }

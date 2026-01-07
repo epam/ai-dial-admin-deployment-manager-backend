@@ -1,6 +1,6 @@
 package com.epam.aidial.deployment.manager.service;
 
-import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleaner;
+import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -29,7 +29,7 @@ import java.util.UUID;
 public class ImageDefinitionService {
 
     private final ImageDefinitionRepository imageDefinitionRepository;
-    private final ComponentCleaner componentCleaner;
+    private final ComponentCleanupService componentCleanupService;
     private final SecurityClaimsExtractor securityClaimsExtractor;
 
     @Transactional(readOnly = true)
@@ -118,7 +118,7 @@ public class ImageDefinitionService {
     }
 
     public void deleteImageDefinitionAsync(UUID id) {
-        componentCleaner.deleteAsync(ComponentRemoval.of(id, ComponentType.IMAGE_DEFINITION));
+        componentCleanupService.deleteAsync(ComponentRemoval.of(id, ComponentType.IMAGE_DEFINITION));
     }
 
 }

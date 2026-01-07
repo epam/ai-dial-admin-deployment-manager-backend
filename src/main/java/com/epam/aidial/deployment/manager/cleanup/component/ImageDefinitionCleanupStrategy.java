@@ -8,39 +8,52 @@ import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionReposito
 import com.epam.aidial.deployment.manager.model.ComponentRemoval;
 import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @LogExecution
-@RequiredArgsConstructor
-class ImageDefinitionCleaner {
+class ImageDefinitionCleanupStrategy extends AbstractCleanupStrategy {
 
     private final ImageDefinitionRepository imageDefinitionRepository;
     private final DeploymentRepository deploymentRepository;
-    @Lazy
-    private final ComponentCleaner componentCleaner;
-    private final DisposableResourceManager resourceManager;
-    private final DisposableResourceCleaner resourceCleaner;
+    private final ComponentCleanupService componentCleanupService;
 
+    public ImageDefinitionCleanupStrategy(DisposableResourceManager resourceManager,
+                                  DisposableResourceCleaner resourceCleaner,
+                                  ImageDefinitionRepository imageDefinitionRepository,
+                                  DeploymentRepository deploymentRepository,
+                                  @Lazy ComponentCleanupService componentCleanupService) {
+        super(resourceManager, resourceCleaner);
+        this.imageDefinitionRepository = imageDefinitionRepository;
+        this.deploymentRepository = deploymentRepository;
+        this.componentCleanupService = componentCleanupService;
+    }
+
+    @Override
+    public ComponentType getComponentType() {
+        return ComponentType.IMAGE_DEFINITION;
+    }
+
+    @Override
     @Transactional
-    void delete(UUID id) {
+    public void delete(UUID id) {
         imageDefinitionRepository.getImageDefinitionForUpdateById(id);
 
-        resourceManager.markResourcesForCleanupByGroupId(id);
-        resourceCleaner.cleanAllCleanableByGroupId(id);
+        cleanupResources(id);
 
         // Clean up deployments that reference this image definition
         deploymentRepository.getAllByImageDefinitionId(id).stream()
                 .map(Deployment::getId)
                 .forEach(deploymentId
-                        -> componentCleaner.deleteAsync(ComponentRemoval.of(deploymentId, ComponentType.DEPLOYMENT)));
+                        -> componentCleanupService.deleteAsync(ComponentRemoval.of(deploymentId, ComponentType.DEPLOYMENT)));
 
         imageDefinitionRepository.deleteImageDefinitionById(id);
+        log.info("Image definition '{}' deleted successfully", id);
     }
-
 }

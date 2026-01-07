@@ -67,16 +67,16 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             if (deployment instanceof NimDeployment nimDeployment) {
                 return nimDeployment;
             }
-            throw new IllegalArgumentException(
-                    "Deployment type should be 'NIM' for NIM service deployment. Deployment: " + deployment.getId());
+            throw new IllegalArgumentException("Deployment type should be 'NIM' for NIM service deployment. Deployment: '%s'"
+                    .formatted(deployment.getId()));
         });
     }
 
     @Override
     protected NIMService prepareServiceSpec(NimDeployment deployment) {
-        if (!(deployment.getSource() instanceof NimDeploymentNgcRegistrySource nimDeploymentNgcRegistrySource)) {
-            throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: "
-                    + deployment.getId());
+        if (!(deployment.getSource() instanceof NimDeploymentNgcRegistrySource(String imageRef))) {
+            throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: '%s'"
+                    .formatted(deployment.getId()));
         }
 
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
@@ -90,7 +90,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
-                nimDeploymentNgcRegistrySource.imageRef(),
+                imageRef,
                 containerPort,
                 containerGrpcPort);
     }
@@ -161,23 +161,23 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
         var status = service.getStatus();
         if (status == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. status is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. status is undefined", serviceName);
             return null;
         }
 
         var model = status.getModel();
         if (model == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. model is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. model is undefined", serviceName);
             return null;
         }
 
         String url;
         if (useClusterInternalUrl) {
             url = model.getClusterEndpoint();
-            log.info("resolveServiceUrl. serviceName: {}. Using cluster internal URL: {}", serviceName, url);
+            log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
         } else {
             url = model.getExternalEndpoint();
-            log.info("resolveServiceUrl. serviceName: {}. Using external URL: {}", serviceName, url);
+            log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         }
         return url;
     }
