@@ -12,7 +12,7 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
-import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -62,7 +62,6 @@ public abstract class ImageDefinitionFunctionalTest {
 
         ImageDefinition actualImageDef = imageDefs.get(0);
         imageDef.setId(actualImageDef.getId());
-        imageDef.setVersion(actualImageDef.getVersion());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(imageDef, actualImageDef);
     }
@@ -221,18 +220,44 @@ public abstract class ImageDefinitionFunctionalTest {
         // When
         service.createImageDefinition(mcpImageDef);
         service.createImageDefinition(interceptorImageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(DeploymentTypeDto.MCP).stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageTypeDto.MCP).stream().toList();
 
         // Then
         Assertions.assertEquals(1, imageDefs.size());
 
         ImageDefinition actualImageDef = imageDefs.get(0);
         mcpImageDef.setId(actualImageDef.getId());
-        mcpImageDef.setVersion(actualImageDef.getVersion());
         mcpImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(mcpImageDef, actualImageDef);
     }
 
+    @Test
+    public void shouldSuccessfullyCreateAndGetImageDefinitionsByNameAndType() {
+        // Given
+        ImageDefinition mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
+        ImageDefinition interceptorImageDef1 = FunctionalTestHelper.createInterceptorImageDefinition();
+        ImageDefinition interceptorImageDef2 = FunctionalTestHelper.createInterceptorImageDefinition();
+
+        String name = "test-interceptor-1";
+        interceptorImageDef1.setName(name);
+        interceptorImageDef1.setVersion("1.0.0");
+        interceptorImageDef2.setName(name);
+        interceptorImageDef2.setVersion("2.0.0");
+
+        // When
+        service.createImageDefinition(mcpImageDef);
+        service.createImageDefinition(interceptorImageDef1);
+        service.createImageDefinition(interceptorImageDef2);
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.INTERCEPTOR).stream().toList();
+
+        // Then
+        Assertions.assertEquals(2, imageDefs.size());
+
+        ImageDefinition actualImageDef = imageDefs.getLast();
+        interceptorImageDef2.setId(actualImageDef.getId());
+        interceptorImageDef2.setBuildStatus(ImageStatus.NOT_BUILT);
+        Assertions.assertEquals(interceptorImageDef2, actualImageDef);
+    }
 
     @Test
     public void shouldSuccessfullyCreateAndGetImageDefinitionsByName() {
@@ -245,7 +270,7 @@ public abstract class ImageDefinitionFunctionalTest {
         interceptorImageDef1.setName(name);
         interceptorImageDef1.setVersion("1.0.0");
         interceptorImageDef2.setName(name);
-        interceptorImageDef1.setVersion("2.0.0");
+        interceptorImageDef2.setVersion("2.0.0");
         interceptorImageDef3.setName(name + "-0");
 
         // When
@@ -272,7 +297,6 @@ public abstract class ImageDefinitionFunctionalTest {
 
         ImageDefinition actualImageDef = imageDefs.get(0);
         imageDef.setId(actualImageDef.getId());
-        imageDef.setVersion(actualImageDef.getVersion());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(imageDef, actualImageDef);
     }
@@ -383,8 +407,8 @@ public abstract class ImageDefinitionFunctionalTest {
         service.updateBuildStatus(createdMcp1.getId(), ImageStatus.BUILD_SUCCESSFUL);
 
         // When
-        var mcpViews = service.getImageDefinitionViewsByType(DeploymentTypeDto.MCP).stream().toList();
-        var interceptorViews = service.getImageDefinitionViewsByType(DeploymentTypeDto.INTERCEPTOR).stream().toList();
+        var mcpViews = service.getImageDefinitionViewsByType(ImageTypeDto.MCP).stream().toList();
+        var interceptorViews = service.getImageDefinitionViewsByType(ImageTypeDto.INTERCEPTOR).stream().toList();
 
         // Then
         Assertions.assertEquals(1, mcpViews.size());

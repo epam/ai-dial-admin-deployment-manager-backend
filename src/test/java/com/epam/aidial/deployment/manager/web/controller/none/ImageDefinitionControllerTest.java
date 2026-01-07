@@ -7,10 +7,10 @@ import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.ImageDefinitionController;
-import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import com.epam.aidial.deployment.manager.web.dto.DockerImageSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.GitDockerfileImageSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMapperImpl;
@@ -98,6 +98,24 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
+    void testGetImageVersionsWithStatusesByNameAndType() throws Exception {
+        var modelsJson = ResourceUtils.readResource("/mcp/definition/all_image_definitions_different_versions.json");
+        var models = objectMapper.readValue(modelsJson, new TypeReference<List<McpImageDefinition>>() {
+        });
+
+        String name = "echo-mcp";
+        doReturn(models).when(imageDefinitionService).getAllImageDefinitionsByNameAndType(name, ImageTypeDto.MCP);
+
+        var dtosJson = ResourceUtils.readResource("/mcp/definition/base_image_details_response.json");
+        mockMvc.perform(get("/api/v1/images/definitions/{name}/versions", name)
+                .param("type", "MCP"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
+
+        verify(imageDefinitionService).getAllImageDefinitionsByNameAndType(name,  ImageTypeDto.MCP);
+    }
+
+    @Test
     void testGetGroupedImageDefinitionViews() throws Exception {
         var modelsJson = ResourceUtils.readResource("/mcp/definition/view/image_definition_views.json");
         var models = objectMapper.readValue(modelsJson, new TypeReference<List<ImageDefinitionView>>() {
@@ -119,7 +137,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         var models = objectMapper.readValue(modelsJson, new TypeReference<List<ImageDefinitionView>>() {
         });
 
-        doReturn(models).when(imageDefinitionService).getImageDefinitionViewsByType(DeploymentTypeDto.MCP);
+        doReturn(models).when(imageDefinitionService).getImageDefinitionViewsByType(ImageTypeDto.MCP);
 
         var dtosJson = ResourceUtils.readResource("/mcp/definition/view/image_definition_views_mcp_response.json");
         mockMvc.perform(get("/api/v1/images/definitions/grouped")
@@ -127,7 +145,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
 
-        verify(imageDefinitionService).getImageDefinitionViewsByType(DeploymentTypeDto.MCP);
+        verify(imageDefinitionService).getImageDefinitionViewsByType(ImageTypeDto.MCP);
     }
 
     @Test

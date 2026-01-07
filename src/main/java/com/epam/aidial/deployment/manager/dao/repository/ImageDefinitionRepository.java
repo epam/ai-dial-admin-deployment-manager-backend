@@ -11,7 +11,7 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
-import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,9 +43,16 @@ public class ImageDefinitionRepository {
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(DeploymentTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageTypeDto type) {
         var entityClazz = detectEntityClazz(type);
         return imageDefinitionJpaRepository.findAllByType(entityClazz).stream()
+                .map(mapper::toImageDefinition)
+                .collect(Collectors.toList());
+    }
+
+    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
+        var entityClazz = detectEntityClazz(type);
+        return imageDefinitionJpaRepository.findAllByNameAndType(name, entityClazz).stream()
                 .map(mapper::toImageDefinition)
                 .collect(Collectors.toList());
     }
@@ -136,20 +143,17 @@ public class ImageDefinitionRepository {
         return viewMapper.toViews(imageDefinitions);
     }
 
-    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(DeploymentTypeDto type) {
+    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(ImageTypeDto type) {
         var entityClazz = detectEntityClazz(type);
         var imageDefinitions = imageDefinitionJpaRepository.findAllByType(entityClazz);
         return viewMapper.toViews(imageDefinitions);
     }
 
-    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(DeploymentTypeDto type) {
+    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageTypeDto type) {
         return switch (type) {
             case MCP -> McpImageDefinitionEntity.class;
             case ADAPTER -> AdapterImageDefinitionEntity.class;
             case INTERCEPTOR -> InterceptorImageDefinitionEntity.class;
-            case NIM -> throw new IllegalArgumentException("NIM image definitions are not supported");
-            case INFERENCE ->
-                    throw new IllegalArgumentException("InferenceService image definitions are not supported");
         };
     }
 
