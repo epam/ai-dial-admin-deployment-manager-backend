@@ -1,22 +1,55 @@
-[
-  {
-    "name": "model1",
-    "selectedId": "11111111-1111-1111-1111-111111111111",
-    "availableVersions": [
-      {
-        "id": "11111111-1111-1111-1111-111111111111",
-        "version": "1.0.0",
-        "status": "build_successful",
-        "description": "Model 1 v1",
-        "topics": ["topic1", "topic2"]
-      },
-      {
-        "id": "22222222-2222-2222-2222-222222222222",
-        "version": "1.1.0",
-        "status": "build_failed",
-        "description": "Model 1 v2",
-        "topics": ["topic1", "topic2"]
-      }
-    ]
-  }
-]
+{
+  "content": [
+    {
+      "name": "model1",
+      "selectedId": "11111111-1111-1111-1111-111111111111",
+      "availableVersions": [
+        {
+          "id": "11111111-1111-1111-1111-111111111111",
+          "version": "1.0.0",
+          "status": "build_successful",
+          "description": "Model 1 v1",
+          "topics": [
+            "topic1",
+            "topic2"
+          ]
+        },
+        {
+          "id": "22222222-2222-2222-2222-222222222222",
+          "version": "1.1.0",
+          "status": "build_failed",
+          "description": "Model 1 v2",
+          "topics": [
+            "topic1",
+            "topic2"
+          ]
+        }
+      ]
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 20,
+    "sort": {
+      "empty": true,
+      "sorted": false,
+      "unsorted": true
+    },
+    "offset": 0,
+    "paged": true,
+    "unpaged": false
+  },
+  "totalPages": 1,
+  "totalElements": 1,
+  "last": true,
+  "size": 20,
+  "number": 0,
+  "sort": {
+    "empty": true,
+    "sorted": false,
+    "unsorted": true
+  },
+  "numberOfElements": 1,
+  "first": true,
+  "empty": false
+}

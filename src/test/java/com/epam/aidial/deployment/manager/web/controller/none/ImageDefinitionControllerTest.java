@@ -24,6 +24,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
@@ -70,14 +73,18 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         var models = objectMapper.readValue(modelsJson, new TypeReference<List<McpImageDefinition>>() {
         });
 
-        doReturn(models).when(imageDefinitionService).getAllImageDefinitions();
+        var pageable = PageRequest.of(0, 25);
+        var page = new PageImpl<>(models, pageable, models.size());
+        doReturn(page).when(imageDefinitionService).getAllImageDefinitions(any(Pageable.class));
 
         var dtosJson = ResourceUtils.readResource("/mcp/definition/all_image_definitions_response.json");
-        mockMvc.perform(get("/api/v1/images/definitions"))
+        mockMvc.perform(get("/api/v1/images/definitions")
+                .param("page", "0")
+                .param("size", "25"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
 
-        verify(imageDefinitionService).getAllImageDefinitions();
+        verify(imageDefinitionService).getAllImageDefinitions(any(Pageable.class));
     }
 
     @Test
@@ -121,14 +128,18 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         var models = objectMapper.readValue(modelsJson, new TypeReference<List<ImageDefinitionView>>() {
         });
 
-        doReturn(models).when(imageDefinitionService).getImageDefinitionViews();
+        var pageable = PageRequest.of(0, 20);
+        var page = new PageImpl<>(models, pageable, models.size());
+        doReturn(page).when(imageDefinitionService).getImageDefinitionViews(any(Pageable.class));
 
         var dtosJson = ResourceUtils.readResource("/mcp/definition/view/image_definition_views_response.json");
-        mockMvc.perform(get("/api/v1/images/definitions/grouped"))
+        mockMvc.perform(get("/api/v1/images/definitions/grouped")
+                .param("page", "0")
+                .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
 
-        verify(imageDefinitionService).getImageDefinitionViews();
+        verify(imageDefinitionService).getImageDefinitionViews(any(Pageable.class));
     }
 
     @Test
@@ -137,15 +148,19 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         var models = objectMapper.readValue(modelsJson, new TypeReference<List<ImageDefinitionView>>() {
         });
 
-        doReturn(models).when(imageDefinitionService).getImageDefinitionViewsByType(ImageTypeDto.MCP);
+        var pageable = PageRequest.of(0, 20);
+        var page = new PageImpl<>(models, pageable, models.size());
+        doReturn(page).when(imageDefinitionService).getImageDefinitionViewsByType(eq(ImageTypeDto.MCP), any(Pageable.class));
 
         var dtosJson = ResourceUtils.readResource("/mcp/definition/view/image_definition_views_mcp_response.json");
         mockMvc.perform(get("/api/v1/images/definitions/grouped")
-                .param("type", "MCP"))
+                .param("type", "MCP")
+                .param("page", "0")
+                .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
 
-        verify(imageDefinitionService).getImageDefinitionViewsByType(ImageTypeDto.MCP);
+        verify(imageDefinitionService).getImageDefinitionViewsByType(eq(ImageTypeDto.MCP), any(Pageable.class));
     }
 
     @Test

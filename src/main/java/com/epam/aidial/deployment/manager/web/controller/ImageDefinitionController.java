@@ -15,6 +15,8 @@ import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMappe
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,28 +47,26 @@ public class ImageDefinitionController {
     private final ImageDefinitionViewDtoMapper viewDtoMapper;
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public List<ImageDefinitionDto> getAllImageDefinitions(
-            @RequestParam(required = false) ImageTypeDto type
+    public Page<ImageDefinitionDto> getAllImageDefinitions(
+            @RequestParam(required = false) ImageTypeDto type,
+            Pageable pageable
     ) {
-        Collection<ImageDefinition> imageDefinitions = type != null
-                ? imageDefinitionService.getAllImageDefinitionsByType(type)
-                : imageDefinitionService.getAllImageDefinitions();
-        return imageDefinitions.stream()
-                .map(dtoMapper::toImageDefinitionDto)
-                .collect(Collectors.toList());
+        Page<ImageDefinition> imageDefinitions = type != null
+                ? imageDefinitionService.getAllImageDefinitionsByType(type, pageable)
+                : imageDefinitionService.getAllImageDefinitions(pageable);
+        return imageDefinitions.map(dtoMapper::toImageDefinitionDto);
     }
 
     @GetMapping(path = "/grouped",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public List<ImageDefinitionViewDto> getGroupedImageDefinitionViews(
-            @RequestParam(required = false) ImageTypeDto type
+    public Page<ImageDefinitionViewDto> getGroupedImageDefinitionViews(
+            @RequestParam(required = false) ImageTypeDto type,
+            Pageable pageable
     ) {
-        Collection<ImageDefinitionView> imageDefinitionViews = type != null
-                ? imageDefinitionService.getImageDefinitionViewsByType(type)
-                : imageDefinitionService.getImageDefinitionViews();
-        return imageDefinitionViews.stream()
-                .map(viewDtoMapper::toDto)
-                .collect(Collectors.toList());
+        Page<ImageDefinitionView> imageDefinitionViews = type != null
+                ? imageDefinitionService.getImageDefinitionViewsByType(type, pageable)
+                : imageDefinitionService.getImageDefinitionViews(pageable);
+        return imageDefinitionViews.map(viewDtoMapper::toDto);
     }
 
     @GetMapping(path = "/{id}",
