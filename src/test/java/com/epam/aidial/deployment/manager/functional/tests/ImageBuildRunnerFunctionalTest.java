@@ -102,7 +102,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     @Test
     public void shouldSuccessfullyBuildMcpImageWithDockerSource() {
         // Given
-        var imageDefToBeSaved = (McpImageDefinition) FunctionalTestHelper.createMcpImageDefinition();
+        var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setName(imageDefToBeSaved.getName() + "1");
         imageDefToBeSaved.setTransportType(McpTransportType.REMOTE);
 
@@ -135,7 +135,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     @Test
     public void shouldSuccessfullyBuildMcpImageWithGitSource() {
         // Given
-        var imageDefToBeSaved = (McpImageDefinition) FunctionalTestHelper.createMcpImageDefinition();
+        var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.REMOTE);
         imageDefToBeSaved.setName(imageDefToBeSaved.getName() + "2");
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
@@ -205,7 +205,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     @Test
     public void shouldSuccessfullyBuildMcpImageWithDockerSourceAndStdioTransport() {
         // Given
-        var imageDefToBeSaved = (McpImageDefinition) FunctionalTestHelper.createMcpImageDefinition();
+        var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.LOCAL);
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
@@ -241,7 +241,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     @MethodSource("getParamsForIncompleteDistroInfo")
     public void shouldFailBuildMcpImageWithDockerSourceAndStdioTransportIfDistroInfoIsNotComplete(String suffix, List<String> logs, String expectedExMessage) {
         // Given
-        var imageDefToBeSaved = (McpImageDefinition) FunctionalTestHelper.createMcpImageDefinition();
+        var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.LOCAL);
         imageDefToBeSaved.setName(imageDefToBeSaved.getName() + suffix);
 
