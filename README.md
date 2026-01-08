@@ -111,6 +111,8 @@ Expected response:
 }
 ```
 
+Import ([Postman](docs/rest-collection/dm_postman_collection.json))/([Insomnia](docs/rest-collection/dm_insomnia_collection.yaml)) collection to test other requests. 
+
 ### H2 Database Credentials
 
 For local development with H2 database, default credentials are provided in the `docker-compose.yml` file. For details on generating new credentials, see the [Development Guide](docs/Development.md#h2-database-credentials).
