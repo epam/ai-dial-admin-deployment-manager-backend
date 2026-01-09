@@ -16,7 +16,6 @@ plugins {
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
     id 'org.springframework.boot' version '3.5.3'
-    id 'io.spring.dependency-management' version '1.1.7'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
@@ -69,7 +68,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'com.h2database:h2:2.3.232'
     implementation 'org.postgresql:postgresql:42.7.8'
-    implementation 'com.microsoft.sqlserver:mssql-jdbc:13.2.1.jre11'
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:12.10.2.jre11'
     implementation 'org.flywaydb:flyway-core:11.14.0'
     implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
@@ -82,7 +81,7 @@ dependencies {
     runtimeOnly 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
 
     implementation 'commons-io:commons-io:2.18.0'
-    implementation 'org.apache.commons:commons-lang3:3.17.0'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
     implementation 'org.apache.commons:commons-collections4:4.5.0-M3'
     implementation 'org.springframework.retry:spring-retry'
 
