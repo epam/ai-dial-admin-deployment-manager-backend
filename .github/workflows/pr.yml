@@ -1,0 +1,17 @@
+name: PR Workflow
+
+on:
+  pull_request:
+    branches: [development, release-*]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  run_tests:
+    uses: epam/ai-dial-ci/.github/workflows/java_pr.yml@3.0.0
+    secrets: inherit
+    with:
+      platforms: "linux/amd64,linux/arm64"
+      java-version: 21
