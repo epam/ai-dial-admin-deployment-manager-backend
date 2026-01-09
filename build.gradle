@@ -1,8 +1,21 @@
+buildscript {
+    dependencies {
+        constraints {
+            classpath ('org.apache.commons:commons-lang3:3.18.0') {
+                because("previous versions have vulnerabilities")
+            }
+            classpath ('org.springframework:spring-core:6.2.11') {
+                because("previous versions have vulnerabilities")
+            }
+        }
+    }
+}
+
 plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '3.5.0'
+    id 'org.springframework.boot' version '3.5.3'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
@@ -56,7 +69,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'com.h2database:h2:2.3.232'
     implementation 'org.postgresql:postgresql:42.7.8'
-    implementation 'com.microsoft.sqlserver:mssql-jdbc:13.2.0.jre11'
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:13.2.1.jre11'
     implementation 'org.flywaydb:flyway-core:11.14.0'
     implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
@@ -106,6 +119,42 @@ dependencies {
     testImplementation "org.testcontainers:postgresql:${testcontainers_version}"
     testImplementation "org.testcontainers:mssqlserver:${testcontainers_version}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    constraints {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.13') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.projectreactor.netty:reactor-netty-http:1.2.8') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-codec-http2:4.2.4.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation("io.grpc:grpc-netty-shaded:1.75.0") {
+            because("previous versions have vulnerabilities)")
+        }
+        implementation ('io.netty:netty-codec:4.2.8.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-codec-http:4.2.8.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework:spring-webmvc:6.2.10') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework.security:spring-security-core:6.5.4') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework:spring-core:6.2.11') {
+            because("previous versions have vulnerabilities")
+        }
+        checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
+            because("previous versions have vulnerabilities")
+        }
+    }
 }
 
 tasks.named('test') {
