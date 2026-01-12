@@ -4,7 +4,7 @@ name: DIAL Admin Deployment Manager
 meta:
   id: wrk_bf271aff05284ae19cffbfb4a89b01c9
   created: 1767795110092
-  modified: 1767795110092
+  modified: 1768218698385
   description: ""
 collection:
   - name: DIAL
@@ -45,16 +45,16 @@ collection:
             meta:
               id: fld_ef1c87e41d2e406d9534ccae39d74623
               created: 1747311671955
-              modified: 1767795504158
-              sortKey: -1760617625365
+              modified: 1768218767257
+              sortKey: -1760617625371.25
               description: ""
             children:
-              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-id'] }}/details"
+              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-definition-id'] }}/details"
                 name: get details
                 meta:
                   id: req_2272c0a3551c46c288e1dcb5b5430f69
                   created: 1747311671956
-                  modified: 1767797053835
+                  modified: 1768219259540
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669537
@@ -72,17 +72,17 @@ collection:
                 meta:
                   id: req_e25e0b6dad5443f49c238f41beb22003
                   created: 1747311671956
-                  modified: 1767796748422
+                  modified: 1768219243182
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669538
                 method: POST
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                        "imageDefinitionId": "8ac6bf62-7bcb-40cf-99d2-beed236b5447"
-                      }
+                    	"imageDefinitionId": "{{ _['image-definition-id'] }}"
+                    }
                 headers:
                   - name: Content-Type
                     value: application/json
@@ -94,12 +94,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-id'] }}/status"
+              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-definition-id'] }}/status"
                 name: status stream
                 meta:
                   id: req_9ef3394d471c4cbda4e6b1567fbf20a3
                   created: 1767796965521
-                  modified: 1767797564928
+                  modified: 1768219268713
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669487
@@ -115,12 +115,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-id'] }}/logs"
+              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-definition-id'] }}/logs"
                 name: logs stream
                 meta:
                   id: req_40d1a373595044d6a35ab633a9290936
                   created: 1767797034571
-                  modified: 1767797561513
+                  modified: 1768219288214
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669437
@@ -144,12 +144,12 @@ collection:
               sortKey: -1760617625390
               description: ""
             children:
-              - url: "{{ _.host }}/api/v1/images/definitions?type=INTERCEPTOR"
+              - url: "{{ _.host }}/api/v1/images/definitions?type=MCP,INTERCEPTOR"
                 name: get images
                 meta:
                   id: req_4c9fa5e04b014c4b9ee3163516bc44c7
                   created: 1747311671960
-                  modified: 1767795844084
+                  modified: 1768218855176
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669534
@@ -167,27 +167,27 @@ collection:
                 meta:
                   id: req_cfbcfeb564db4682aa084f24f722b4cc
                   created: 1747311671960
-                  modified: 1767796348313
+                  modified: 1768219173976
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669533
                 method: POST
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                    	"$type": "interceptor",
-                    	"name": "interceptor-test-1",
+                    	"$type": "mcp",
+                    	"name": "fetch",
                     	"version": "1.0.0",
-                    	"description": "sample",
+                    	"description": "Fetch MCP",
                     	"source": {
                     		"$type": "docker",
-                    		"imageUri": "dialadminartefactslocal.azurecr.io/dial-interceptor-example-1:latest"
+                    		"imageUri": "mcp/fetch"
                     	},
-                    	"license": "",
+                    	"transportType": "local",
+                    	"license": "MIT License",
                     	"topics": [
-                    		"one",
-                    		"two"
+                    		"fetch"
                     	],
                     	"author": "local-user"
                     }
@@ -202,38 +202,37 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-id'] }}"
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-id'] }}"
                 name: update image
                 meta:
                   id: req_40ba8531bb4a4d5ba69b23844089173e
                   created: 1747311671961
-                  modified: 1767796523643
+                  modified: 1768219193287
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669532
                 method: PUT
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                    	"$type": "interceptor",
-                    	"name": "interceptor-test-1",
-                    	"version": "1.0.0",
-                    	"description": "updated sample",
-                    	"source": {
-                    		"$type": "docker",
-                    		"imageUri": "dialadminartefactslocal.azurecr.io/dial-interceptor-example-1:latest"
-                    	},
-                    	"license": "",
-                    	"topics": [
-                    		"one",
-                    		"two"
-                    	],
-                    	"author": "local-user",
-                    	"allowedDomains": [
-                    		"dialadminartefactslocal.azurecr.io",
-                    		"eusmanaged225.blob.core.windows.net"
-                    	]
+                        "$type": "mcp",
+                        "name": "fetch",
+                        "version": "1.0.0",
+                        "description": "Fetch MCP",
+                        "source": {
+                            "$type": "docker",
+                            "imageUri": "mcp/fetch"
+                        },
+                        "transportType": "local",
+                        "license": "MIT License",
+                        "topics": [
+                            "fetch"
+                        ],
+                        "author": "local-user",
+                        "allowedDomains": [
+                            "epam.com"
+                        ]
                     }
                 headers:
                   - name: Content-Type
@@ -246,12 +245,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-id'] }}"
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-id'] }}"
                 name: delete image
                 meta:
                   id: req_b7aa58bc1b3a4f0ebd4ed51c3a415d1b
                   created: 1747311671962
-                  modified: 1767796504317
+                  modified: 1768218990123
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669531
@@ -264,14 +263,13 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host
-                  }}/api/v1/images/definitions/interceptor-test-1/versions?type=IN\
-                  TERCEPTOR"
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-name']
+                  }}/versions?type=MCP"
                 name: get image versions by name
                 meta:
                   id: req_de76bcb5a3ef44f9b7269ea7058d2f6f
                   created: 1767796277767
-                  modified: 1767796309702
+                  modified: 1768218931509
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669533.5
@@ -284,12 +282,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-id'] }}"
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-id'] }}"
                 name: get image by id
                 meta:
                   id: req_3b522915348d47ab907d0800f672bd88
                   created: 1767796387970
-                  modified: 1767796569919
+                  modified: 1768218952458
                   isPrivate: false
                   description: ""
                   sortKey: -1756385996629.5
@@ -302,12 +300,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/images/definitions/grouped?type=INTERCEPTOR"
+              - url: "{{ _.host }}/api/v1/images/definitions/grouped?type=MCP"
                 name: get images grouped
                 meta:
                   id: req_3c04fc519ca04b449538ceb517a2e024
                   created: 1767796561302
-                  modified: 1767796709142
+                  modified: 1768218861253
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669533.875
@@ -351,14 +349,14 @@ collection:
                     meta:
                       id: req_569bccac47564995a8f3acfd5eed1604
                       created: 1765542094302
-                      modified: 1767799075176
+                      modified: 1768218786330
                       isPrivate: false
                       description: ""
                       sortKey: -1767799069651
                     method: POST
                     body:
                       mimeType: application/json
-                      text: '["github.com", "dialadminartefactslocal.azurecr.io"]'
+                      text: '["github.com", "epam.com"]'
                     headers:
                       - name: Content-Type
                         value: application/json
@@ -383,45 +381,48 @@ collection:
                 meta:
                   id: req_de7c43f35af5478b8f200c61e80c6978
                   created: 1747311671964
-                  modified: 1767797880129
+                  modified: 1768219397015
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669529
                 method: POST
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                    	"$type": "interceptor",
-                    	"imageDefinitionId": "8ac6bf62-7bcb-40cf-99d2-beed236b5447",
-                    	"name": "interceptor-1",
-                    	"description": "sample",
-                    	"metadata": {
-                    		"envs": [
-                    			{
-                    				"name": "DIAL_URL",
-                    				"value": {
-                    					"$type": "simple",
-                    					"value": "http://some-url"
-                    				},
-                    				"mountType": "secure_content",
-                    				"description": "URL of DIAL Core"
-                    			}
-                    		]
-                    	},
-                    	"containerPort": 8080,
-                    	"initialScale": 1,
-                    	"minScale": 0,
-                    	"maxScale": 2,
-                    	"resources": {
-                    		"limits": {
-                    			"memory": "5"
-                    		},
-                    		"requests": {
-                    			"memory": "2"
-                    		}
-                    	},
-                    	"author": "local-user"
+                        "$type": "mcp",
+                        "imageDefinitionId": "{{ _['image-definition-id'] }}",
+                        "name": "fetch",
+                        "description": "Fetch MCP",
+                        "metadata": {
+                            "envs": [
+                                {
+                                    "name": "EXAMPLE_ENV",
+                                    "value": {
+                                        "$type": "simple",
+                                        "value": "test value"
+                                    },
+                                    "mountType": "secure_content",
+                                    "description": "Example env description"
+                                }
+                            ]
+                        },
+                        "transport": "http_streaming",
+                        "containerPort": 8080,
+                        "initialScale": 1,
+                        "minScale": 0,
+                        "maxScale": 2,
+                        "resources": {
+                            "limits": {
+                                "cpu": "0.1",
+                                "memory": "104857600"
+                            },
+                            "requests": {
+                                "cpu": "0.05",
+                                "memory": "52428800"
+                            }
+                        },
+                        "author": "local-user"
                     }
                 headers:
                   - name: Content-Type
@@ -439,48 +440,51 @@ collection:
                 meta:
                   id: req_4bd78463d194495ea3ce7fcdf5ac767d
                   created: 1747311671965
-                  modified: 1767798036193
+                  modified: 1768219479085
                   isPrivate: false
                   description: ""
-                  sortKey: -1747311669528
+                  sortKey: -1747311669528.75
                 method: PUT
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                    	"$type": "interceptor",
-                    	"imageDefinitionId": "8ac6bf62-7bcb-40cf-99d2-beed236b5447",
-                    	"name": "interceptor-1",
-                    	"description": "updated sample",
-                    	"metadata": {
-                    		"envs": [
-                    			{
-                    				"name": "DIAL_URL",
-                    				"value": {
-                    					"$type": "simple",
-                    					"value": "http://some-url"
-                    				},
-                    				"mountType": "secure_content",
-                    				"description": "URL of DIAL Core"
-                    			}
-                    		]
-                    	},
-                    	"initialScale": 1,
-                    	"minScale": 0,
-                    	"maxScale": 2,
-                    	"resources": {
-                    		"limits": {
-                    			"memory": "5"
-                    		},
-                    		"requests": {
-                    			"memory": "2"
-                    		}
-                    	},
-                    	"containerPort": 8080,
-                    	"author": "local-user",
-                    	"allowedDomains": [
-                    		"epam.com"
-                    	]
+                        "$type": "mcp",
+                        "imageDefinitionId": "{{ _['image-definition-id'] }}",
+                        "name": "fetch",
+                        "description": "Fetch MCP",
+                        "metadata": {
+                            "envs": [
+                                {
+                                    "name": "EXAMPLE_ENV",
+                                    "value": {
+                                        "$type": "simple",
+                                        "value": "test value"
+                                    },
+                                    "mountType": "secure_content",
+                                    "description": "Example env description"
+                                }
+                            ]
+                        },
+                        "transport": "http_streaming",
+                        "containerPort": 8080,
+                        "initialScale": 1,
+                        "minScale": 0,
+                        "maxScale": 2,
+                        "resources": {
+                            "limits": {
+                                "cpu": "0.1",
+                                "memory": "104857600"
+                            },
+                            "requests": {
+                                "cpu": "0.05",
+                                "memory": "52428800"
+                            }
+                        },
+                        "author": "local-user",
+                        "allowedDomains": [
+                            "epam.com"
+                        ]
                     }
                 headers:
                   - name: Content-Type
@@ -581,19 +585,18 @@ collection:
                 meta:
                   id: req_c8b5e15a33b94dc98ce7ade360ee43b1
                   created: 1763115537890
-                  modified: 1767798353853
+                  modified: 1768219442133
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669528.25
                 method: POST
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                    	"imageDefinitionId": "6f331d4b-fdac-48dd-887b-d8ac8811df29",
+                    	"imageDefinitionId": "{{ _['image-definition-id'] }}",
                     	"deployments": [
-                    		"89bc385c-415a-489f-8ee9-667e62f6bfdd",
-                    		"5a6e89aa-46a3-4194-8714-d7372274b8c4"
+                    		"{{ _['deployment-id'] }}"
                     	]
                     }
                 headers:
@@ -612,7 +615,7 @@ collection:
                 meta:
                   id: req_0b22c0d7f44b4b2894faab878ae5f080
                   created: 1767798066530
-                  modified: 1767798211174
+                  modified: 1767879517969
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669624
@@ -635,17 +638,17 @@ collection:
                 meta:
                   id: req_beacef648a54429a9ef72c1c47445291
                   created: 1767798238411
-                  modified: 1767798282263
+                  modified: 1768219415314
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669528.5
                 method: POST
                 body:
                   mimeType: application/json
-                  text: >-
+                  text: |-
                     {
-                    	"sourceDeploymentId": "b296e851-9c07-4f64-9e66-12319af02436",
-                    	"newDeploymentName": "interceptor-1-clone"
+                    	"sourceDeploymentId": "{{ _['deployment-id'] }}",
+                    	"newDeploymentName": "deployment-1-clone"
                     }
                 headers:
                   - name: Content-Type
@@ -712,13 +715,12 @@ collection:
               sortKey: -1747311669523
               description: ""
             children:
-              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id']
-                  }}/tools"
+              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id'] }}/tools"
                 name: get tools
                 meta:
                   id: req_4bcdaecb9c384ca693faa1920e858471
                   created: 1747311671970
-                  modified: 1767798783560
+                  modified: 1767877684664
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669522
@@ -734,13 +736,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id']
-                  }}/prompts"
+              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id'] }}/prompts"
                 name: get prompts
                 meta:
                   id: req_5ad785b5b3c543dcb25143625793d710
                   created: 1747311671971
-                  modified: 1767798823728
+                  modified: 1767875505063
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669521
@@ -756,13 +757,12 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id']
-                  }}/resources"
+              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id'] }}/resources"
                 name: get resources
                 meta:
                   id: req_4f25eb835e914ab394244389f240fb6d
                   created: 1747311671972
-                  modified: 1767798816472
+                  modified: 1767875509509
                   isPrivate: false
                   description: ""
                   sortKey: -1747311669520
@@ -791,7 +791,7 @@ collection:
                 meta:
                   id: req_b05cf89c13ff45d4b2dcc62975f9f5b0
                   created: 1747382321145
-                  modified: 1747382370392
+                  modified: 1767799935286
                   isPrivate: false
                   description: ""
                   sortKey: -1747382321145
@@ -812,13 +812,12 @@ collection:
               sortKey: -1760617625340
               description: ""
             children:
-              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id']
-                  }}/events/stream?eventType=WARNING&involvedObjectKind=POD"
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/events/stream"
                 name: stream events
                 meta:
                   id: req_97201b2fc8144075850f97cc7dc6dfbe
                   created: 1767798573392
-                  modified: 1767798651611
+                  modified: 1767875328389
                   isPrivate: false
                   description: ""
                   sortKey: -1767798573392
@@ -834,13 +833,13 @@ collection:
                     send: true
                     store: true
                   rebuildPath: true
-              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id']
-                  }}/pods/<pod-id>/logs"
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/pods/{{
+                  _['pod-name'] }}/logs"
                 name: stream logs
                 meta:
                   id: req_5cfa7071bdeb45b0a2c5181e711f2d20
                   created: 1767798673410
-                  modified: 1767798708023
+                  modified: 1768219539232
                   isPrivate: false
                   description: ""
                   sortKey: -1767797862364
@@ -869,7 +868,7 @@ collection:
                 meta:
                   id: req_0b3b733393a0469d99e0371580904990
                   created: 1767797151336
-                  modified: 1767798980457
+                  modified: 1767799972155
                   isPrivate: false
                   description: ""
                   sortKey: -1767798980424
@@ -895,11 +894,13 @@ environments:
   meta:
     id: env_6034c67a1d83477e92c15f3d9fd10e85
     created: 1747223574189
-    modified: 1767796470206
+    modified: 1768219525827
     isPrivate: false
   data:
     user: admin
     password: password
     host: http://localhost:8080
-    image-id: your-value
-    deployment-id: your-value
+    image-definition-id: value1
+    image-definition-name: value2
+    deployment-id: value3
+    pod-name: value4
