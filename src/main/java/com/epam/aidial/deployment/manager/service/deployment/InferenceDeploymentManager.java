@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -21,6 +22,7 @@ import io.kserve.serving.v1beta1.InferenceServiceStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.kserve.enabled", havingValue = "true")
 @LogExecution
 public class InferenceDeploymentManager extends AbstractModelDeploymentManager<InferenceDeployment, InferenceService> {
 
@@ -55,6 +58,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
+    }
+
+    @Override
+    public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
+        return List.of(InferenceDeployment.class);
     }
 
     @Override

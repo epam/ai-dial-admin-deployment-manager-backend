@@ -1,20 +1,13 @@
-package com.epam.aidial.deployment.manager.kubernetes.watcher.knative;
+package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
-import com.epam.aidial.deployment.manager.configuration.KnativeDeployProperties;
-import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
-import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
-import com.epam.aidial.deployment.manager.kubernetes.watcher.WatcherManager;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.service.deployment.KnativeDeploymentManager;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher.Action;
-import io.fabric8.kubernetes.client.WatcherException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -25,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -35,32 +27,18 @@ import static org.mockito.Mockito.when;
 
 @SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
-class KnativeServiceWatcherTest {
+class KnativeServiceEventHandlerTest {
 
     private static final String TEST_NAMESPACE = "test-namespace";
     private static final String INITIATOR = "KnativeServiceWatcher";
 
     @Mock
-    private DeploymentRepository deploymentRepository;
-    @Mock
-    private WatcherManager watcherManager;
-    @Mock
-    private K8sKnativeClient knativeClient;
-    @Mock
-    private Watch watch;
-    @Mock
     private KnativeDeploymentManager knativeDeploymentManager;
     @Mock
     private ExecutorService executorService;
 
-    private KnativeServiceWatcher watcher;
-
-    @BeforeEach
-    void setUp() {
-        var knativeProperties = new KnativeDeployProperties();
-        knativeProperties.setNamespace(TEST_NAMESPACE);
-        watcher = new KnativeServiceWatcher(knativeClient, deploymentRepository, watcherManager, knativeDeploymentManager, executorService, knativeProperties);
-    }
+    @InjectMocks
+    private KnativeServiceEventHandler eventHandler;
 
     private void setupExecutorServiceToRunSynchronously() {
         doAnswer(invocation -> {
@@ -71,35 +49,13 @@ class KnativeServiceWatcherTest {
     }
 
     @Test
-    void testWatcherRegistersOnConstruction() {
-        verify(watcherManager, times(1)).registerWatcher(watcher);
-    }
-
-    @Test
-    void testStartWatcherClosesOldWatchAndStartsNew() {
-        when(knativeClient.watchServices(eq(TEST_NAMESPACE), any())).thenReturn(watch);
-
-        watcher.start();
-        verify(knativeClient, times(1)).watchServices(eq(TEST_NAMESPACE), eq(watcher));
-    }
-
-    @Test
-    void testStopWatcherClosesWatch() {
-        when(knativeClient.watchServices(eq(TEST_NAMESPACE), any())).thenReturn(watch);
-
-        watcher.start();
-        watcher.stop();
-        verify(watch, times(1)).close();
-    }
-
-    @Test
     void testHandleAddedResourceUpdatesStatusToRunning() {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "mcp-" + deploymentId;
         Service service = mockService(serviceName);
 
-        watcher.eventReceived(Action.ADDED, service);
+        eventHandler.onAdd(service);
 
         var configCaptor = ArgumentCaptor.forClass(ReconcileConfig.class);
         verify(knativeDeploymentManager, times(1)).reconcile(configCaptor.capture());
@@ -119,7 +75,7 @@ class KnativeServiceWatcherTest {
         String serviceName = "mcp-" + deploymentId;
         Service service = mockService(serviceName);
 
-        watcher.eventReceived(Action.MODIFIED, service);
+        eventHandler.onUpdate(service, service);
 
         verify(knativeDeploymentManager, times(1)).reconcile(any(ReconcileConfig.class));
     }
@@ -131,7 +87,7 @@ class KnativeServiceWatcherTest {
         String serviceName = "mcp-" + deploymentId;
         Service service = mockService(serviceName);
 
-        watcher.eventReceived(Action.ADDED, service);
+        eventHandler.onAdd(service);
 
         verify(knativeDeploymentManager, times(1)).reconcile(any(ReconcileConfig.class));
     }
@@ -148,7 +104,7 @@ class KnativeServiceWatcherTest {
 
         when(service.getMetadata()).thenReturn(meta);
 
-        watcher.eventReceived(Action.DELETED, service);
+        eventHandler.onDelete(service, false);
 
         verify(knativeDeploymentManager, times(1)).reconcile(any(ReconcileConfig.class));
     }
@@ -162,18 +118,11 @@ class KnativeServiceWatcherTest {
 
         when(service.getMetadata()).thenReturn(meta);
 
-        watcher.eventReceived(Action.ADDED, service);
+        eventHandler.onAdd(service);
 
-        verify(deploymentRepository, never()).updateStatus(any(), any());
+        verify(knativeDeploymentManager, never()).reconcile(any(ReconcileConfig.class));
     }
 
-    @Test
-    void testHandleWatcherClosedTriggersRestart() {
-        WatcherException exception = new WatcherException("test");
-        watcher.onClose(exception);
-
-        verify(watcherManager, times(1)).restartWatcher(watcher);
-    }
 
     private Service mockService(String name) {
         var service = mock(Service.class);

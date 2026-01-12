@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.kubernetes.watcher;
+package com.epam.aidial.deployment.manager.kubernetes.informer;
 
 import java.util.UUID;
 

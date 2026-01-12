@@ -1,21 +1,14 @@
-package com.epam.aidial.deployment.manager.kubernetes.watcher.nim;
+package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
-import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
-import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.ServiceState;
-import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
-import com.epam.aidial.deployment.manager.kubernetes.watcher.WatcherManager;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.service.deployment.NimDeploymentManager;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher.Action;
-import io.fabric8.kubernetes.client.WatcherException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -38,32 +30,18 @@ import static org.mockito.Mockito.when;
 
 @SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
-class NimServiceWatcherTest {
+class NimServiceEventHandlerTest {
 
     private static final String TEST_NAMESPACE = "test-namespace";
     private static final String INITIATOR = "NimServiceWatcher";
 
     @Mock
-    private K8sNimClient k8sNimClient;
-    @Mock
-    private DeploymentRepository deploymentRepository;
-    @Mock
-    private WatcherManager watcherManager;
-    @Mock
-    private Watch watch;
-    @Mock
     private NimDeploymentManager nimDeploymentManager;
     @Mock
     private ExecutorService executorService;
 
-    private NimServiceWatcher watcher;
-
-    @BeforeEach
-    void setUp() {
-        var nimProperties = new NimDeployProperties();
-        nimProperties.setNamespace(TEST_NAMESPACE);
-        watcher = new NimServiceWatcher(k8sNimClient, deploymentRepository, watcherManager, nimDeploymentManager, executorService, nimProperties);
-    }
+    @InjectMocks
+    private NimServiceEventHandler eventHandler;
 
     private void setupExecutorServiceToRunSynchronously() {
         doAnswer(invocation -> {
@@ -74,35 +52,13 @@ class NimServiceWatcherTest {
     }
 
     @Test
-    void testWatcherRegistersOnConstruction() {
-        verify(watcherManager, times(1)).registerWatcher(watcher);
-    }
-
-    @Test
-    void testStartWatcherClosesOldWatchAndStartsNew() {
-        when(k8sNimClient.watchServices(eq(TEST_NAMESPACE), any())).thenReturn(watch);
-
-        watcher.start();
-        verify(k8sNimClient, times(1)).watchServices(eq(TEST_NAMESPACE), eq(watcher));
-    }
-
-    @Test
-    void testStopWatcherClosesWatch() {
-        when(k8sNimClient.watchServices(eq(TEST_NAMESPACE), any())).thenReturn(watch);
-
-        watcher.start();
-        watcher.stop();
-        verify(watch, times(1)).close();
-    }
-
-    @Test
     void testHandleAddedResourceUpdatesStatusToRunning() {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.READY);
 
-        watcher.eventReceived(Action.ADDED, service);
+        eventHandler.onAdd(service);
 
         var configCaptor = ArgumentCaptor.forClass(ReconcileConfig.class);
         verify(nimDeploymentManager, times(1)).reconcile(configCaptor.capture());
@@ -122,7 +78,7 @@ class NimServiceWatcherTest {
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.FAILED);
 
-        watcher.eventReceived(Action.MODIFIED, service);
+        eventHandler.onUpdate(service, service);
 
         verify(nimDeploymentManager, times(1)).reconcile(any(ReconcileConfig.class));
     }
@@ -134,7 +90,7 @@ class NimServiceWatcherTest {
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.NOT_READY);
 
-        watcher.eventReceived(Action.ADDED, service);
+        eventHandler.onAdd(service);
 
         verify(nimDeploymentManager, times(1)).reconcile(any(ReconcileConfig.class));
     }
@@ -146,7 +102,7 @@ class NimServiceWatcherTest {
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.READY);
 
-        watcher.eventReceived(Action.DELETED, service);
+        eventHandler.onDelete(service, false);
 
         verify(nimDeploymentManager, times(1)).reconcile(any(ReconcileConfig.class));
     }
@@ -155,18 +111,11 @@ class NimServiceWatcherTest {
     void testHandleResourceWithInvalidNameDoesNothing() {
         NIMService service = mockNimService("invalid-name", ServiceState.READY);
 
-        watcher.eventReceived(Action.ADDED, service);
+        eventHandler.onAdd(service);
 
-        verify(deploymentRepository, never()).updateStatus(any(), any());
+        verify(nimDeploymentManager, never()).reconcile(any(ReconcileConfig.class));
     }
 
-    @Test
-    void testHandleWatcherClosedTriggersRestart() {
-        WatcherException exception = new WatcherException("test");
-        watcher.onClose(exception);
-
-        verify(watcherManager, times(1)).restartWatcher(watcher);
-    }
 
     private NIMService mockNimService(String name, ServiceState state) {
         var service = mock(NIMService.class);

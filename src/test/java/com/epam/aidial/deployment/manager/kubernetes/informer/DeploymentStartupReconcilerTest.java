@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.kubernetes.watcher;
+package com.epam.aidial.deployment.manager.kubernetes.informer;
 
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
@@ -33,7 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class DeploymentWatcherBootstrapTest {
+class DeploymentStartupReconcilerTest {
 
     private static final int BATCH_SIZE = 2;
     private static final int BOOTSTRAP_THREADS = 2;
@@ -49,7 +49,7 @@ class DeploymentWatcherBootstrapTest {
     private Page<Deployment> page;
 
     @InjectMocks
-    private DeploymentWatcherBootstrap bootstrap;
+    private DeploymentStartupReconciler startupReconciler;
 
     @BeforeEach
     void setUp() {
@@ -60,9 +60,9 @@ class DeploymentWatcherBootstrapTest {
 
     private void setField(String fieldName, Object value) {
         try {
-            Field field = DeploymentWatcherBootstrap.class.getDeclaredField(fieldName);
+            Field field = DeploymentStartupReconciler.class.getDeclaredField(fieldName);
             field.setAccessible(true);
-            field.set(bootstrap, value);
+            field.set(startupReconciler, value);
         } catch (Exception e) {
             throw new RuntimeException("Failed to set field: " + fieldName, e);
         }
@@ -72,7 +72,7 @@ class DeploymentWatcherBootstrapTest {
     void init_whenBootstrapDisabled_shouldNotProcessDeployments() {
         setField("bootstrapEnabled", false);
 
-        bootstrap.init();
+        startupReconciler.init();
 
         verify(deploymentRepository, never()).getAllActiveDeploymentsPaged(anyInt(), anyInt());
         verify(deploymentManagerProvider, never()).provide(any(UUID.class));
@@ -98,7 +98,7 @@ class DeploymentWatcherBootstrapTest {
             return true;
         });
 
-        bootstrap.init();
+        startupReconciler.init();
 
         // Wait for all tasks to complete
         boolean completed = latch.await(5, TimeUnit.SECONDS);
@@ -140,7 +140,7 @@ class DeploymentWatcherBootstrapTest {
             return true;
         });
 
-        bootstrap.init();
+        startupReconciler.init();
 
         boolean completed = latch.await(5, TimeUnit.SECONDS);
         assert completed : "Not all deployments were processed within timeout";
@@ -158,7 +158,7 @@ class DeploymentWatcherBootstrapTest {
         when(page.getContent()).thenReturn(List.of());
         when(deploymentRepository.getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0))).thenReturn(page);
 
-        bootstrap.init();
+        startupReconciler.init();
 
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0));
         verify(deploymentManagerProvider, never()).provide(any(UUID.class));
@@ -173,7 +173,7 @@ class DeploymentWatcherBootstrapTest {
         doReturn(manager).when(deploymentManagerProvider).provide(id);
         when(deploymentManager.reconcile(id, true)).thenReturn(true);
 
-        bootstrap.synchronizeDeploymentState(deployment);
+        startupReconciler.synchronizeDeploymentState(deployment);
 
         verify(deploymentManagerProvider).provide(id);
         verify(deploymentManager).reconcile(id, true);
@@ -189,7 +189,7 @@ class DeploymentWatcherBootstrapTest {
         doReturn(manager).when(deploymentManagerProvider).provide(id);
         when(deploymentManager.reconcile(id, true)).thenThrow(exception);
 
-        assertThrows(RuntimeException.class, () -> bootstrap.synchronizeDeploymentState(deployment));
+        assertThrows(RuntimeException.class, () -> startupReconciler.synchronizeDeploymentState(deployment));
 
         verify(deploymentManagerProvider).provide(id);
         verify(deploymentManager).reconcile(id, true);
@@ -203,7 +203,7 @@ class DeploymentWatcherBootstrapTest {
 
         when(deploymentManagerProvider.provide(id)).thenThrow(exception);
 
-        assertThrows(RuntimeException.class, () -> bootstrap.synchronizeDeploymentState(deployment));
+        assertThrows(RuntimeException.class, () -> startupReconciler.synchronizeDeploymentState(deployment));
 
         verify(deploymentManagerProvider).provide(id);
         verify(deploymentManager, never()).reconcile(any(UUID.class), anyBoolean());
@@ -214,7 +214,7 @@ class DeploymentWatcherBootstrapTest {
         when(deploymentRepository.getAllActiveDeploymentsPaged(anyInt(), anyInt()))
                 .thenThrow(new RuntimeException("Database error"));
 
-        assertThrows(RuntimeException.class, () -> bootstrap.init());
+        assertThrows(RuntimeException.class, () -> startupReconciler.init());
     }
 
     private Deployment createDeployment(UUID id, DeploymentStatus status) {

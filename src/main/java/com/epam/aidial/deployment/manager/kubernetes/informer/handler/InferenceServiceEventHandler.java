@@ -1,18 +1,13 @@
-package com.epam.aidial.deployment.manager.kubernetes.watcher.kserve;
+package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
-import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
-import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
-import com.epam.aidial.deployment.manager.kubernetes.watcher.AbstractServiceWatcher;
-import com.epam.aidial.deployment.manager.kubernetes.watcher.WatchSupplier;
-import com.epam.aidial.deployment.manager.kubernetes.watcher.WatcherManager;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.service.deployment.InferenceDeploymentManager;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.kserve.serving.v1beta1.InferenceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -24,35 +19,20 @@ import java.util.concurrent.ExecutorService;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.kserve.enabled", havingValue = "true")
 @LogExecution
-public class InferenceServiceWatcher extends AbstractServiceWatcher<InferenceService> {
+public class InferenceServiceEventHandler extends AbstractResourceEventHandler<InferenceService> {
 
     private static final String RESOURCE_TYPE = "InferenceService";
 
     private final InferenceDeploymentManager inferenceDeploymentManager;
 
-    public InferenceServiceWatcher(
-            K8sKserveClient k8sKserveClient,
-            DeploymentRepository deploymentRepository,
-            WatcherManager watcherManager,
+    public InferenceServiceEventHandler(
             InferenceDeploymentManager inferenceDeploymentManager,
-            @Qualifier("k8s-service-readiness-checker") ExecutorService executorService,
-            KserveDeployProperties kserveDeployProperties) {
-        super(
-                RESOURCE_TYPE,
-                kserveDeployProperties.getNamespace(),
-                deploymentRepository,
-                watcherManager,
-                executorService,
-                createWatchSupplier(k8sKserveClient),
-                K8sNamingUtils::extractId
-        );
+            @Qualifier("k8s-service-readiness-checker") ExecutorService executorService
+    ) {
+        super(RESOURCE_TYPE, K8sNamingUtils::extractId, executorService);
         this.inferenceDeploymentManager = inferenceDeploymentManager;
-        watcherManager.registerWatcher(this);
-    }
-
-    private static WatchSupplier<InferenceService> createWatchSupplier(K8sKserveClient k8sKserveClient) {
-        return k8sKserveClient::watchServices;
     }
 
     @Override

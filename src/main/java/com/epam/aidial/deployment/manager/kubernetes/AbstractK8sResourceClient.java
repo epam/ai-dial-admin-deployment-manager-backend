@@ -5,10 +5,9 @@ import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.extern.slf4j.Slf4j;
 
@@ -146,9 +145,10 @@ public abstract class AbstractK8sResourceClient<T extends HasMetadata, L extends
         }
     }
 
-    public Watch watchServices(String namespace, Watcher<T> watcher) {
-        log.info("Starting watch for {} in namespace '{}'", getResourceName(), namespace);
-        return getClient().inNamespace(namespace).watch(watcher);
+    public SharedIndexInformer<T> createInformer(String namespace, long resyncIntervalSec) {
+        log.info("Creating informer for {} in namespace '{}' with resync interval {} sec",
+                getResourceName(), namespace, resyncIntervalSec);
+        return getClient().inNamespace(namespace).runnableInformer(resyncIntervalSec * 1000);
     }
 
     protected abstract MixedOperation<T, L, Resource<T>> getClient();

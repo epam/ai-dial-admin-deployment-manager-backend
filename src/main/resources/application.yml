@@ -76,19 +76,25 @@ app:
   copy-image: quay.io/skopeo/stable:latest
   docker-config-path: /kaniko/.docker/config.json
   knative:
+    enabled: ${K8S_KNATIVE_ENABLED:true}
     deploy:
       namespace: ${K8S_KNATIVE_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:300}
       undeploy-timeout: ${K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC:300}
+      informer-resync-interval: ${K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
   nim:
+    enabled: ${K8S_NIM_ENABLED:true}
     deploy:
       namespace: ${K8S_NIM_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
+      informer-resync-interval: ${K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
       use-cluster-internal-url: ${K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
   kserve:
+    enabled: ${K8S_KSERVE_ENABLED:true}
     deploy:
       namespace: ${K8S_KSERVE_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
+      informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
       use-cluster-internal-url: ${K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
   image-name-format: app-%s
   image-label: latest

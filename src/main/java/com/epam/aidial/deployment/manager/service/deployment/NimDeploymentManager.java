@@ -11,6 +11,7 @@ import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -20,6 +21,7 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -28,6 +30,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.nim.enabled", havingValue = "true")
 @LogExecution
 public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDeployment, NIMService> {
 
@@ -54,6 +57,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         this.nimManifestGenerator = nimManifestGenerator;
         this.k8sNimClient = k8sNimClient;
         this.useClusterInternalUrl = nimDeployProperties.isUseClusterInternalUrl();
+    }
+
+    @Override
+    public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
+        return List.of(NimDeployment.class);
     }
 
     @Override

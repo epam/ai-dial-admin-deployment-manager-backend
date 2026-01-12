@@ -15,6 +15,7 @@ public class KserveDeployProperties {
     @Size(max = 14, message = "Max length for kserve namespace is 14 characters")
     private String namespace;
     private int startupTimeout;
+    private long informerResyncInterval;
     private boolean useClusterInternalUrl;
 }
 
