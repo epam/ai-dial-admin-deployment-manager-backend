@@ -111,6 +111,7 @@ app:
   deployment-bootstrap-batch-size: ${DEPLOYMENT_BOOTSTRAP_BATCH_SIZE:50}
   deployment-bootstrap-threads: ${DEPLOYMENT_BOOTSTRAP_THREADS:2}
   deployment-reconcile-pending-cut-off-mins: ${DEPLOYMENT_RECONCILE_PENDING_CUT_OFF_MINS:10}
+  deployment-healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:false}
   watcher-failure-reset-interval-ms: ${WATCHER_FAILURE_RESET_INTERVAL_MS:600000}
   deployment-reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
   cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}

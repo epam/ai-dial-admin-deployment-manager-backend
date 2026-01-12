@@ -168,6 +168,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.deployment-pending-check-cron` | `DEPLOYMENT_PENDING_CHECK_CRON` | `0 */15 * * * *` | No | - | Cron expression for checking pending deployments |
 | `app.deployment-pending-check-scheduler-lock-at-most-for` | `DEPLOYMENT_PENDING_CHECK_SCHEDULER_LOCK_AT_MOST_FOR` | `5m`             | No | - | Maximum lock duration for pending deployment checks |
 | `app.deployment-reconcile-pending-cut-off-mins` | `DEPLOYMENT_RECONCILE_PENDING_CUT_OFF_MINS` | `10` | No | - | Maximum time allowed for deployment to stay in pending state until marking as crashed |
+| `app.deployment-healthcheck-enabled`            | `DEPLOYMENT_HEALTHCHECK_ENABLED`            | `false`  | No | - | Enable or disable deployment healthchecks that run on deploy & state reconciliation |
 
 #### Deployment Watcher Configuration
 | Property | Environment Variable | Default Value | Required | Applied when | Description                                                                           |

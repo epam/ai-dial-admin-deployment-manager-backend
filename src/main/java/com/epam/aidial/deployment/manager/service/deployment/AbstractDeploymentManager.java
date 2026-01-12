@@ -274,8 +274,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         initiator, deploymentId, serviceName);
                 try {
                     var serviceUrl = resolveServiceUrl(service, deployment);
-                    // TODO: Hotfix: Addressing a slowdown in DeploymentWatcherBootstrap that is currently blocking deployment-manager from starting up successfully.
-                    // performHealthChecks(deployment, serviceUrl, System.currentTimeMillis());
+                    performHealthChecks(deployment, serviceUrl, System.currentTimeMillis());
                     deployment.setUrl(serviceUrl);
                     deployment.setStatus(DeploymentStatus.RUNNING);
                     deploymentRepository.update(deploymentId, deployment);
