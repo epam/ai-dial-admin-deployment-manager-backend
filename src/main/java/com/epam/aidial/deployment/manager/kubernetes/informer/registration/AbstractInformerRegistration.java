@@ -22,7 +22,7 @@ public abstract class AbstractInformerRegistration<T extends HasMetadata> implem
         informer = createInformer();
         informer.addEventHandler(eventHandler);
         informer.exceptionHandler((b, t) -> {
-            log.info("Exception in {} informer", getResourceType(), t);
+            log.warn("Exception in {} informer", getResourceType(), t);
             return true;
         });
         informer.run();
