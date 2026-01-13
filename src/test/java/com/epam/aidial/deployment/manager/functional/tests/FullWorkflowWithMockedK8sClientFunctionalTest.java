@@ -485,7 +485,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
     private static ConfigMap createJobConfigMap(String uuid, String sourceImageName, List<String> sourceImageArgs) {
         var dockerfileTemplate = ResourceUtils.readResource("/build/mcp_wrapper.Dockerfile")
-                .replace("{{MCP_PROXY_HOLDER_IMAGE}}", "registry.deltixhub.com/ai/dial/mcp_proxy_debian:latest")
+                .replace("{{MCP_PROXY_HOLDER_IMAGE}}", "test-docker-registry.com/ai/dial/mcp_proxy_debian:latest")
                 .replace("{{BASE_IMAGE}}", sourceImageName)
                 .replace("{{BASE_IMAGE_COMMAND}}", "\"" + String.join("\",\"", sourceImageArgs) + "\"");
 
