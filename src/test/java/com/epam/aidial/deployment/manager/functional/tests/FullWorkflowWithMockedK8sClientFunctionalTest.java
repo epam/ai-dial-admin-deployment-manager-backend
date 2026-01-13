@@ -256,7 +256,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // Container
         var container = new Container();
         container.setName("builder-container");
-        container.setImage("quay.io/skopeo/stable:latest");
+        container.setImage("quay.io/skopeo/stable:v1.21.0");
         container.setArgs(Arrays.asList(
                 "copy",
                 "docker://workflow-test-repo.azurecr.io/interceptor-sample-image:latest",
@@ -389,7 +389,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // Container
         var container = new Container();
         container.setName("builder-container");
-        container.setImage("gcr.io/kaniko-project/executor:latest");
+        container.setImage("gcr.io/kaniko-project/executor:v1.24.0");
         container.setArgs(Arrays.asList(
                 "--destination=test-docker-registry/app-wrapper-" + uuid + ":1.0.0",
                 "--context=/sources",
