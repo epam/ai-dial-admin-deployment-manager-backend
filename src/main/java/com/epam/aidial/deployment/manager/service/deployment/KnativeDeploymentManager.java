@@ -183,6 +183,10 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
     @Override
     protected DeploymentStatus mapStatus(Service service) {
+        if (service.getMetadata().getDeletionTimestamp() != null) {
+            return DeploymentStatus.STOPPING;
+        }
+
         var status = service.getStatus();
         if (status == null || status.getConditions() == null) {
             return DeploymentStatus.PENDING;
