@@ -1,6 +1,6 @@
 package com.epam.aidial.deployment.manager.service;
 
-import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleaner;
+import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -10,7 +10,7 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
-import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -29,7 +29,7 @@ import java.util.UUID;
 public class ImageDefinitionService {
 
     private final ImageDefinitionRepository imageDefinitionRepository;
-    private final ComponentCleaner componentCleaner;
+    private final ComponentCleanupService componentCleanupService;
     private final SecurityClaimsExtractor securityClaimsExtractor;
 
     @Transactional(readOnly = true)
@@ -38,18 +38,23 @@ public class ImageDefinitionService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(DeploymentTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageTypeDto type) {
         return imageDefinitionRepository.getAllImageDefinitionsByType(type);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(DeploymentTypeDto type) {
+    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(ImageTypeDto type) {
         return imageDefinitionRepository.getAllImageDefinitionViewsByType(type);
     }
 
     @Transactional(readOnly = true)
     public Collection<ImageDefinitionView> getImageDefinitionViews() {
         return imageDefinitionRepository.getAllImageDefinitionViews();
+    }
+
+    @Transactional(readOnly = true)
+    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
+        return imageDefinitionRepository.getAllImageDefinitionsByNameAndType(name, type);
     }
 
     @Transactional(readOnly = true)
@@ -118,7 +123,7 @@ public class ImageDefinitionService {
     }
 
     public void deleteImageDefinitionAsync(UUID id) {
-        componentCleaner.deleteAsync(ComponentRemoval.of(id, ComponentType.IMAGE_DEFINITION));
+        componentCleanupService.deleteAsync(ComponentRemoval.of(id, ComponentType.IMAGE_DEFINITION));
     }
 
 }

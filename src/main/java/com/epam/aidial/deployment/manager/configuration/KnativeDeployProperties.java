@@ -11,5 +11,6 @@ public class KnativeDeployProperties {
     private String namespace;
     private int startupTimeout;
     private int undeployTimeout;
+    private long informerResyncInterval;
 }
 

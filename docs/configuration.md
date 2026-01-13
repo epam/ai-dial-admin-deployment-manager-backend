@@ -130,25 +130,31 @@ docker buildx build --push -f docs/debian/Dockerfile -t <your-registry>/mcp-prox
 Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` (or `MCP_PROXY_EXECUTABLE_IMAGE_ALPINE` / `MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN`) to the pushed image references above.
 
 #### Knative Configuration
-| Property | Environment Variable | Default Value | Required | Applied when | Description |
-|----------|---------------------|---------------|----------|--------------|-------------|
-| `app.knative.deploy.namespace` | `K8S_KNATIVE_DEPLOYMENT_NAMESPACE` | `default` | No (recommended to adjust for target environment) | - | Kubernetes namespace for Knative deployments |
-| `app.knative.deploy.startup-timeout` | `K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC` | `300` | No | - | Knative service startup timeout in seconds |
-| `app.knative.deploy.undeploy-timeout` | `K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC` | `300` | No | - | Knative service undeploy timeout in seconds |
+| Property                                      | Environment Variable                                  | Default Value | Required                                          | Applied when | Description                                                            |
+|-----------------------------------------------|-------------------------------------------------------|---------------|---------------------------------------------------|--------------|------------------------------------------------------------------------|
+| `app.knative.enabled`                         | `K8S_KNATIVE_ENABLED`                                 | `true`        | No                                                | -            | Enable or disable Knative deployment support                           |
+| `app.knative.deploy.namespace`                | `K8S_KNATIVE_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for Knative deployments                           |
+| `app.knative.deploy.startup-timeout`          | `K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `300`         | No                                                | -            | Knative service startup timeout in seconds                             |
+| `app.knative.deploy.undeploy-timeout`         | `K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC`         | `300`         | No                                                | -            | Knative service undeploy timeout in seconds                            |
+| `app.knative.deploy.informer-resync-interval` | `K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for Knative deployments |
 
 #### NIM (NVIDIA Inference Microservices) Configuration
-| Property                                  | Environment Variable                          | Default Value | Required                                          | Applied when | Description                                           |
-|-------------------------------------------|-----------------------------------------------|---------------|---------------------------------------------------|--------------|-------------------------------------------------------|
-| `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments              |
-| `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`      | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour)       |
-| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL` | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for NIM services. |
+| Property                                  | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                        |
+|-------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|--------------------------------------------------------------------|
+| `app.nim.enabled`                         | `K8S_NIM_ENABLED`                                 | `true`        | No                                                | -            | Enable or disable NIM deployment support                           |
+| `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments                           |
+| `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour)                    |
+| `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments |
+| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for NIM services.              |
 
 #### KServe Configuration
-| Property                                     | Environment Variable                             | Default Value | Required                                          | Applied when | Description                                                                                                     |
-|----------------------------------------------|--------------------------------------------------|---------------|---------------------------------------------------|--------------|-----------------------------------------------------------------------------------------------------------------|
-| `app.kserve.deploy.namespace`                | `K8S_KSERVE_DEPLOYMENT_NAMESPACE`                | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for KServe deployments (max 14 chars due to https://github.com/kserve/kserve/issues/4807). |
-| `app.kserve.deploy.startup-timeout`          | `K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`      | `3600`        | No                                                | -            | Seconds to wait for a KServe service to become ready.                                                           |
-| `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL` | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                        |
+| Property                                     | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                                                                     |
+|----------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|-----------------------------------------------------------------------------------------------------------------|
+| `app.kserve.enabled`                         | `K8S_KSERVE_ENABLED`                              | `true`        | No                                                | -            | Enable or disable KServe deployment support                                                                     |
+| `app.kserve.deploy.namespace`                | `K8S_KSERVE_DEPLOYMENT_NAMESPACE`                 | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for KServe deployments (max 14 chars due to https://github.com/kserve/kserve/issues/4807). |
+| `app.kserve.deploy.startup-timeout`          | `K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`       | `3600`        | No                                                | -            | Seconds to wait for a KServe service to become ready.                                                           |
+| `app.kserve.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for KServe deployments                                           |
+| `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                        |
 
 #### Cleanup and Maintenance Configuration
 
@@ -168,6 +174,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.deployment-pending-check-cron` | `DEPLOYMENT_PENDING_CHECK_CRON` | `0 */15 * * * *` | No | - | Cron expression for checking pending deployments |
 | `app.deployment-pending-check-scheduler-lock-at-most-for` | `DEPLOYMENT_PENDING_CHECK_SCHEDULER_LOCK_AT_MOST_FOR` | `5m`             | No | - | Maximum lock duration for pending deployment checks |
 | `app.deployment-reconcile-pending-cut-off-mins` | `DEPLOYMENT_RECONCILE_PENDING_CUT_OFF_MINS` | `10` | No | - | Maximum time allowed for deployment to stay in pending state until marking as crashed |
+| `app.deployment-healthcheck-enabled`            | `DEPLOYMENT_HEALTHCHECK_ENABLED`            | `false`  | No | - | Enable or disable deployment healthchecks that run on deploy & state reconciliation |
 
 #### Deployment Watcher Configuration
 | Property | Environment Variable | Default Value | Required | Applied when | Description                                                                           |

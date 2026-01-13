@@ -1,9 +1,12 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
+import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
+import com.epam.aidial.deployment.manager.model.ComponentRemoval;
+import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -49,6 +52,7 @@ public class DeploymentService {
 
     private final DeploymentRepository deploymentRepository;
     private final ImageDefinitionService imageDefinitionService;
+    private final ComponentCleanupService componentCleanupService;
     private final DeploymentMapper deploymentMapper;
     private final DeploymentManagerProvider deploymentManagerProvider;
     private final SecurityClaimsExtractor securityClaimsExtractor;
@@ -174,7 +178,7 @@ public class DeploymentService {
     @Transactional
     public void deleteDeployment(UUID id) {
         undeploy(id);
-        deploymentRepository.deleteById(id);
+        componentCleanupService.deleteAsync(ComponentRemoval.of(id, ComponentType.DEPLOYMENT));
     }
 
     public Deployment deploy(UUID id) {
@@ -193,7 +197,7 @@ public class DeploymentService {
     public Deployment duplicateDeployment(UUID etalonDeploymentId, String cloneDeploymentName) {
         // Get the etalon deployment with secrets resolved
         var etalonDeployment = getDeployment(etalonDeploymentId, true)
-                .orElseThrow(() -> new EntityNotFoundException("Etalon deployment not found by id: %s".formatted(etalonDeploymentId)));
+                .orElseThrow(() -> new EntityNotFoundException("Etalon deployment not found by id: '%s'".formatted(etalonDeploymentId)));
 
         var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentName);
 
@@ -289,7 +293,7 @@ public class DeploymentService {
     }
 
     private static <T> Supplier<EntityNotFoundException> notFound(String what, T id) {
-        return () -> new EntityNotFoundException("%s not found: %s".formatted(what, id));
+        return () -> new EntityNotFoundException("%s not found: '%s'".formatted(what, id));
     }
 
     private void validateEnvNameNotReserved(String name) {

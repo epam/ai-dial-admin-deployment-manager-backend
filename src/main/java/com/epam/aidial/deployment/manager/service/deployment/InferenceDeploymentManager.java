@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -21,6 +22,7 @@ import io.kserve.serving.v1beta1.InferenceServiceStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.kserve.enabled", havingValue = "true")
 @LogExecution
 public class InferenceDeploymentManager extends AbstractModelDeploymentManager<InferenceDeployment, InferenceService> {
 
@@ -55,6 +58,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
+    }
+
+    @Override
+    public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
+        return List.of(InferenceDeployment.class);
     }
 
     @Override
@@ -143,13 +151,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var status = service.getStatus();
         if (status == null) {
-            log.debug("mapStatus. serviceName: {}. status is undefined", serviceName);
+            log.debug("mapStatus. serviceName: '{}'. status is undefined", serviceName);
             return DeploymentStatus.PENDING;
         }
 
         var modelStatus = status.getModelStatus();
         if (modelStatus == null) {
-            log.debug("mapStatus. serviceName: {}. modelStatus is undefined", serviceName);
+            log.debug("mapStatus. serviceName: '{}'. modelStatus is undefined", serviceName);
             return DeploymentStatus.PENDING;
         }
 
@@ -157,13 +165,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         var states = modelStatus.getStates();
 
         if (states == null) {
-            log.debug("mapStatus. serviceName: {}. modelStatus.states is undefined", serviceName);
+            log.debug("mapStatus. serviceName: '{}'. modelStatus.states is undefined", serviceName);
             return DeploymentStatus.PENDING;
         }
 
         States.ActiveModelState activeModelState = states.getActiveModelState();
 
-        log.debug("mapStatus. serviceName: {}. transitionStatus: {}. activeModelState: {}", serviceName,
+        log.debug("mapStatus. serviceName: '{}'. transitionStatus: {}. activeModelState: {}", serviceName,
                 transitionStatus, activeModelState);
 
         // Check for CRASHED state first
@@ -189,7 +197,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var status = service.getStatus();
         if (status == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. status is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. status is undefined", serviceName);
             return null;
         }
 
@@ -201,17 +209,17 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     private String getClusterInternalUrl(InferenceServiceStatus status, String serviceName) {
         var address = status.getAddress();
         if (address == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. address is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. address is undefined", serviceName);
             return null;
         }
         var url = address.getUrl();
-        log.info("resolveServiceUrl. serviceName: {}. Using cluster internal URL: {}", serviceName, url);
+        log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
         return url;
     }
 
     private String getStatusUrl(InferenceServiceStatus status, String serviceName) {
         var url = status.getUrl();
-        log.info("resolveServiceUrl. serviceName: {}. Using external URL: {}", serviceName, url);
+        log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         return url;
     }
 }

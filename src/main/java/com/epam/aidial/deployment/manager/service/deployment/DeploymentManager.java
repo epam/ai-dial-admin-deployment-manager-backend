@@ -16,6 +16,8 @@ import java.util.UUID;
 
 public interface DeploymentManager<S> {
 
+    List<Class<? extends Deployment>> getSupportedDeploymentClasses();
+
     Deployment deploy(UUID id);
 
     boolean reconcile(UUID id, boolean ignorePendingOnServiceNotFound);

@@ -6,10 +6,10 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.web.dto.BaseImageDetailsDto;
-import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionViewDto;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMapper;
 import jakarta.validation.Valid;
@@ -46,7 +46,7 @@ public class ImageDefinitionController {
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public List<ImageDefinitionDto> getAllImageDefinitions(
-            @RequestParam(required = false) DeploymentTypeDto type
+            @RequestParam(required = false) ImageTypeDto type
     ) {
         Collection<ImageDefinition> imageDefinitions = type != null
                 ? imageDefinitionService.getAllImageDefinitionsByType(type)
@@ -59,7 +59,7 @@ public class ImageDefinitionController {
     @GetMapping(path = "/grouped",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public List<ImageDefinitionViewDto> getGroupedImageDefinitionViews(
-            @RequestParam(required = false) DeploymentTypeDto type
+            @RequestParam(required = false) ImageTypeDto type
     ) {
         Collection<ImageDefinitionView> imageDefinitionViews = type != null
                 ? imageDefinitionService.getImageDefinitionViewsByType(type)
@@ -79,8 +79,14 @@ public class ImageDefinitionController {
 
     @GetMapping(path = "/{name}/versions",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public List<BaseImageDetailsDto> getImageVersionsWithStatusesByName(@PathVariable String name) {
-        return imageDefinitionService.getAllImageDefinitionsByName(name).stream()
+    public List<BaseImageDetailsDto> getImageVersionsWithStatusesByName(
+            @PathVariable String name,
+            @RequestParam(required = false) ImageTypeDto type
+    ) {
+        Collection<ImageDefinition> imageDefinitions = type != null
+                ? imageDefinitionService.getAllImageDefinitionsByNameAndType(name, type)
+                : imageDefinitionService.getAllImageDefinitionsByName(name);
+        return imageDefinitions.stream()
                 .map(dtoMapper::toBaseImageDetailsDto)
                 .collect(Collectors.toList());
     }

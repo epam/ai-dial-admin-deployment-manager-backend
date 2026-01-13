@@ -1,6 +1,6 @@
 package com.epam.aidial.deployment.manager.service;
 
-import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleaner;
+import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceCleaner;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
@@ -39,7 +39,7 @@ class ImageDefinitionServiceTest {
     @Mock
     private DisposableResourceCleaner disposableResourceCleaner;
     @Mock
-    private ComponentCleaner componentCleaner;
+    private ComponentCleanupService componentCleanupService;
     @Mock
     private SecurityClaimsExtractor securityClaimsExtractor;
 
@@ -167,7 +167,7 @@ class ImageDefinitionServiceTest {
         imageDefinitionService.deleteImageDefinitionAsync(imageId);
 
         // Then
-        verify(componentCleaner).deleteAsync(ComponentRemoval.of(imageId, ComponentType.IMAGE_DEFINITION));
+        verify(componentCleanupService).deleteAsync(ComponentRemoval.of(imageId, ComponentType.IMAGE_DEFINITION));
     }
 
     private McpImageDefinition createImageDefinition(UUID id, String name) {

@@ -28,6 +28,7 @@ import io.fabric8.kubernetes.api.model.PodStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -37,6 +38,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.knative.enabled", havingValue = "true")
 @LogExecution
 public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployment, Service> {
 
@@ -71,6 +73,11 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         this.healthCheckProvider = healthCheckProvider;
         this.k8sKnativeClient = k8sKnativeClient;
         this.serviceContainer = serviceContainer;
+    }
+
+    @Override
+    public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
+        return List.of(McpDeployment.class, InterceptorDeployment.class);
     }
 
     @Override
@@ -201,7 +208,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         var status = service.getStatus();
 
         if (status == null || status.getConditions() == null) {
-            log.debug("Service {} has no status or conditions available.", name);
+            log.debug("Service '{}' has no status or conditions available.", name);
             return null;
         }
 
@@ -262,7 +269,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
             return;
         }
         for (var condition : conditions) {
-            log.debug("Service: {}, condition: {}, status: {}, reason: {}, message: {}",
+            log.debug("Service: '{}', condition: {}, status: {}, reason: {}, message: {}",
                     serviceName, condition.getType(), condition.getStatus(), condition.getReason(),
                     condition.getMessage());
         }

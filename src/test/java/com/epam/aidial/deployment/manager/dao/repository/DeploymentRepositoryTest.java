@@ -300,7 +300,7 @@ class DeploymentRepositoryTest {
         // When / Then
         assertThatThrownBy(() -> deploymentRepository.update(deploymentId, deployment))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Deployment not found by id: " + deploymentId);
+                .hasMessage("Deployment not found by id: '%s'".formatted(deploymentId));
 
         verify(deploymentJpaRepository).findById(deploymentId);
         verifyNoMoreInteractions(deploymentJpaRepository);
@@ -367,7 +367,7 @@ class DeploymentRepositoryTest {
         // When / Then
         assertThatThrownBy(() -> deploymentRepository.conditionalUpdate(deploymentId, condition, mutator))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Deployment not found by id: " + deploymentId);
+                .hasMessage("Deployment not found by id: '%s'".formatted(deploymentId));
     }
 
     @Test

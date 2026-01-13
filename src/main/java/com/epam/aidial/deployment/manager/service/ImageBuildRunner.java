@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
-import com.epam.aidial.deployment.manager.model.NimImageDefinition;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageBuildFromGitPipeline;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageCopyPipeline;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageWrapperBuildPipeline;
@@ -49,8 +48,7 @@ public class ImageBuildRunner {
             return buildMcpImage(mcpImageDefinition);
 
         } else if (imageDefinition instanceof AdapterImageDefinition
-                || imageDefinition instanceof InterceptorImageDefinition
-                || imageDefinition instanceof NimImageDefinition) {
+                || imageDefinition instanceof InterceptorImageDefinition) {
             var imageSource = imageDefinition.getSource();
             if (imageSource instanceof DockerImageSource) {
                 return startDockerImagePipeline(imageDefinition, imageCopyPipeline::run);

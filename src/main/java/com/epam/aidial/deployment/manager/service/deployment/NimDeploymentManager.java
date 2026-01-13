@@ -11,6 +11,7 @@ import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -20,6 +21,7 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -28,6 +30,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.nim.enabled", havingValue = "true")
 @LogExecution
 public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDeployment, NIMService> {
 
@@ -57,6 +60,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
+    public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
+        return List.of(NimDeployment.class);
+    }
+
+    @Override
     protected String getServiceName(UUID id) {
         return K8sNamingUtils.generateMcpPrefixedName(id.toString());
     }
@@ -67,16 +75,16 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             if (deployment instanceof NimDeployment nimDeployment) {
                 return nimDeployment;
             }
-            throw new IllegalArgumentException(
-                    "Deployment type should be 'NIM' for NIM service deployment. Deployment: " + deployment.getId());
+            throw new IllegalArgumentException("Deployment type should be 'NIM' for NIM service deployment. Deployment: '%s'"
+                    .formatted(deployment.getId()));
         });
     }
 
     @Override
     protected NIMService prepareServiceSpec(NimDeployment deployment) {
-        if (!(deployment.getSource() instanceof NimDeploymentNgcRegistrySource nimDeploymentNgcRegistrySource)) {
-            throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: "
-                    + deployment.getId());
+        if (!(deployment.getSource() instanceof NimDeploymentNgcRegistrySource(String imageRef))) {
+            throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: '%s'"
+                    .formatted(deployment.getId()));
         }
 
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
@@ -90,7 +98,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
-                nimDeploymentNgcRegistrySource.imageRef(),
+                imageRef,
                 containerPort,
                 containerGrpcPort);
     }
@@ -161,23 +169,23 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
         var status = service.getStatus();
         if (status == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. status is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. status is undefined", serviceName);
             return null;
         }
 
         var model = status.getModel();
         if (model == null) {
-            log.debug("resolveServiceUrl. serviceName: {}. model is undefined", serviceName);
+            log.debug("resolveServiceUrl. serviceName: '{}'. model is undefined", serviceName);
             return null;
         }
 
         String url;
         if (useClusterInternalUrl) {
             url = model.getClusterEndpoint();
-            log.info("resolveServiceUrl. serviceName: {}. Using cluster internal URL: {}", serviceName, url);
+            log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
         } else {
             url = model.getExternalEndpoint();
-            log.info("resolveServiceUrl. serviceName: {}. Using external URL: {}", serviceName, url);
+            log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         }
         return url;
     }

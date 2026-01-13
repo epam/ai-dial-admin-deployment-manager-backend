@@ -152,7 +152,7 @@ public abstract class DeploymentFunctionalTest {
                 () -> deploymentService.createDeployment(createDeployment)
         );
 
-        Assertions.assertEquals("ImageDefinition not found: %s".formatted(nonExistingImageDefinitionId), exception.getMessage());
+        Assertions.assertEquals("ImageDefinition not found: '%s'".formatted(nonExistingImageDefinitionId), exception.getMessage());
     }
 
     @Test
@@ -716,7 +716,7 @@ public abstract class DeploymentFunctionalTest {
                 () -> deploymentService.duplicateDeployment(nonExistingDeploymentId, "cloned-deployment")
         );
 
-        Assertions.assertEquals("Etalon deployment not found by id: %s".formatted(nonExistingDeploymentId), exception.getMessage());
+        Assertions.assertEquals("Etalon deployment not found by id: '%s'".formatted(nonExistingDeploymentId), exception.getMessage());
     }
 
     private void mockSecretMetaData(Deployment deployment) {

@@ -64,6 +64,12 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
     @Query("SELECT i FROM ImageDefinitionEntity i WHERE TYPE(i) = :type")
     List<ImageDefinitionEntity> findAllByType(@Param("type") Class<? extends ImageDefinitionEntity> type);
 
+    @Query("SELECT i FROM ImageDefinitionEntity i WHERE i.name = :name AND TYPE(i) = :type")
+    List<ImageDefinitionEntity> findAllByNameAndType(
+            @Param("name") String name,
+            @Param("type") Class<? extends ImageDefinitionEntity> type
+    );
+
     List<ImageDefinitionEntity> findAllByName(@Param("name") String name);
 
 }

@@ -27,6 +27,4 @@ public class CreateInferenceDeploymentRequestDto extends CreateDeploymentRequest
     @Nullable
     private List<String> args;
 
-    // todo: improve autoscaling settings
-
 }

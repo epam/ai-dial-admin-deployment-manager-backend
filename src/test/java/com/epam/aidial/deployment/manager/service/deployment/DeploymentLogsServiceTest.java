@@ -275,8 +275,7 @@ class DeploymentLogsServiceTest {
         // Get the Runnable that was submitted and extract the SafeAutoCloseable
         Runnable runnable = runnableCaptor.getValue();
 
-        // This is a bit of a hack to test the cancellation logic
-        // We're using reflection to get the field that holds the Future
+        // Using reflection to get the field that holds the Future
         try {
             java.lang.reflect.Field field = runnable.getClass().getDeclaredField("this$0");
             field.setAccessible(true);
