@@ -21,7 +21,10 @@ public abstract class AbstractInformerRegistration<T extends HasMetadata> implem
         log.info("Starting {} informer", getResourceType());
         informer = createInformer();
         informer.addEventHandler(eventHandler);
-        informer.exceptionHandler((b, t) -> true);
+        informer.exceptionHandler((b, t) -> {
+            log.info("Exception in {} informer", getResourceType(), t);
+            return true;
+        });
         informer.run();
         log.info("{} informer started successfully", getResourceType());
     }
