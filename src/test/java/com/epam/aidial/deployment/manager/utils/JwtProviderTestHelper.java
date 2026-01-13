@@ -11,7 +11,7 @@ public class JwtProviderTestHelper {
         config.setIssuer("https://sts.windows.net/issuer_test/");
         config.setJwkSetUri("https://test/keys");
         config.setAudiences(List.of("audience_test"));
-        config.setRoleClaims("roles");
+        config.setRoleClaims(List.of("roles", "resource_access.roles"));
         config.setPrincipalClaim("oid");
         return config;
     }

@@ -46,6 +46,8 @@ public abstract class AbstractControllerSecurityTest {
     protected static final String ROLES_CLAIM = "roles";
     protected static final String PRINCIPAL_CLAIM = "oid";
     protected static final String PRINCIPAL_CLAIM_TEST_USER = "user_test";
+    protected static final String TEST_ROLE = "testRole";
+    protected static final String RESOURCE_ACCESS = "resource_access";
 
     @Autowired
     protected MockMvc mockMvc;
@@ -87,14 +89,46 @@ public abstract class AbstractControllerSecurityTest {
                 ),
                 HttpStatus.UNAUTHORIZED
             ))
-
-                .add(Arguments.of(
+            .add(Arguments.of(
                         JwtUtils.generateTestToken(
                                 TEST_AUDIENCE,
                                 TEST_ISSUER,
                                 Map.of(
                                         PRINCIPAL_CLAIM, PRINCIPAL_CLAIM_TEST_USER,
-                                        ROLES_CLAIM, "testRole"
+                                        RESOURCE_ACCESS, Map.of(ROLES_CLAIM, TEST_ROLE))
+                        ),
+                        HttpStatus.OK
+            ))
+            .add(Arguments.of(
+                        JwtUtils.generateTestToken(
+                                TEST_AUDIENCE,
+                                TEST_ISSUER,
+                                Map.of(
+                                        PRINCIPAL_CLAIM, PRINCIPAL_CLAIM_TEST_USER,
+                                        RESOURCE_ACCESS, TEST_ROLE
+                                )
+                        ),
+                        HttpStatus.FORBIDDEN
+                ))
+            .add(Arguments.of(
+                        JwtUtils.generateTestToken(
+                                TEST_AUDIENCE,
+                                TEST_ISSUER,
+                                Map.of(
+                                        PRINCIPAL_CLAIM, PRINCIPAL_CLAIM_TEST_USER,
+                                        ROLES_CLAIM, TEST_ROLE,
+                                        RESOURCE_ACCESS, TEST_ROLE
+                                )
+                        ),
+                        HttpStatus.OK
+                ))
+            .add(Arguments.of(
+                        JwtUtils.generateTestToken(
+                                TEST_AUDIENCE,
+                                TEST_ISSUER,
+                                Map.of(
+                                        PRINCIPAL_CLAIM, PRINCIPAL_CLAIM_TEST_USER,
+                                        ROLES_CLAIM, TEST_ROLE
                                 )
                         ),
                         HttpStatus.OK
