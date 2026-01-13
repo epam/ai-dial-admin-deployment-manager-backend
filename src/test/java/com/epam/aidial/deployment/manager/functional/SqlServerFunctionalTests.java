@@ -30,6 +30,7 @@ import java.sql.Statement;
         "DOCKER_REGISTRY_AUTH=BASIC",
         "DOCKER_REGISTRY_USER=TestUser",
         "CILIUM_NETWORK_POLICIES_ENABLED=true",
+        "MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN=test-docker-registry.com/ai/dial/mcp_proxy_debian:latest",
 })
 @Import(SqlServerFunctionalTestConfiguration.class)
 @Testcontainers

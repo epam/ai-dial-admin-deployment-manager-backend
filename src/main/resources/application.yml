@@ -67,13 +67,13 @@ app:
         root-home-dir: /root
     mcp-proxy:
       images:
-        alpine: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE:registry.deltixhub.com/ai/dial/mcp_proxy_alpine:latest}
-        debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN:registry.deltixhub.com/ai/dial/mcp_proxy_debian:latest}
+        alpine: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE}
+        debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN}
   build-namespace: ${K8S_BUILD_NAMESPACE:default}
-  git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:latest}
-  builder-image: gcr.io/kaniko-project/executor:latest
-  analyser-image: anchore/syft:latest
-  copy-image: quay.io/skopeo/stable:latest
+  git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:2.52.0}
+  builder-image: gcr.io/kaniko-project/executor:v1.24.0
+  analyser-image: anchore/syft:v1.40.0
+  copy-image: quay.io/skopeo/stable:v1.21.0
   docker-config-path: /kaniko/.docker/config.json
   knative:
     enabled: ${K8S_KNATIVE_ENABLED:true}
