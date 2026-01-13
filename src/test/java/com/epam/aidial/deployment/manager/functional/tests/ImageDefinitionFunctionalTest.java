@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -60,7 +61,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // Then
         Assertions.assertEquals(1, imageDefs.size());
 
-        ImageDefinition actualImageDef = imageDefs.get(0);
+        ImageDefinition actualImageDef = imageDefs.getFirst();
         imageDef.setId(actualImageDef.getId());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(imageDef, actualImageDef);
@@ -102,7 +103,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then 1
         Assertions.assertEquals(1, imageDefs.size());
-        UUID imageDefId = imageDefs.get(0).getId();
+        UUID imageDefId = imageDefs.getFirst().getId();
 
         // When 2
         service.updateBuildStatus(imageDefId, ImageStatus.BUILD_SUCCESSFUL);
@@ -131,7 +132,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then 1
         Assertions.assertEquals(1, imageDefs.size());
-        imageDef = imageDefs.get(0);
+        imageDef = imageDefs.getFirst();
 
         // When 2
         imageDef.setName(imageDef.getName() + "1");
@@ -142,7 +143,7 @@ public abstract class ImageDefinitionFunctionalTest {
         imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then 2
-        Assertions.assertEquals(imageDef, imageDefs.get(0));
+        Assertions.assertEquals(imageDef, imageDefs.getFirst());
     }
 
     @Test
@@ -186,7 +187,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then - After Create
         Assertions.assertEquals(1, createdImageDefs.size());
-        var createdImageDef = createdImageDefs.get(0);
+        var createdImageDef = createdImageDefs.getFirst();
         Assertions.assertNotNull(createdImageDef.getCreatedAt());
         Assertions.assertNotNull(createdImageDef.getUpdatedAt());
         Assertions.assertEquals(createdImageDef.getCreatedAt(), createdImageDef.getUpdatedAt());
@@ -205,7 +206,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then - After Update
         Assertions.assertEquals(1, updatedImageDefs.size());
-        var updatedImageDef = updatedImageDefs.get(0);
+        var updatedImageDef = updatedImageDefs.getFirst();
         Assertions.assertEquals(createdImageDef, updatedImageDef, "Fetched entity should match updated one");
         Assertions.assertEquals(creationTime, updatedImageDef.getCreatedAt(), "CreatedAt should remain unchanged");
         Assertions.assertNotEquals(creationTime, updatedImageDef.getUpdatedAt(), "UpdatedAt should be updated");
@@ -225,7 +226,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // Then
         Assertions.assertEquals(1, imageDefs.size());
 
-        ImageDefinition actualImageDef = imageDefs.get(0);
+        ImageDefinition actualImageDef = imageDefs.getFirst();
         mcpImageDef.setId(actualImageDef.getId());
         mcpImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(mcpImageDef, actualImageDef);
@@ -248,12 +249,13 @@ public abstract class ImageDefinitionFunctionalTest {
         service.createImageDefinition(mcpImageDef);
         service.createImageDefinition(interceptorImageDef1);
         service.createImageDefinition(interceptorImageDef2);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.INTERCEPTOR).stream().toList();
+        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.INTERCEPTOR).stream()
+                .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
         Assertions.assertEquals(2, imageDefs.size());
 
-        ImageDefinition actualImageDef = imageDefs.getLast();
+        ImageDefinition actualImageDef = imageDefs.get(interceptorImageDef2.getVersion());
         interceptorImageDef2.setId(actualImageDef.getId());
         interceptorImageDef2.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(interceptorImageDef2, actualImageDef);
@@ -295,7 +297,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // Then
         Assertions.assertEquals(1, imageDefs.size());
 
-        ImageDefinition actualImageDef = imageDefs.get(0);
+        ImageDefinition actualImageDef = imageDefs.getFirst();
         imageDef.setId(actualImageDef.getId());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
         Assertions.assertEquals(imageDef, actualImageDef);
@@ -412,13 +414,13 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then
         Assertions.assertEquals(1, mcpViews.size());
-        var mcpView = mcpViews.get(0);
+        var mcpView = mcpViews.getFirst();
         Assertions.assertEquals("mcp-model", mcpView.getName());
         Assertions.assertEquals(2, mcpView.getAvailableVersions().size());
         Assertions.assertEquals(createdMcp1.getId(), mcpView.getSelectedId());
 
         Assertions.assertEquals(1, interceptorViews.size());
-        var interceptorView = interceptorViews.get(0);
+        var interceptorView = interceptorViews.getFirst();
         Assertions.assertEquals("interceptor-model", interceptorView.getName());
         Assertions.assertEquals(1, interceptorView.getAvailableVersions().size());
         Assertions.assertEquals(createdInterceptor.getId(), interceptorView.getSelectedId());
