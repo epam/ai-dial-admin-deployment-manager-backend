@@ -1,23 +1,34 @@
-# Prepare runtime.
-FROM amazoncorretto:21-alpine AS runtime
-WORKDIR /app
-EXPOSE 8080 9464
-
-# SDK
-FROM gradle:8.13-jdk21-alpine AS sdk
+# Build stage
+FROM gradle:8.13-jdk21-alpine AS builder
 WORKDIR /build-workspace
+
 COPY build.gradle .
 COPY settings.gradle .
 COPY gradle.properties .
 COPY src/ src/
 
-# Build.
-FROM sdk AS build
-WORKDIR /build-workspace
 RUN gradle --no-daemon clean bootJar
 
-# Final image.
-FROM runtime AS final
-COPY --from=build /build-workspace/build/libs/ai-dial-admin-deployment-manager-backend*.jar ./app.jar
-ENV DEBUG_OPTS=""
-ENTRYPOINT ["sh", "-c", "java ${DEBUG_OPTS} -jar app.jar"]
+# Runtime stage
+FROM amazoncorretto:21-alpine AS runtime
+WORKDIR /app
+
+RUN adduser -u 1001 --disabled-password --gecos "" appuser && \
+    mkdir -p /app/data && \
+    chown -R appuser:appuser /app
+
+RUN apk add --no-cache bash
+
+COPY --from=builder --chown=appuser:appuser /build-workspace/build/libs/ai-dial-admin-deployment-manager-backend*.jar ./app.jar
+COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+USER appuser
+
+EXPOSE 8080 9464
+
+HEALTHCHECK --start-period=30s --interval=1m --timeout=3s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1
+
+ENTRYPOINT ["docker-entrypoint.sh"]
