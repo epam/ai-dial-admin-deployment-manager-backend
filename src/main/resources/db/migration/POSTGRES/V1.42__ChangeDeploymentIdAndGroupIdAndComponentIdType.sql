@@ -6,19 +6,19 @@ ALTER TABLE nim_deployment DROP CONSTRAINT IF EXISTS nim_deployment_id_fkey;
 ALTER TABLE inference_deployment DROP CONSTRAINT IF EXISTS fk_inference_deployment_on_id;
 
 
--- Remove default from deployment.id
+-- Drop default constraint on deployment.id
 ALTER TABLE deployment ALTER COLUMN id DROP DEFAULT;
 
--- Change deployment.id type
+-- Change deployment.id type to varchar(36)
 ALTER TABLE deployment ALTER COLUMN id TYPE varchar(36) USING id::varchar(36);
 ALTER TABLE deployment ALTER COLUMN id SET NOT NULL;
 
--- Rename deployment.name column to display_name and change type
+-- Rename deployment.name column to display_name and change type to TEXT
 ALTER TABLE deployment ALTER COLUMN name TYPE text;
 ALTER TABLE deployment ALTER COLUMN name SET NOT NULL;
 ALTER TABLE deployment RENAME COLUMN name TO display_name;
 
--- Change id column type in deployment child tables
+-- Change id column type in deployment child tables to varchar(36)
 ALTER TABLE mcp_deployment ALTER COLUMN id TYPE varchar(36) USING id::varchar(36);
 ALTER TABLE mcp_deployment ALTER COLUMN id SET NOT NULL;
 
