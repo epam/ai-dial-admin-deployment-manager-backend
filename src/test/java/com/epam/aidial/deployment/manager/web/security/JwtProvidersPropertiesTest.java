@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.utils.JwtProviderTestHelper;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,7 +42,7 @@ class JwtProvidersPropertiesTest {
     void whenProvidersPresentAndRoleClaimsIsBlankAndAudiencesEmpty_thenThrows() {
         var properties = new JwtProvidersProperties();
         var config = JwtProviderTestHelper.createProviderConfig();
-        config.setRoleClaims("");
+        config.setRoleClaims(List.of(""));
         config.setAudiences(new ArrayList<>());
         properties.getProviders().put(TEST_PROVIDER, config);
         assertThrows(IllegalStateException.class, properties::checkProviders);
