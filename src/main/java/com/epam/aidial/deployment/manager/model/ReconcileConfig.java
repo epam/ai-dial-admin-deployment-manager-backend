@@ -5,14 +5,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReconcileConfig<S> {
-    private UUID deploymentId;
+    private String deploymentId;
     private S service;
     private boolean serviceIsMissing;
     private String initiator;

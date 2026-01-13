@@ -42,18 +42,20 @@ class ImageDefinitionCleanupStrategy extends AbstractCleanupStrategy {
 
     @Override
     @Transactional
-    public void delete(UUID id) {
-        imageDefinitionRepository.getImageDefinitionForUpdateById(id);
+    public void delete(String id) {
+        UUID uuid = UUID.fromString(id);
+
+        imageDefinitionRepository.getImageDefinitionForUpdateById(uuid);
 
         cleanupResources(id);
 
         // Clean up deployments that reference this image definition
-        deploymentRepository.getAllByImageDefinitionId(id).stream()
+        deploymentRepository.getAllByImageDefinitionId(uuid).stream()
                 .map(Deployment::getId)
                 .forEach(deploymentId
                         -> componentCleanupService.deleteAsync(ComponentRemoval.of(deploymentId, ComponentType.DEPLOYMENT)));
 
-        imageDefinitionRepository.deleteImageDefinitionById(id);
-        log.info("Image definition '{}' deleted successfully", id);
+        imageDefinitionRepository.deleteImageDefinitionById(uuid);
+        log.info("Image definition '{}' deleted successfully", uuid);
     }
 }

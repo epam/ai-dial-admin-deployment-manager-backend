@@ -167,7 +167,7 @@ class ImageDefinitionServiceTest {
         imageDefinitionService.deleteImageDefinitionAsync(imageId);
 
         // Then
-        verify(componentCleanupService).deleteAsync(ComponentRemoval.of(imageId, ComponentType.IMAGE_DEFINITION));
+        verify(componentCleanupService).deleteAsync(ComponentRemoval.of(String.valueOf(imageId), ComponentType.IMAGE_DEFINITION));
     }
 
     private McpImageDefinition createImageDefinition(UUID id, String name) {

@@ -75,10 +75,10 @@ public class DeploymentController {
 
     @GetMapping(path = "/{id}",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public DeploymentDto getDeploymentById(@PathVariable UUID id) {
+    public DeploymentDto getDeploymentById(@PathVariable String id) {
         return deploymentService.getDeployment(id)
                 .map(dtoMapper::toDeploymentDto)
-                .orElseThrow(() -> new EntityNotFoundException("Deploy not found by id: %s".formatted(id)));
+                .orElseThrow(() -> new EntityNotFoundException("Deployment not found by ID: %s".formatted(id)));
     }
 
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
@@ -94,7 +94,8 @@ public class DeploymentController {
     public DeploymentDto duplicateDeployment(@RequestBody @Valid DuplicateDeploymentRequestDto requestDto) {
         var duplicated = deploymentService.duplicateDeployment(
                 requestDto.sourceDeploymentId(),
-                requestDto.newDeploymentName()
+                requestDto.newDeploymentId(),
+                requestDto.newDeploymentDisplayName()
         );
         return dtoMapper.toDeploymentDto(duplicated);
     }
@@ -112,7 +113,7 @@ public class DeploymentController {
     @PutMapping(path = "/{id}",
             consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
-    public DeploymentDto updateDeployment(@PathVariable UUID id,
+    public DeploymentDto updateDeployment(@PathVariable String id,
                                           @RequestBody @Valid CreateDeploymentRequestDto requestDto) {
         var createDeployment = dtoMapper.toCreateDeployment(requestDto);
         var updated = deploymentService.updateDeployment(id, createDeployment);
@@ -121,34 +122,34 @@ public class DeploymentController {
 
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteDeployment(@PathVariable UUID id) {
+    public void deleteDeployment(@PathVariable String id) {
         deploymentService.deleteDeployment(id);
     }
 
     @PostMapping(path = "{id}/deploy",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public DeploymentDto deploy(@PathVariable("id") UUID id) {
+    public DeploymentDto deploy(@PathVariable("id") String id) {
         var deployment = deploymentService.deploy(id);
         return dtoMapper.toDeploymentDto(deployment);
     }
 
     @PostMapping(path = "{id}/undeploy",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public DeploymentDto undeploy(@PathVariable("id") UUID id) {
+    public DeploymentDto undeploy(@PathVariable("id") String id) {
         var deployment = deploymentService.undeploy(id);
         return dtoMapper.toDeploymentDto(deployment);
     }
 
     @GetMapping(path = "{id}/pods",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public List<PodInfoDto> getPods(@PathVariable("id") UUID id) {
+    public List<PodInfoDto> getPods(@PathVariable("id") String id) {
         var pods = deploymentService.getInstances(id);
         return dtoMapper.toPodInfoDto(pods);
     }
 
     @GetMapping(path = "{id}/active-pods",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public List<PodInfoDto> getActivePods(@PathVariable("id") UUID id) {
+    public List<PodInfoDto> getActivePods(@PathVariable("id") String id) {
         var pods = deploymentService.getActiveInstances(id);
         return dtoMapper.toPodInfoDto(pods);
     }
@@ -156,7 +157,7 @@ public class DeploymentController {
     @GetMapping(path = "{id}/pods/{podId}/logs",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeToLogs(
-            @PathVariable(value = "id") UUID id,
+            @PathVariable(value = "id") String id,
             @PathVariable(value = "podId") String podId,
             @RequestParam(value = "sinceTime", required = false) Instant sinceTime,
             @RequestParam(value = "sinceSeconds", required = false) Integer sinceSeconds,
@@ -173,7 +174,7 @@ public class DeploymentController {
     @GetMapping(path = "{id}/events/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeToEvents(
-            @PathVariable(value = "id") UUID id,
+            @PathVariable(value = "id") String id,
             @RequestParam(value = "sinceTime", required = false) Instant sinceTime,
             @RequestParam(value = "eventType", required = false) String eventType,
             @RequestParam(value = "involvedObjectKind", required = false) String involvedObjectKind

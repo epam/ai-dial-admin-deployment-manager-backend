@@ -102,7 +102,7 @@ public abstract class PersistenceDeploymentMapper {
         }
 
         // do not update id, createdAt, updatedAt
-        existingEntity.setName(updatedEntity.getName());
+        existingEntity.setDisplayName(updatedEntity.getDisplayName());
         existingEntity.setDescription(updatedEntity.getDescription());
         existingEntity.setImageDefinitionId(updatedEntity.getImageDefinitionId());
         existingEntity.setUrl(updatedEntity.getUrl());

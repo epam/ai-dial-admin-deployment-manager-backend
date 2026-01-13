@@ -64,7 +64,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KnativeDeploymentManagerTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
     private static final int STARTUP_TIMEOUT = 60;
     private static final int UNDEPLOY_TIMEOUT = 300;
@@ -152,7 +152,7 @@ class KnativeDeploymentManagerTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("ready-pod");
+        assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
     }
 
     @Test
@@ -178,7 +178,7 @@ class KnativeDeploymentManagerTest {
         // Create a pod with container status but container name doesn't match
         var pod = createPod("pod-with-wrong-container", true);
         // Override the container name to simulate a different container
-        pod.getStatus().getContainerStatuses().get(0).setName("wrong-container-name");
+        pod.getStatus().getContainerStatuses().getFirst().setName("wrong-container-name");
         podList.setItems(List.of(pod));
 
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
@@ -234,7 +234,7 @@ class KnativeDeploymentManagerTest {
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), any())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID.toString()),
+                eq(DEPLOYMENT_ID),
                 any(),
                 any(),
                 any(),

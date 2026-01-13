@@ -7,7 +7,6 @@ import com.epam.aidial.deployment.manager.kubernetes.JobRunner;
 import com.epam.aidial.deployment.manager.kubernetes.NewLogJobCallback;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
-import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
@@ -63,7 +62,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -119,7 +118,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -153,7 +152,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -191,7 +190,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager, times(2)).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -226,7 +225,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);

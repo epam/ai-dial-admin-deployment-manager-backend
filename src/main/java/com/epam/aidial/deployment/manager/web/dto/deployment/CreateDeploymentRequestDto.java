@@ -8,7 +8,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,7 +36,12 @@ import java.util.List;
 @AllArgsConstructor
 public abstract class CreateDeploymentRequestDto {
     @NotNull
-    private String name;
+    @NotBlank
+    @Size(max = 36)
+    @Pattern(regexp = "^[a-z0-9-]+$", message = "Deployment ID must contain only lowercase Latin letters, numbers, and hyphens")
+    private String id;
+    @NotNull
+    private String displayName;
     @Nullable
     private String description;
     @NotNull

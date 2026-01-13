@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -63,9 +64,9 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void performFullReconciliation_whenMultiplePages_shouldProcessAllDeployments() {
-        UUID id1 = UUID.randomUUID();
-        UUID id2 = UUID.randomUUID();
-        UUID id3 = UUID.randomUUID();
+        var id1 = String.valueOf(UUID.randomUUID());
+        var id2 = String.valueOf(UUID.randomUUID());
+        var id3 = String.valueOf(UUID.randomUUID());
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         Deployment dep3 = createDeployment(id3, DeploymentStatus.PENDING);
@@ -84,7 +85,7 @@ class DeploymentStateReconcilerTest {
         when(deploymentRepository.getAllActiveDeploymentsPaged(eq(MAX_BATCH_SIZE), eq(1))).thenReturn(page2);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
-        doReturn(manager).when(deploymentManagerProvider).provide(any(UUID.class));
+        doReturn(manager).when(deploymentManagerProvider).provide(anyString());
         when(deploymentManager.reconcile(id1, true)).thenReturn(true);
         when(deploymentManager.reconcile(id2, true)).thenReturn(false);
         when(deploymentManager.reconcile(id3, true)).thenReturn(true);
@@ -93,7 +94,7 @@ class DeploymentStateReconcilerTest {
 
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(MAX_BATCH_SIZE), eq(0));
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(MAX_BATCH_SIZE), eq(1));
-        verify(deploymentManagerProvider, times(3)).provide(any(UUID.class));
+        verify(deploymentManagerProvider, times(3)).provide(anyString());
         verify(deploymentManager).reconcile(id1, true);
         verify(deploymentManager).reconcile(id2, true);
         verify(deploymentManager).reconcile(id3, true);
@@ -109,13 +110,13 @@ class DeploymentStateReconcilerTest {
         reconciler.performFullReconciliation();
 
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(MAX_BATCH_SIZE), eq(0));
-        verify(deploymentManagerProvider, never()).provide(any(UUID.class));
+        verify(deploymentManagerProvider, never()).provide(anyString());
     }
 
     @Test
     void performFullReconciliation_whenReconcileThrowsException_shouldContinueProcessing() {
-        UUID id1 = UUID.randomUUID();
-        UUID id2 = UUID.randomUUID();
+        var id1 = String.valueOf(UUID.randomUUID());
+        var id2 = String.valueOf(UUID.randomUUID());
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
 
@@ -126,20 +127,20 @@ class DeploymentStateReconcilerTest {
         when(deploymentRepository.getAllActiveDeploymentsPaged(eq(MAX_BATCH_SIZE), eq(0))).thenReturn(page);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
-        doReturn(manager).when(deploymentManagerProvider).provide(any(UUID.class));
+        doReturn(manager).when(deploymentManagerProvider).provide(anyString());
         when(deploymentManager.reconcile(id1, true)).thenThrow(new RuntimeException("Reconciliation failed"));
         when(deploymentManager.reconcile(id2, true)).thenReturn(true);
 
         reconciler.performFullReconciliation();
 
-        verify(deploymentManagerProvider, times(2)).provide(any(UUID.class));
+        verify(deploymentManagerProvider, times(2)).provide(anyString());
         verify(deploymentManager).reconcile(id1, true);
         verify(deploymentManager).reconcile(id2, true);
     }
 
     @Test
     void reconcileDeploymentState_shouldCallReconcileAndReturnResult() {
-        UUID id = UUID.randomUUID();
+        var id = String.valueOf(UUID.randomUUID());
         Deployment deployment = createDeployment(id, DeploymentStatus.PENDING);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
@@ -155,7 +156,7 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void reconcileDeploymentState_whenReconcileReturnsFalse_shouldReturnFalse() {
-        UUID id = UUID.randomUUID();
+        var id = String.valueOf(UUID.randomUUID());
         Deployment deployment = createDeployment(id, DeploymentStatus.RUNNING);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
@@ -171,7 +172,7 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void reconcileDeploymentState_whenProviderThrowsException_shouldPropagateException() {
-        UUID id = UUID.randomUUID();
+        var id = String.valueOf(UUID.randomUUID());
         Deployment deployment = createDeployment(id, DeploymentStatus.PENDING);
         RuntimeException exception = new RuntimeException("Provider failed");
 
@@ -180,12 +181,12 @@ class DeploymentStateReconcilerTest {
         assertThrows(RuntimeException.class, () -> reconciler.reconcileDeploymentState(deployment, true));
 
         verify(deploymentManagerProvider).provide(id);
-        verify(deploymentManager, never()).reconcile(any(UUID.class), anyBoolean());
+        verify(deploymentManager, never()).reconcile(anyString(), anyBoolean());
     }
 
     @Test
     void reconcileDeploymentState_whenReconcileThrowsException_shouldPropagateException() {
-        UUID id = UUID.randomUUID();
+        var id = String.valueOf(UUID.randomUUID());
         Deployment deployment = createDeployment(id, DeploymentStatus.PENDING);
         RuntimeException exception = new RuntimeException("Reconciliation failed");
 
@@ -201,9 +202,9 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void checkPendingDeployments_whenMultiplePages_shouldProcessAllPendingDeployments() {
-        UUID id1 = UUID.randomUUID();
-        UUID id2 = UUID.randomUUID();
-        UUID id3 = UUID.randomUUID();
+        var id1 = String.valueOf(UUID.randomUUID());
+        var id2 = String.valueOf(UUID.randomUUID());
+        var id3 = String.valueOf(UUID.randomUUID());
         Deployment dep1 = createDeployment(id1, DeploymentStatus.PENDING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         Deployment dep3 = createDeployment(id3, DeploymentStatus.PENDING);
@@ -222,7 +223,7 @@ class DeploymentStateReconcilerTest {
         when(deploymentRepository.getPendingDeploymentsBeforePaged(any(), eq(MAX_BATCH_SIZE), eq(1))).thenReturn(page2);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
-        doReturn(manager).when(deploymentManagerProvider).provide(any(UUID.class));
+        doReturn(manager).when(deploymentManagerProvider).provide(anyString());
         when(deploymentManager.reconcile(id1, false)).thenReturn(true);
         when(deploymentManager.reconcile(id2, false)).thenReturn(false);
         when(deploymentManager.reconcile(id3, false)).thenReturn(true);
@@ -231,7 +232,7 @@ class DeploymentStateReconcilerTest {
 
         verify(deploymentRepository).getPendingDeploymentsBeforePaged(any(), eq(MAX_BATCH_SIZE), eq(0));
         verify(deploymentRepository).getPendingDeploymentsBeforePaged(any(), eq(MAX_BATCH_SIZE), eq(1));
-        verify(deploymentManagerProvider, times(3)).provide(any(UUID.class));
+        verify(deploymentManagerProvider, times(3)).provide(anyString());
         verify(deploymentManager).reconcile(id1, false);
         verify(deploymentManager).reconcile(id2, false);
         verify(deploymentManager).reconcile(id3, false);
@@ -247,13 +248,13 @@ class DeploymentStateReconcilerTest {
         reconciler.checkPendingDeployments();
 
         verify(deploymentRepository).getPendingDeploymentsBeforePaged(any(), eq(MAX_BATCH_SIZE), eq(0));
-        verify(deploymentManagerProvider, never()).provide(any(UUID.class));
+        verify(deploymentManagerProvider, never()).provide(anyString());
     }
 
     @Test
     void checkPendingDeployments_whenReconcileThrowsException_shouldContinueProcessing() {
-        UUID id1 = UUID.randomUUID();
-        UUID id2 = UUID.randomUUID();
+        var id1 = String.valueOf(UUID.randomUUID());
+        var id2 = String.valueOf(UUID.randomUUID());
         Deployment dep1 = createDeployment(id1, DeploymentStatus.PENDING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
 
@@ -264,18 +265,18 @@ class DeploymentStateReconcilerTest {
         when(deploymentRepository.getPendingDeploymentsBeforePaged(any(), eq(MAX_BATCH_SIZE), eq(0))).thenReturn(page);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
-        doReturn(manager).when(deploymentManagerProvider).provide(any(UUID.class));
+        doReturn(manager).when(deploymentManagerProvider).provide(anyString());
         when(deploymentManager.reconcile(id1, false)).thenThrow(new RuntimeException("Reconciliation failed"));
         when(deploymentManager.reconcile(id2, false)).thenReturn(true);
 
         reconciler.checkPendingDeployments();
 
-        verify(deploymentManagerProvider, times(2)).provide(any(UUID.class));
+        verify(deploymentManagerProvider, times(2)).provide(anyString());
         verify(deploymentManager).reconcile(id1, false);
         verify(deploymentManager).reconcile(id2, false);
     }
 
-    private Deployment createDeployment(UUID id, DeploymentStatus status) {
+    private Deployment createDeployment(String id, DeploymentStatus status) {
         return InterceptorDeployment.builder()
                 .id(id)
                 .status(status)

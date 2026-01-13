@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -44,22 +43,22 @@ public class DeploymentManagerProvider {
             case CreateInterceptorDeployment ignored -> InterceptorDeployment.class;
             case CreateNimDeployment ignored -> NimDeployment.class;
             case CreateInferenceDeployment ignored -> InferenceDeployment.class;
-            default -> throw new IllegalArgumentException("Deployment type is not supported: %s. Deployment name: %s"
-                    .formatted(request.getClass(), request.getName()));
+            default -> throw new IllegalArgumentException("Deployment type is not supported: %s. Deployment displayName: %s"
+                    .formatted(request.getClass(), request.getDisplayName()));
         };
-        return provide(deploymentClass, null, request.getName());
+        return provide(deploymentClass, null, request.getDisplayName());
     }
 
-    public DeploymentManager<?> provide(UUID deploymentId) {
+    public DeploymentManager<?> provide(String deploymentId) {
         var deployment = deploymentRepository.getById(deploymentId)
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found: %s".formatted(deploymentId)));
-        return provide(deployment.getClass(), deployment.getId(), deployment.getName());
+        return provide(deployment.getClass(), deployment.getId(), deployment.getDisplayName());
     }
 
-    private DeploymentManager<?> provide(Class<? extends Deployment> deploymentClass, UUID id, String name) {
+    private DeploymentManager<?> provide(Class<? extends Deployment> deploymentClass, String id, String name) {
         var deploymentManager = deploymentManagers.get(deploymentClass);
         if (deploymentManager == null) {
-            throw new IllegalArgumentException("Deployment type is not supported: %s. Deployment id: %s. Deployment name: %s"
+            throw new IllegalArgumentException("Deployment type is not supported: %s. Deployment ID: %s. Deployment displayName: %s"
                     .formatted(deploymentClass, id, name));
         }
         return deploymentManager;

@@ -146,8 +146,9 @@ public class FunctionalTestHelper {
 
     public static CreateDeployment createInterceptorDeploymentRequest(UUID imageDefinitionId) {
         return CreateInterceptorDeployment.builder()
+                .id("interceptor-test-deployment-1")
                 .imageDefinitionId(imageDefinitionId)
-                .name("test-deployment")
+                .displayName("test-deployment")
                 .description("Test deployment description")
                 .initialScale(1)
                 .minScale(0)
@@ -161,7 +162,8 @@ public class FunctionalTestHelper {
 
     public static CreateDeployment createRealInterceptorDeploymentRequest(String name, List<EnvVarDefinition> envs) {
         return CreateInterceptorDeployment.builder()
-                .name(name)
+                .id(name)
+                .displayName(name)
                 .description("Test deployment description")
                 .initialScale(1)
                 .minScale(0)
@@ -175,8 +177,9 @@ public class FunctionalTestHelper {
 
     public static CreateDeployment createMcpDeploymentRequest(UUID imageDefinitionId) {
         return CreateMcpDeployment.builder()
+                .id("mcp-test-deployment-1")
                 .imageDefinitionId(imageDefinitionId)
-                .name("test-deployment")
+                .displayName("test-deployment")
                 .description("Test deployment description")
                 .initialScale(1)
                 .minScale(0)
@@ -192,7 +195,8 @@ public class FunctionalTestHelper {
 
     public static CreateDeployment createRealMcpDeploymentRequest(String name, List<EnvVarDefinition> envs) {
         return CreateMcpDeployment.builder()
-                .name(name)
+                .id(name)
+                .displayName(name)
                 .description("Test deployment description")
                 .initialScale(1)
                 .minScale(0)

@@ -33,7 +33,7 @@ public class DisposableResourceEntity {
     private UUID id;
 
     @Column(name = "group_id")
-    private UUID groupId;
+    private String groupId;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "resource_reference")

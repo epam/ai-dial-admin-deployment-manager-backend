@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 @Slf4j
@@ -30,7 +29,7 @@ public class DeploymentLogsService {
 
     private final DeploymentManagerProvider deploymentManagerProvider;
 
-    public SseEmitter streamLogs(UUID id,
+    public SseEmitter streamLogs(String id,
                                  String podName,
                                  PodLogReaderConfiguration cfg) {
 
@@ -47,7 +46,7 @@ public class DeploymentLogsService {
                 emitter -> startPodStreaming(id, containerResource, cfg, emitter));
     }
 
-    private SafeAutoCloseable startPodStreaming(UUID id,
+    private SafeAutoCloseable startPodStreaming(String id,
                                                 ContainerResource containerResource,
                                                 PodLogReaderConfiguration cfg,
                                                 SseEmitter emitter) {

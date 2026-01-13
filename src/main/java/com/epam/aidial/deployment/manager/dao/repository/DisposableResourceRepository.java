@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -22,14 +21,14 @@ public class DisposableResourceRepository {
     private final DisposableResourceJpaRepository repository;
     private final PersistenceDisposableResourceMapper mapper;
 
-    public List<DisposableResource> findAllByGroupIdAndReference(UUID groupId, ResourceReference reference) {
+    public List<DisposableResource> findAllByGroupIdAndReference(String groupId, ResourceReference reference) {
         return repository.findAllByGroupIdAndReference(groupId, reference)
                 .stream()
                 .map(mapper::toModel)
                 .toList();
     }
 
-    public List<DisposableResource> getAllByGroupId(UUID groupId) {
+    public List<DisposableResource> getAllByGroupId(String groupId) {
         return repository.findAllByGroupId(groupId)
                 .stream()
                 .map(mapper::toModel)
@@ -43,7 +42,7 @@ public class DisposableResourceRepository {
                 .toList();
     }
 
-    public List<DisposableResource> getAllByGroupIdAndLifecycleStates(UUID groupId, Set<ResourceLifecycleState> lifecycleStates) {
+    public List<DisposableResource> getAllByGroupIdAndLifecycleStates(String groupId, Set<ResourceLifecycleState> lifecycleStates) {
         return repository.findByGroupIdAndLifecycleStateIn(groupId, lifecycleStates)
                 .stream()
                 .map(mapper::toModel)

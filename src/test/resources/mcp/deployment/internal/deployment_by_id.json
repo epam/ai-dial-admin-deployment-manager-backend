@@ -2,7 +2,7 @@
   "$type": "mcp",
   "id": "decade00-0000-4000-a000-000000000001",
   "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
-  "name": "example deployment 1",
+  "displayName": "example deployment 1",
   "description": "Description of example deployment 1",
   "metadata": {
     "envs": [

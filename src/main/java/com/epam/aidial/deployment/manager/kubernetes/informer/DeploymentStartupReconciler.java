@@ -12,7 +12,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -114,7 +113,7 @@ public class DeploymentStartupReconciler {
     }
 
     public void synchronizeDeploymentState(Deployment deployment) {
-        UUID deploymentId = deployment.getId();
+        String deploymentId = deployment.getId();
 
         try {
             log.debug("Synchronizing state for deployment ID: {}", deploymentId);
