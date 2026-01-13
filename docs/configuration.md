@@ -256,7 +256,7 @@ Applied when: config.rest.security.mode=oidc
 | `providers.*.jwk-set-uri`     | `providers.azure.jwk-set-uri`     | Yes      | `config.rest.security.mode=oidc` | URI for JSON Web Key Set for the provider                                                                                       |
 | `providers.*.aliases`         | `providers.azure.aliases`         | Yes      | `config.rest.security.mode=oidc` | Aliases for accepted JWT token issuers for the provider(only for Azure provider)                                                |
 | `providers.*.audiences`       | `providers.azure.audiences`       | Yes      | `config.rest.security.mode=oidc` | List of accepted JWT token audiences. Specifies the intended recipients of the authorization token as defined in its aud claim. |
-| `providers.*.role-claims`     | `providers.azure.role-claims`     | No       | `config.rest.security.mode=oidc` | JWT claim name for user roles for the provider                                                                                  |
+| `providers.*.role-claims`     | `providers.azure.role-claims`     | No       | `config.rest.security.mode=oidc` | Comma-separated list of JWT claim paths used to extract user roles for the provider.                                            |
 | `providers.*.allowed-roles`   | `providers.azure.allowed-roles`   | No       | `config.rest.security.mode=oidc` | Comma-separated list of roles with access permissions for the provider                                                          |
 | `providers.*.principal-claim` | `providers.azure.principal-claim` | No       | `config.rest.security.mode=oidc` | Specific claim that uniquely identifies the user or service (the "principal") for whom the token was issued.                    |
 

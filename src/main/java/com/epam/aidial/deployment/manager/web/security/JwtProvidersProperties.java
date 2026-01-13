@@ -31,7 +31,7 @@ public class JwtProvidersProperties {
         private String jwkSetUri;
         private List<String> audiences;
         private List<String> aliases;
-        private String roleClaims;
+        private List<String> roleClaims;
         private Set<String> allowedRoles;
         private String principalClaim;
     }
@@ -64,7 +64,7 @@ public class JwtProvidersProperties {
         if (StringUtils.isBlank(provider.getJwkSetUri())) {
             missingFields.add("jwkSetUri");
         }
-        if (StringUtils.isBlank(provider.getRoleClaims())) {
+        if (CollectionUtils.isEmpty(provider.getRoleClaims())) {
             missingFields.add("roleClaims");
         }
         if (CollectionUtils.isEmpty(provider.getAudiences())) {
