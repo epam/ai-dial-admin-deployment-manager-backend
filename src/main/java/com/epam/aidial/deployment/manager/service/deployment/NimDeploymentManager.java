@@ -26,7 +26,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Slf4j
 @Component
@@ -65,12 +64,12 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected String getServiceName(UUID id) {
-        return K8sNamingUtils.generateMcpPrefixedName(id.toString());
+    protected String getServiceName(String id) {
+        return K8sNamingUtils.generateMcpPrefixedName(id);
     }
 
     @Override
-    protected Optional<NimDeployment> getDeploymentOptional(UUID id) {
+    protected Optional<NimDeployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id).map(deployment -> {
             if (deployment instanceof NimDeployment nimDeployment) {
                 return nimDeployment;
@@ -94,7 +93,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         var containerGrpcPort = deployment.getContainerGrpcPort();
 
         return nimManifestGenerator.serviceConfig(
-                deployment.getId().toString(),
+                deployment.getId(),
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
@@ -134,12 +133,12 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected void saveDisposableResource(UUID id, String namespace) {
+    protected void saveDisposableResource(String id, String namespace) {
         disposableResourceManager.saveNimServiceResource(id, namespace);
     }
 
     @Override
-    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(UUID id, String namespace) {
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace) {
         return disposableResourceManager.markNimServiceResourceForCleanup(id, namespace);
     }
 

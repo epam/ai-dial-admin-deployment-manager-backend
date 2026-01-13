@@ -27,6 +27,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class McpControllerTest extends AbstractControllerNoneSecureTest {
 
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+    private static final String NEXT_CURSOR = "some-cursor";
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -35,114 +38,102 @@ class McpControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testGetTools() throws Exception {
-        var deploymentId = UUID.randomUUID();
         String nextCursor = null;
 
         // Read JSON response from file
         var responseJson = ResourceUtils.readResource("/mcp/mcp_tools_response.json");
         var result = objectMapper.readValue(responseJson, McpSchema.ListToolsResult.class);
 
-        when(mcpService.getTools(deploymentId, nextCursor)).thenReturn(result);
+        when(mcpService.getTools(DEPLOYMENT_ID, nextCursor)).thenReturn(result);
 
         System.out.println("[DEBUG_LOG] Result: " + objectMapper.writeValueAsString(result));
 
-        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/tools", deploymentId))
+        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/tools", DEPLOYMENT_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().json(responseJson, JsonCompareMode.LENIENT));
 
-        verify(mcpService).getTools(deploymentId, nextCursor);
+        verify(mcpService).getTools(DEPLOYMENT_ID, nextCursor);
     }
 
     @Test
     void testGetToolsWithCursor() throws Exception {
-        var deploymentId = UUID.randomUUID();
-        var nextCursor = "some-cursor";
-
         // Read JSON response from file
         var responseJson = ResourceUtils.readResource("/mcp/mcp_tools_response.json");
         var result = objectMapper.readValue(responseJson, McpSchema.ListToolsResult.class);
 
-        when(mcpService.getTools(deploymentId, nextCursor)).thenReturn(result);
+        when(mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR)).thenReturn(result);
 
-        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/tools", deploymentId)
-                        .param("nextCursor", nextCursor))
+        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/tools", DEPLOYMENT_ID)
+                        .param("nextCursor", NEXT_CURSOR))
                 .andExpect(status().isOk())
                 .andExpect(content().json(responseJson, JsonCompareMode.LENIENT));
 
-        verify(mcpService).getTools(deploymentId, nextCursor);
+        verify(mcpService).getTools(DEPLOYMENT_ID, NEXT_CURSOR);
     }
 
     @Test
     void testGetResources() throws Exception {
-        var deploymentId = UUID.randomUUID();
         String nextCursor = null;
 
         // Read JSON response from file
         var responseJson = ResourceUtils.readResource("/mcp/mcp_resources_response.json");
         var result = objectMapper.readValue(responseJson, McpSchema.ListResourcesResult.class);
 
-        when(mcpService.getResources(deploymentId, nextCursor)).thenReturn(result);
+        when(mcpService.getResources(DEPLOYMENT_ID, nextCursor)).thenReturn(result);
 
-        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/resources", deploymentId))
+        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/resources", DEPLOYMENT_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().json(responseJson, JsonCompareMode.LENIENT));
 
-        verify(mcpService).getResources(deploymentId, nextCursor);
+        verify(mcpService).getResources(DEPLOYMENT_ID, nextCursor);
     }
 
     @Test
     void testGetResourcesWithCursor() throws Exception {
-        var deploymentId = UUID.randomUUID();
-        var nextCursor = "some-cursor";
-
         // Read JSON response from file
         var responseJson = ResourceUtils.readResource("/mcp/mcp_resources_response.json");
         var result = objectMapper.readValue(responseJson, McpSchema.ListResourcesResult.class);
 
-        when(mcpService.getResources(deploymentId, nextCursor)).thenReturn(result);
+        when(mcpService.getResources(DEPLOYMENT_ID, NEXT_CURSOR)).thenReturn(result);
 
-        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/resources", deploymentId)
-                        .param("nextCursor", nextCursor))
+        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/resources", DEPLOYMENT_ID)
+                        .param("nextCursor", NEXT_CURSOR))
                 .andExpect(status().isOk())
                 .andExpect(content().json(responseJson, JsonCompareMode.LENIENT));
 
-        verify(mcpService).getResources(deploymentId, nextCursor);
+        verify(mcpService).getResources(DEPLOYMENT_ID, NEXT_CURSOR);
     }
 
     @Test
     void testGetPrompts() throws Exception {
-        var deploymentId = UUID.randomUUID();
         String nextCursor = null;
 
         // Read JSON response from file
         var responseJson = ResourceUtils.readResource("/mcp/mcp_prompts_response.json");
         var result = objectMapper.readValue(responseJson, McpSchema.ListPromptsResult.class);
 
-        when(mcpService.getPrompts(deploymentId, nextCursor)).thenReturn(result);
+        when(mcpService.getPrompts(DEPLOYMENT_ID, nextCursor)).thenReturn(result);
 
-        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/prompts", deploymentId))
+        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/prompts", DEPLOYMENT_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().json(responseJson, JsonCompareMode.LENIENT));
 
-        verify(mcpService).getPrompts(deploymentId, nextCursor);
+        verify(mcpService).getPrompts(DEPLOYMENT_ID, nextCursor);
     }
 
     @Test
     void testGetPromptsWithCursor() throws Exception {
-        var deploymentId = UUID.randomUUID();
-        var nextCursor = "some-cursor";
-
         // Read JSON response from file
         var responseJson = ResourceUtils.readResource("/mcp/mcp_prompts_response.json");
         var result = objectMapper.readValue(responseJson, McpSchema.ListPromptsResult.class);
 
-        when(mcpService.getPrompts(deploymentId, nextCursor)).thenReturn(result);
+        when(mcpService.getPrompts(DEPLOYMENT_ID, NEXT_CURSOR)).thenReturn(result);
 
-        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/prompts", deploymentId)
-                        .param("nextCursor", nextCursor))
+        mockMvc.perform(get("/api/v1/deployments/mcp/{deploymentId}/prompts", DEPLOYMENT_ID)
+                        .param("nextCursor", NEXT_CURSOR))
                 .andExpect(status().isOk())
                 .andExpect(content().json(responseJson, JsonCompareMode.LENIENT));
 
-        verify(mcpService).getPrompts(deploymentId, nextCursor);
+        verify(mcpService).getPrompts(DEPLOYMENT_ID, NEXT_CURSOR);
     }
 }

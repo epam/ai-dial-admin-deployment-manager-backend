@@ -34,7 +34,7 @@ public class ImageBuildLogsService {
 
     public SseEmitter streamLogs(UUID imageDefinitionId) {
         return sseEmitterFactory.createEmitter(
-                imageDefinitionId,
+                String.valueOf(imageDefinitionId),
                 "ImageBuild-log",
                 emitter -> startLogStreaming(imageDefinitionId, emitter)
         );
@@ -42,7 +42,7 @@ public class ImageBuildLogsService {
 
     public SseEmitter streamStatus(UUID imageDefinitionId) {
         return sseEmitterFactory.createEmitter(
-                imageDefinitionId,
+                String.valueOf(imageDefinitionId),
                 "ImageBuild-status",
                 emitter -> startStatusStreaming(imageDefinitionId, emitter)
         );

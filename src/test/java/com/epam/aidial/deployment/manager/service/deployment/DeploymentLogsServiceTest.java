@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DeploymentLogsServiceTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final String POD_NAME = "test-pod";
     private static final String LOG_LINE_1 = "Log line 1";
     private static final String LOG_LINE_2 = "Log line 2";
@@ -283,7 +283,7 @@ class DeploymentLogsServiceTest {
 
             // Now call the close method on the SafeAutoCloseable
             java.lang.reflect.Method method = service.getClass().getDeclaredMethod("startPodStreaming",
-                    UUID.class, ContainerResource.class, PodLogReaderConfiguration.class, SseEmitter.class);
+                    String.class, ContainerResource.class, PodLogReaderConfiguration.class, SseEmitter.class);
             method.setAccessible(true);
             SafeAutoCloseable result = (SafeAutoCloseable) method.invoke(service,
                     DEPLOYMENT_ID, containerResource, logReaderConfig, sseEmitter);

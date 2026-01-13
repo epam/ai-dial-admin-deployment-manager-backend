@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
 import java.util.function.BiFunction;
 
 @Service
@@ -23,19 +22,19 @@ public class McpService {
     private final McpClientFactory mcpClientFactory;
     private final McpEndpointPathResolver mcpEndpointPathResolver;
 
-    public McpSchema.ListToolsResult getTools(UUID deploymentId, String nextCursor) {
+    public McpSchema.ListToolsResult getTools(String deploymentId, String nextCursor) {
         return get(deploymentId, nextCursor, McpSyncClient::listTools);
     }
 
-    public McpSchema.ListResourcesResult getResources(UUID deploymentId, String nextCursor) {
+    public McpSchema.ListResourcesResult getResources(String deploymentId, String nextCursor) {
         return get(deploymentId, nextCursor, McpSyncClient::listResources);
     }
 
-    public McpSchema.ListPromptsResult getPrompts(UUID deploymentId, String nextCursor) {
+    public McpSchema.ListPromptsResult getPrompts(String deploymentId, String nextCursor) {
         return get(deploymentId, nextCursor, McpSyncClient::listPrompts);
     }
 
-    private <T> T get(UUID deploymentId, String nextCursor, BiFunction<McpSyncClient, String, T> function) {
+    private <T> T get(String deploymentId, String nextCursor, BiFunction<McpSyncClient, String, T> function) {
         var deployment = getDeployment(deploymentId);
         var endpointPath = mcpEndpointPathResolver.resolveEndpointPath(deployment);
 
@@ -45,7 +44,7 @@ public class McpService {
         }
     }
 
-    private McpDeployment getDeployment(UUID deploymentId) {
+    private McpDeployment getDeployment(String deploymentId) {
         var deployment = deploymentService.getDeployment(deploymentId)
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found by id: %s"
                         .formatted(deploymentId)));

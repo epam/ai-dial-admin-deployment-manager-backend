@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -36,7 +35,7 @@ public class NimServiceEventHandler extends AbstractResourceEventHandler<NIMServ
     }
 
     @Override
-    protected void reconcile(UUID deploymentId, NIMService resource, boolean isDeleted) {
+    protected void reconcile(String deploymentId, NIMService resource, boolean isDeleted) {
         var reconcileConfig = ReconcileConfig.<NIMService>builder()
                 .deploymentId(deploymentId)
                 .service(resource)

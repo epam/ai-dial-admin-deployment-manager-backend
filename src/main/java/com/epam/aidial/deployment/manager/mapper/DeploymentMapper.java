@@ -23,13 +23,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring", subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
 public abstract class DeploymentMapper {
 
-    @Mapping(target = "id", ignore = true)
     @Mapping(target = "url", ignore = true)
     @Mapping(target = "envs", ignore = true)
     @Mapping(target = "imageDefinitionName", ignore = true)
@@ -44,9 +42,8 @@ public abstract class DeploymentMapper {
     @SubclassMapping(source = CreateInferenceDeployment.class, target = InferenceDeployment.class)
     public abstract Deployment toDeployment(CreateDeployment createDeployment);
 
-    public Deployment toDeployment(CreateDeployment createDeployment, UUID id, List<EnvVar> envVars) {
+    public Deployment toDeployment(CreateDeployment createDeployment, List<EnvVar> envVars) {
         var deployment = toDeployment(createDeployment);
-        deployment.setId(id);
         deployment.setEnvs(envVars);
         // Removing values from metadata to avoid saving sensitive values to DB
         Optional.ofNullable(deployment.getMetadata().getEnvs()).orElse(new ArrayList<>())
@@ -61,9 +58,10 @@ public abstract class DeploymentMapper {
     @SubclassMapping(source = InferenceDeployment.class, target = CreateInferenceDeployment.class)
     public abstract CreateDeployment toCreateDeployment(Deployment deployment);
 
-    public CreateDeployment toCreateCloneDeployment(Deployment etalonDeployment, String newDeploymentName) {
+    public CreateDeployment toCreateCloneDeployment(Deployment etalonDeployment, String newDeploymentId, String newDeploymentDisplayName) {
         var createDeployment = toCreateDeployment(etalonDeployment);
-        createDeployment.setName(newDeploymentName);
+        createDeployment.setId(newDeploymentId);
+        createDeployment.setDisplayName(newDeploymentDisplayName);
 
         // For sensitive envs, the value is already resolved from K8s secrets
         var envsMap = toEnvValuesMap(etalonDeployment.getEnvs());

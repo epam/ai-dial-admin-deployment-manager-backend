@@ -10,8 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 @Slf4j
 @Service
 @LogExecution
@@ -33,7 +31,7 @@ class DeploymentCleanupStrategy extends AbstractCleanupStrategy {
 
     @Override
     @Transactional
-    public void prepareForDeletion(UUID id) {
+    public void prepareForDeletion(String id) {
         deploymentRepository.conditionalUpdate(id,
                 deployment -> deployment.getStatus().isActive(),
                 deployment -> deployment.setStatus(DeploymentStatus.STOPPING));
@@ -41,7 +39,7 @@ class DeploymentCleanupStrategy extends AbstractCleanupStrategy {
 
     @Override
     @Transactional
-    public void delete(UUID id) {
+    public void delete(String id) {
         cleanupResources(id);
         deploymentRepository.deleteById(id);
         log.info("Deployment '{}' deleted successfully", id);

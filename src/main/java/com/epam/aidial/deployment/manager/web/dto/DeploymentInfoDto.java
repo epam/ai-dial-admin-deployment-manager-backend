@@ -7,12 +7,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record DeploymentInfoDto(
-        @NotNull UUID id,
+        @NotNull String id,
         @NotNull UUID imageDefinitionId,
         @NotNull String imageDefinitionName,
         @NotNull String imageDefinitionVersion,
         @NotNull DeploymentTypeDto type,
-        @NotNull String name,
+        @NotNull String displayName,
         @Nullable String description,
         @Nullable String author,
         @Nullable Integer initialScale,

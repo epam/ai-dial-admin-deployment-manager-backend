@@ -64,7 +64,7 @@ class NimServiceEventHandlerTest {
         verify(nimDeploymentManager, times(1)).reconcile(configCaptor.capture());
 
         var reconcileConfig = configCaptor.getValue();
-        assertEquals(deploymentId, reconcileConfig.getDeploymentId());
+        assertEquals(deploymentId.toString(), reconcileConfig.getDeploymentId());
         assertEquals(service, reconcileConfig.getService());
         assertEquals(INITIATOR, reconcileConfig.getInitiator());
         assertFalse(reconcileConfig.isServiceIsMissing());

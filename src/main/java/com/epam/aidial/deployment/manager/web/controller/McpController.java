@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping("/api/v1/deployments/mcp")
 @RequiredArgsConstructor
@@ -21,21 +19,21 @@ public class McpController {
 
     @GetMapping(path = "/{deploymentId}/tools",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public McpSchema.ListToolsResult getTools(@PathVariable UUID deploymentId,
+    public McpSchema.ListToolsResult getTools(@PathVariable String deploymentId,
                                               @RequestParam(required = false) String nextCursor) {
         return mcpService.getTools(deploymentId, nextCursor);
     }
 
     @GetMapping(path = "/{deploymentId}/resources",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public McpSchema.ListResourcesResult getResources(@PathVariable UUID deploymentId,
+    public McpSchema.ListResourcesResult getResources(@PathVariable String deploymentId,
                                                       @RequestParam(required = false) String nextCursor) {
         return mcpService.getResources(deploymentId, nextCursor);
     }
 
     @GetMapping(path = "/{deploymentId}/prompts",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public McpSchema.ListPromptsResult getPrompts(@PathVariable UUID deploymentId,
+    public McpSchema.ListPromptsResult getPrompts(@PathVariable String deploymentId,
                                                   @RequestParam(required = false) String nextCursor) {
         return mcpService.getPrompts(deploymentId, nextCursor);
     }

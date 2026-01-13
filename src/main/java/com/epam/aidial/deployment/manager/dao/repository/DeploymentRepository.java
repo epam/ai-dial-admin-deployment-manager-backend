@@ -104,7 +104,7 @@ public class DeploymentRepository {
         return deploymentEntities.map(mapper::toDomain);
     }
 
-    public Optional<Deployment> getById(UUID id) {
+    public Optional<Deployment> getById(String id) {
         return deploymentJpaRepository.findById(id)
                 .map(mapper::toDomain);
     }
@@ -118,7 +118,7 @@ public class DeploymentRepository {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public Deployment update(UUID id, Deployment updatedDeployment) {
+    public Deployment update(String id, Deployment updatedDeployment) {
         var existingEntity = findDeploymentById(id);
         updateEntityFromDomain(existingEntity, updatedDeployment);
 
@@ -128,7 +128,7 @@ public class DeploymentRepository {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public boolean conditionalUpdate(UUID id, Predicate<Deployment> condition, Consumer<Deployment> mutator) {
+    public boolean conditionalUpdate(String id, Predicate<Deployment> condition, Consumer<Deployment> mutator) {
         var existingEntity = findDeploymentById(id);
         var domainObject = mapper.toDomain(existingEntity);
 
@@ -145,20 +145,20 @@ public class DeploymentRepository {
         }
     }
 
-    public void deleteById(UUID id) {
+    public void deleteById(String id) {
         deploymentJpaRepository.deleteById(id);
         log.debug("Deployment '{}' deleted successfully", id);
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void updateImageDefinitionForDeployments(ImageDefinition imageDefinition, List<UUID> deploymentIds) {
+    public void updateImageDefinitionForDeployments(ImageDefinition imageDefinition, List<String> deploymentIds) {
         deploymentJpaRepository.updateImageDefinitionIdForDeployments(imageDefinition.getId(), imageDefinition.getName(),
                 imageDefinition.getVersion(), deploymentIds);
         log.debug("Image definition updated for deployments: {}", deploymentIds);
     }
 
     @Transactional
-    public void updateStatus(UUID id, DeploymentStatus status) {
+    public void updateStatus(String id, DeploymentStatus status) {
         deploymentJpaRepository.updateStatus(id, PersistenceDeploymentStatus.valueOf(status.name()));
         log.debug("Status updated for deployment '{}' to: {}", id, status);
     }
@@ -167,7 +167,7 @@ public class DeploymentRepository {
         mapper.updateEntityFromDomain(domain, entity);
     }
 
-    private DeploymentEntity findDeploymentById(UUID id) {
+    private DeploymentEntity findDeploymentById(String id) {
         return deploymentJpaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found by id: '%s'".formatted(id)));
     }

@@ -14,7 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 @Slf4j
@@ -30,7 +29,7 @@ public class EventStreamingService {
     private final EventInfoMapper eventInfoMapper;
     private final DeploymentManagerProvider deploymentManagerProvider;
 
-    public SseEmitter streamEvents(UUID id, EventStreamerConfiguration cfg) {
+    public SseEmitter streamEvents(String id, EventStreamerConfiguration cfg) {
         return sseEmitterFactory.createEmitter(
                 id,
                 "Deployment-" + id,
@@ -38,7 +37,7 @@ public class EventStreamingService {
         );
     }
 
-    private SafeAutoCloseable startEventStreaming(UUID id, SseEmitter emitter, EventStreamerConfiguration cfg) {
+    private SafeAutoCloseable startEventStreaming(String id, SseEmitter emitter, EventStreamerConfiguration cfg) {
         var eventSource = deploymentManagerProvider.provide(id).getAllEventsBase();
         var eventReader = eventReaderFactory.create(id, cfg);
         var future = executorService.submit(() -> {

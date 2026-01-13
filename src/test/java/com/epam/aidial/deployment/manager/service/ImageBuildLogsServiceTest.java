@@ -77,7 +77,7 @@ class ImageBuildLogsServiceTest {
                 .build();
 
         when(sseEmitterFactory.createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 anyString(),
                 (Function<SseEmitter, SafeAutoCloseable>) any(Function.class)
         )).thenReturn(sseEmitter);
@@ -118,7 +118,7 @@ class ImageBuildLogsServiceTest {
         // Then
         assertThat(result).isEqualTo(sseEmitter);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -156,7 +156,7 @@ class ImageBuildLogsServiceTest {
         // Then
         assertThat(result).isEqualTo(sseEmitter);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-status"),
                 emitterConsumerCaptor.capture()
         );
@@ -173,7 +173,7 @@ class ImageBuildLogsServiceTest {
 
     @Test
     @SneakyThrows
-    void streamLogs_shouldSendLogsAndStatus() throws InterruptedException {
+    void streamLogs_shouldSendLogsAndStatus() {
         // Given
         var updatedImageDefinition = McpImageDefinition.builder()
                 .id(IMAGE_DEFINITION_ID)
@@ -194,7 +194,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -209,7 +209,7 @@ class ImageBuildLogsServiceTest {
 
     @Test
     @SneakyThrows
-    void streamStatus_shouldSendStatusUpdates() throws InterruptedException {
+    void streamStatus_shouldSendStatusUpdates() {
         // Given
         var updatedImageDefinition = McpImageDefinition.builder()
                 .id(IMAGE_DEFINITION_ID)
@@ -231,7 +231,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamStatus(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-status"),
                 emitterConsumerCaptor.capture()
         );
@@ -246,7 +246,7 @@ class ImageBuildLogsServiceTest {
 
     @Test
     @SneakyThrows
-    void streamLogs_shouldCompleteEmitterWhenImageReachesFinalState() throws InterruptedException {
+    void streamLogs_shouldCompleteEmitterWhenImageReachesFinalState() {
         // Given
         var finalImageDefinition = McpImageDefinition.builder()
                 .id(IMAGE_DEFINITION_ID)
@@ -268,7 +268,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -283,7 +283,7 @@ class ImageBuildLogsServiceTest {
 
     @Test
     @SneakyThrows
-    void streamLogs_shouldHandleExceptionsDuringEventSending() throws InterruptedException {
+    void streamLogs_shouldHandleExceptionsDuringEventSending() {
         // Given
         doAnswer((Answer<Void>) invocation -> {
             throw new IOException("Test exception");
@@ -298,7 +298,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -314,7 +314,7 @@ class ImageBuildLogsServiceTest {
 
     @Test
     @SneakyThrows
-    void streamLogs_shouldHandleImmediateCompletionForFinalState() throws InterruptedException {
+    void streamLogs_shouldHandleImmediateCompletionForFinalState() {
         // Given
         var finalImageDefinition = McpImageDefinition.builder()
                 .id(IMAGE_DEFINITION_ID)
@@ -336,7 +336,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -352,7 +352,7 @@ class ImageBuildLogsServiceTest {
 
     @Test
     @SneakyThrows
-    void streamStatus_shouldHandleMultipleStatusUpdates() throws InterruptedException {
+    void streamStatus_shouldHandleMultipleStatusUpdates() {
         // Given
         var buildingImageDefinition = McpImageDefinition.builder()
                 .id(IMAGE_DEFINITION_ID)
@@ -385,7 +385,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamStatus(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID),
+                eq(IMAGE_DEFINITION_ID.toString()),
                 eq("ImageBuild-status"),
                 emitterConsumerCaptor.capture()
         );

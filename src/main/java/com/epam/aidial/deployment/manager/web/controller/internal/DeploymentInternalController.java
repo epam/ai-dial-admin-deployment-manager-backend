@@ -14,8 +14,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
-
 @Slf4j
 @LogExecution
 @RestController
@@ -28,10 +26,10 @@ public class DeploymentInternalController {
 
     @GetMapping(path = "/{id}",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public DeploymentInternalDto getDeploymentById(@PathVariable UUID id) {
+    public DeploymentInternalDto getDeploymentById(@PathVariable String id) {
         return deploymentService.getDeployment(id, false)
                 .map(this::toDeploymentInternalDto)
-                .orElseThrow(() -> new EntityNotFoundException("Deploy not found by id: %s".formatted(id)));
+                .orElseThrow(() -> new EntityNotFoundException("Deployment not found by ID: %s".formatted(id)));
     }
 
     private DeploymentInternalDto toDeploymentInternalDto(Deployment deployment) {

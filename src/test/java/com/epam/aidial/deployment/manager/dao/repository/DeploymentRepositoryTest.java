@@ -58,6 +58,9 @@ import static org.mockito.Mockito.when;
 @ContextConfiguration(classes = {MappersConfig.class})
 class DeploymentRepositoryTest {
 
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+    private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
+
     @Mock
     private DeploymentJpaRepository deploymentJpaRepository;
 
@@ -80,10 +83,8 @@ class DeploymentRepositoryTest {
     @Test
     void testGetAll() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity = createDeploymentEntity(deploymentId, imageDefinitionId);
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
+        var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
         when(deploymentJpaRepository.findAll()).thenReturn(List.of(deploymentEntity));
 
@@ -113,21 +114,19 @@ class DeploymentRepositoryTest {
     @Test
     void testGetAllByImageDefinitionId() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity = createDeploymentEntity(deploymentId, imageDefinitionId);
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
+        var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
-        when(deploymentJpaRepository.findAllByImageDefinitionId(imageDefinitionId)).thenReturn(List.of(deploymentEntity));
+        when(deploymentJpaRepository.findAllByImageDefinitionId(IMAGE_DEFINITION_ID)).thenReturn(List.of(deploymentEntity));
 
         // When
-        var result = deploymentRepository.getAllByImageDefinitionId(imageDefinitionId);
+        var result = deploymentRepository.getAllByImageDefinitionId(IMAGE_DEFINITION_ID);
 
         // Then
         assertThat(result)
                 .usingRecursiveFieldByFieldElementComparator()
                 .containsExactly(deployment);
-        verify(deploymentJpaRepository).findAllByImageDefinitionId(imageDefinitionId);
+        verify(deploymentJpaRepository).findAllByImageDefinitionId(IMAGE_DEFINITION_ID);
     }
 
     private static Stream<Arguments> typeProvider() {
@@ -143,10 +142,8 @@ class DeploymentRepositoryTest {
     @MethodSource("typeProvider")
     void testGetAllByType(DeploymentTypeDto type, Class<? extends DeploymentEntity> entityClass) {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity = createDeploymentEntity(deploymentId, imageDefinitionId);
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
+        var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
         when(deploymentJpaRepository.findAllByType(entityClass)).thenReturn(List.of(deploymentEntity));
 
@@ -164,13 +161,11 @@ class DeploymentRepositoryTest {
     @SuppressWarnings("unchecked")
     void testGetAllByType_withList() {
         // Given
-        var deploymentId1 = UUID.randomUUID();
-        var deploymentId2 = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity1 = createDeploymentEntity(deploymentId1, imageDefinitionId);
-        var deploymentEntity2 = createDeploymentEntity(deploymentId2, imageDefinitionId);
-        var deployment1 = createDeployment(deploymentId1, imageDefinitionId);
-        var deployment2 = createDeployment(deploymentId2, imageDefinitionId);
+        var deploymentId2 = String.valueOf(UUID.randomUUID());
+        var deploymentEntity1 = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deploymentEntity2 = createDeploymentEntity(deploymentId2, IMAGE_DEFINITION_ID);
+        var deployment1 = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deployment2 = createDeployment(deploymentId2, IMAGE_DEFINITION_ID);
 
         var types = List.of(DeploymentTypeDto.MCP, DeploymentTypeDto.ADAPTER);
 
@@ -193,46 +188,41 @@ class DeploymentRepositoryTest {
     @Test
     void testGetById_whenFound() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity = createDeploymentEntity(deploymentId, imageDefinitionId);
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
+        var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.of(deploymentEntity));
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.of(deploymentEntity));
 
         // When
-        var result = deploymentRepository.getById(deploymentId);
+        var result = deploymentRepository.getById(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).isPresent();
         assertThat(result.get())
                 .usingRecursiveComparison()
                 .isEqualTo(deployment);
-        verify(deploymentJpaRepository).findById(deploymentId);
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
     }
 
     @Test
     void testGetById_whenNotFound() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.empty());
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.empty());
 
         // When
-        var result = deploymentRepository.getById(deploymentId);
+        var result = deploymentRepository.getById(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).isNotPresent();
-        verify(deploymentJpaRepository).findById(deploymentId);
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
     }
 
     @Test
     void testSave_success() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
-        var expectedSavedDeployment = createSavedDeployment(deploymentId, imageDefinitionId);
-        var savedDeploymentEntity = createSavedDeploymentEntity(deploymentId, imageDefinitionId);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var expectedSavedDeployment = createSavedDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var savedDeploymentEntity = createSavedDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
         when(deploymentJpaRepository.saveAndFlush(any(DeploymentEntity.class))).thenReturn(savedDeploymentEntity);
 
@@ -247,29 +237,27 @@ class DeploymentRepositoryTest {
         verify(deploymentJpaRepository).saveAndFlush(deploymentEntityCaptor.capture());
 
         var capturedEntity = deploymentEntityCaptor.getValue();
-        assertThat(capturedEntity.getImageDefinitionId()).isEqualTo(imageDefinitionId);
-        assertThat(capturedEntity.getName()).isEqualTo(expectedSavedDeployment.getName());
+        assertThat(capturedEntity.getImageDefinitionId()).isEqualTo(IMAGE_DEFINITION_ID);
+        assertThat(capturedEntity.getDisplayName()).isEqualTo(expectedSavedDeployment.getDisplayName());
     }
 
     @Test
     void testUpdate_success() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
-        var expectedSavedDeployment = createSavedDeployment(deploymentId, imageDefinitionId);
-        var savedDeploymentEntity = createSavedDeploymentEntity(deploymentId, imageDefinitionId);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var expectedSavedDeployment = createSavedDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var savedDeploymentEntity = createSavedDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
         var existingEntity = new InterceptorDeploymentEntity();
-        existingEntity.setId(deploymentId);
-        existingEntity.setName("old-name");
+        existingEntity.setId(String.valueOf(DEPLOYMENT_ID));
+        existingEntity.setDisplayName("old-name");
         existingEntity.setEnvs(new ArrayList<>()); // Ensure it has a mutable list to start
 
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.of(existingEntity));
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.of(existingEntity));
         when(deploymentJpaRepository.saveAndFlush(any(DeploymentEntity.class))).thenReturn(savedDeploymentEntity);
 
         // When
-        var result = deploymentRepository.update(deploymentId, deployment);
+        var result = deploymentRepository.update(DEPLOYMENT_ID, deployment);
 
         // Then
         assertThat(result)
@@ -279,107 +267,97 @@ class DeploymentRepositoryTest {
         verify(deploymentJpaRepository).saveAndFlush(deploymentEntityCaptor.capture());
         var capturedEntity = deploymentEntityCaptor.getValue();
 
-        assertThat(capturedEntity.getName()).isEqualTo(deployment.getName());
+        assertThat(capturedEntity.getDisplayName()).isEqualTo(deployment.getDisplayName());
         assertThat(capturedEntity.getDescription()).isEqualTo(deployment.getDescription());
-        assertThat(capturedEntity.getImageDefinitionId()).isEqualTo(imageDefinitionId);
+        assertThat(capturedEntity.getImageDefinitionId()).isEqualTo(IMAGE_DEFINITION_ID);
         assertThat(capturedEntity.getEnvs()).hasSameElementsAs(mapper.toEntity(deployment).getEnvs());
 
-        verify(deploymentJpaRepository).findById(deploymentId);
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
         verifyNoMoreInteractions(deploymentJpaRepository);
     }
 
     @Test
     void testUpdate_throwsEntityNotFoundException_whenDeploymentNotFound() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.empty());
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.empty());
 
         // When / Then
-        assertThatThrownBy(() -> deploymentRepository.update(deploymentId, deployment))
+        assertThatThrownBy(() -> deploymentRepository.update(DEPLOYMENT_ID, deployment))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Deployment not found by id: '%s'".formatted(deploymentId));
+                .hasMessage("Deployment not found by id: '%s'".formatted(DEPLOYMENT_ID));
 
-        verify(deploymentJpaRepository).findById(deploymentId);
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
         verifyNoMoreInteractions(deploymentJpaRepository);
     }
 
     @Test
     void testConditionalUpdate_whenConditionMet() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity = createDeploymentEntity(deploymentId, imageDefinitionId);
+        var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.of(deploymentEntity));
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.of(deploymentEntity));
 
         Predicate<Deployment> condition = d -> true;
-        Consumer<Deployment> mutator = d -> d.setName("updated-name");
+        Consumer<Deployment> mutator = d -> d.setDisplayName("updated-name");
 
         // When
-        boolean result = deploymentRepository.conditionalUpdate(deploymentId, condition, mutator);
+        boolean result = deploymentRepository.conditionalUpdate(DEPLOYMENT_ID, condition, mutator);
 
         // Then
         assertThat(result).isTrue();
         verify(deploymentJpaRepository).save(deploymentEntityCaptor.capture());
         var capturedEntity = deploymentEntityCaptor.getValue();
-        assertThat(capturedEntity.getName()).isEqualTo("updated-name");
+        assertThat(capturedEntity.getDisplayName()).isEqualTo("updated-name");
 
-        verify(deploymentJpaRepository).findById(deploymentId);
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
         verifyNoMoreInteractions(deploymentJpaRepository);
     }
 
     @Test
     void testConditionalUpdate_whenConditionNotMet() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        var imageDefinitionId = UUID.randomUUID();
-        var deploymentEntity = createDeploymentEntity(deploymentId, imageDefinitionId);
-        var deployment = createDeployment(deploymentId, imageDefinitionId);
+        var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.of(deploymentEntity));
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.of(deploymentEntity));
 
         Predicate<Deployment> condition = d -> false;
-        Consumer<Deployment> mutator = d -> d.setName("updated-name");
+        Consumer<Deployment> mutator = d -> d.setDisplayName("updated-name");
 
         // When
-        var result = deploymentRepository.conditionalUpdate(deploymentId, condition, mutator);
+        var result = deploymentRepository.conditionalUpdate(DEPLOYMENT_ID, condition, mutator);
 
         // Then
         assertThat(result).isFalse();
-        assertThat(deployment.getName()).isEqualTo("test-deployment");
+        assertThat(deployment.getDisplayName()).isEqualTo("test-deployment");
 
-        verify(deploymentJpaRepository).findById(deploymentId);
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
         verifyNoMoreInteractions(deploymentJpaRepository);
     }
 
     @Test
     void testConditionalUpdate_throwsEntityNotFoundException_whenDeploymentNotFound() {
         // Given
-        var deploymentId = UUID.randomUUID();
-        when(deploymentJpaRepository.findById(deploymentId)).thenReturn(Optional.empty());
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.empty());
         Predicate<Deployment> condition = d -> true;
         Consumer<Deployment> mutator = d -> {
         };
 
         // When / Then
-        assertThatThrownBy(() -> deploymentRepository.conditionalUpdate(deploymentId, condition, mutator))
+        assertThatThrownBy(() -> deploymentRepository.conditionalUpdate(DEPLOYMENT_ID, condition, mutator))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Deployment not found by id: '%s'".formatted(deploymentId));
+                .hasMessage("Deployment not found by id: '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
     void testDeleteById() {
-        // Given
-        var idToDelete = UUID.randomUUID();
-
         // When
-        deploymentRepository.deleteById(idToDelete);
+        deploymentRepository.deleteById(DEPLOYMENT_ID);
 
         // Then
-        verify(deploymentJpaRepository).deleteById(idToDelete);
+        verify(deploymentJpaRepository).deleteById(DEPLOYMENT_ID);
     }
 
     @Test
@@ -393,7 +371,7 @@ class DeploymentRepositoryTest {
                 .name(imageDefinitionName)
                 .version(imageDefinitionVersion)
                 .build();
-        var deploymentIds = List.of(UUID.randomUUID(), UUID.randomUUID());
+        var deploymentIds = List.of(String.valueOf(UUID.randomUUID()), String.valueOf(UUID.randomUUID()));
 
         // When
         deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deploymentIds);
@@ -403,7 +381,7 @@ class DeploymentRepositoryTest {
                 imageDefinitionVersion, deploymentIds);
     }
 
-    private DeploymentEntity createDeploymentEntity(UUID deploymentId, UUID imageDefinitionId) {
+    private DeploymentEntity createDeploymentEntity(String deploymentId, UUID imageDefinitionId) {
         var resources = new Resources(
                 Map.of("cpu", "1", "memory", "1Gi"),
                 Map.of("cpu", "500m", "memory", "512Mi")
@@ -415,9 +393,9 @@ class DeploymentRepositoryTest {
         ));
 
         var deploymentEntity = new InterceptorDeploymentEntity();
-        deploymentEntity.setId(deploymentId);
+        deploymentEntity.setId(String.valueOf(deploymentId));
         deploymentEntity.setImageDefinitionId(imageDefinitionId);
-        deploymentEntity.setName("test-deployment");
+        deploymentEntity.setDisplayName("test-deployment");
         deploymentEntity.setDescription("Test Description");
         deploymentEntity.setEnvs(persistenceEnvs);
         deploymentEntity.setInitialScale(1);
@@ -430,14 +408,14 @@ class DeploymentRepositoryTest {
         return deploymentEntity;
     }
 
-    private DeploymentEntity createSavedDeploymentEntity(UUID deploymentId, UUID imageDefinitionId) {
+    private DeploymentEntity createSavedDeploymentEntity(String deploymentId, UUID imageDefinitionId) {
         var entity = createDeploymentEntity(deploymentId, imageDefinitionId);
         entity.setCreatedAt(100);
         entity.setUpdatedAt(100);
         return entity;
     }
 
-    private Deployment createDeployment(UUID deploymentId, UUID imageDefinitionId) {
+    private Deployment createDeployment(String deploymentId, UUID imageDefinitionId) {
         var resources = new Resources(
                 Map.of("cpu", "1", "memory", "1Gi"),
                 Map.of("cpu", "500m", "memory", "512Mi")
@@ -447,7 +425,7 @@ class DeploymentRepositoryTest {
         return InterceptorDeployment.builder()
                 .id(deploymentId)
                 .imageDefinitionId(imageDefinitionId)
-                .name("test-deployment")
+                .displayName("test-deployment")
                 .description("Test Description")
                 .envs(envs)
                 .initialScale(1)
@@ -461,7 +439,7 @@ class DeploymentRepositoryTest {
                 .build();
     }
 
-    private Deployment createSavedDeployment(UUID deploymentId, UUID imageDefinitionId) {
+    private Deployment createSavedDeployment(String deploymentId, UUID imageDefinitionId) {
         var deployment = createDeployment(deploymentId, imageDefinitionId);
         deployment.setCreatedAt(Instant.ofEpochMilli(100));
         deployment.setUpdatedAt(Instant.ofEpochMilli(100));

@@ -59,6 +59,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -115,13 +117,12 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testGetDeploymentById_notFound() throws Exception {
-        var deployId = UUID.randomUUID();
-        when(deploymentService.getDeployment(deployId)).thenReturn(Optional.empty());
+        when(deploymentService.getDeployment(DEPLOYMENT_ID)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/v1/deployments/{id}", deployId))
+        mockMvc.perform(get("/api/v1/deployments/{id}", DEPLOYMENT_ID))
                 .andExpect(status().isNotFound());
 
-        verify(deploymentService).getDeployment(deployId);
+        verify(deploymentService).getDeployment(DEPLOYMENT_ID);
     }
 
     @Test
@@ -150,21 +151,20 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void testDuplicateDeployment() throws Exception {
         var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/duplicate_deployment_request.json");
-        var duplicateDeploymentRequestDto = objectMapper.readValue(requestDtoJson, DuplicateDeploymentRequestDto.class);
+        var requestDto = objectMapper.readValue(requestDtoJson, DuplicateDeploymentRequestDto.class);
 
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/duplicate_deployment_response.json");
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
         // Update the model to match the expected response
-        model.setId(UUID.fromString("decade00-0000-4000-a000-000000000002"));
-        model.setName("cloned deployment");
+        model.setDisplayName("cloned deployment");
 
         var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
 
         when(imageDefinitionService.getImageDefinition(model.getImageDefinitionId())).thenReturn(Optional.of(imageModel));
-        when(deploymentService.duplicateDeployment(duplicateDeploymentRequestDto.sourceDeploymentId(),
-                duplicateDeploymentRequestDto.newDeploymentName())).thenReturn(model);
+        when(deploymentService.duplicateDeployment(requestDto.sourceDeploymentId(), requestDto.newDeploymentId(),
+                requestDto.newDeploymentDisplayName())).thenReturn(model);
 
         mockMvc.perform(post("/api/v1/deployments/duplicate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -172,8 +172,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
-        verify(deploymentService).duplicateDeployment(duplicateDeploymentRequestDto.sourceDeploymentId(),
-                duplicateDeploymentRequestDto.newDeploymentName());
+        verify(deploymentService).duplicateDeployment(requestDto.sourceDeploymentId(), requestDto.newDeploymentId(),
+                requestDto.newDeploymentDisplayName());
     }
 
     @Test
@@ -202,17 +202,14 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testDeleteDeployment() throws Exception {
-        var deployId = UUID.randomUUID();
-
-        mockMvc.perform(delete("/api/v1/deployments/{id}", deployId))
+        mockMvc.perform(delete("/api/v1/deployments/{id}", DEPLOYMENT_ID))
                 .andExpect(status().isNoContent());
 
-        verify(deploymentService).deleteDeployment(deployId);
+        verify(deploymentService).deleteDeployment(DEPLOYMENT_ID);
     }
 
     @Test
     void testDeploy() throws Exception {
-        var deployId = UUID.randomUUID();
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_response.json");
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
@@ -221,18 +218,17 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
 
         when(imageDefinitionService.getImageDefinition(any())).thenReturn(Optional.of(imageModel));
-        when(deploymentService.deploy(deployId)).thenReturn(model);
+        when(deploymentService.deploy(DEPLOYMENT_ID)).thenReturn(model);
 
-        mockMvc.perform(post("/api/v1/deployments/{id}/deploy", deployId))
+        mockMvc.perform(post("/api/v1/deployments/{id}/deploy", DEPLOYMENT_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
-        verify(deploymentService).deploy(eq(deployId));
+        verify(deploymentService).deploy(eq(DEPLOYMENT_ID));
     }
 
     @Test
     void testUndeploy() throws Exception {
-        var deployId = UUID.randomUUID();
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_response.json");
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
@@ -241,18 +237,17 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
 
         when(imageDefinitionService.getImageDefinition(any())).thenReturn(Optional.of(imageModel));
-        when(deploymentService.undeploy(deployId)).thenReturn(model);
+        when(deploymentService.undeploy(DEPLOYMENT_ID)).thenReturn(model);
 
-        mockMvc.perform(post("/api/v1/deployments/{id}/undeploy", deployId))
+        mockMvc.perform(post("/api/v1/deployments/{id}/undeploy", DEPLOYMENT_ID))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
-        verify(deploymentService).undeploy(deployId);
+        verify(deploymentService).undeploy(DEPLOYMENT_ID);
     }
 
     @Test
     void subscribeToLogs_withoutParams() throws Exception {
-        var deploymentId = UUID.randomUUID();
         var podName = "mypod-abc";
 
         // let the mocked service return some dummy emitter – its concrete behaviour
@@ -260,7 +255,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         when(deploymentLogsService.streamLogs(any(), any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
-                        get("/api/v1/deployments/{id}/pods/{podId}/logs", deploymentId, podName))
+                        get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName))
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
@@ -268,7 +263,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(deploymentLogsService).streamLogs(eq(deploymentId), eq(podName), cfgCaptor.capture());
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture());
 
         var cfg = cfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isNull();
@@ -280,7 +275,6 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void subscribeToLogs_withAllParams() throws Exception {
-        var deploymentId = UUID.randomUUID();
         var podName = "mypod-xyz";
         var sinceTime = Instant.now().minusSeconds(30);
         var sinceSecs = 30;
@@ -291,7 +285,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         when(deploymentLogsService.streamLogs(any(), any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
-                        get("/api/v1/deployments/{id}/pods/{podId}/logs", deploymentId, podName)
+                        get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName)
                                 .param("sinceTime", sinceTime.toString())
                                 .param("sinceSeconds", String.valueOf(sinceSecs))
                                 .param("tail", String.valueOf(tailLogs)))
@@ -302,7 +296,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(deploymentLogsService).streamLogs(eq(deploymentId), eq(podName), cfgCaptor.capture());
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture());
 
         var cfg = cfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isEqualTo(sinceTime);
@@ -312,12 +306,10 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void subscribeToEvents_withoutParams() throws Exception {
-        var deploymentId = UUID.randomUUID();
-
         when(eventStreamingService.streamEvents(any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
-                    get("/api/v1/deployments/{id}/events/stream", deploymentId))
+                    get("/api/v1/deployments/{id}/events/stream", DEPLOYMENT_ID))
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
@@ -325,7 +317,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(eventStreamingService).streamEvents(eq(deploymentId), eventCfgCaptor.capture());
+        verify(eventStreamingService).streamEvents(eq(DEPLOYMENT_ID), eventCfgCaptor.capture());
 
         var cfg = eventCfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isNull();
@@ -335,7 +327,6 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void subscribeToEvents_withAllParams() throws Exception {
-        var deploymentId = UUID.randomUUID();
         var sinceTime = Instant.now().minusSeconds(30);
         var eventType = EventType.WARNING;
         var involvedObjectKind = ObjectKind.POD;
@@ -343,7 +334,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         when(eventStreamingService.streamEvents(any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
-                get("/api/v1/deployments/{id}/events/stream", deploymentId)
+                get("/api/v1/deployments/{id}/events/stream", DEPLOYMENT_ID)
                         .param("sinceTime", sinceTime.toString())
                         .param("eventType", eventType.name())
                         .param("involvedObjectKind", involvedObjectKind.name()))
@@ -354,7 +345,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(eventStreamingService).streamEvents(eq(deploymentId), eventCfgCaptor.capture());
+        verify(eventStreamingService).streamEvents(eq(DEPLOYMENT_ID), eventCfgCaptor.capture());
 
         var cfg = eventCfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isEqualTo(sinceTime);

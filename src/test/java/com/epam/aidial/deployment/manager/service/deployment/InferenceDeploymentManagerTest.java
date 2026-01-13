@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class InferenceDeploymentManagerTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final int STARTUP_TIMEOUT = 60;
     private static final String NAMESPACE = "test-namespace";
     private static final String SERVICE_NAME = "service-" + DEPLOYMENT_ID;
@@ -144,7 +144,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("ready-pod");
+        assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
     }
 
     @Test
@@ -244,7 +244,7 @@ class InferenceDeploymentManagerTest {
                 .thenReturn(containerPort);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID.toString()), any(), any(), any(), any(), any(),
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), eq(containerPort))).thenReturn(serviceSpec);
 
         // When
@@ -419,7 +419,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID.toString()), any(), any(), any(), any(), any(),
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), eq(containerPort))).thenReturn(serviceSpec);
 
         // When

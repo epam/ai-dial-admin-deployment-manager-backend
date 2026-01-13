@@ -64,7 +64,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class NimDeploymentManagerTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
     private static final int STARTUP_TIMEOUT = 60;
     private static final String NAMESPACE = "test-namespace";
@@ -134,7 +134,7 @@ class NimDeploymentManagerTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("ready-pod");
+        assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
     }
 
     @Test
@@ -208,7 +208,7 @@ class NimDeploymentManagerTest {
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID.toString()),
+                eq(DEPLOYMENT_ID),
                 any(),
                 any(),
                 any(),
@@ -286,7 +286,7 @@ class NimDeploymentManagerTest {
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID.toString()),
+                eq(DEPLOYMENT_ID),
                 any(),
                 any(),
                 any(),

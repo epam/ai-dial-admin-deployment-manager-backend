@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity, UUID> {
+public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity, String> {
 
     List<DeploymentEntity> findAllByImageDefinitionId(UUID imageDefinitionId);
 
@@ -38,7 +38,7 @@ public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity,
             @Param("imageDefinitionId") UUID imageDefinitionId,
             @Param("imageDefinitionName") String imageDefinitionName,
             @Param("imageDefinitionVersion") String imageDefinitionVersion,
-            @Param("deployments") List<UUID> deployments
+            @Param("deployments") List<String> deployments
     );
 
     Page<DeploymentEntity> findAllByStatusIn(
@@ -53,6 +53,6 @@ public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity,
 
     @Modifying
     @Query("UPDATE DeploymentEntity d SET d.status = :status WHERE d.id = :id")
-    void updateStatus(@Param("id") UUID id, @Param("status") PersistenceDeploymentStatus status);
+    void updateStatus(@Param("id") String id, @Param("status") PersistenceDeploymentStatus status);
 
 }
