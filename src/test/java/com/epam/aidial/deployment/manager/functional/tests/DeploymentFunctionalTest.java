@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
@@ -62,6 +63,8 @@ public abstract class DeploymentFunctionalTest {
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
     private DeploymentStateReconciler deploymentStateReconciler;
+    @Autowired
+    private DisposableResourceManager disposableResourceManager;
 
     private ObjectMeta secretMetaData;
 
@@ -153,6 +156,23 @@ public abstract class DeploymentFunctionalTest {
         );
 
         Assertions.assertEquals("ImageDefinition not found: '%s'".formatted(nonExistingImageDefinitionId), exception.getMessage());
+    }
+
+    @Test
+    public void shouldFailCreateDeploymentWhenDisposableResourcesFound() {
+        // Given
+        var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        disposableResourceManager.saveKnativeServiceResource(createDeployment.getId(), "some-namespace");
+
+        // When & Then
+        var exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> deploymentService.createDeployment(createDeployment)
+        );
+
+        var message = "Failed to create deployment with ID '%s'. There are resources awaiting deletion associated with this ID."
+                .formatted(createDeployment.getId());
+        Assertions.assertEquals(message, exception.getMessage());
     }
 
     @Test

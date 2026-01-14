@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -56,6 +57,7 @@ public class DeploymentService {
     private final DeploymentMapper deploymentMapper;
     private final DeploymentManagerProvider deploymentManagerProvider;
     private final SecurityClaimsExtractor securityClaimsExtractor;
+    private final DisposableResourceManager disposableResourceManager;
 
     @Value("${app.deployment-reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -99,10 +101,13 @@ public class DeploymentService {
 
     @Transactional
     public Deployment createDeployment(CreateDeployment request) {
-        var envsPartition = validateAndPartitionEnvs(request.getMetadata());
+        var id = request.getId();
 
+        checkNoResourcesAreAssociatedWithId(id);
+
+        var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
-        var envs = saveEnvVars(deploymentManager, request.getId(), envsPartition);
+        var envs = saveEnvVars(deploymentManager, id, envsPartition);
         var deployment = deploymentMapper.toDeployment(request, envs);
 
         if (request.getImageDefinitionId() != null) {
@@ -242,6 +247,14 @@ public class DeploymentService {
     public List<PodInfo> getInstances(String id) {
         return deploymentManagerProvider.provide(id)
                 .getInstances(id);
+    }
+
+    private void checkNoResourcesAreAssociatedWithId(String id) {
+        var existingDisposableResources = disposableResourceManager.getAllByGroupId(id);
+        if (CollectionUtils.isNotEmpty(existingDisposableResources)) {
+            throw new IllegalArgumentException("Failed to create deployment with ID '%s'. There are resources awaiting deletion associated with this ID."
+                    .formatted(id));
+        }
     }
 
     private EnvPartition validateAndPartitionEnvs(DeploymentMetadata metadata) {
