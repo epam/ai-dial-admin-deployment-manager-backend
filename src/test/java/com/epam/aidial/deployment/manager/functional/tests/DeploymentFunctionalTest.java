@@ -640,7 +640,7 @@ public abstract class DeploymentFunctionalTest {
         deploymentService.createDeployment(createDeployment1);
 
         var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment1.setId("deployment-2");
+        createDeployment2.setId("deployment-2");
         createDeployment2.setDisplayName("deployment-2");
         deploymentService.createDeployment(createDeployment2);
 
