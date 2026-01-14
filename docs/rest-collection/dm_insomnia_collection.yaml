@@ -392,7 +392,8 @@ collection:
                     {
                         "$type": "mcp",
                         "imageDefinitionId": "{{ _['image-definition-id'] }}",
-                        "name": "fetch",
+                        "name": "fetch-1",
+                        "displayName": "Fetch",
                         "description": "Fetch MCP",
                         "metadata": {
                             "envs": [
@@ -451,7 +452,8 @@ collection:
                     {
                         "$type": "mcp",
                         "imageDefinitionId": "{{ _['image-definition-id'] }}",
-                        "name": "fetch",
+                        "name": "fetch-1",
+                        "displayName": "Fetch 1",
                         "description": "Fetch MCP",
                         "metadata": {
                             "envs": [
@@ -647,8 +649,9 @@ collection:
                   mimeType: application/json
                   text: |-
                     {
-                    	"sourceDeploymentId": "{{ _['deployment-id'] }}",
-                    	"newDeploymentName": "deployment-1-clone"
+                    	"sourceDeploymentName": "{{ _['deployment-id'] }}",
+                    	"newDeploymentName": "deployment-1-clone",
+                    	"newDeploymentDisplayName": "Deployment clone"
                     }
                 headers:
                   - name: Content-Type
