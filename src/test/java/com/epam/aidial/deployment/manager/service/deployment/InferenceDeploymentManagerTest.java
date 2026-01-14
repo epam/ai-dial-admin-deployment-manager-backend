@@ -654,6 +654,28 @@ class InferenceDeploymentManagerTest {
         ));
     }
 
+    @Test
+    void reconcile_shouldReturnStoppingStatusWhenServiceHasDeletionTimestamp() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService service = mock(InferenceService.class);
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(GENERATED_SERVICE_NAME);
+        metadata.setDeletionTimestamp(Instant.now().toString());
+        when(service.getMetadata()).thenReturn(metadata);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        // When
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+
+        // Then
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
+    }
+
     private Deployment createDeployment(DeploymentStatus status) {
         var deployment = new InferenceDeployment();
         deployment.setId(DEPLOYMENT_ID);
