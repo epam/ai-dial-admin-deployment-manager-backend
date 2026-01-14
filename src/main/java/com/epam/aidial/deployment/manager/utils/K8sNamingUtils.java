@@ -34,7 +34,7 @@ public class K8sNamingUtils {
                 log.warn("K8s object name does not match expected format: {}", name);
                 return null;
             }
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
             log.warn("Could not extract valid string ID from name: {}", name);
             return null;
         }
