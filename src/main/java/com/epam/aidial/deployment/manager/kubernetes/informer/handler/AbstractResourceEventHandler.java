@@ -1,11 +1,11 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
 import com.epam.aidial.deployment.manager.kubernetes.informer.IdExtractor;
-import com.networknt.schema.utils.StringUtils;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.ExecutorService;
