@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<suppressions>
+    <!-- ignore every class that sits below db/migration/... -->
+    <suppress files="src[\\/]main[\\/]java[\\/]db[\\/]migration[\\/].*" checks="(PackageName|TypeName)"/>
+    <suppress files="build[\\/]generated[\\/].*" checks=".*"/>
+</suppressions>

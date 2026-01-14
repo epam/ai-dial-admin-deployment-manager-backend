@@ -1,0 +1,50 @@
+{
+  "apiVersion" : "apps.nvidia.com/v1alpha1",
+  "kind" : "NIMService",
+  "metadata" : {
+    "name" : "mcp-basic-nim-app"
+  },
+  "spec" : {
+    "authSecret" : "ngc-api-secret",
+    "env" : [ {
+      "name" : "SIMPLE_VAR",
+      "value" : "simple_value"
+    }, {
+      "name" : "SECRET_VAR",
+      "valueFrom" : {
+        "secretKeyRef" : {
+          "key" : "secret-key",
+          "name" : "my-secret"
+        }
+      }
+    } ],
+    "expose" : {
+      "service" : {
+        "port" : 8000,
+        "type" : "ClusterIP"
+      }
+    },
+    "image" : {
+      "pullPolicy" : "IfNotPresent",
+      "pullSecrets" : [ "ngc-secret" ],
+      "repository" : "my-registry.io/custom/my-model",
+      "tag" : "v1.2.3"
+    },
+    "inferencePlatform" : "standalone",
+    "replicas" : 1,
+    "resources" : {
+      "limits" : {
+        "nvidia.com/gpu" : "1"
+      },
+      "requests" : { }
+    },
+    "storage" : {
+      "pvc" : {
+        "create" : true,
+        "size" : "20Gi",
+        "storageClass" : "default",
+        "volumeAccessMode" : "ReadWriteOnce"
+      }
+    }
+  }
+}

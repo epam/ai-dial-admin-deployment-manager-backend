@@ -1,0 +1,9 @@
+{
+  "imageDefinitionId": "decade00-0000-4000-a000-000000000000",
+  "status": "build_successful",
+  "imageName": "docker-registry/my-test-docker-image:latest",
+  "builtAt": 1749111276312,
+  "logs": [
+    "build successful"
+  ]
+}

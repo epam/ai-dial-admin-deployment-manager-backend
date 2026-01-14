@@ -1,0 +1,197 @@
+package com.epam.aidial.deployment.manager.service.deployment;
+
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
+import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
+import com.epam.aidial.deployment.manager.kubernetes.ServiceState;
+import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
+import com.epam.aidial.deployment.manager.model.DeploymentStatus;
+import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
+import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
+import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
+import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
+import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import com.nvidia.apps.v1alpha1.NIMService;
+import io.fabric8.kubernetes.api.model.Pod;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Slf4j
+@Component
+@ConditionalOnProperty(name = "app.nim.enabled", havingValue = "true")
+@LogExecution
+public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDeployment, NIMService> {
+
+    private static final int DEFAULT_NIM_SERVICE_PORT = 8000;
+
+    private final NimManifestGenerator nimManifestGenerator;
+    private final K8sNimClient k8sNimClient;
+    private final boolean useClusterInternalUrl;
+
+    public NimDeploymentManager(
+            K8sClient k8sClient,
+            DisposableResourceManager disposableResourceManager,
+            ManifestGenerator knativeManifestGenerator,
+            NimManifestGenerator nimManifestGenerator,
+            DeploymentRepository deploymentRepository,
+            ContainerPortResolver containerPortResolver,
+            CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+            K8sNimClient k8sNimClient,
+            NimDeployProperties nimDeployProperties
+    ) {
+        super(k8sClient, disposableResourceManager, knativeManifestGenerator, deploymentRepository,
+                containerPortResolver, ciliumNetworkPolicyCreator, nimDeployProperties.getNamespace(),
+                nimDeployProperties.getStartupTimeout(), DEFAULT_NIM_SERVICE_PORT);
+        this.nimManifestGenerator = nimManifestGenerator;
+        this.k8sNimClient = k8sNimClient;
+        this.useClusterInternalUrl = nimDeployProperties.isUseClusterInternalUrl();
+    }
+
+    @Override
+    public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
+        return List.of(NimDeployment.class);
+    }
+
+    @Override
+    protected String getServiceName(UUID id) {
+        return K8sNamingUtils.generateMcpPrefixedName(id.toString());
+    }
+
+    @Override
+    protected Optional<NimDeployment> getDeploymentOptional(UUID id) {
+        return deploymentRepository.getById(id).map(deployment -> {
+            if (deployment instanceof NimDeployment nimDeployment) {
+                return nimDeployment;
+            }
+            throw new IllegalArgumentException("Deployment type should be 'NIM' for NIM service deployment. Deployment: '%s'"
+                    .formatted(deployment.getId()));
+        });
+    }
+
+    @Override
+    protected NIMService prepareServiceSpec(NimDeployment deployment) {
+        if (!(deployment.getSource() instanceof NimDeploymentNgcRegistrySource(String imageRef))) {
+            throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: '%s'"
+                    .formatted(deployment.getId()));
+        }
+
+        var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
+        var userDefinedSimpleEnvs = filterEnvsByExactType(deployment, SimpleEnvVar.class);
+
+        var containerPort = resolveContainerPort(deployment::getContainerPort);
+        var containerGrpcPort = deployment.getContainerGrpcPort();
+
+        return nimManifestGenerator.serviceConfig(
+                deployment.getId().toString(),
+                userDefinedSimpleEnvs,
+                userDefinedSensitiveEnvs,
+                deployment.getResources(),
+                imageRef,
+                containerPort,
+                containerGrpcPort);
+    }
+
+    @Override
+    protected void createService(String namespace, NIMService service) {
+        k8sNimClient.createService(namespace, service);
+    }
+
+    @Override
+    protected void updateService(String namespace, NIMService service) {
+        k8sNimClient.updateService(namespace, service);
+    }
+
+    @Override
+    protected void deleteService(String namespace, String name) {
+        k8sNimClient.deleteService(namespace, name);
+    }
+
+    @Override
+    protected NIMService getService(String namespace, String name) {
+        return k8sNimClient.getService(namespace, name);
+    }
+
+    @Override
+    protected List<Pod> getServicePods(String namespace, String name) {
+        return k8sNimClient.getServicePods(namespace, name).getItems();
+    }
+
+    @Override
+    protected Pod getServicePod(String namespace, String name, String podName) {
+        return k8sNimClient.getServicePod(namespace, name, podName);
+    }
+
+    @Override
+    protected void saveDisposableResource(UUID id, String namespace) {
+        disposableResourceManager.saveNimServiceResource(id, namespace);
+    }
+
+    @Override
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(UUID id, String namespace) {
+        return disposableResourceManager.markNimServiceResourceForCleanup(id, namespace);
+    }
+
+    @Override
+    protected DeploymentStatus mapStatus(NIMService service) {
+        if (service.getMetadata().getDeletionTimestamp() != null) {
+            return DeploymentStatus.STOPPING;
+        }
+
+        var status = service.getStatus();
+        if (status == null) {
+            return DeploymentStatus.PENDING;
+        }
+
+        var serviceState = ServiceState.fromStateName(status.getState());
+
+        if (serviceState == ServiceState.READY) {
+            return DeploymentStatus.RUNNING;
+        } else if (serviceState == ServiceState.FAILED) {
+            return DeploymentStatus.CRASHED;
+        } else {
+            // CREATING, UPDATING, DELETING, UNKNOWN states
+            return DeploymentStatus.PENDING;
+        }
+    }
+
+    @Override
+    protected String resolveServiceUrl(NIMService service, NimDeployment deployment) {
+        log.trace("resolveServiceUrl. service: {}", service);
+        var serviceName = service.getMetadata().getName();
+
+        var status = service.getStatus();
+        if (status == null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. status is undefined", serviceName);
+            return null;
+        }
+
+        var model = status.getModel();
+        if (model == null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. model is undefined", serviceName);
+            return null;
+        }
+
+        String url;
+        if (useClusterInternalUrl) {
+            url = model.getClusterEndpoint();
+            log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
+        } else {
+            url = model.getExternalEndpoint();
+            log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
+        }
+        return url;
+    }
+
+}

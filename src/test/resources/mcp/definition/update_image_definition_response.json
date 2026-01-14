@@ -1,0 +1,18 @@
+{
+  "$type": "mcp",
+  "id": "decade00-0000-4000-a000-000000000000",
+  "name": "echo-mcp",
+  "description": "description",
+  "source": {
+    "$type": "docker",
+    "imageUri": "aidial/echo-mcp:2.0"
+  },
+  "version": "1.0.0",
+  "license": "MIT",
+  "createdAt": 1745996228431,
+  "updatedAt": 1745996228431,
+  "topics": ["test"],
+  "buildStatus": "build_successful",
+  "transportType": "local",
+  "allowedDomains": ["first-test-domain", "second-test-domain"]
+}

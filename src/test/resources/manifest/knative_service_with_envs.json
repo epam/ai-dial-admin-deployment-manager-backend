@@ -1,0 +1,52 @@
+{
+  "apiVersion" : "serving.knative.dev/v1",
+  "kind" : "Service",
+  "metadata" : {
+    "name" : "mcp-basic-app"
+  },
+  "spec" : {
+    "template" : {
+      "metadata" : {
+        "annotations" : {
+          "autoscaling.knative.dev/initial-scale" : "1",
+          "autoscaling.knative.dev/max-scale" : "3",
+          "autoscaling.knative.dev/window" : "300s"
+        }
+      },
+      "spec" : {
+        "automountServiceAccountToken" : false,
+        "containerConcurrency" : 50,
+        "containers" : [ {
+          "env" : [ {
+            "name" : "SIMPLE_VAR",
+            "value" : "simple_value"
+          }, {
+            "name" : "SECRET_VAR",
+            "valueFrom" : {
+              "secretKeyRef" : {
+                "key" : "secret-key",
+                "name" : "my-secret"
+              }
+            }
+          } ],
+          "image" : "my-registry/my-image:latest",
+          "imagePullPolicy" : "Always",
+          "name" : "app-container",
+          "resources" : {
+            "limits" : {
+              "cpu" : "1000m",
+              "memory" : "4G",
+              "ephemeral-storage" : "1G"
+            },
+            "requests" : {
+              "cpu" : "500m",
+              "memory" : "1G",
+              "ephemeral-storage" : "500M"
+            }
+          }
+        } ],
+        "idleTimeoutSeconds" : 300
+      }
+    }
+  }
+}

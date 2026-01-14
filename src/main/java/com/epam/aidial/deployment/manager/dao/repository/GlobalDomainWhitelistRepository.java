@@ -1,0 +1,39 @@
+package com.epam.aidial.deployment.manager.dao.repository;
+
+import com.epam.aidial.deployment.manager.dao.entity.DomainWhitelistEntity;
+import com.epam.aidial.deployment.manager.dao.jpa.DomainWhitelistJpaRepository;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+@RequiredArgsConstructor
+public class GlobalDomainWhitelistRepository {
+
+    private final DomainWhitelistJpaRepository jpaRepository;
+
+    public List<String> getAllowedDomains() {
+        var whitelist = getGlobalDomainWhitelist();
+        return whitelist.getAllowedDomains();
+    }
+
+    public List<String> updateAllowedDomains(List<String> allowedDomains) {
+        var whitelist = getGlobalDomainWhitelist();
+        whitelist.setAllowedDomains(allowedDomains);
+        var updatedWhitelist = jpaRepository.saveAndFlush(whitelist);
+        return updatedWhitelist.getAllowedDomains();
+    }
+
+    private DomainWhitelistEntity getGlobalDomainWhitelist() {
+        var entities = jpaRepository.findAll();
+        if (CollectionUtils.isEmpty(entities)) {
+            throw new IllegalStateException("Global domain whitelist not found");
+        }
+        if (entities.size() > 1) {
+            throw new IllegalStateException("More than 1 global domain whitelist found");
+        }
+        return entities.get(0);
+    }
+}

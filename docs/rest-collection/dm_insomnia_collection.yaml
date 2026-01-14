@@ -1,0 +1,906 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: DIAL Admin Deployment Manager
+meta:
+  id: wrk_bf271aff05284ae19cffbfb4a89b01c9
+  created: 1767795110092
+  modified: 1768218698385
+  description: ""
+collection:
+  - name: DIAL
+    meta:
+      id: fld_055abe0c6742409298499de5860e6145
+      created: 1747311671877
+      modified: 1747311671877
+      sortKey: -1747311669622
+      description: ""
+    children:
+      - name: deployment-manager
+        meta:
+          id: fld_ecc65966075b41d986ad17ca81005004
+          created: 1747311671954
+          modified: 1767795325473
+          sortKey: -1747311669540
+          description: ""
+        children:
+          - url: "{{ _.host }}/api/v1/health"
+            name: healthcheck
+            meta:
+              id: req_be6ab879c9de4b7b98f2eeccdd7fcc67
+              created: 1747223668107
+              modified: 1767798992221
+              isPrivate: false
+              description: ""
+              sortKey: -1767798962851
+            method: GET
+            settings:
+              renderRequestBody: true
+              encodeUrl: true
+              followRedirects: global
+              cookies:
+                send: true
+                store: true
+              rebuildPath: true
+          - name: images/builds
+            meta:
+              id: fld_ef1c87e41d2e406d9534ccae39d74623
+              created: 1747311671955
+              modified: 1768218767257
+              sortKey: -1760617625371.25
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-definition-id'] }}/details"
+                name: get details
+                meta:
+                  id: req_2272c0a3551c46c288e1dcb5b5430f69
+                  created: 1747311671956
+                  modified: 1768219259540
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669537
+                method: GET
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/builds"
+                name: build image
+                meta:
+                  id: req_e25e0b6dad5443f49c238f41beb22003
+                  created: 1747311671956
+                  modified: 1768219243182
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669538
+                method: POST
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                    	"imageDefinitionId": "{{ _['image-definition-id'] }}"
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-definition-id'] }}/status"
+                name: status stream
+                meta:
+                  id: req_9ef3394d471c4cbda4e6b1567fbf20a3
+                  created: 1767796965521
+                  modified: 1768219268713
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669487
+                method: GET
+                headers:
+                  - name: Accept
+                    value: text/event-stream
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/builds/{{ _['image-definition-id'] }}/logs"
+                name: logs stream
+                meta:
+                  id: req_40d1a373595044d6a35ab633a9290936
+                  created: 1767797034571
+                  modified: 1768219288214
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669437
+                method: GET
+                headers:
+                  - name: Accept
+                    value: text/event-stream
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - name: images/definitions
+            meta:
+              id: fld_c05e8a333fac456296d6876347d1394f
+              created: 1747311671959
+              modified: 1767795502473
+              sortKey: -1760617625390
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/images/definitions?type=MCP,INTERCEPTOR"
+                name: get images
+                meta:
+                  id: req_4c9fa5e04b014c4b9ee3163516bc44c7
+                  created: 1747311671960
+                  modified: 1768218855176
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669534
+                method: GET
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/definitions"
+                name: create image
+                meta:
+                  id: req_cfbcfeb564db4682aa084f24f722b4cc
+                  created: 1747311671960
+                  modified: 1768219173976
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669533
+                method: POST
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                    	"$type": "mcp",
+                    	"name": "fetch",
+                    	"version": "1.0.0",
+                    	"description": "Fetch MCP",
+                    	"source": {
+                    		"$type": "docker",
+                    		"imageUri": "mcp/fetch"
+                    	},
+                    	"transportType": "local",
+                    	"license": "MIT License",
+                    	"topics": [
+                    		"fetch"
+                    	],
+                    	"author": "local-user"
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-id'] }}"
+                name: update image
+                meta:
+                  id: req_40ba8531bb4a4d5ba69b23844089173e
+                  created: 1747311671961
+                  modified: 1768219193287
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669532
+                method: PUT
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                        "$type": "mcp",
+                        "name": "fetch",
+                        "version": "1.0.0",
+                        "description": "Fetch MCP",
+                        "source": {
+                            "$type": "docker",
+                            "imageUri": "mcp/fetch"
+                        },
+                        "transportType": "local",
+                        "license": "MIT License",
+                        "topics": [
+                            "fetch"
+                        ],
+                        "author": "local-user",
+                        "allowedDomains": [
+                            "epam.com"
+                        ]
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-id'] }}"
+                name: delete image
+                meta:
+                  id: req_b7aa58bc1b3a4f0ebd4ed51c3a415d1b
+                  created: 1747311671962
+                  modified: 1768218990123
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669531
+                method: DELETE
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-name']
+                  }}/versions?type=MCP"
+                name: get image versions by name
+                meta:
+                  id: req_de76bcb5a3ef44f9b7269ea7058d2f6f
+                  created: 1767796277767
+                  modified: 1768218931509
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669533.5
+                method: GET
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/definitions/{{ _['image-definition-id'] }}"
+                name: get image by id
+                meta:
+                  id: req_3b522915348d47ab907d0800f672bd88
+                  created: 1767796387970
+                  modified: 1768218952458
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1756385996629.5
+                method: GET
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/images/definitions/grouped?type=MCP"
+                name: get images grouped
+                meta:
+                  id: req_3c04fc519ca04b449538ceb517a2e024
+                  created: 1767796561302
+                  modified: 1768218861253
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669533.875
+                method: GET
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - name: whitelist
+                meta:
+                  id: fld_7d8591a03fb04f42b23d93a57259939d
+                  created: 1767799058846
+                  modified: 1767799068214
+                  sortKey: -1765501050105
+                  description: ""
+                children:
+                  - url: "{{ _.host }}/api/v1/global-whitelist/image-build"
+                    name: get whitelist
+                    meta:
+                      id: req_3a4f02e455fa43388196b562d46df56f
+                      created: 1765541776485
+                      modified: 1767799069783
+                      isPrivate: false
+                      description: ""
+                      sortKey: -1767799069751
+                    method: GET
+                    settings:
+                      renderRequestBody: true
+                      encodeUrl: true
+                      followRedirects: global
+                      cookies:
+                        send: true
+                        store: true
+                      rebuildPath: true
+                  - url: "{{ _.host }}/api/v1/global-whitelist/image-build"
+                    name: update whitelist
+                    meta:
+                      id: req_569bccac47564995a8f3acfd5eed1604
+                      created: 1765542094302
+                      modified: 1768218786330
+                      isPrivate: false
+                      description: ""
+                      sortKey: -1767799069651
+                    method: POST
+                    body:
+                      mimeType: application/json
+                      text: '["github.com", "epam.com"]'
+                    headers:
+                      - name: Content-Type
+                        value: application/json
+                    settings:
+                      renderRequestBody: true
+                      encodeUrl: true
+                      followRedirects: global
+                      cookies:
+                        send: true
+                        store: true
+                      rebuildPath: true
+          - name: deployments
+            meta:
+              id: fld_583cb0229a754e66aac26ea7006da26b
+              created: 1747311671963
+              modified: 1767795507411
+              sortKey: -1760617625352.5
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/deployments"
+                name: create deployment
+                meta:
+                  id: req_de7c43f35af5478b8f200c61e80c6978
+                  created: 1747311671964
+                  modified: 1768219397015
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669529
+                method: POST
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                        "$type": "mcp",
+                        "imageDefinitionId": "{{ _['image-definition-id'] }}",
+                        "name": "fetch",
+                        "description": "Fetch MCP",
+                        "metadata": {
+                            "envs": [
+                                {
+                                    "name": "EXAMPLE_ENV",
+                                    "value": {
+                                        "$type": "simple",
+                                        "value": "test value"
+                                    },
+                                    "mountType": "secure_content",
+                                    "description": "Example env description"
+                                }
+                            ]
+                        },
+                        "transport": "http_streaming",
+                        "containerPort": 8080,
+                        "initialScale": 1,
+                        "minScale": 0,
+                        "maxScale": 2,
+                        "resources": {
+                            "limits": {
+                                "cpu": "0.1",
+                                "memory": "104857600"
+                            },
+                            "requests": {
+                                "cpu": "0.05",
+                                "memory": "52428800"
+                            }
+                        },
+                        "author": "local-user"
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}"
+                name: update deployment
+                meta:
+                  id: req_4bd78463d194495ea3ce7fcdf5ac767d
+                  created: 1747311671965
+                  modified: 1768219479085
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669528.75
+                method: PUT
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                        "$type": "mcp",
+                        "imageDefinitionId": "{{ _['image-definition-id'] }}",
+                        "name": "fetch",
+                        "description": "Fetch MCP",
+                        "metadata": {
+                            "envs": [
+                                {
+                                    "name": "EXAMPLE_ENV",
+                                    "value": {
+                                        "$type": "simple",
+                                        "value": "test value"
+                                    },
+                                    "mountType": "secure_content",
+                                    "description": "Example env description"
+                                }
+                            ]
+                        },
+                        "transport": "http_streaming",
+                        "containerPort": 8080,
+                        "initialScale": 1,
+                        "minScale": 0,
+                        "maxScale": 2,
+                        "resources": {
+                            "limits": {
+                                "cpu": "0.1",
+                                "memory": "104857600"
+                            },
+                            "requests": {
+                                "cpu": "0.05",
+                                "memory": "52428800"
+                            }
+                        },
+                        "author": "local-user",
+                        "allowedDomains": [
+                            "epam.com"
+                        ]
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}"
+                name: delete deployment
+                meta:
+                  id: req_8ca80702418143dca5fbeb992d3f1ae9
+                  created: 1747311671966
+                  modified: 1767798027119
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669527
+                method: DELETE
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/deploy"
+                name: deploy deployment
+                meta:
+                  id: req_9477167da5bd4a79bb09a475b7b4ed54
+                  created: 1747311671967
+                  modified: 1767798399824
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669525
+                method: POST
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments?type=MCP,INTERCEPTOR"
+                name: get deployments
+                meta:
+                  id: req_ac80455925b84e5ab4bc2175aa1ea878
+                  created: 1747311671967
+                  modified: 1767798243300
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669629
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                authentication:
+                  type: none
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/undeploy"
+                name: undeploy deployment
+                meta:
+                  id: req_661c27d1addd4d51a0a7d6f8107ca0f2
+                  created: 1747311671968
+                  modified: 1767798414017
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669524
+                method: POST
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/change-image"
+                name: change image
+                meta:
+                  id: req_c8b5e15a33b94dc98ce7ade360ee43b1
+                  created: 1763115537890
+                  modified: 1768219442133
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669528.25
+                method: POST
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                    	"imageDefinitionId": "{{ _['image-definition-id'] }}",
+                    	"deployments": [
+                    		"{{ _['deployment-id'] }}"
+                    	]
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}"
+                name: get deployment by id
+                meta:
+                  id: req_0b22c0d7f44b4b2894faab878ae5f080
+                  created: 1767798066530
+                  modified: 1767879517969
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669624
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                authentication:
+                  type: none
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/duplicate"
+                name: duplicate deployment
+                meta:
+                  id: req_beacef648a54429a9ef72c1c47445291
+                  created: 1767798238411
+                  modified: 1768219415314
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669528.5
+                method: POST
+                body:
+                  mimeType: application/json
+                  text: |-
+                    {
+                    	"sourceDeploymentId": "{{ _['deployment-id'] }}",
+                    	"newDeploymentName": "deployment-1-clone"
+                    }
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/pods"
+                name: get deployment pods
+                meta:
+                  id: req_040db627003744c8b4bee4881f58fba7
+                  created: 1767798437412
+                  modified: 1767798454794
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669424
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                authentication:
+                  type: none
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/active-pods"
+                name: get active deployment pods
+                meta:
+                  id: req_3af58ec59bec4e40b9877c96206ca3de
+                  created: 1767798486062
+                  modified: 1767798498162
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747267668765.5
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                authentication:
+                  type: none
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - name: mcp
+            meta:
+              id: fld_366094d47aa0408abeb6ffd6679f439a
+              created: 1747311671969
+              modified: 1756884965281
+              sortKey: -1747311669523
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id'] }}/tools"
+                name: get tools
+                meta:
+                  id: req_4bcdaecb9c384ca693faa1920e858471
+                  created: 1747311671970
+                  modified: 1767877684664
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669522
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id'] }}/prompts"
+                name: get prompts
+                meta:
+                  id: req_5ad785b5b3c543dcb25143625793d710
+                  created: 1747311671971
+                  modified: 1767875505063
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669521
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/mcp/{{ _['deployment-id'] }}/resources"
+                name: get resources
+                meta:
+                  id: req_4f25eb835e914ab394244389f240fb6d
+                  created: 1747311671972
+                  modified: 1767875509509
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747311669520
+                method: GET
+                headers:
+                  - name: Content-Type
+                    value: application/json
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - name: topics
+            meta:
+              id: fld_57db2b7ceb0d403d9a787da1a1dcd329
+              created: 1747311671973
+              modified: 1767799021032
+              sortKey: -1747311669522
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/topics"
+                name: get topics
+                meta:
+                  id: req_b05cf89c13ff45d4b2dcc62975f9f5b0
+                  created: 1747382321145
+                  modified: 1767799935286
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1747382321145
+                method: GET
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - name: deployments/streaming
+            meta:
+              id: fld_58c73469fda04965b64d57c22779b286
+              created: 1760617625340
+              modified: 1767798685458
+              sortKey: -1760617625340
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/events/stream"
+                name: stream events
+                meta:
+                  id: req_97201b2fc8144075850f97cc7dc6dfbe
+                  created: 1767798573392
+                  modified: 1767875328389
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1767798573392
+                method: GET
+                headers:
+                  - name: Accept
+                    value: text/event-stream
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+              - url: "{{ _.host }}/api/v1/deployments/{{ _['deployment-id'] }}/pods/{{
+                  _['pod-name'] }}/logs"
+                name: stream logs
+                meta:
+                  id: req_5cfa7071bdeb45b0a2c5181e711f2d20
+                  created: 1767798673410
+                  modified: 1768219539232
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1767797862364
+                method: GET
+                headers:
+                  - name: Accept
+                    value: text/event-stream
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+          - name: disposable resources
+            meta:
+              id: fld_102bb73667ff4418ae5969d91cbf505c
+              created: 1767798962551
+              modified: 1767799018575
+              sortKey: -1747311669521
+              description: ""
+            children:
+              - url: "{{ _.host }}/api/v1/disposable/clean"
+                name: clean resources
+                meta:
+                  id: req_0b3b733393a0469d99e0371580904990
+                  created: 1767797151336
+                  modified: 1767799972155
+                  isPrivate: false
+                  description: ""
+                  sortKey: -1767798980424
+                method: POST
+                settings:
+                  renderRequestBody: true
+                  encodeUrl: true
+                  followRedirects: global
+                  cookies:
+                    send: true
+                    store: true
+                  rebuildPath: true
+    authentication:
+      type: bearer
+      disabled: false
+      token: "{{TOKEN}}"
+      prefix: ""
+    environment:
+      API_KEY: ""
+      TOKEN: ""
+environments:
+  name: Base Environment
+  meta:
+    id: env_6034c67a1d83477e92c15f3d9fd10e85
+    created: 1747223574189
+    modified: 1768219525827
+    isPrivate: false
+  data:
+    user: admin
+    password: password
+    host: http://localhost:8080
+    image-definition-id: value1
+    image-definition-name: value2
+    deployment-id: value3
+    pod-name: value4

@@ -1,0 +1,176 @@
+buildscript {
+    dependencies {
+        constraints {
+            classpath ('org.apache.commons:commons-lang3:3.18.0') {
+                because("previous versions have vulnerabilities")
+            }
+            classpath ('org.springframework:spring-core:6.2.11') {
+                because("previous versions have vulnerabilities")
+            }
+        }
+    }
+}
+
+plugins {
+    id 'java'
+    id 'checkstyle'
+    id 'io.freefair.lombok' version '8.10'
+    id 'org.springframework.boot' version '3.5.3'
+    id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
+}
+
+group = 'com.epam.aidial'
+version = "0.1.0-rc"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+javaGen {
+    source = file('src/main/resources/kubernetes/crd')
+    target = file("${layout.buildDirectory.get().asFile}/generated/sources/fabric8JavaGenerator/java/main")
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    configureEach {
+        exclude group: 'commons-logging', module: 'commons-logging'
+        exclude group: "org.springframework.boot", module: "spring-boot-starter-logging"
+    }
+}
+
+checkstyle {
+    toolVersion = "10.21.4"
+    configDirectory = file("$rootProject.projectDir/checkstyle")
+
+    configProperties['org.checkstyle.google.suppressionfilter.config'] =
+            file("$rootDir/checkstyle/checkstyle-suppressions.xml")
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    implementation 'com.azure:azure-identity:1.18.0'
+
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:6.3.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:6.3.0'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'com.h2database:h2:2.3.232'
+    implementation 'org.postgresql:postgresql:42.7.8'
+    implementation 'com.microsoft.sqlserver:mssql-jdbc:13.2.1.jre11'
+    implementation 'org.flywaydb:flyway-core:11.14.0'
+    implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
+    implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
+
+    implementation 'io.modelcontextprotocol.sdk:mcp:0.15.0'
+    implementation 'com.google.cloud.tools:jib-core:0.27.3'
+
+    // https://issues.apache.org/jira/browse/JCLOUDS-1637
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    runtimeOnly 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
+
+    implementation 'commons-io:commons-io:2.18.0'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
+    implementation 'org.apache.commons:commons-collections4:4.5.0-M3'
+    implementation 'org.springframework.retry:spring-retry'
+
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+    implementation 'org.hibernate.validator:hibernate-validator:8.0.2.Final'
+
+    implementation "io.fabric8:kubernetes-client:${fabric8_kubernetes_client_version}"
+    implementation "io.fabric8:knative-client:${fabric8_kubernetes_client_version}"
+    implementation "io.fabric8:generator-annotations:${fabric8_kubernetes_client_version}"
+    implementation 'io.kubernetes:client-java:22.0.0'
+
+    implementation('org.springframework.boot:spring-boot-starter-log4j2') {
+        exclude group: 'org.apache.logging.log4j'
+    }
+    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-core:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-jul:2.24.3'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.opentelemetry:opentelemetry-sdk'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:1.33.6-alpha'
+
+    implementation 'org.mapstruct:mapstruct:1.6.0'
+    annotationProcessor "org.mapstruct:mapstruct-processor:1.6.0"
+
+    testImplementation 'io.jsonwebtoken:jjwt:0.9.1'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainers_version}"
+    testImplementation "org.testcontainers:testcontainers:${testcontainers_version}"
+    testImplementation "org.testcontainers:jdbc:${testcontainers_version}"
+    testImplementation "org.testcontainers:postgresql:${testcontainers_version}"
+    testImplementation "org.testcontainers:mssqlserver:${testcontainers_version}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    constraints {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.13') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.projectreactor.netty:reactor-netty-http:1.2.8') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-codec-http2:4.2.4.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation("io.grpc:grpc-netty-shaded:1.75.0") {
+            because("previous versions have vulnerabilities)")
+        }
+        implementation ('io.netty:netty-codec:4.2.8.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-codec-http:4.2.8.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework:spring-webmvc:6.2.10') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework.security:spring-security-core:6.5.4') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework:spring-core:6.2.11') {
+            because("previous versions have vulnerabilities")
+        }
+        checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
+            because("previous versions have vulnerabilities")
+        }
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    dependsOn(crd2java)
+    options.compilerArgs += "-Werror"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir(file("${buildDir}/generated/sources/fabric8JavaGenerator/java/main"))
+        }
+    }
+}

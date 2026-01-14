@@ -1,0 +1,29 @@
+{
+  "apiVersion": "serving.kserve.io/v1beta1",
+  "kind": "InferenceService",
+  "metadata": {
+    "name": "dm-custom-port-inference-app"
+  },
+  "spec": {
+    "predictor": {
+      "model": {
+        "env": [],
+        "modelFormat": {
+          "name": "huggingface"
+        },
+        "ports": [
+          {
+            "containerPort": 9000,
+            "hostPort": 9000,
+            "protocol": "TCP"
+          }
+        ],
+        "resources": {
+          "limits": {},
+          "requests": {}
+        },
+        "storageUri": "s3://my-bucket/port-model"
+      }
+    }
+  }
+}

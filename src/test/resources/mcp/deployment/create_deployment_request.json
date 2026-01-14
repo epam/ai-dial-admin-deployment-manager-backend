@@ -1,0 +1,53 @@
+{
+  "$type": "mcp",
+  "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
+  "name": "example deployment 1",
+  "description": "Description of example deployment 1",
+  "metadata": {
+    "envs": [
+      {
+        "name": "NAME_ONE",
+        "value": {
+          "$type": "simple",
+          "value": "value_one"
+        },
+        "mountType": "secure_content",
+        "description": "Variable 1"
+      },
+      {
+        "name": "NAME_TWO",
+        "value": {
+          "$type": "simple",
+          "value": "value_two"
+        },
+        "mountType": "content",
+        "description": "Variable 2"
+      },
+      {
+        "name": "FILE_ENV1",
+        "value": {
+          "$type": "file",
+          "fileContent": "file_content_one",
+          "fileName": "file_name_one"
+        },
+        "mountType": "secure_file",
+        "description": "File variable"
+      }
+    ]
+  },
+  "transport": "sse",
+  "containerPort": 8082,
+  "allowedDomains": ["first-test-domain", "second-test-domain"],
+  "initialScale": 1,
+  "minScale": 0,
+  "maxScale": 2,
+  "resources": {
+    "limits": {
+      "limit1": "some-value-1",
+      "limit2": "some-value-2"
+    },
+    "requests": {
+      "request1": "some-rvalue-1"
+    }
+  }
+}

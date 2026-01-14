@@ -1,0 +1,56 @@
+[
+  {
+    "$type": "mcp",
+    "id": "decade00-0000-4000-a000-000000000000",
+    "name": "echo-mcp",
+    "description": "description",
+    "version": "1.0.0",
+    "source": {
+      "$type": "docker",
+      "imageUri": "aidial/echo-mcp:latest"
+    },
+    "metadata": {
+      "envs": [
+        {
+          "name": "ENV_VAR_TEST",
+          "defaultValue": {
+            "$type": "simple",
+            "value": "test_value"
+          },
+          "required": true,
+          "description": "A test environment variable"
+        }
+      ]
+    },
+    "license": "MIT",
+    "createdAt": 1745996228431,
+    "updatedAt": 1745996228431,
+    "topics": ["test"],
+    "buildStatus": "build_successful",
+    "imageName": "registry/echo-mcp:1.0.0",
+    "builtAt": 1745996228431,
+    "transport": "http_streaming",
+    "allowedDomains": []
+  },
+  {
+    "$type": "mcp",
+    "id": "decddd00-0000-4000-a000-000000000000",
+    "name": "echo-mcp",
+    "description": "description",
+    "version": "2.0.0",
+    "source": {
+      "$type": "docker",
+      "imageUri": "aidial/echo-mcp:latest"
+    },
+    "metadata": {
+      "envs": []
+    },
+    "license": "MIT",
+    "createdAt": 1745996228435,
+    "updatedAt": 1745996228435,
+    "topics": ["test1"],
+    "buildStatus": "build_failed",
+    "transport": "sse",
+    "allowedDomains": []
+  }
+]

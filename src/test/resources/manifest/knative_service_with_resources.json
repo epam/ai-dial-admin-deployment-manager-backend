@@ -1,0 +1,42 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "mcp-resource-app"
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "autoscaling.knative.dev/initial-scale": "1",
+          "autoscaling.knative.dev/max-scale": "3",
+          "autoscaling.knative.dev/window": "300s"
+        }
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containerConcurrency": 50,
+        "containers": [
+          {
+            "image": "my-registry/resource-image:v1",
+            "imagePullPolicy": "Always",
+            "name": "app-container",
+            "resources": {
+              "limits": {
+                "cpu": "2000m",
+                "memory": "8Gi",
+                "ephemeral-storage": "1G"
+              },
+              "requests": {
+                "cpu": "500m",
+                "memory": "2Gi",
+                "ephemeral-storage": "500M"
+              }
+            }
+          }
+        ],
+        "idleTimeoutSeconds": 300
+      }
+    }
+  }
+}

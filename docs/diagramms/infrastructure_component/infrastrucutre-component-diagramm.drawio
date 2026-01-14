@@ -1,0 +1,184 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" version="29.2.4">
+  <diagram name="DIAL Infrastructure" id="dial-infrastructure">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="legend-group" parent="1" style="swimlane;whiteSpace=wrap;html=1;startSize=23;" value="Legend" vertex="1">
+          <mxGeometry height="120" width="200" x="40" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-existing" parent="legend-group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Existing Component" vertex="1">
+          <mxGeometry height="30" width="160" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-roadmap" parent="legend-group" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=1 4;fillColor=#f8cecc;strokeColor=#b85450;" value="Roadmap / Future" vertex="1">
+          <mxGeometry height="30" width="160" x="20" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="vcs" parent="1" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Version Control System&lt;br&gt;(Git)" vertex="1">
+          <mxGeometry height="80" width="160" x="1420" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="internet" parent="1" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Public Network&#xa;(PyPI/Maven/DockerHub)" vertex="1">
+          <mxGeometry height="80" width="160" x="1420" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="backend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" value="DIAL Deployment Manager Backend&lt;br&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="200" x="80" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="db" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffe6cc;strokeColor=#d79b00;" value="Database&lt;br&gt;(PostgreSQL/&lt;br&gt;MSSQL/H2)" vertex="1">
+          <mxGeometry height="80" width="100" x="130" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="k8s-cluster" parent="1" style="swimlane;whiteSpace=wrap;html=1;startSize=30;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" value="Kubernetes Cluster" vertex="1">
+          <mxGeometry height="720" width="940" x="460" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="kube-api" parent="k8s-cluster" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" value="Kubernetes API Server" vertex="1">
+          <mxGeometry height="60" width="140" x="20" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="ns-build" parent="k8s-cluster" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Namespace: K8S_BUILD_NAMESPACE (DIAL deployments Image Building)" vertex="1">
+          <mxGeometry height="140" width="590" x="200" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="kaniko" parent="ns-build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" value="Container Image Builder (Kaniko)" vertex="1">
+          <mxGeometry height="60" width="140" x="180" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ns-knative" parent="k8s-cluster" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Namespace: K8S_KNATIVE_DEPLOYMENT_NAMESPACE (DIAL Deployments Workloads)" vertex="1">
+          <mxGeometry height="140" width="590" x="200" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-servers" parent="ns-knative" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="DIAL Toolsets (MCP Servers)" vertex="1">
+          <mxGeometry height="60" width="120" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="knative-serving" parent="ns-knative" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="DIAL Interceptors" vertex="1">
+          <mxGeometry height="60" width="120" x="160" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-1" parent="ns-knative" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="DIAL Applications" vertex="1">
+          <mxGeometry height="60" width="120" x="300" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-2" parent="ns-knative" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="DIAL Adapters" vertex="1">
+          <mxGeometry height="60" width="120" x="440" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ns-kserve" parent="k8s-cluster" style="swimlane;whiteSpace=wrap;html=1;dashed=1;dashPattern=1 4;fillColor=#ffffff;strokeColor=#000000;" value="Namespace: K8S_KSERVE_DEPLOYMENT_NAMESPACE (self hosted HF models)" vertex="1">
+          <mxGeometry height="140" width="590" x="200" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="kserve-operator" parent="ns-kserve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="KServe HF Model Serving" vertex="1">
+          <mxGeometry height="60" width="120" x="20" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="cilium" parent="k8s-cluster" style="shape=hexagon;whiteSpace=wrap;html=1;dashed=1;dashPattern=1 4;fillColor=#f8cecc;strokeColor=#b85450;" value="Cilium&#xa;(Network Security)" vertex="1">
+          <mxGeometry height="80" width="140" x="20" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-api-build" edge="1" parent="k8s-cluster" source="kube-api" style="endArrow=classic;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" target="ns-build">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel-api-knative" edge="1" parent="k8s-cluster" source="kube-api" style="endArrow=classic;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="ns-knative">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-api-kserve" edge="1" parent="k8s-cluster" source="kube-api" style="endArrow=classic;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;dashed=1;" target="ns-kserve">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-9" parent="k8s-cluster" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Namespace: K8S_NIM_DEPLOYMENT_NAMESPACE (self hosted NIM models)" vertex="1">
+          <mxGeometry height="140" width="590" x="201" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-11" parent="ui0vS3zoDWxCCG_-RZ_S-9" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="NIM Models Serving" vertex="1">
+          <mxGeometry height="60" width="120" x="20" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-12" edge="1" parent="k8s-cluster" source="kube-api" style="endArrow=classic;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;" target="ui0vS3zoDWxCCG_-RZ_S-9">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="160" y="350" as="sourcePoint" />
+            <mxPoint x="200" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="registry" parent="k8s-cluster" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e1d5e7;strokeColor=#9673a6;" value="Private Container&#xa;Registry" vertex="1">
+          <mxGeometry height="80" width="100" x="830" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-23" edge="1" parent="k8s-cluster" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#9673a6;" value="Unified Protocol">
+          <mxGeometry height="50" relative="1" width="50" x="0.1999" y="-8" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="980" y="440" as="sourcePoint" />
+            <mxPoint x="790" y="640" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="sS5jlS4DP5yPonNlHQMw-1" edge="1" parent="k8s-cluster" source="kube-api" style="endArrow=classic;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;dashed=1;" target="cilium">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+            <mxPoint x="70" y="360" as="sourcePoint" />
+            <mxPoint x="180" y="630" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel-backend-db" edge="1" parent="1" source="backend" style="endArrow=classic;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;" target="db" value="Read/Write&#xa;Declarations">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="180" y="510" as="sourcePoint" />
+            <mxPoint x="180" y="550" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="state-sync-note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;dashed=1;" value="&lt;div&gt;&lt;div&gt;Kubernetes Lifecycle Management &amp;amp; State Synchronization:&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Lifecycle Management:&lt;/div&gt;&lt;div&gt;• Backend creates/updates/deletes K8s resources (Knative/NIM/KServe services, secrets)&lt;/div&gt;&lt;div&gt;• Manages full deployment lifecycle: deploy, undeploy, rolling updates&lt;/div&gt;&lt;div&gt;• DB = Source of truth for desired state (deployment/image declarations)&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;State Synchronization:&lt;/div&gt;&lt;div&gt;• Backend watches K8s state via Watchers (real-time status updates)&lt;/div&gt;&lt;div&gt;• Periodic reconciliation ensures DB status matches actual K8s state&lt;/div&gt;&lt;div&gt;• K8s = Source of truth for actual state (deployment status, logs, events)&lt;/div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="160" width="380" x="20" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-backend-api" edge="1" parent="1" source="backend" style="endArrow=classic;startArrow=classic;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#6c8ebf;" target="kube-api" value="Kubernetes API&lt;br&gt;(Watch &amp;amp; Sync with db state)">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="290" y="430" as="sourcePoint" />
+            <mxPoint x="380" y="530" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel-vcs-kaniko" edge="1" parent="1" source="vcs" style="endArrow=classic;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;exitX=0.513;exitY=0.963;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;exitPerimeter=0;" target="kaniko" value="Source Code">
+          <mxGeometry height="50" relative="1" width="50" x="0.3774" y="-5" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="570" y="130" as="sourcePoint" />
+            <mxPoint x="530" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel-net-kaniko" edge="1" parent="1" source="internet" style="endArrow=classic;html=1;exitX=0.07;exitY=0.4;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;" target="kaniko" value="Dependencies&#xa;(PyPI/Maven/etc.)">
+          <mxGeometry height="50" relative="1" width="50" x="0.212" y="12" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points" />
+            <mxPoint x="1010" y="130" as="sourcePoint" />
+            <mxPoint x="910" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel-kaniko-registry" edge="1" parent="1" style="endArrow=classic;html=1;entryX=0;entryY=0;entryDx=0;entryDy=52.5;strokeWidth=2;strokeColor=#9673a6;entryPerimeter=0;" target="registry" value="Push Built Image">
+          <mxGeometry height="50" relative="1" width="50" x="-0.0866" y="-2" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="982" y="340" as="sourcePoint" />
+            <mxPoint x="790" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-13" edge="1" parent="1" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#9673a6;" target="registry" value="Pull Image">
+          <mxGeometry height="50" relative="1" width="50" x="0.1999" y="-8" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="1250" y="490" as="sourcePoint" />
+            <mxPoint x="1628" y="563" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" value="DIAL Admin Panel Backend" vertex="1">
+          <mxGeometry height="70" width="170" x="80" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-16" edge="1" parent="1" source="ui0vS3zoDWxCCG_-RZ_S-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-17" connectable="0" parent="ui0vS3zoDWxCCG_-RZ_S-16" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Calls" vertex="1">
+          <mxGeometry relative="1" x="-0.1714" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" value="DIAL Admin Panel Frontend" vertex="1">
+          <mxGeometry height="70" width="170" x="95" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-18" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" value="DIAL Core" vertex="1">
+          <mxGeometry height="70" width="170" x="1440" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-21" edge="1" parent="1" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#9673a6;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="ns-knative" value="Unified Protocol">
+          <mxGeometry height="50" relative="1" width="50" x="0.1999" y="-8" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="1440" y="640" as="sourcePoint" />
+            <mxPoint x="1494" y="580" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="ui0vS3zoDWxCCG_-RZ_S-22" edge="1" parent="1" style="endArrow=classic;html=1;strokeWidth=2;strokeColor=#9673a6;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="ui0vS3zoDWxCCG_-RZ_S-9" value="Unified Protocol">
+          <mxGeometry height="50" relative="1" width="50" x="0.1999" y="-8" as="geometry">
+            <mxPoint as="offset" />
+            <mxPoint x="1440" y="640" as="sourcePoint" />
+            <mxPoint x="1250" y="550" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

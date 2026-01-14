@@ -1,0 +1,36 @@
+{
+  "apiVersion": "serving.kserve.io/v1beta1",
+  "kind": "InferenceService",
+  "metadata": {
+    "name": "dm-basic-inference-app"
+  },
+  "spec": {
+    "predictor": {
+      "model": {
+        "env": [
+          {
+            "name": "SIMPLE_VAR",
+            "value": "simple_value"
+          },
+          {
+            "name": "SECRET_VAR",
+            "valueFrom": {
+              "secretKeyRef": {
+                "key": "secret-key",
+                "name": "my-secret"
+              }
+            }
+          }
+        ],
+        "modelFormat": {
+          "name": "huggingface"
+        },
+        "resources": {
+          "limits": {},
+          "requests": {}
+        },
+        "storageUri": "s3://my-bucket/my-model"
+      }
+    }
+  }
+}
