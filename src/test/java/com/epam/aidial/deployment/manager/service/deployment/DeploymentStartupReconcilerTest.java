@@ -1,11 +1,9 @@
-package com.epam.aidial.deployment.manager.kubernetes.informer;
+package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
-import com.epam.aidial.deployment.manager.service.deployment.DeploymentManager;
-import com.epam.aidial.deployment.manager.service.deployment.DeploymentManagerProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

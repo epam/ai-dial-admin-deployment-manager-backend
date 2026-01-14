@@ -144,6 +144,10 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
     @Override
     protected DeploymentStatus mapStatus(NIMService service) {
+        if (service.getMetadata().getDeletionTimestamp() != null) {
+            return DeploymentStatus.STOPPING;
+        }
+
         var status = service.getStatus();
         if (status == null) {
             return DeploymentStatus.PENDING;

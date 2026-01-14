@@ -12,6 +12,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
+import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
@@ -443,6 +444,34 @@ class KnativeDeploymentManagerTest {
         verify(k8sKnativeClient).deleteServiceAndAllRunningPods(NAMESPACE, SERVICE_NAME);
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
         verify(disposableResourceManager).deleteAll(List.of(disposableResource));
+    }
+
+    @Test
+    void reconcile_shouldReturnStoppingStatusWhenServiceHasDeletionTimestamp() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        Service service = mock(Service.class);
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        metadata.setDeletionTimestamp(Instant.now().toString());
+        when(service.getMetadata()).thenReturn(metadata);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = ReconcileConfig.<Service>builder()
+                .deploymentId(DEPLOYMENT_ID)
+                .service(service)
+                .serviceIsMissing(false)
+                .initiator("Reconciliation Test")
+                .ignorePendingOnServiceNotFound(false)
+                .build();
+
+        // When
+        boolean result = knativeDeploymentManager.reconcile(reconcileConfig);
+
+        // Then
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
     }
 
     private Deployment createDeployment(DeploymentStatus status) {

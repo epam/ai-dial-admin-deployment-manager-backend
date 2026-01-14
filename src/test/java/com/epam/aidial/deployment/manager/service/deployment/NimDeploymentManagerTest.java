@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
+import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
@@ -479,6 +480,34 @@ class NimDeploymentManagerTest {
 
         // Then
         assertThat(result).isEqualTo("http://cluster-internal:8000");
+    }
+
+    @Test
+    void reconcile_shouldReturnStoppingStatusWhenServiceHasDeletionTimestamp() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        NIMService service = mock(NIMService.class);
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        metadata.setDeletionTimestamp(Instant.now().toString());
+        when(service.getMetadata()).thenReturn(metadata);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = ReconcileConfig.<NIMService>builder()
+                .deploymentId(DEPLOYMENT_ID)
+                .service(service)
+                .serviceIsMissing(false)
+                .initiator("Reconciliation Test")
+                .ignorePendingOnServiceNotFound(false)
+                .build();
+
+        // When
+        boolean result = nimDeploymentManager.reconcile(reconcileConfig);
+
+        // Then
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
     }
 
     private Deployment createDeployment(DeploymentStatus status) {

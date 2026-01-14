@@ -148,6 +148,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         log.trace("mapStatus. service: {}", service);
         var serviceName = service.getMetadata().getName();
 
+        if (service.getMetadata().getDeletionTimestamp() != null) {
+            log.debug("mapStatus. serviceName: '{}'. status is stopping", serviceName);
+            return DeploymentStatus.STOPPING;
+        }
+
         var status = service.getStatus();
         if (status == null) {
             log.debug("mapStatus. serviceName: '{}'. status is undefined", serviceName);
