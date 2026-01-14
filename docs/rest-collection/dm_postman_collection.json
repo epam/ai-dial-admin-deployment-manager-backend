@@ -474,7 +474,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
+											"raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch-1\",\n    \"displayName\": \"Fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -512,7 +512,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ]\n}",
+											"raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch-1\",\n    \"displayName\": \"Fetch 1\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ]\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -742,7 +742,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n\t\"sourceDeploymentId\": \"{{deployment-id}}\",\n\t\"newDeploymentName\": \"deployment-1-clone\"\n}",
+											"raw": "{\n\t\"sourceDeploymentName\": \"{{deployment-id}}\",\n\t\"newDeploymentName\": \"deployment-1-clone\",\n\t\"newDeploymentDisplayName\": \"Deployment clone\"\n}",
 											"options": {
 												"raw": {
 													"language": "json"
