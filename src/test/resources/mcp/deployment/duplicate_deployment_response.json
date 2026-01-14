@@ -1,6 +1,6 @@
 {
   "$type": "mcp",
-  "id": "deploy00-0000-4000-a000-000000000000",
+  "name": "deploy00-0000-4000-a000-000000000000",
   "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
   "displayName": "cloned deployment",
   "description": "Description of example deployment 1",

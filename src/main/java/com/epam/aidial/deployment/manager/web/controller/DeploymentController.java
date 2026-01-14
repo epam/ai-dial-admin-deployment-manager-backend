@@ -93,8 +93,8 @@ public class DeploymentController {
     @ResponseStatus(HttpStatus.CREATED)
     public DeploymentDto duplicateDeployment(@RequestBody @Valid DuplicateDeploymentRequestDto requestDto) {
         var duplicated = deploymentService.duplicateDeployment(
-                requestDto.sourceDeploymentId(),
-                requestDto.newDeploymentId(),
+                requestDto.sourceDeploymentName(),
+                requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName()
         );
         return dtoMapper.toDeploymentDto(duplicated);

@@ -163,7 +163,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
 
         when(imageDefinitionService.getImageDefinition(model.getImageDefinitionId())).thenReturn(Optional.of(imageModel));
-        when(deploymentService.duplicateDeployment(requestDto.sourceDeploymentId(), requestDto.newDeploymentId(),
+        when(deploymentService.duplicateDeployment(requestDto.sourceDeploymentName(), requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName())).thenReturn(model);
 
         mockMvc.perform(post("/api/v1/deployments/duplicate")
@@ -172,7 +172,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
-        verify(deploymentService).duplicateDeployment(requestDto.sourceDeploymentId(), requestDto.newDeploymentId(),
+        verify(deploymentService).duplicateDeployment(requestDto.sourceDeploymentName(), requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName());
     }
 
