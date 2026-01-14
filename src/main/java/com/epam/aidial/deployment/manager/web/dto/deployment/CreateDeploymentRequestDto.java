@@ -39,7 +39,7 @@ public abstract class CreateDeploymentRequestDto {
     @NotBlank
     @Size(max = 36)
     @Pattern(regexp = "^[a-z0-9-]+$", message = "Deployment ID must contain only lowercase Latin letters, numbers, and hyphens")
-    private String id;
+    private String name;
     @NotNull
     private String displayName;
     @Nullable

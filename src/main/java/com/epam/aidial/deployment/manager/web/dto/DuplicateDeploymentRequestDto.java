@@ -5,9 +5,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record DuplicateDeploymentRequestDto(
-        @NotNull String sourceDeploymentId,
+        @NotNull String sourceDeploymentName,
         @Pattern(regexp = "^[a-z0-9-]+$", message = "New deployment ID must contain only lowercase Latin letters, numbers, and hyphens")
-        @NotNull @Size(max = 36) String newDeploymentId,
+        @NotNull @Size(max = 36) String newDeploymentName,
         @NotNull String newDeploymentDisplayName
 ) {
 }

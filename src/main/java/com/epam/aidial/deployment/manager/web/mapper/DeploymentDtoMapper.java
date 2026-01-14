@@ -87,6 +87,7 @@ public abstract class DeploymentDtoMapper {
     @Autowired
     private McpEndpointPathResolver mcpEndpointPathResolver;
 
+    @Mapping(target = "id", source = "name")
     @SubclassMapping(source = CreateMcpDeploymentRequestDto.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = CreateAdapterDeploymentRequestDto.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = CreateInterceptorDeploymentRequestDto.class, target = CreateInterceptorDeployment.class)
@@ -94,9 +95,11 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = CreateInferenceDeploymentRequestDto.class, target = CreateInferenceDeployment.class)
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
 
+    @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
     public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
 
+    @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
     public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
 
@@ -106,6 +109,7 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = NimDeploymentNgcRegistrySourceDto.class, target = NimDeploymentNgcRegistrySource.class)
     protected abstract NimDeploymentSource toModel(NimDeploymentSourceDto dto);
 
+    @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentDto.class)
@@ -188,6 +192,7 @@ public abstract class DeploymentDtoMapper {
         throw new IllegalArgumentException("Unknown deployment type: " + deployment.getClass().getName());
     }
 
+    @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "type", source = "model", qualifiedByName = "toDeploymentTypeDto")
     public abstract DeploymentInfoDto toDeploymentInfoDto(Deployment model);

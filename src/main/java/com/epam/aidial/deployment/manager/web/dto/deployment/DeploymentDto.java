@@ -31,7 +31,7 @@ import java.util.List;
 @AllArgsConstructor
 public abstract class DeploymentDto {
     @NotNull
-    private String id;
+    private String name;
     @NotNull
     private String displayName;
     @Nullable

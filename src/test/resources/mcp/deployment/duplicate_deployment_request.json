@@ -1,5 +1,5 @@
 {
-  "sourceDeploymentId": "decade00-0000-4000-a000-000000000001",
-  "newDeploymentId": "decade00-0000-4000-a000-000000000002",
+  "sourceDeploymentName": "decade00-0000-4000-a000-000000000001",
+  "newDeploymentName": "decade00-0000-4000-a000-000000000002",
   "newDeploymentDisplayName": "cloned deployment"
 }

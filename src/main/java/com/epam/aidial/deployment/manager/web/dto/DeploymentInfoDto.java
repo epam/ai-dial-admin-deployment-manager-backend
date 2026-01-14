@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record DeploymentInfoDto(
-        @NotNull String id,
+        @NotNull String name,
         @NotNull UUID imageDefinitionId,
         @NotNull String imageDefinitionName,
         @NotNull String imageDefinitionVersion,
