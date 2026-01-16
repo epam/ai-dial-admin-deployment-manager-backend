@@ -121,6 +121,7 @@ app:
   watcher-failure-reset-interval-ms: ${WATCHER_FAILURE_RESET_INTERVAL_MS:600000}
   deployment-reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
   cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}
+  resource-name-prefix: ${RESOURCE_NAME_PREFIX:}
   knative-service-config:
     apiVersion: serving.knative.dev/v1
     kind: Service

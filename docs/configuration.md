@@ -109,6 +109,7 @@ app:
 | `app.copy-image`         | -                     | `quay.io/skopeo/stable:latest`          | No (recommended to use a specific tag in production) | -            | Docker image for copying images                                                                       |
 | `app.docker-config-path` | -                     | `/kaniko/.docker/config.json`           | No                                                   | -            | Path to the location where the Docker config file is mounted for build containers.                    |
 | `app.cilium-network-policies-enabled` | `CILIUM_NETWORK_POLICIES_ENABLED`                     | `false`                                 | No                                                   | -            | Flag that allows to enable Cilium network policies for image build and deployments.                   |
+| `app.resource-name-prefix` | `RESOURCE_NAME_PREFIX`   | -          | No    | -            | Prefix that will be added to all resources that image build and deployments produce. Important note: do not change this value on exising setups, otherwise existing images and K8s resources will be lost. |
 
 #### MCP Proxy Configuration
 
