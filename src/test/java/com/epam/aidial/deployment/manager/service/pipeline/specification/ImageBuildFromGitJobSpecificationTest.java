@@ -47,8 +47,8 @@ class ImageBuildFromGitJobSpecificationTest {
     private static final String GIT_URL = "https://github.com/test/repo.git";
     private static final String GIT_BRANCH = "main";
     private static final String FULL_IMAGE_NAME = "test-build-id:1.0.0";
-    public static final String BUILD_CONTAINER_NAME = "kaniko";
-    public static final String PUSH_CONTAINER_NAME = "push-container";
+    private static final String BUILD_CONTAINER_NAME = "kaniko";
+    private static final String PUSH_CONTAINER_NAME = "push-container";
 
     @Mock
     private RegistryService registryService;
