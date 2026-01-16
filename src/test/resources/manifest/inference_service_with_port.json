@@ -7,6 +7,10 @@
   "spec": {
     "predictor": {
       "model": {
+        "args": [
+          "--model_name",
+          "custom-port-inference-app"
+        ],
         "env": [],
         "modelFormat": {
           "name": "huggingface"

@@ -24,6 +24,8 @@ import java.util.List;
 @LogExecution
 public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
+    private static final String MODEL_NAME_ARGUMENT_NAME = "--model_name";
+
     public InferenceManifestGenerator(AppProperties appconfig) {
         super(appconfig);
     }
@@ -71,6 +73,11 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data().clear();
             modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data().addAll(args);
         }
+
+        // Explicitly set model name to ensure the model uses the intended name.
+        // If omitted, the inference service will default to the Kubernetes service name,
+        // which may differ from the actual model name due to naming transformations.
+        modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data().addAll(List.of(MODEL_NAME_ARGUMENT_NAME, name));
 
         var envListMapper = modelChain
                 .getList(InferenceMappers.MODEL_ENV_FIELD, InferenceMappers.ENV_VAR_NAME);
