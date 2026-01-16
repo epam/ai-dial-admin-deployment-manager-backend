@@ -410,6 +410,11 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         workspaceVolumeMount.setName("workspace-volume");
         workspaceVolumeMount.setAdditionalProperties(new HashMap<>());
 
+        var imageBuildVolumeMount = new VolumeMount();
+        imageBuildVolumeMount.setMountPath("/image-build");
+        imageBuildVolumeMount.setName("build-volume");
+        imageBuildVolumeMount.setAdditionalProperties(new HashMap<>());
+
         var dockerfileVolumeMount = new VolumeMount();
         dockerfileVolumeMount.setMountPath("/templates/Dockerfile");
         dockerfileVolumeMount.setName("dockerfile-volume");
@@ -422,7 +427,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         secretVolumeMount.setSubPath("config.json");
         secretVolumeMount.setAdditionalProperties(new HashMap<>());
 
-        container.setVolumeMounts(Arrays.asList(workspaceVolumeMount, dockerfileVolumeMount, secretVolumeMount));
+        container.setVolumeMounts(Arrays.asList(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount, secretVolumeMount));
 
         // Dockerfile ConfigMap volume
         var configMapVolumeSource = new ConfigMapVolumeSource();
@@ -434,6 +439,10 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         dockerfileVolume.setName("dockerfile-volume");
         dockerfileVolume.setConfigMap(configMapVolumeSource);
         dockerfileVolume.setAdditionalProperties(new HashMap<>());
+
+        var imageBuildVolume = new Volume();
+        imageBuildVolume.setName("build-volume");
+        imageBuildVolume.setAdditionalProperties(new HashMap<>());
 
         // Secret volume
         var secretVolumeSource = new SecretVolumeSource();
@@ -466,7 +475,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         podSpec.setSchedulingGates(Collections.emptyList());
         podSpec.setTolerations(Collections.emptyList());
         podSpec.setTopologySpreadConstraints(Collections.emptyList());
-        podSpec.setVolumes(Arrays.asList(workspaceVolume, dockerfileVolume, secretVolume));
+        podSpec.setVolumes(Arrays.asList(workspaceVolume, imageBuildVolume, dockerfileVolume, secretVolume));
         podSpec.setAdditionalProperties(new HashMap<>());
 
         // PodTemplateSpec

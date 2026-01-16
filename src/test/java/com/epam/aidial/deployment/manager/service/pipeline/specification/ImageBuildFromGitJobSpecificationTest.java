@@ -47,6 +47,8 @@ class ImageBuildFromGitJobSpecificationTest {
     private static final String GIT_URL = "https://github.com/test/repo.git";
     private static final String GIT_BRANCH = "main";
     private static final String FULL_IMAGE_NAME = "test-build-id:1.0.0";
+    public static final String BUILD_CONTAINER_NAME = "kaniko";
+    public static final String PUSH_CONTAINER_NAME = "push-container";
 
     @Mock
     private RegistryService registryService;
@@ -134,9 +136,11 @@ class ImageBuildFromGitJobSpecificationTest {
     void getJob_shouldReturnJobWithCorrectConfiguration() {
         // Given
         Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName("kaniko").build();
+        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
+        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
         when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
+        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
         when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
         when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
 
@@ -153,7 +157,7 @@ class ImageBuildFromGitJobSpecificationTest {
         assertNotNull(job.getSpec().getTemplate());
         assertNotNull(job.getSpec().getTemplate().getSpec());
         assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(1, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertEquals(2, job.getSpec().getTemplate().getSpec().getContainers().size());
 
         // Verify init container exists
         assertNotNull(job.getSpec().getTemplate().getSpec().getInitContainers());
@@ -162,8 +166,8 @@ class ImageBuildFromGitJobSpecificationTest {
         assertEquals("git-clone", initContainer.getName());
 
         // Verify the container arguments contain the expected values
-        Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        List<String> args = container.getArgs();
+        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        List<String> args = buildContainer.getArgs();
         assertNotNull(args);
         assertTrue(args.stream().anyMatch(arg -> arg.startsWith("--destination=") && arg.contains(FULL_IMAGE_NAME)));
         assertTrue(args.stream().anyMatch(arg -> arg.startsWith("--context=") && arg.contains("/workspace")));
@@ -192,9 +196,11 @@ class ImageBuildFromGitJobSpecificationTest {
         );
 
         Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName("kaniko").build();
+        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
+        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
         when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
+        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
         when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
         when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
 
@@ -205,8 +211,8 @@ class ImageBuildFromGitJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        List<String> args = container.getArgs();
+        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        List<String> args = buildContainer.getArgs();
 
         assertTrue(args.stream().anyMatch(arg -> arg.equals("--context-sub-path=src/app")));
     }
@@ -234,9 +240,11 @@ class ImageBuildFromGitJobSpecificationTest {
         );
 
         Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName("kaniko").build();
+        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
+        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
         when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
+        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
         when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
         when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
 
@@ -247,8 +255,8 @@ class ImageBuildFromGitJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        List<String> args = container.getArgs();
+        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        List<String> args = buildContainer.getArgs();
 
         assertTrue(args.stream().anyMatch(arg -> arg.equals("--context-sub-path=src/app")));
         assertFalse(args.stream().anyMatch(arg -> arg.equals("--context-sub-path=/src/app")));
@@ -258,10 +266,12 @@ class ImageBuildFromGitJobSpecificationTest {
     void getJob_shouldConfigureSecretVolumeWhenBasicAuthIsUsed() {
         // Given
         Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName("kaniko").build();
+        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
+        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
         when(registryService.getAuthScheme()).thenReturn(DockerAuthScheme.BASIC);
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJobWithVolumes());
         when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
+        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
         when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
         when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
 
@@ -287,23 +297,41 @@ class ImageBuildFromGitJobSpecificationTest {
         assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
         assertTrue(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0);
 
-        Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        assertNotNull(container.getVolumeMounts());
-        assertTrue(container.getVolumeMounts().stream()
+        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        assertNotNull(buildContainer.getVolumeMounts());
+        assertFalse(buildContainer.getVolumeMounts().stream()
                 .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
 
-        assertTrue(container.getVolumeMounts().stream()
+        assertFalse(buildContainer.getVolumeMounts().stream()
                 .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+
+        Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
+        assertNotNull(pushContainer.getVolumeMounts());
+        assertTrue(pushContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
+
+        assertTrue(pushContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+    }
+
+    private Container getContainerByName(Job job, String containerName) {
+        return job.getSpec().getTemplate().getSpec().getContainers().stream()
+                .filter(container -> containerName.equals(container.getName())).findFirst().get();
     }
 
     private Job createDefaultJob() {
         Container builderContainer = new ContainerBuilder()
-                .withName("kaniko")
+                .withName(BUILD_CONTAINER_NAME)
+                .withArgs(new ArrayList<>())
+                .build();
+
+        Container pushContainer = new ContainerBuilder()
+                .withName(PUSH_CONTAINER_NAME)
                 .withArgs(new ArrayList<>())
                 .build();
 
         PodSpec podSpec = new PodSpecBuilder()
-                .withContainers(builderContainer)
+                .withContainers(builderContainer, pushContainer)
                 .build();
 
         PodTemplateSpec podTemplate = new PodTemplateSpecBuilder()
@@ -321,7 +349,12 @@ class ImageBuildFromGitJobSpecificationTest {
 
     private Job createDefaultJobWithVolumes() {
         Container builderContainer = new ContainerBuilder()
-                .withName("kaniko")
+                .withName(BUILD_CONTAINER_NAME)
+                .withArgs(new ArrayList<>())
+                .build();
+
+        Container pushContainer = new ContainerBuilder()
+                .withName(PUSH_CONTAINER_NAME)
                 .withArgs(new ArrayList<>())
                 .build();
 
@@ -330,7 +363,7 @@ class ImageBuildFromGitJobSpecificationTest {
                 .build();
 
         PodSpec podSpec = new PodSpecBuilder()
-                .withContainers(builderContainer)
+                .withContainers(builderContainer, pushContainer)
                 .withVolumes(secretVolume)
                 .build();
 
