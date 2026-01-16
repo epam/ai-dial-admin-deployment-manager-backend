@@ -6,18 +6,17 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ComponentRemoval {
-    private UUID id;
+    private String id;
     private ComponentType type;
     private Instant createdAt;
 
-    public static ComponentRemoval of(UUID id, ComponentType type) {
+    public static ComponentRemoval of(String id, ComponentType type) {
         return new ComponentRemoval(id, type, null);
     }
 

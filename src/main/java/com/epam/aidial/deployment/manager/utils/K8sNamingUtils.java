@@ -5,8 +5,6 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 
-import java.util.UUID;
-
 @Slf4j
 @UtilityClass
 public class K8sNamingUtils {
@@ -19,26 +17,25 @@ public class K8sNamingUtils {
     }
 
     @Deprecated
-    public UUID extractMcpPrefixedId(String name) {
+    public String extractMcpPrefixedId(String name) {
         return extractId(MCP_PREFIX, name);
     }
 
-    public UUID extractId(String name) {
+    public String extractId(String name) {
         return extractId(DM_PREFIX, name);
     }
 
-    private UUID extractId(String prefix, String name) {
+    private String extractId(String prefix, String name) {
         try {
             String fullPrefix = prefix + "-";
             if (name.startsWith(fullPrefix)) {
-                String idString = name.substring(fullPrefix.length());
-                return UUID.fromString(idString);
+                return name.substring(fullPrefix.length());
             } else {
                 log.warn("K8s object name does not match expected format: {}", name);
                 return null;
             }
-        } catch (IllegalArgumentException e) {
-            log.warn("Could not extract valid UUID from name: {}", name);
+        } catch (Exception e) {
+            log.warn("Could not extract valid string ID from name: {}", name);
             return null;
         }
     }

@@ -1,5 +1,5 @@
 {
   "id": "decade00-0000-4000-a000-000000000001",
-  "name": "example deployment 1",
+  "displayName": "example deployment 1",
   "url": "https://example.com/example-deployment-1/sse"
 }

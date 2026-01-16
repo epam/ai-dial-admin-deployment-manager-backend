@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -36,7 +35,7 @@ public class InferenceServiceEventHandler extends AbstractResourceEventHandler<I
     }
 
     @Override
-    protected void reconcile(UUID deploymentId, InferenceService resource, boolean isDeleted) {
+    protected void reconcile(String deploymentId, InferenceService resource, boolean isDeleted) {
         var reconcileConfig = ReconcileConfig.<InferenceService>builder()
                 .deploymentId(deploymentId)
                 .service(resource)

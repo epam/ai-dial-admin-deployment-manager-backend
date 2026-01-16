@@ -12,12 +12,14 @@ import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Ports.Protocol;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Rules;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.rules.Dns;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
+@Getter
 @Component
 @LogExecution
 public class CiliumNetworkPolicyCreator {
@@ -29,10 +31,6 @@ public class CiliumNetworkPolicyCreator {
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
-
-    public boolean isCiliumNetworkPoliciesEnabled() {
-        return ciliumNetworkPoliciesEnabled;
-    }
 
     public CiliumNetworkPolicy create(String namespace, String matchLabelName, String matchLabelValue, List<String> allowedDomains) {
         // Metadata

@@ -34,7 +34,6 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Slf4j
 @Component
@@ -81,12 +80,12 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected String getServiceName(UUID id) {
-        return K8sNamingUtils.generateMcpPrefixedName(id.toString());
+    protected String getServiceName(String id) {
+        return K8sNamingUtils.generateMcpPrefixedName(id);
     }
 
     @Override
-    protected Optional<Deployment> getDeploymentOptional(UUID id) {
+    protected Optional<Deployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id).map(deployment -> {
             if (deployment instanceof McpDeployment || deployment instanceof InterceptorDeployment) {
                 return deployment;
@@ -109,7 +108,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
         return knativeManifestGenerator.serviceConfig(
-                deployment.getId().toString(),
+                deployment.getId(),
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
@@ -172,12 +171,12 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected void saveDisposableResource(UUID id, String namespace) {
+    protected void saveDisposableResource(String id, String namespace) {
         disposableResourceManager.saveKnativeServiceResource(id, namespace);
     }
 
     @Override
-    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(UUID id, String namespace) {
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace) {
         return disposableResourceManager.markKnativeServiceResourceForCleanup(id, namespace);
     }
 
@@ -236,7 +235,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 getRemainingDuration(deployment.getId(), podInitTime));
     }
 
-    private Duration getRemainingDuration(UUID id, long podInitTime) {
+    private Duration getRemainingDuration(String id, long podInitTime) {
         var totalDuration = Duration.ofSeconds(startupTimeoutSec);
         var remainingDuration = totalDuration.minus(Duration.ofMillis(podInitTime));
         if (remainingDuration.isNegative() || remainingDuration.isZero()) {

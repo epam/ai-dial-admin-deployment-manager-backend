@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
@@ -62,6 +63,8 @@ public abstract class DeploymentFunctionalTest {
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
     private DeploymentStateReconciler deploymentStateReconciler;
+    @Autowired
+    private DisposableResourceManager disposableResourceManager;
 
     private ObjectMeta secretMetaData;
 
@@ -109,7 +112,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Then
         Assertions.assertEquals(1, deployments.size());
-        Assertions.assertEquals(createDeployment.getName(), deployment.getName());
+        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
         Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
         Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
         Assertions.assertEquals(imageDefinitionName, deployment.getImageDefinitionName());
@@ -153,6 +156,23 @@ public abstract class DeploymentFunctionalTest {
         );
 
         Assertions.assertEquals("ImageDefinition not found: '%s'".formatted(nonExistingImageDefinitionId), exception.getMessage());
+    }
+
+    @Test
+    public void shouldFailCreateDeploymentWhenDisposableResourcesFound() {
+        // Given
+        var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        disposableResourceManager.saveKnativeServiceResource(createDeployment.getId(), "some-namespace");
+
+        // When & Then
+        var exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> deploymentService.createDeployment(createDeployment)
+        );
+
+        var message = "Failed to create deployment with ID '%s'. There are resources awaiting deletion associated with this ID."
+                .formatted(createDeployment.getId());
+        Assertions.assertEquals(message, exception.getMessage());
     }
 
     @Test
@@ -217,7 +237,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertTrue(maybeDeployment.isPresent());
         Deployment retrievedDeployment = maybeDeployment.get();
         Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
-        Assertions.assertEquals(savedDeployment.getName(), retrievedDeployment.getName());
+        Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getImageDefinitionId(), retrievedDeployment.getImageDefinitionId());
         Assertions.assertEquals(imageDefinitionName, retrievedDeployment.getImageDefinitionName());
         Assertions.assertEquals(imageDefinitionVersion, retrievedDeployment.getImageDefinitionVersion());
@@ -238,7 +258,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertTrue(maybeDeployment.isPresent());
         Deployment retrievedDeployment = maybeDeployment.get();
         Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
-        Assertions.assertEquals(savedDeployment.getName(), retrievedDeployment.getName());
+        Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getImageDefinitionId(), retrievedDeployment.getImageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
     }
@@ -253,14 +273,14 @@ public abstract class DeploymentFunctionalTest {
 
         // When
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
         updateRequest.setDescription("Updated description");
         updateRequest.setAuthor("updated-author");
 
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getName());
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
         Assertions.assertEquals("Updated description", updatedDeployment.getDescription());
         Assertions.assertEquals("updated-author", updatedDeployment.getAuthor());
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
@@ -280,12 +300,12 @@ public abstract class DeploymentFunctionalTest {
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
 
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getName());
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(DeploymentStatus.RUNNING, updatedDeployment.getStatus());
         Assertions.assertEquals("http://test.com", updatedDeployment.getUrl());
@@ -304,7 +324,7 @@ public abstract class DeploymentFunctionalTest {
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
 
         var exception = assertThrows(
                 IllegalStateException.class,
@@ -352,12 +372,12 @@ public abstract class DeploymentFunctionalTest {
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         updateRequest.setImageDefinitionId(newImageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
 
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getName());
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(newImageDefinitionId, updatedDeployment.getImageDefinitionId());
 
@@ -396,12 +416,12 @@ public abstract class DeploymentFunctionalTest {
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
 
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getName());
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(DeploymentStatus.STOPPING, updatedDeployment.getStatus());
 
@@ -418,9 +438,11 @@ public abstract class DeploymentFunctionalTest {
     public void shouldSuccessfullyChangeImageInDeployments() {
         // Given
         var createDeployment1 = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment1.setName(createDeployment1.getName() + "1");
+        createDeployment1.setId(createDeployment1.getId() + "1");
+        createDeployment1.setDisplayName(createDeployment1.getDisplayName() + "1");
         var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment2.setName(createDeployment1.getName() + "2");
+        createDeployment2.setId(createDeployment2.getId() + "2");
+        createDeployment2.setDisplayName(createDeployment2.getDisplayName() + "2");
         var savedDeployment1 = deploymentService.createDeployment(createDeployment1);
         var savedDeployment2 = deploymentService.createDeployment(createDeployment2);
 
@@ -450,7 +472,7 @@ public abstract class DeploymentFunctionalTest {
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         updateRequest.setImageDefinitionId(newImageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
 
         var deploymentIds = List.of(savedDeployment1.getId(), savedDeployment2.getId());
         deploymentService.updateImageDefinitionForDeployments(newImageDefinitionId, deploymentIds);
@@ -476,7 +498,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Given - Update same entity at a later time
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
         updateRequest.setDescription("Updated description");
 
         mockSecretMetaData(savedDeployment);
@@ -486,7 +508,7 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then - After Update
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getName(), "Name should be updated");
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName(), "Name should be updated");
         Assertions.assertEquals("Updated description", updatedDeployment.getDescription(), "Description should be updated");
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId(), "ID should remain the same");
         Assertions.assertEquals(creationTime, updatedDeployment.getCreatedAt(), "CreatedAt should not change");
@@ -504,7 +526,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Then - After Create
         Assertions.assertEquals(1, deployments.size(), "There should be exactly one deployment");
-        var savedDeployment = deployments.get(0);
+        var savedDeployment = deployments.getFirst();
         Assertions.assertNotNull(savedDeployment.getCreatedAt());
         Assertions.assertNotNull(savedDeployment.getUpdatedAt());
         Assertions.assertEquals(savedDeployment.getCreatedAt(), savedDeployment.getUpdatedAt());
@@ -514,7 +536,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Given - Update
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setName("updated-deployment");
+        updateRequest.setDisplayName("updated-deployment");
         updateRequest.setDescription("Updated description");
 
         // When - Update
@@ -524,9 +546,9 @@ public abstract class DeploymentFunctionalTest {
 
         // Then - After Update
         Assertions.assertEquals(1, updatedDeployments.size(), "There should still be exactly one deployment");
-        var updatedDeployment = updatedDeployments.get(0);
+        var updatedDeployment = updatedDeployments.getFirst();
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId(), "Deployment ID should remain unchanged");
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getName(), "Name should be updated");
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName(), "Name should be updated");
         Assertions.assertEquals("Updated description", updatedDeployment.getDescription(), "Description should be updated");
         Assertions.assertEquals(creationTime, updatedDeployment.getCreatedAt(), "CreatedAt should remain unchanged");
         Assertions.assertNotEquals(creationTime, updatedDeployment.getUpdatedAt(), "UpdatedAt should be updated to new time");
@@ -575,7 +597,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Then
         Assertions.assertEquals(savedDeployment.getId(), deployment.getId());
-        Assertions.assertEquals(savedDeployment.getName(), deployment.getName());
+        Assertions.assertEquals(savedDeployment.getDisplayName(), deployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
     }
@@ -618,7 +640,7 @@ public abstract class DeploymentFunctionalTest {
         // Then
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
         Assertions.assertEquals(savedDeployment.getId(), deployment.getId());
-        Assertions.assertEquals(savedDeployment.getName(), deployment.getName());
+        Assertions.assertEquals(savedDeployment.getDisplayName(), deployment.getDisplayName());
         Assertions.assertEquals(DeploymentStatus.STOPPING, deployment.getStatus());
 
         // Manually trigger reconciliation to update status from STOPPING to STOPPED
@@ -633,11 +655,13 @@ public abstract class DeploymentFunctionalTest {
     public void shouldSuccessfullyGetAllDeploymentsByImageDefinitionId() {
         // Given
         var createDeployment1 = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment1.setName("deployment-1");
+        createDeployment1.setId("deployment-1");
+        createDeployment1.setDisplayName("deployment-1");
         deploymentService.createDeployment(createDeployment1);
 
         var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment2.setName("deployment-2");
+        createDeployment2.setId("deployment-2");
+        createDeployment2.setDisplayName("deployment-2");
         deploymentService.createDeployment(createDeployment2);
 
         // When
@@ -653,7 +677,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Create deployment-1 of MCP type
         var createDeployment1 = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
-        createDeployment1.setName("deployment-1");
+        createDeployment1.setDisplayName("deployment-1");
         var deployment1 = deploymentService.createDeployment(createDeployment1);
 
         // Create deployment-2 of Interceptor type
@@ -662,7 +686,7 @@ public abstract class DeploymentFunctionalTest {
         imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
 
         var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(createdImageDef.getId());
-        createDeployment2.setName("deployment-2");
+        createDeployment2.setDisplayName("deployment-2");
         deploymentService.createDeployment(createDeployment2);
 
         // When
@@ -670,14 +694,16 @@ public abstract class DeploymentFunctionalTest {
 
         // Then
         Assertions.assertEquals(1, deployments.size());
-        Assertions.assertEquals(deployment1.getId(), deployments.get(0).getId());
+        Assertions.assertEquals(deployment1.getId(), deployments.getFirst().getId());
     }
 
     @Test
     public void shouldSuccessfullyDuplicateDeployment() {
         // Given
+        var newDeploymentId = String.valueOf(UUID.randomUUID());
+
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment.setName("original-deployment");
+        createDeployment.setDisplayName("original-deployment");
         createDeployment.setDescription("Original description");
         var originalDeployment = deploymentService.createDeployment(createDeployment);
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -687,13 +713,14 @@ public abstract class DeploymentFunctionalTest {
         // When
         var clonedDeployment = deploymentService.duplicateDeployment(
                 originalDeployment.getId(),
+                newDeploymentId,
                 "cloned-deployment"
         );
 
         // Then
         Assertions.assertNotNull(clonedDeployment.getId());
         Assertions.assertNotEquals(originalDeployment.getId(), clonedDeployment.getId());
-        Assertions.assertEquals("cloned-deployment", clonedDeployment.getName());
+        Assertions.assertEquals("cloned-deployment", clonedDeployment.getDisplayName());
         Assertions.assertEquals(originalDeployment.getDescription(), clonedDeployment.getDescription());
         Assertions.assertEquals(originalDeployment.getImageDefinitionId(), clonedDeployment.getImageDefinitionId());
         Assertions.assertEquals(originalDeployment.getMinScale(), clonedDeployment.getMinScale());
@@ -708,12 +735,13 @@ public abstract class DeploymentFunctionalTest {
     @Test
     public void shouldFailDuplicateDeploymentWhenEtalonNotFound() {
         // Given
-        var nonExistingDeploymentId = UUID.randomUUID();
+        var nonExistingDeploymentId = String.valueOf(UUID.randomUUID());
+        var newDeploymentId = String.valueOf(UUID.randomUUID());
 
         // When & Then
         var exception = assertThrows(
                 EntityNotFoundException.class,
-                () -> deploymentService.duplicateDeployment(nonExistingDeploymentId, "cloned-deployment")
+                () -> deploymentService.duplicateDeployment(nonExistingDeploymentId, newDeploymentId, "cloned-deployment")
         );
 
         Assertions.assertEquals("Etalon deployment not found by id: '%s'".formatted(nonExistingDeploymentId), exception.getMessage());
@@ -740,7 +768,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertTrue(CollectionUtils.isEqualCollection(expectedEnvVars, actualEnvVars));
     }
 
-    private void waitForDeployment(UUID deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
+    private void waitForDeployment(String deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
         long timeoutMs = 20 * 1000; // 20 seconds
         long pollIntervalMs = 1000; // 1 seconds
         long deployStartTime = System.currentTimeMillis();

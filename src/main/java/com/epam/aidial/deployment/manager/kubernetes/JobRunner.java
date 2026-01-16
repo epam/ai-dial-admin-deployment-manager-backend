@@ -81,7 +81,7 @@ public class JobRunner {
 
         var jobName = runningJob.getMetadata().getName();
         var pods = client.getJobPods(namespace, jobName);
-        var pod = pods.getItems().get(0);
+        var pod = pods.getItems().getFirst();
 
         log.debug("Waiting for pod to start. jobId: '{}'", jobId);
         Predicate<Pod> podIsRunning = p -> PodPhase.fromPod(p)

@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 public class EventStreamingServiceTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final String EVENT_REASON = "Created";
     private static final String EVENT_MESSAGE = "Pod created successfully";
     private static final String EVENT_UID = UUID.randomUUID().toString();

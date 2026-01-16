@@ -17,7 +17,7 @@ import java.util.UUID;
 @LogExecution
 public class EventInfoMapper {
 
-    public EventInfo toEventInfo(Event event, UUID deploymentId) {
+    public EventInfo toEventInfo(Event event, String deploymentId) {
         if (event == null) {
             return null;
         }

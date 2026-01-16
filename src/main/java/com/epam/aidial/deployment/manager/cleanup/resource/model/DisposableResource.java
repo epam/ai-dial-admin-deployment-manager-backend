@@ -15,7 +15,7 @@ import java.util.UUID;
 public class DisposableResource {
 
     private UUID id;
-    private UUID groupId;
+    private String groupId;
     private ResourceReference reference;
     private ResourceLifecycleState lifecycleState;
     private Instant createdAt;

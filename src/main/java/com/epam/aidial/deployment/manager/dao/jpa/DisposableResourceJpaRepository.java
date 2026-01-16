@@ -9,17 +9,16 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 @Repository
-public interface DisposableResourceJpaRepository extends JpaRepository<DisposableResourceEntity, UUID> {
+public interface DisposableResourceJpaRepository extends JpaRepository<DisposableResourceEntity, String> {
 
-    List<DisposableResourceEntity> findAllByGroupIdAndReference(UUID groupId, ResourceReference reference);
+    List<DisposableResourceEntity> findAllByGroupIdAndReference(String groupId, ResourceReference reference);
 
-    List<DisposableResourceEntity> findAllByGroupId(UUID groupId);
+    List<DisposableResourceEntity> findAllByGroupId(String groupId);
 
     List<DisposableResourceEntity> findByLifecycleStateIn(Set<ResourceLifecycleState> lifecycleStates, Limit limit);
 
-    List<DisposableResourceEntity> findByGroupIdAndLifecycleStateIn(UUID groupId, Set<ResourceLifecycleState> lifecycleStates);
+    List<DisposableResourceEntity> findByGroupIdAndLifecycleStateIn(String groupId, Set<ResourceLifecycleState> lifecycleStates);
 
 }

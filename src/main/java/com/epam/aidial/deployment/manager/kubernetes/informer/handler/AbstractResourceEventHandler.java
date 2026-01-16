@@ -5,9 +5,9 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -53,8 +53,8 @@ public abstract class AbstractResourceEventHandler<T extends HasMetadata> implem
 
         log.debug("Received {} event for {} resource '{}/{}'", eventTypeName, resourceTypeName, resourceNamespace, resourceName);
         try {
-            UUID deploymentId = idExtractor.extract(resourceName);
-            if (deploymentId == null) {
+            String deploymentId = idExtractor.extract(resourceName);
+            if (StringUtils.isBlank(deploymentId)) {
                 log.warn("Skipping {} '{}' - resource name does not contain a valid deployment ID", resourceTypeName, resourceName);
                 return;
             }
@@ -77,7 +77,7 @@ public abstract class AbstractResourceEventHandler<T extends HasMetadata> implem
         return resource.getMetadata().getNamespace();
     }
 
-    private void triggerReconcile(UUID deploymentId, T resource, boolean isDeleted) {
+    private void triggerReconcile(String deploymentId, T resource, boolean isDeleted) {
         executorService.execute(() -> {
             try {
                 reconcile(deploymentId, resource, isDeleted);
@@ -87,6 +87,6 @@ public abstract class AbstractResourceEventHandler<T extends HasMetadata> implem
         });
     }
 
-    protected abstract void reconcile(UUID deploymentId, T resource, boolean isDeleted);
+    protected abstract void reconcile(String deploymentId, T resource, boolean isDeleted);
 
 }

@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -56,6 +57,7 @@ public class DeploymentService {
     private final DeploymentMapper deploymentMapper;
     private final DeploymentManagerProvider deploymentManagerProvider;
     private final SecurityClaimsExtractor securityClaimsExtractor;
+    private final DisposableResourceManager disposableResourceManager;
 
     @Value("${app.deployment-reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -77,19 +79,19 @@ public class DeploymentService {
         }
 
         if (types.size() == 1) {
-            return deploymentRepository.getAllByType(types.get(0));
+            return deploymentRepository.getAllByType(types.getFirst());
         } else {
             return deploymentRepository.getAllByType(types);
         }
     }
 
     @Transactional(readOnly = true)
-    public Optional<Deployment> getDeployment(UUID id) {
+    public Optional<Deployment> getDeployment(String id) {
         return getDeployment(id, true);
     }
 
     @Transactional(readOnly = true)
-    public Optional<Deployment> getDeployment(UUID id, boolean resolveSecrets) {
+    public Optional<Deployment> getDeployment(String id, boolean resolveSecrets) {
         var deployment = deploymentRepository.getById(id);
         if (resolveSecrets) {
             deployment.ifPresent(value -> deploymentManagerProvider.provide(id).resolveSecrets(value));
@@ -99,12 +101,14 @@ public class DeploymentService {
 
     @Transactional
     public Deployment createDeployment(CreateDeployment request) {
-        var envsPartition = validateAndPartitionEnvs(request.getMetadata());
+        var id = request.getId();
 
-        var id = UUID.randomUUID();
+        checkNoResourcesAreAssociatedWithId(id);
+
+        var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
         var envs = saveEnvVars(deploymentManager, id, envsPartition);
-        var deployment = deploymentMapper.toDeployment(request, id, envs);
+        var deployment = deploymentMapper.toDeployment(request, envs);
 
         if (request.getImageDefinitionId() != null) {
             var imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
@@ -125,7 +129,12 @@ public class DeploymentService {
     }
 
     @Transactional
-    public Deployment updateDeployment(UUID id, CreateDeployment request) {
+    public Deployment updateDeployment(String id, CreateDeployment request) {
+        if (!id.equals(request.getId())) {
+            throw new IllegalArgumentException("Deployment ID in request path '%s' and in request body '%s' do not match"
+                    .formatted(id, request.getId()));
+        }
+
         ImageDefinition imageDefinition = null;
         if (request.getImageDefinitionId() != null) {
             imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
@@ -151,7 +160,7 @@ public class DeploymentService {
             envs = saveEnvVars(deploymentManager, id, envsPartition);
         }
 
-        var deployment = deploymentMapper.toDeployment(request, id, envs);
+        var deployment = deploymentMapper.toDeployment(request, envs);
         deployment.setUrl(existingDeployment.getUrl());
 
         var status = existingStatus == DeploymentStatus.STOPPED ? DeploymentStatus.NOT_DEPLOYED : existingStatus;
@@ -176,43 +185,43 @@ public class DeploymentService {
     }
 
     @Transactional
-    public void deleteDeployment(UUID id) {
+    public void deleteDeployment(String id) {
         undeploy(id);
         componentCleanupService.deleteAsync(ComponentRemoval.of(id, ComponentType.DEPLOYMENT));
     }
 
-    public Deployment deploy(UUID id) {
+    public Deployment deploy(String id) {
         var deploymentManager = deploymentManagerProvider.provide(id);
         var deployment = deploymentManager.deploy(id);
         return deploymentManager.resolveSecrets(deployment);
     }
 
-    public Deployment undeploy(UUID id) {
+    public Deployment undeploy(String id) {
         var deploymentManager = deploymentManagerProvider.provide(id);
         var deployment = deploymentManager.undeploy(id);
         return deploymentManager.resolveSecrets(deployment);
     }
 
     @Transactional
-    public Deployment duplicateDeployment(UUID etalonDeploymentId, String cloneDeploymentName) {
+    public Deployment duplicateDeployment(String etalonDeploymentId, String cloneDeploymentId, String cloneDeploymentDisplayName) {
         // Get the etalon deployment with secrets resolved
         var etalonDeployment = getDeployment(etalonDeploymentId, true)
                 .orElseThrow(() -> new EntityNotFoundException("Etalon deployment not found by id: '%s'".formatted(etalonDeploymentId)));
 
-        var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentName);
+        var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentId, cloneDeploymentDisplayName);
 
         return createDeployment(createDeployment);
     }
 
     @Transactional
-    public void updateImageDefinitionForDeployments(UUID imageDefinitionId, List<UUID> deployments) {
+    public void updateImageDefinitionForDeployments(UUID imageDefinitionId, List<String> deployments) {
         // loading image definition to verify that it is built
         var imageDefinition = loadImageDefinitionOrThrow(imageDefinitionId);
         deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deployments);
         deployments.forEach(this::rollingUpdate);
     }
 
-    private void rollingUpdate(UUID id) {
+    private void rollingUpdate(String id) {
         var deployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
         var deploymentManager = deploymentManagerProvider.provide(id);
         if (deployment.getStatus() == DeploymentStatus.RUNNING) {
@@ -230,14 +239,22 @@ public class DeploymentService {
         }
     }
 
-    public List<PodInfo> getActiveInstances(UUID id) {
+    public List<PodInfo> getActiveInstances(String id) {
         return deploymentManagerProvider.provide(id)
                 .getActiveInstances(id);
     }
 
-    public List<PodInfo> getInstances(UUID id) {
+    public List<PodInfo> getInstances(String id) {
         return deploymentManagerProvider.provide(id)
                 .getInstances(id);
+    }
+
+    private void checkNoResourcesAreAssociatedWithId(String id) {
+        var existingDisposableResources = disposableResourceManager.getAllByGroupId(id);
+        if (CollectionUtils.isNotEmpty(existingDisposableResources)) {
+            throw new IllegalArgumentException("Failed to create deployment with ID '%s'. There are resources awaiting deletion associated with this ID."
+                    .formatted(id));
+        }
     }
 
     private EnvPartition validateAndPartitionEnvs(DeploymentMetadata metadata) {
@@ -270,7 +287,8 @@ public class DeploymentService {
         return new EnvPartition(sens, nonSens, sensFile);
     }
 
-    private List<EnvVar> saveEnvVars(DeploymentManager deploymentManager, UUID deploymentId, EnvPartition partition) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private List<EnvVar> saveEnvVars(DeploymentManager deploymentManager, String deploymentId, EnvPartition partition) {
         var sensitive = deploymentManager.provisionSecrets(deploymentId, partition);
         var simple = toSimpleEnvs(partition.nonSensitive());
         return ListUtils.union(sensitive, simple);

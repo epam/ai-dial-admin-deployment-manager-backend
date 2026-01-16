@@ -113,7 +113,7 @@ public abstract class FullWorkflowFunctionalTest {
         return builtImageId;
     }
 
-    private void waitForDeployment(UUID deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
+    private void waitForDeployment(String deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
         long deployStartTime = System.currentTimeMillis();
         while (true) {
             var maybeDeployment = deploymentService.getDeployment(deploymentId);

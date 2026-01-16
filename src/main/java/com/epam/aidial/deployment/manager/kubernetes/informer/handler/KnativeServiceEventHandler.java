@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -34,7 +33,7 @@ public class KnativeServiceEventHandler extends AbstractResourceEventHandler<Ser
     }
 
     @Override
-    protected void reconcile(UUID deploymentId, Service resource, boolean isDeleted) {
+    protected void reconcile(String deploymentId, Service resource, boolean isDeleted) {
         var reconcileConfig = ReconcileConfig.<Service>builder()
                 .deploymentId(deploymentId)
                 .service(resource)

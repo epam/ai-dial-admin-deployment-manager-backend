@@ -14,7 +14,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -32,9 +31,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public abstract class DeploymentDto {
     @NotNull
-    private UUID id;
-    @NotNull
     private String name;
+    @NotNull
+    private String displayName;
     @Nullable
     private String description;
     @NotNull

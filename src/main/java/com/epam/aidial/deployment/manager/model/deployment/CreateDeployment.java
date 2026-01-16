@@ -15,8 +15,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class CreateDeployment {
+    private String id;
     private UUID imageDefinitionId;
-    private String name;
+    private String displayName;
     private String description;
     private DeploymentMetadata metadata;
     private Integer initialScale;
