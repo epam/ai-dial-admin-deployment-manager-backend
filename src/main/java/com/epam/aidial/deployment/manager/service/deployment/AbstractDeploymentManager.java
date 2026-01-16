@@ -231,8 +231,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var deployment = deploymentOptional.get();
 
         var status = config.isServiceIsMissing() ? DeploymentStatus.NOT_DEPLOYED : mapStatus(service);
-        if (log.isDebugEnabled()) {
-            log.debug("{}: started state sync for deployment '{}' with DB status {} and K8s status {}. Service: {}",
+        if (log.isTraceEnabled()) {
+            log.trace("{}: started state sync for deployment '{}' with DB status {} and K8s status {}. Service: {}",
                     initiator, deploymentId, deployment.getStatus(), status, Serialization.asYaml(service));
         }
 
