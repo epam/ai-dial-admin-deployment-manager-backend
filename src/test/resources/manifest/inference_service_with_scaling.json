@@ -9,6 +9,10 @@
       "maxReplicas": 5,
       "minReplicas": 1,
       "model": {
+        "args": [
+          "--model_name",
+          "scaling-inference-app"
+        ],
         "env": [],
         "modelFormat": {
           "name": "huggingface"
