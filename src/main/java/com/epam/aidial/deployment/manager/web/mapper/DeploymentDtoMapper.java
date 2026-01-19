@@ -57,8 +57,11 @@ import com.epam.aidial.deployment.manager.web.dto.internal.InterceptorDeployment
 import com.epam.aidial.deployment.manager.web.dto.internal.McpDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.NimDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.value.EnvVarValueDto;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.lang3.StringUtils;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -69,10 +72,12 @@ import org.mapstruct.SubclassMapping;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Mapper(
         componentModel = "spring",
         uses = {EnvVarValueDtoMapper.class},
@@ -101,6 +106,8 @@ public abstract class DeploymentDtoMapper {
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "command", source = "command", qualifiedByName = "stringToList")
+    @Mapping(target = "args", source = "args", qualifiedByName = "stringToList")
     public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
 
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSourceDto.class, target = InferenceDeploymentHuggingFaceSource.class)
@@ -118,6 +125,14 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
     public abstract DeploymentDto toDeploymentDto(Deployment model);
+
+    @AfterMapping
+    protected void setInferenceDeploymentCommandAndArgs(@MappingTarget DeploymentDto dto, Deployment model) {
+        if (model instanceof InferenceDeployment inference && dto instanceof InferenceDeploymentDto inferenceDto) {
+            inferenceDto.setCommand(listToString(inference.getCommand()));
+            inferenceDto.setArgs(listToString(inference.getArgs()));
+        }
+    }
 
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSource.class, target = InferenceDeploymentHuggingFaceSourceDto.class)
     protected abstract InferenceDeploymentSourceDto toDto(InferenceDeploymentSource model);
@@ -241,6 +256,48 @@ public abstract class DeploymentDtoMapper {
             case SSE -> McpTransportDto.SSE;
             case HTTP_STREAMING -> McpTransportDto.HTTP_STREAMING;
         };
+    }
+
+    @Named("stringToList")
+    protected List<String> stringToList(String str) {
+        if (StringUtils.isBlank(str)) {
+            return null;
+        }
+
+        try {
+            // Parse the string; this automatically handles quoted tokens (e.g., "foo bar")
+            CommandLine commandLine = CommandLine.parse(str);
+
+            List<String> result = new ArrayList<>();
+
+            // 1. Add the executable (the first token)
+            result.add(commandLine.getExecutable());
+            // 2. Add the arguments (remaining tokens)
+            Collections.addAll(result, commandLine.getArguments());
+
+            return result;
+        } catch (IllegalArgumentException e) {
+            log.error("Cannot parse command/arguments '{}'", str, e);
+            throw new IllegalArgumentException("Cannot parse command/arguments: '%s'".formatted(str), e);
+        }
+    }
+
+    protected String listToString(List<String> list) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+
+        // 1. Create CommandLine using the first element as the executable
+        CommandLine commandLine = new CommandLine(list.get(0));
+
+        // 2. Add the rest of the list as arguments
+        if (list.size() > 1) {
+            String[] args = list.subList(1, list.size()).toArray(new String[0]);
+            commandLine.addArguments(args);
+        }
+
+        // 3. toString() automatically quotes the executable and arguments as needed
+        return commandLine.toString();
     }
 
 }
