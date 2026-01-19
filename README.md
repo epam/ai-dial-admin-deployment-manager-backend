@@ -111,7 +111,7 @@ Expected response:
 }
 ```
 
-Import ([Postman](docs/rest-collection/dm_postman_collection.json))/([Insomnia](docs/rest-collection/dm_insomnia_collection.yaml)) collection to test other requests. 
+Import ([Postman](docs/rest-collection/dm_postman_collection.json)) collection to test other requests. 
 
 ### H2 Database Credentials
 
