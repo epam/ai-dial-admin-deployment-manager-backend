@@ -227,7 +227,7 @@ app:
           SIZE2=$(stat -c%s "$TAR_PATH")
           if [ "$SIZE1" -eq "$SIZE2" ] && [ "$SIZE1" -gt 0 ]; then
             echo "[push-container] Image tarball found and stable. Starting push with Skopeo..."
-            skopeo copy docker-archive:$TAR_PATH docker://${TARGET_IMAGE} --authfile ${AUTH_FILE_PATH}
+            skopeo copy docker-archive:${TAR_PATH} docker://${TARGET_IMAGE} --authfile ${AUTH_FILE_PATH}
             if [ $? -eq 0 ]; then
               echo "[push-container] Image push completed successfully."
               exit 0

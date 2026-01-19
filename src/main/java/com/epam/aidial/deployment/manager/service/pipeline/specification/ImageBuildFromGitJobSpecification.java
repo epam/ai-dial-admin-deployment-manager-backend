@@ -181,7 +181,7 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
 
     private void configurePushContainer(MappingChain<PodSpec> podSpec, String targetImage) {
         var builder = getPushContainerChain(podSpec);
-        configurePushContainerArgs(builder, targetImage);
+        configurePushContainerEnvVars(builder, targetImage);
         configureRegistryAuth(podSpec, builder);
     }
 
@@ -190,7 +190,7 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
                 .getOrDefault(appConfig.getPushContainerConfig().getName(), appConfig::clonePushContainerConfig);
     }
 
-    private void configurePushContainerArgs(MappingChain<Container> pushContainerChain, String targetImage) {
+    private void configurePushContainerEnvVars(MappingChain<Container> pushContainerChain, String targetImage) {
         pushContainerChain.get(Mappers.CONTAINER_ENV_FIELD)
                 .data()
                 .add(new EnvVarBuilder().withName("TARGET_IMAGE").withValue(targetImage).build());
