@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.pipeline.specification;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.CiliumNetworkPolicySpec;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
@@ -24,7 +25,6 @@ import java.util.Map;
 @LogExecution
 public class CiliumNetworkPolicyCreator {
 
-    private static final String POLICY_NAME_TEMPLATE = "restrict-egress-%s";
     private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String TCP_PORT = "443";
     private static final String UDP_PORT = "53";
@@ -94,6 +94,6 @@ public class CiliumNetworkPolicyCreator {
     }
 
     public static String getPolicyName(String matchLabelValue) {
-        return POLICY_NAME_TEMPLATE.formatted(matchLabelValue);
+        return K8sNamingUtils.generateName(matchLabelValue);
     }
 }
