@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthC
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.Container;
@@ -35,7 +36,9 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import io.fabric8.kubernetes.client.dsl.PodResource;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,7 +74,7 @@ class KnativeDeploymentManagerTest {
     private static final int UNDEPLOY_TIMEOUT = 300;
 
     private static final String SERVICE_URL = "https://service-url.example.com";
-    private static final String SERVICE_NAME = "mcp-" + DEPLOYMENT_ID;
+    private static final String SERVICE_NAME = "test-" + DEPLOYMENT_ID;
     private static final String SERVICE_CONTAINER = "user-container";
     private static final String IMAGE_NAME = "test-image:latest";
     private static final String NAMESPACE = "test-namespace";
@@ -105,6 +108,16 @@ class KnativeDeploymentManagerTest {
     private CiliumNetworkPolicy ciliumNetworkPolicy;
 
     private KnativeDeploymentManager knativeDeploymentManager;
+
+    @BeforeAll
+    static void setPrefix() {
+        K8sNamingUtils.setResourceNamePrefix("test");
+    }
+
+    @AfterAll
+    static void dropPrefix() {
+        K8sNamingUtils.setResourceNamePrefix("");
+    }
 
     @BeforeEach
     void setUp() {
