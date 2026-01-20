@@ -33,4 +33,4 @@ ALTER TABLE image_definition_topics ALTER COLUMN image_definition_id VARCHAR(36)
 CREATE INDEX idx_image_definition_display_name ON image_definition(display_name);
 
 -- Create unique constraint for image_definition (type,display_name,version)
-ALTER TABLE image_definition ADD CONSTRAINT uq_image_definition_type_display_name_version UNIQUE (type, display_name, version)
+ALTER TABLE image_definition ADD CONSTRAINT uq_image_definition_type_display_name_version UNIQUE (type, display_name, version);
