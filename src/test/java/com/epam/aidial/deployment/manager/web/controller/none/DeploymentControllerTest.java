@@ -3,9 +3,15 @@ package com.epam.aidial.deployment.manager.web.controller.none;
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.event.EventStreamerConfiguration;
+import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
+import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EventType;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.ObjectKind;
+import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
@@ -31,11 +37,13 @@ import org.springframework.test.json.JsonCompareMode;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -77,6 +85,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;
     @Captor
     private ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor;
+    @Captor
+    private ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor;
 
     @Test
     void testGetAllDeployments() throws Exception {
@@ -353,10 +363,158 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         assertThat(cfg.involvedObjectKind()).isEqualTo(involvedObjectKind);
     }
 
+    @Test
+    void testCreateInferenceDeployment_withCommandAndArgs() throws Exception {
+        // Given
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response.json");
+        var deployment = createInferenceDeployment(
+                "test-inference-deployment",
+                List.of("python", "script.py", "--arg", "value"),
+                List.of("--config", "config.json", "--log-level", "DEBUG")
+        );
+
+        when(deploymentService.createDeployment(any())).thenReturn(deployment);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).createDeployment(createInferenceDeploymentCaptor.capture());
+        var createDeployment = createInferenceDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "script.py", "--arg", "value"));
+        assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config.json", "--log-level", "DEBUG"));
+    }
+
+    @Test
+    void testCreateInferenceDeployment_withQuotedCommandAndArgs() throws Exception {
+        // Given
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_quoted.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response_quoted.json");
+        var deployment = createInferenceDeployment(
+                "test-inference-deployment",
+                List.of("python", "script with spaces.py", "--arg", "value with spaces"),
+                List.of("--config", "config file.json")
+        );
+
+        when(deploymentService.createDeployment(any())).thenReturn(deployment);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).createDeployment(createInferenceDeploymentCaptor.capture());
+        var createDeployment = createInferenceDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "\"script with spaces.py\"", "--arg", "\"value with spaces\""));
+        assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "\"config file.json\""));
+    }
+
+    @Test
+    void testCreateInferenceDeployment_withNullCommandAndArgs() throws Exception {
+        // Given
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
+        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+
+        when(deploymentService.createDeployment(any())).thenReturn(deployment);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).createDeployment(createInferenceDeploymentCaptor.capture());
+        var createDeployment = createInferenceDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isNull();
+        assertThat(createDeployment.getArgs()).isNull();
+    }
+
+    @Test
+    void testCreateInferenceDeployment_withBlankCommandAndArgs() throws Exception {
+        // Given
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_blank_command_args.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
+        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+
+        when(deploymentService.createDeployment(any())).thenReturn(deployment);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).createDeployment(createInferenceDeploymentCaptor.capture());
+        var createDeployment = createInferenceDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isNull();
+        assertThat(createDeployment.getArgs()).isNull();
+    }
+
+    @Test
+    void testGetInferenceDeployment_shouldConvertCommandAndArgsListsToStrings() throws Exception {
+        // Given
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/get_inference_deployment_response.json");
+        var deployment = createInferenceDeployment(
+                "test-inference-deployment",
+                List.of("python", "script.py", "--arg", "value"),
+                List.of("--config", "config.json", "--log-level", "DEBUG")
+        );
+
+        when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
+
+        // When/Then
+        mockMvc.perform(get("/api/v1/deployments/{id}", "test-inference-deployment"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+        verify(deploymentService).getDeployment("test-inference-deployment");
+    }
+
+    @Test
+    void testGetInferenceDeployment_withNullCommandAndArgs() throws Exception {
+        // Given
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
+        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+
+        when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
+
+        // When/Then
+        mockMvc.perform(get("/api/v1/deployments/{id}", "test-inference-deployment"))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+        verify(deploymentService).getDeployment("test-inference-deployment");
+    }
+
     private static SseEmitter completedEmitter() {
         SseEmitter emitter = new SseEmitter();
         emitter.complete();
         return emitter;
+    }
+
+    private InferenceDeployment createInferenceDeployment(String id, List<String> command, List<String> args) {
+        var deployment = new InferenceDeployment();
+        deployment.setId(id);
+        deployment.setDisplayName("Test Inference Deployment");
+        deployment.setModelFormat("huggingface");
+        deployment.setSource(new InferenceDeploymentHuggingFaceSource("test-user/test-model"));
+        deployment.setCommand(command);
+        deployment.setArgs(args);
+        deployment.setMetadata(new DeploymentMetadata(new ArrayList<>()));
+        deployment.setStatus(DeploymentStatus.NOT_DEPLOYED);
+        deployment.setUrl("http://test-url");
+        deployment.setCreatedAt(Instant.now());
+        deployment.setUpdatedAt(Instant.now());
+        deployment.setAllowedDomains(new ArrayList<>());
+        deployment.setResources(new Resources(Map.of(), Map.of()));
+        return deployment;
     }
 
 }
