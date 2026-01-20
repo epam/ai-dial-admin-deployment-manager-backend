@@ -204,6 +204,50 @@ class KnativeDeploymentManagerTest {
     }
 
     @Test
+    void getInstances_shouldReturnPodsWithRestartInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
+        podList.setItems(List.of(pod));
+
+        when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = knativeDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-with-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(5);
+        assertThat(podInfo.getLastTerminationReason()).isEqualTo("OOMKilled");
+        assertThat(podInfo.getLastExitCode()).isEqualTo(137);
+        assertThat(podInfo.getLastSignal()).isEqualTo(9);
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithoutTerminationInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPod("pod-no-restarts", true);
+        podList.setItems(List.of(pod));
+
+        when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = knativeDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-no-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(0);
+        assertThat(podInfo.getLastTerminationReason()).isNull();
+        assertThat(podInfo.getLastExitCode()).isNull();
+        assertThat(podInfo.getLastSignal()).isNull();
+    }
+
+    @Test
     void getContainerResource_shouldReturnContainerResourceForPod() {
         // Given
         Pod pod = createPod(POD_NAME, true);
@@ -524,6 +568,43 @@ class KnativeDeploymentManagerTest {
         } else {
             containerStatus.setState(new ContainerStateBuilder().withNewWaiting().withReason("NotReady").endWaiting().build());
         }
+
+        status.setContainerStatuses(List.of(containerStatus));
+        pod.setStatus(status);
+
+        var spec = new PodSpec();
+        var container = new Container();
+        container.setName(SERVICE_CONTAINER);
+        spec.setContainers(List.of(container));
+        pod.setSpec(spec);
+
+        return pod;
+    }
+
+    private Pod createPodWithRestartInfo(String name, int restartCount, String terminationReason, Integer exitCode, Integer signal) {
+        var pod = new Pod();
+        pod.setMetadata(new ObjectMeta());
+        pod.getMetadata().setName(name);
+        pod.getMetadata().setCreationTimestamp(Instant.now().toString());
+
+        var status = new PodStatus();
+        var containerStatus = new ContainerStatus();
+        containerStatus.setName(SERVICE_CONTAINER);
+        containerStatus.setRestartCount(restartCount);
+
+        // Set last terminated state
+        var terminatedState = new ContainerStateBuilder()
+                .withNewTerminated()
+                .withReason(terminationReason)
+                .withExitCode(exitCode)
+                .withSignal(signal)
+                .withFinishedAt(Instant.now().toString())
+                .endTerminated()
+                .build();
+        containerStatus.setLastState(terminatedState);
+
+        // Set current state as running
+        containerStatus.setState(new ContainerStateBuilder().build());
 
         status.setContainerStatuses(List.of(containerStatus));
         pod.setStatus(status);

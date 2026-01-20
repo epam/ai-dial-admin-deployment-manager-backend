@@ -1,0 +1,9 @@
+[
+  {
+    "name": "pod-3",
+    "createdAt": 1672574400000,
+    "restartCount": 2,
+    "lastTerminationReason": "Error",
+    "lastExitCode": 1
+  }
+]

@@ -356,6 +356,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testGetPods_withRestartInfo() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_with_restart_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9);
 
@@ -363,10 +364,39 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         mockMvc.perform(get("/api/v1/deployments/{id}/pods", DEPLOYMENT_ID))
                 .andExpect(status().isOk())
-                .andExpect(content().json(
-                        "[{\"name\":\"pod-1\",\"createdAt\":\"2023-01-01T12:00:00Z\",\"restartCount\":5,\"lastTerminationReason\":\"OOMKilled\",\"lastExitCode\":137,\"lastSignal\":9}]"));
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
         verify(deploymentService).getInstances(DEPLOYMENT_ID);
+    }
+
+    @Test
+    void testGetPods_withoutTerminationInfo() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null);
+
+        when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getInstances(DEPLOYMENT_ID);
+    }
+
+    @Test
+    void testGetActivePods() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null);
+
+        when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/active-pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getActiveInstances(DEPLOYMENT_ID);
     }
 
     private static SseEmitter completedEmitter() {

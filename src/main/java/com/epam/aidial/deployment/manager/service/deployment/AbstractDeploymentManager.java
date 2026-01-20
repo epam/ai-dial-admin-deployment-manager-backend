@@ -435,7 +435,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         ContainerStateTerminated mostRecentTermination = null;
 
         for (var containerStatus : containerStatuses) {
-            totalRestartCount += containerStatus.getRestartCount();
+            totalRestartCount += containerStatus.getRestartCount() != null ? containerStatus.getRestartCount() : 0;
 
             // Check both 'state' (current) and 'lastState' (previous)
             // to find the most recent failure event.
