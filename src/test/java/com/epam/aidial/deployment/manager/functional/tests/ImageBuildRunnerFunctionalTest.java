@@ -23,12 +23,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,7 +52,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(imageDefinition);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), anyString(), anyList(), anyList()))
                 .thenReturn(true);
 
         // When
@@ -62,7 +62,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -78,13 +78,13 @@ public abstract class ImageBuildRunnerFunctionalTest {
     public void shouldFailBuildInterceptorImageWithGitSource() {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createInterceptorImageDefinition();
-        imageDefToBeSaved.setName(imageDefToBeSaved.getName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), anyString(), anyList(), anyList()))
                 .thenReturn(false);
 
         // When
@@ -102,13 +102,13 @@ public abstract class ImageBuildRunnerFunctionalTest {
     public void shouldSuccessfullyBuildMcpImageWithDockerSource() {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
-        imageDefToBeSaved.setName(imageDefToBeSaved.getName() + "1");
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + "1");
         imageDefToBeSaved.setTransportType(McpTransportType.REMOTE);
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), anyString(), anyList(), anyList()))
                 .thenReturn(true);
 
         // When
@@ -118,7 +118,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -136,13 +136,13 @@ public abstract class ImageBuildRunnerFunctionalTest {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.REMOTE);
-        imageDefToBeSaved.setName(imageDefToBeSaved.getName() + "2");
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + "2");
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), anyString(), anyList(), anyList()))
                 .thenReturn(true);
 
         // When
@@ -152,7 +152,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -168,7 +168,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     public void shouldSuccessfullyBuildMcpImageWithGitSourceAndStdioTransport() {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
-        imageDefToBeSaved.setName(imageDefToBeSaved.getName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
         imageDefToBeSaved.setTransportType(McpTransportType.LOCAL);
 
@@ -177,7 +177,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
+        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), anyString(), anyList(), anyList())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(List.of("ID: test-id", "VERSION: test-version"));
             return true;
@@ -190,7 +190,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager, times(2)).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -212,7 +212,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
+        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), anyString(), anyList(), anyList())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(List.of("ID: test-id", "VERSION: test-version"));
             return true;
@@ -225,7 +225,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
-        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId);
         Assertions.assertTrue(tempDisposableResources.isEmpty());
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
@@ -242,13 +242,13 @@ public abstract class ImageBuildRunnerFunctionalTest {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.LOCAL);
-        imageDefToBeSaved.setName(imageDefToBeSaved.getName() + suffix);
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + suffix);
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
+        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), anyString(), anyList(), anyList())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(logs);
             return true;

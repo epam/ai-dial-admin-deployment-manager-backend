@@ -1,17 +1,17 @@
 [
   {
-    "name": "model1",
-    "selectedId": "11111111-1111-1111-1111-111111111111",
+    "displayName": "model1",
+    "selectedName": "11111111-1111-1111-1111-111111111111",
     "availableVersions": [
       {
-        "id": "11111111-1111-1111-1111-111111111111",
+        "name": "11111111-1111-1111-1111-111111111111",
         "version": "1.0.0",
         "status": "build_successful",
         "description": "Model 1 v1",
         "topics": ["topic1", "topic2"]
       },
       {
-        "id": "22222222-2222-2222-2222-222222222222",
+        "name": "22222222-2222-2222-2222-222222222222",
         "version": "1.1.0",
         "status": "build_failed",
         "description": "Model 1 v2",
@@ -20,11 +20,11 @@
     ]
   },
   {
-    "name": "model2",
-    "selectedId": "33333333-3333-3333-3333-333333333333",
+    "displayName": "model2",
+    "selectedName": "33333333-3333-3333-3333-333333333333",
     "availableVersions": [
       {
-        "id": "33333333-3333-3333-3333-333333333333",
+        "name": "33333333-3333-3333-3333-333333333333",
         "version": "1.0.0",
         "status": "build_successful",
         "description": "Model 2",

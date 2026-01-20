@@ -18,7 +18,6 @@ import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
@@ -36,7 +35,7 @@ public class ImageBuildRunner {
     private final ImageWrapperBuildPipeline imageWrapperBuildPipeline;
     private final ImageCopyPipeline imageCopyPipeline;
 
-    public ImageDefinition buildImage(UUID imageDefinitionId) {
+    public ImageDefinition buildImage(String imageDefinitionId) {
         var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found: %s".formatted(imageDefinitionId)));
 
@@ -65,7 +64,7 @@ public class ImageBuildRunner {
 
     private ImageDefinition buildMcpImage(McpImageDefinition imageDefinition) {
         var imageSource = imageDefinition.getSource();
-        Consumer<UUID> pipeline;
+        Consumer<String> pipeline;
         if (imageSource instanceof DockerImageSource
                 && imageDefinition.getTransportType() == McpTransportType.REMOTE) {
             pipeline = imageCopyPipeline::run;
@@ -81,7 +80,7 @@ public class ImageBuildRunner {
         return startDockerImagePipeline(imageDefinition, pipeline);
     }
 
-    private ImageDefinition startDockerImagePipeline(ImageDefinition imageDefinition, Consumer<UUID> pipeline) {
+    private ImageDefinition startDockerImagePipeline(ImageDefinition imageDefinition, Consumer<String> pipeline) {
         var buildStatus = ImageStatus.BUILDING;
 
         imageDefinition.setBuildStatus(buildStatus);

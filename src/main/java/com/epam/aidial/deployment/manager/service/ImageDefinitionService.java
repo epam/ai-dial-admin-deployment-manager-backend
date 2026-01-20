@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -53,17 +52,17 @@ public class ImageDefinitionService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
-        return imageDefinitionRepository.getAllImageDefinitionsByNameAndType(name, type);
+    public Collection<ImageDefinition> getAllImageDefinitionsByDisplayNameAndType(String displayName, ImageTypeDto type) {
+        return imageDefinitionRepository.getAllImageDefinitionsByDisplayNameAndType(displayName, type);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByName(String name) {
-        return imageDefinitionRepository.getAllImageDefinitionsByName(name);
+    public Collection<ImageDefinition> getAllImageDefinitionsByDisplayName(String displayName) {
+        return imageDefinitionRepository.getAllImageDefinitionsByDisplayName(displayName);
     }
 
     @Transactional(readOnly = true)
-    public Optional<ImageDefinition> getImageDefinition(UUID id) {
+    public Optional<ImageDefinition> getImageDefinition(String id) {
         return imageDefinitionRepository.getImageDefinitionById(id);
     }
 
@@ -80,7 +79,7 @@ public class ImageDefinitionService {
     }
 
     @Transactional
-    public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition) {
+    public ImageDefinition updateImageDefinition(String id, ImageDefinition updatedImageDefinition) {
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 
@@ -93,37 +92,37 @@ public class ImageDefinitionService {
     }
 
     @Transactional
-    public void updateBuildStatus(UUID id, ImageStatus buildStatus) {
+    public void updateBuildStatus(String id, ImageStatus buildStatus) {
         imageDefinitionRepository.updateBuildStatus(id, buildStatus);
     }
 
     @Transactional
-    public void addBuildLog(UUID id, String log) {
+    public void addBuildLog(String id, String log) {
         addBuildLogs(id, List.of(log));
     }
 
     @Transactional
-    public void addBuildLogs(UUID id, List<String> logs) {
+    public void addBuildLogs(String id, List<String> logs) {
         imageDefinitionRepository.addBuildLogs(id, logs);
     }
 
     @Transactional
-    public void setImageName(UUID id, String imageName) {
+    public void setImageName(String id, String imageName) {
         imageDefinitionRepository.setImageName(id, imageName);
     }
 
     @Transactional
-    public void setBuiltAt(UUID id, long timestamp) {
+    public void setBuiltAt(String id, long timestamp) {
         imageDefinitionRepository.setBuiltAt(id, timestamp);
     }
 
     @Transactional
-    public void resetBuildLogs(UUID id) {
+    public void resetBuildLogs(String id) {
         imageDefinitionRepository.resetBuildLogs(id);
     }
 
-    public void deleteImageDefinitionAsync(UUID id) {
-        componentCleanupService.deleteAsync(ComponentRemoval.of(String.valueOf(id), ComponentType.IMAGE_DEFINITION));
+    public void deleteImageDefinitionAsync(String id) {
+        componentCleanupService.deleteAsync(ComponentRemoval.of(id, ComponentType.IMAGE_DEFINITION));
     }
 
 }

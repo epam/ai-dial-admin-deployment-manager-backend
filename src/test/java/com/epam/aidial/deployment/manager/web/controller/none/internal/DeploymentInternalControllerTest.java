@@ -65,7 +65,7 @@ class DeploymentInternalControllerTest extends AbstractControllerNoneSecureTest 
 
     @Test
     void testGetDeploymentById_notFound() throws Exception {
-        var deploymentId = String.valueOf(UUID.randomUUID());
+        var deploymentId = UUID.randomUUID().toString();
         when(deploymentService.getDeployment(any(), anyBoolean())).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/internal/v1/deployments/{id}", deploymentId))

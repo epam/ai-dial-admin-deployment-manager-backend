@@ -56,10 +56,10 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void buildImage() throws Exception {
-        var definitionId = UUID.randomUUID();
+        var definitionId = UUID.randomUUID().toString();
         var requestJson = """
                 {
-                  "imageDefinitionId":"%s"
+                  "imageDefinitionName":"%s"
                 }
                 """.formatted(definitionId);
 
@@ -95,7 +95,7 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void getImageBuildDetailsById_notFound() throws Exception {
-        var id = UUID.randomUUID();
+        var id = UUID.randomUUID().toString();
         when(imageDefinitionService.getImageDefinition(id)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/v1/images/builds/{id}/details", id))
@@ -106,7 +106,7 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void subscribeToStatus() throws Exception {
-        var id = UUID.randomUUID();
+        var id = UUID.randomUUID().toString();
 
         when(imageBuildLogsService.streamStatus(id)).thenReturn(completedEmitter());
 
@@ -123,7 +123,7 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void subscribeToLogs() throws Exception {
-        var id = UUID.randomUUID();
+        var id = UUID.randomUUID().toString();
 
         when(imageBuildLogsService.streamLogs(id)).thenReturn(completedEmitter());
 

@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -71,21 +70,21 @@ public class ImageDefinitionController {
 
     @GetMapping(path = "/{id}",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ImageDefinitionDto getImageDefinitionById(@PathVariable UUID id) {
+    public ImageDefinitionDto getImageDefinitionById(@PathVariable String id) {
         return imageDefinitionService.getImageDefinition(id)
                 .map(dtoMapper::toImageDefinitionDto)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
     }
 
-    @GetMapping(path = "/{name}/versions",
+    @GetMapping(path = "/{displayName}/versions",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public List<BaseImageDetailsDto> getImageVersionsWithStatusesByName(
-            @PathVariable String name,
+    public List<BaseImageDetailsDto> getImageVersionsWithStatusesByDisplayName(
+            @PathVariable String displayName,
             @RequestParam(required = false) ImageTypeDto type
     ) {
         Collection<ImageDefinition> imageDefinitions = type != null
-                ? imageDefinitionService.getAllImageDefinitionsByNameAndType(name, type)
-                : imageDefinitionService.getAllImageDefinitionsByName(name);
+                ? imageDefinitionService.getAllImageDefinitionsByDisplayNameAndType(displayName, type)
+                : imageDefinitionService.getAllImageDefinitionsByDisplayName(displayName);
         return imageDefinitions.stream()
                 .map(dtoMapper::toBaseImageDetailsDto)
                 .collect(Collectors.toList());
@@ -102,7 +101,7 @@ public class ImageDefinitionController {
     @PutMapping(path = "/{id}",
             consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
-    public ImageDefinitionDto updateImageDefinition(@PathVariable UUID id,
+    public ImageDefinitionDto updateImageDefinition(@PathVariable String id,
                                                     @RequestBody @Valid ImageDefinitionRequestDto requestDto) {
         var imageDefinition = dtoMapper.toImageDefinition(requestDto);
         var updated = imageDefinitionService.updateImageDefinition(id, imageDefinition);
@@ -111,7 +110,7 @@ public class ImageDefinitionController {
 
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteImageDefinition(@PathVariable UUID id) {
+    public void deleteImageDefinition(@PathVariable String id) {
         imageDefinitionService.deleteImageDefinitionAsync(id);
     }
 }

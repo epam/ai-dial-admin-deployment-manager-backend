@@ -96,6 +96,18 @@ public abstract class DeploymentDtoMapper {
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
+    @Mapping(target = "imageDefinitionId", source = "imageDefinitionName")
+    public abstract CreateMcpDeployment toCreateDeployment(CreateMcpDeploymentRequestDto dto);
+
+    @Mapping(target = "id", source = "name")
+    @Mapping(target = "imageDefinitionId", source = "imageDefinitionName")
+    public abstract CreateAdapterDeployment toCreateDeployment(CreateAdapterDeploymentRequestDto dto);
+
+    @Mapping(target = "id", source = "name")
+    @Mapping(target = "imageDefinitionId", source = "imageDefinitionName")
+    public abstract CreateInterceptorDeployment toCreateDeployment(CreateInterceptorDeploymentRequestDto dto);
+
+    @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
     public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
 
@@ -118,6 +130,24 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
     public abstract DeploymentDto toDeploymentDto(Deployment model);
+
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "imageDefinitionName", source = "imageDefinitionId")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    protected abstract McpDeploymentDto toDto(McpDeployment model);
+
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "imageDefinitionName", source = "imageDefinitionId")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    protected abstract AdapterDeploymentDto toDto(AdapterDeployment model);
+
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "imageDefinitionName", source = "imageDefinitionId")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    protected abstract InterceptorDeploymentDto toDto(InterceptorDeployment model);
 
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSource.class, target = InferenceDeploymentHuggingFaceSourceDto.class)
     protected abstract InferenceDeploymentSourceDto toDto(InferenceDeploymentSource model);
@@ -193,6 +223,7 @@ public abstract class DeploymentDtoMapper {
     }
 
     @Mapping(target = "name", source = "id")
+    @Mapping(target = "imageDefinitionName", source = "imageDefinitionId")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "type", source = "model", qualifiedByName = "toDeploymentTypeDto")
     public abstract DeploymentInfoDto toDeploymentInfoDto(Deployment model);

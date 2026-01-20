@@ -11,7 +11,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -27,9 +26,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public abstract class ImageDefinitionDto {
     @NotNull
-    private UUID id;
-    @NotNull
     private String name;
+    @NotNull
+    private String displayName;
     @NotNull
     @ValidSemanticVersion
     private String version;

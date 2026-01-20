@@ -50,8 +50,8 @@ class ImageDefinitionServiceTest {
     void testGetAllImageDefinitions() {
         // Given
         var expectedImageDefinitions = List.of(
-                createImageDefinition(UUID.randomUUID(), "echo-mcp-0"),
-                createImageDefinition(UUID.randomUUID(), "echo-mcp-1")
+                createImageDefinition(UUID.randomUUID().toString(), "echo-mcp-0"),
+                createImageDefinition(UUID.randomUUID().toString(), "echo-mcp-1")
         );
         doReturn(expectedImageDefinitions).when(imageDefinitionRepository).getAllImageDefinitions();
 
@@ -69,7 +69,7 @@ class ImageDefinitionServiceTest {
     @Test
     void testGetImageDefinition_found() {
         // Given
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
         var expectedImageDefinition = createImageDefinition(imageId, "echo-mcp");
         when(imageDefinitionRepository.getImageDefinitionById(imageId)).thenReturn(Optional.of(expectedImageDefinition));
 
@@ -86,7 +86,7 @@ class ImageDefinitionServiceTest {
     @Test
     void testGetImageDefinition_notFound() {
         // Given
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
         when(imageDefinitionRepository.getImageDefinitionById(imageId)).thenReturn(Optional.empty());
 
         // When
@@ -101,7 +101,7 @@ class ImageDefinitionServiceTest {
     void testCreateImageDefinition() {
         // Given
         var imageDefinitionToCreate = createImageDefinition(null, "echo-mcp");
-        var createdId = UUID.randomUUID();
+        var createdId = UUID.randomUUID().toString();
         var createdImageDefinition = createImageDefinition(createdId, "echo-mcp");
         when(imageDefinitionRepository.saveImageDefinition(imageDefinitionToCreate)).thenReturn(createdImageDefinition);
 
@@ -119,7 +119,7 @@ class ImageDefinitionServiceTest {
     @Test
     void testUpdateImageDefinition_Found() {
         // Given
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
         var createImageDefinition = createImageDefinition(null, "echo-mcp");
         var updateImageDefinition = createImageDefinition(imageId, "echo-mcp");
         updateImageDefinition.setDescription("updated desc");
@@ -137,7 +137,7 @@ class ImageDefinitionServiceTest {
                 .isNotNull()
                 .isEqualTo(updateImageDefinition)
                 .hasFieldOrPropertyWithValue("id", imageId)
-                .hasFieldOrPropertyWithValue("name", "echo-mcp")
+                .hasFieldOrPropertyWithValue("displayName", "echo-mcp")
                 .hasFieldOrPropertyWithValue("description", "updated desc")
                 .hasFieldOrPropertyWithValue("transportType", McpTransportType.REMOTE);
         verify(imageDefinitionRepository).updateImageDefinition(imageId, updateImageDefinition);
@@ -146,7 +146,7 @@ class ImageDefinitionServiceTest {
     @Test
     void testUpdateImageDefinition_NotFound() {
         // Given
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
         var updatedImageDefinition = createImageDefinition(null, "echo-mcp");
 
         // When
@@ -161,19 +161,19 @@ class ImageDefinitionServiceTest {
     @Test
     void testDeleteImageDefinitionAsync() {
         // Given
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
 
         // When
         imageDefinitionService.deleteImageDefinitionAsync(imageId);
 
         // Then
-        verify(componentCleanupService).deleteAsync(ComponentRemoval.of(String.valueOf(imageId), ComponentType.IMAGE_DEFINITION));
+        verify(componentCleanupService).deleteAsync(ComponentRemoval.of(imageId, ComponentType.IMAGE_DEFINITION));
     }
 
-    private McpImageDefinition createImageDefinition(UUID id, String name) {
+    private McpImageDefinition createImageDefinition(String id, String name) {
         return McpImageDefinition.builder()
                 .id(id)
-                .name(name)
+                .displayName(name)
                 .build();
     }
 

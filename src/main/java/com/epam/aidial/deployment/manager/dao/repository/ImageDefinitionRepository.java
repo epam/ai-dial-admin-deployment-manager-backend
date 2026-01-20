@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -50,26 +49,26 @@ public class ImageDefinitionRepository {
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByDisplayNameAndType(String displayName, ImageTypeDto type) {
         var entityClazz = detectEntityClazz(type);
-        return imageDefinitionJpaRepository.findAllByNameAndType(name, entityClazz).stream()
+        return imageDefinitionJpaRepository.findAllByDisplayNameAndType(displayName, entityClazz).stream()
                 .map(mapper::toImageDefinition)
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByName(String name) {
-        return imageDefinitionJpaRepository.findAllByName(name).stream()
+    public Collection<ImageDefinition> getAllImageDefinitionsByDisplayName(String displayName) {
+        return imageDefinitionJpaRepository.findAllByDisplayName(displayName).stream()
                 .map(mapper::toImageDefinition)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public Optional<ImageDefinition> getImageDefinitionById(UUID id) {
+    public Optional<ImageDefinition> getImageDefinitionById(String id) {
         return imageDefinitionJpaRepository.findById(id)
                 .map(mapper::toImageDefinition);
     }
 
-    public Optional<ImageDefinition> getImageDefinitionForUpdateById(UUID id) {
+    public Optional<ImageDefinition> getImageDefinitionForUpdateById(String id) {
         return imageDefinitionJpaRepository.findForUpdateById(id)
                 .map(mapper::toImageDefinition);
     }
@@ -81,12 +80,12 @@ public class ImageDefinitionRepository {
         return mapper.toImageDefinition(savedEntity);
     }
 
-    public void deleteImageDefinitionById(UUID id) {
+    public void deleteImageDefinitionById(String id) {
         imageDefinitionJpaRepository.deleteById(id);
         log.debug("Image definition '{}' deleted successfully", id);
     }
 
-    public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition) {
+    public ImageDefinition updateImageDefinition(String id, ImageDefinition updatedImageDefinition) {
         var existingEntity = imageDefinitionJpaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 
@@ -97,28 +96,28 @@ public class ImageDefinitionRepository {
         return mapper.toImageDefinition(savedEntity);
     }
 
-    public void updateBuildStatus(UUID id, ImageStatus buildStatus) {
+    public void updateBuildStatus(String id, ImageStatus buildStatus) {
         var persistenceStatus = mapper.toImageStatusDto(buildStatus);
         imageDefinitionJpaRepository.updateBuildStatus(id, persistenceStatus);
         log.debug("Build status updated for image definition '{}' to: {}", id, buildStatus);
     }
 
-    public void setImageName(UUID id, String imageName) {
+    public void setImageName(String id, String imageName) {
         imageDefinitionJpaRepository.setImageName(id, imageName);
         log.debug("Image name set for image definition '{}' to: {}", id, imageName);
     }
 
-    public void setBuiltAt(UUID id, Long builtAt) {
+    public void setBuiltAt(String id, Long builtAt) {
         imageDefinitionJpaRepository.setBuiltAt(id, builtAt);
         log.debug("BuiltAt set for image definition '{}' to: {}", id, builtAt);
     }
 
-    public void resetBuildLogs(UUID id) {
+    public void resetBuildLogs(String id) {
         imageDefinitionJpaRepository.resetBuildLogs(id);
         log.debug("Build logs reset for image definition '{}'", id);
     }
 
-    public void addBuildLogs(UUID id, List<String> logs) {
+    public void addBuildLogs(String id, List<String> logs) {
         var entity = imageDefinitionJpaRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 

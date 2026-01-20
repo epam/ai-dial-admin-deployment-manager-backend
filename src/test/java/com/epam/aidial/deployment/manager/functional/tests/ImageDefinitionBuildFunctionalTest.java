@@ -101,7 +101,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
     }
 
     @Test
-    public void shouldSetImageNameAndBuiltAtOnSuccessfulBuild() throws InterruptedException {
+    public void shouldSetImageNameAndBuiltAtOnSuccessfulBuild() {
         // Given
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
@@ -138,7 +138,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // When - Try to update
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        updatedImageDef.setName("updated-name");
+        updatedImageDef.setDisplayName("updated-name");
 
         // Then - Should throw exception
         var exception = Assertions.assertThrows(
@@ -161,7 +161,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // When - Try to update
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        updatedImageDef.setName("updated-name");
+        updatedImageDef.setDisplayName("updated-name");
 
         // Then - Should throw exception
         var exception = Assertions.assertThrows(
@@ -181,12 +181,12 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         Assertions.assertEquals(ImageStatus.NOT_BUILT, imageDef.getBuildStatus());
 
         // When - Update
-        imageDef.setName("updated-name");
+        imageDef.setDisplayName("updated-name");
         imageDef.setDescription("updated-description");
         var updatedImageDef = imageDefinitionService.updateImageDefinition(imageDefinitionId, imageDef);
 
         // Then - Should succeed
-        Assertions.assertEquals("updated-name", updatedImageDef.getName());
+        Assertions.assertEquals("updated-name", updatedImageDef.getDisplayName());
         Assertions.assertEquals("updated-description", updatedImageDef.getDescription());
     }
 
@@ -203,11 +203,11 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // When - Update
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        updatedImageDef.setName("updated-name");
+        updatedImageDef.setDisplayName("updated-name");
         var result = imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef);
 
         // Then - Should succeed & reset build status
-        Assertions.assertEquals("updated-name", result.getName());
+        Assertions.assertEquals("updated-name", result.getDisplayName());
         Assertions.assertEquals(ImageStatus.NOT_BUILT, result.getBuildStatus());
     }
 

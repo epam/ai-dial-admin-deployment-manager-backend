@@ -21,10 +21,12 @@ public abstract class TopicFunctionalTest {
     public void shouldSuccessfullyGetAllTopics() {
         // Given
         var imageDef1 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef1.setName("first");
+        imageDef1.setId("first");
+        imageDef1.setDisplayName("first");
         imageDef1.setTopics(List.of("one", "two"));
         var imageDef2 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef2.setName("second");
+        imageDef2.setId("second");
+        imageDef2.setDisplayName("second");
         imageDef2.setTopics(List.of("one", "three"));
         imageDefinitionService.createImageDefinition(imageDef1);
         imageDefinitionService.createImageDefinition(imageDef2);

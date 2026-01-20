@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 import java.util.List;
-import java.util.UUID;
 
 @Data
 @SuperBuilder
@@ -16,7 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public abstract class CreateDeployment {
     private String id;
-    private UUID imageDefinitionId;
+    private String imageDefinitionId;
     private String displayName;
     private String description;
     private DeploymentMetadata metadata;

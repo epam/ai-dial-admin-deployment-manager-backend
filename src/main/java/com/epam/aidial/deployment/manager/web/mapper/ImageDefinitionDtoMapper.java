@@ -25,7 +25,7 @@ import org.mapstruct.SubclassMapping;
 )
 public interface ImageDefinitionDtoMapper {
 
-    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "id", source = "name")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "imageName", ignore = true)
@@ -37,11 +37,13 @@ public interface ImageDefinitionDtoMapper {
     @SubclassMapping(source = InterceptorImageDefinitionRequestDto.class, target = InterceptorImageDefinition.class)
     ImageDefinition toImageDefinition(ImageDefinitionRequestDto requestDto);
 
+    @Mapping(target = "name", source = "id")
     @SubclassMapping(source = McpImageDefinition.class, target = McpImageDefinitionDto.class)
     @SubclassMapping(source = AdapterImageDefinition.class, target = AdapterImageDefinitionDto.class)
     @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionDto.class)
     ImageDefinitionDto toImageDefinitionDto(ImageDefinition imageDefinition);
 
+    @Mapping(source = "id", target = "name")
     @Mapping(source = "buildStatus", target = "status")
     BaseImageDetailsDto toBaseImageDetailsDto(ImageDefinition imageDefinition);
 

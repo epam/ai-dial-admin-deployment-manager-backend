@@ -58,8 +58,8 @@ import static org.mockito.Mockito.when;
 @ContextConfiguration(classes = {MappersConfig.class})
 class DeploymentRepositoryTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
-    private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = UUID.randomUUID().toString();
+    private static final String IMAGE_DEFINITION_ID = UUID.randomUUID().toString();
 
     @Mock
     private DeploymentJpaRepository deploymentJpaRepository;
@@ -161,7 +161,7 @@ class DeploymentRepositoryTest {
     @SuppressWarnings("unchecked")
     void testGetAllByType_withList() {
         // Given
-        var deploymentId2 = String.valueOf(UUID.randomUUID());
+        var deploymentId2 = UUID.randomUUID().toString();
         var deploymentEntity1 = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
         var deploymentEntity2 = createDeploymentEntity(deploymentId2, IMAGE_DEFINITION_ID);
         var deployment1 = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
@@ -249,7 +249,7 @@ class DeploymentRepositoryTest {
         var savedDeploymentEntity = createSavedDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
         var existingEntity = new InterceptorDeploymentEntity();
-        existingEntity.setId(String.valueOf(DEPLOYMENT_ID));
+        existingEntity.setId(DEPLOYMENT_ID);
         existingEntity.setDisplayName("old-name");
         existingEntity.setEnvs(new ArrayList<>()); // Ensure it has a mutable list to start
 
@@ -363,15 +363,15 @@ class DeploymentRepositoryTest {
     @Test
     void testUpdateImageDefinitionForDeployments() {
         // Given
-        var imageDefinitionId = UUID.randomUUID();
+        var imageDefinitionId = UUID.randomUUID().toString();
         var imageDefinitionName = "test-name";
         var imageDefinitionVersion = "1.0.1";
         var imageDefinition = InterceptorImageDefinition.builder()
                 .id(imageDefinitionId)
-                .name(imageDefinitionName)
+                .displayName(imageDefinitionName)
                 .version(imageDefinitionVersion)
                 .build();
-        var deploymentIds = List.of(String.valueOf(UUID.randomUUID()), String.valueOf(UUID.randomUUID()));
+        var deploymentIds = List.of(UUID.randomUUID().toString(), UUID.randomUUID().toString());
 
         // When
         deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deploymentIds);
@@ -381,7 +381,7 @@ class DeploymentRepositoryTest {
                 imageDefinitionVersion, deploymentIds);
     }
 
-    private DeploymentEntity createDeploymentEntity(String deploymentId, UUID imageDefinitionId) {
+    private DeploymentEntity createDeploymentEntity(String deploymentId, String imageDefinitionId) {
         var resources = new Resources(
                 Map.of("cpu", "1", "memory", "1Gi"),
                 Map.of("cpu", "500m", "memory", "512Mi")
@@ -393,7 +393,7 @@ class DeploymentRepositoryTest {
         ));
 
         var deploymentEntity = new InterceptorDeploymentEntity();
-        deploymentEntity.setId(String.valueOf(deploymentId));
+        deploymentEntity.setId(deploymentId);
         deploymentEntity.setImageDefinitionId(imageDefinitionId);
         deploymentEntity.setDisplayName("test-deployment");
         deploymentEntity.setDescription("Test Description");
@@ -408,14 +408,14 @@ class DeploymentRepositoryTest {
         return deploymentEntity;
     }
 
-    private DeploymentEntity createSavedDeploymentEntity(String deploymentId, UUID imageDefinitionId) {
+    private DeploymentEntity createSavedDeploymentEntity(String deploymentId, String imageDefinitionId) {
         var entity = createDeploymentEntity(deploymentId, imageDefinitionId);
         entity.setCreatedAt(100);
         entity.setUpdatedAt(100);
         return entity;
     }
 
-    private Deployment createDeployment(String deploymentId, UUID imageDefinitionId) {
+    private Deployment createDeployment(String deploymentId, String imageDefinitionId) {
         var resources = new Resources(
                 Map.of("cpu", "1", "memory", "1Gi"),
                 Map.of("cpu", "500m", "memory", "512Mi")
@@ -439,7 +439,7 @@ class DeploymentRepositoryTest {
                 .build();
     }
 
-    private Deployment createSavedDeployment(String deploymentId, UUID imageDefinitionId) {
+    private Deployment createSavedDeployment(String deploymentId, String imageDefinitionId) {
         var deployment = createDeployment(deploymentId, imageDefinitionId);
         deployment.setCreatedAt(Instant.ofEpochMilli(100));
         deployment.setUpdatedAt(Instant.ofEpochMilli(100));

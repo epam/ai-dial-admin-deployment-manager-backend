@@ -24,7 +24,6 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -103,7 +102,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then 1
         Assertions.assertEquals(1, imageDefs.size());
-        UUID imageDefId = imageDefs.getFirst().getId();
+        var imageDefId = imageDefs.getFirst().getId();
 
         // When 2
         service.updateBuildStatus(imageDefId, ImageStatus.BUILD_SUCCESSFUL);
@@ -135,7 +134,7 @@ public abstract class ImageDefinitionFunctionalTest {
         imageDef = imageDefs.getFirst();
 
         // When 2
-        imageDef.setName(imageDef.getName() + "1");
+        imageDef.setDisplayName(imageDef.getDisplayName() + "1");
         imageDef.setSource(new GitDockerfileImageSource("http://test-uri", "some-branch", "*", "", List.of("entry2")));
         imageDef.setAuthor("updated-author");
 
@@ -161,7 +160,7 @@ public abstract class ImageDefinitionFunctionalTest {
         var creationTime = createdImageDef.getCreatedAt();
 
         // Given - Update same entity at a later time
-        createdImageDef.setName(createdImageDef.getName() + "1");
+        createdImageDef.setDisplayName(createdImageDef.getDisplayName() + "1");
         createdImageDef.setSource(new GitDockerfileImageSource(
                 "http://test-uri", "some-branch", "*", "", List.of("entry2")
         ));
@@ -194,7 +193,7 @@ public abstract class ImageDefinitionFunctionalTest {
         var creationTime = createdImageDef.getCreatedAt();
 
         // Given - Update
-        createdImageDef.setName(createdImageDef.getName() + "1");
+        createdImageDef.setDisplayName(createdImageDef.getDisplayName() + "1");
         createdImageDef.setSource(new GitDockerfileImageSource(
                 "http://test-uri", "some-branch", "*", "", List.of("entry2")
         ));
@@ -240,16 +239,18 @@ public abstract class ImageDefinitionFunctionalTest {
         ImageDefinition interceptorImageDef2 = FunctionalTestHelper.createInterceptorImageDefinition();
 
         String name = "test-interceptor-1";
-        interceptorImageDef1.setName(name);
+        interceptorImageDef1.setId(name + "-1");
+        interceptorImageDef1.setDisplayName(name);
         interceptorImageDef1.setVersion("1.0.0");
-        interceptorImageDef2.setName(name);
+        interceptorImageDef2.setId(name + "-2");
+        interceptorImageDef2.setDisplayName(name);
         interceptorImageDef2.setVersion("2.0.0");
 
         // When
         service.createImageDefinition(mcpImageDef);
         service.createImageDefinition(interceptorImageDef1);
         service.createImageDefinition(interceptorImageDef2);
-        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.INTERCEPTOR).stream()
+        var imageDefs = service.getAllImageDefinitionsByDisplayNameAndType(name, ImageTypeDto.INTERCEPTOR).stream()
                 .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
@@ -269,17 +270,19 @@ public abstract class ImageDefinitionFunctionalTest {
         ImageDefinition interceptorImageDef3 = FunctionalTestHelper.createInterceptorImageDefinition();
 
         String name = "test-interceptor-1";
-        interceptorImageDef1.setName(name);
+        interceptorImageDef1.setId(name + "-1");
+        interceptorImageDef1.setDisplayName(name);
         interceptorImageDef1.setVersion("1.0.0");
-        interceptorImageDef2.setName(name);
+        interceptorImageDef2.setId(name + "-2");
+        interceptorImageDef2.setDisplayName(name);
         interceptorImageDef2.setVersion("2.0.0");
-        interceptorImageDef3.setName(name + "-0");
+        interceptorImageDef3.setDisplayName(name + "-0");
 
         // When
         service.createImageDefinition(interceptorImageDef1);
         service.createImageDefinition(interceptorImageDef2);
         service.createImageDefinition(interceptorImageDef3);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByName(name).stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByDisplayName(name).stream().toList();
 
         // Then
         Assertions.assertEquals(2, imageDefs.size());
@@ -329,27 +332,32 @@ public abstract class ImageDefinitionFunctionalTest {
     public void shouldGetImageDefinitionViews() {
         // Given
         var imageDef0 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef0.setName("test-model");
+        imageDef0.setId("test-model-0");
+        imageDef0.setDisplayName("test-model");
         imageDef0.setVersion("0.0.1");
         imageDef0.setDescription("Version 0.0.1");
 
         var imageDef1 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef1.setName("test-model");
+        imageDef1.setId("test-model-1");
+        imageDef1.setDisplayName("test-model");
         imageDef1.setVersion("1.0.0");
         imageDef1.setDescription("Version 1.0.0");
 
         var imageDef2 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef2.setName("test-model");
+        imageDef2.setId("test-model-2");
+        imageDef2.setDisplayName("test-model");
         imageDef2.setVersion("1.1.0");
         imageDef2.setDescription("Version 1.1.0");
 
         var imageDef3 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef3.setName("another-model");
+        imageDef3.setId("another-model-3");
+        imageDef3.setDisplayName("another-model");
         imageDef3.setVersion("1.0.0");
         imageDef3.setDescription("Another model 1");
 
         var imageDef4 = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef4.setName("another-model");
+        imageDef4.setId("another-model-4");
+        imageDef4.setDisplayName("another-model");
         imageDef4.setVersion("2.0.0");
         imageDef4.setDescription("Another model 2");
 
@@ -370,7 +378,7 @@ public abstract class ImageDefinitionFunctionalTest {
         Assertions.assertEquals(2, views.size());
 
         var testModelView = views.stream()
-                .filter(v -> v.getName().equals("test-model"))
+                .filter(v -> v.getDisplayName().equals("test-model"))
                 .findFirst()
                 .orElseThrow();
 
@@ -378,7 +386,7 @@ public abstract class ImageDefinitionFunctionalTest {
         Assertions.assertEquals(3, testModelView.getAvailableVersions().size());
 
         var anotherModelView = views.stream()
-                .filter(v -> v.getName().equals("another-model"))
+                .filter(v -> v.getDisplayName().equals("another-model"))
                 .findFirst()
                 .orElseThrow();
 
@@ -390,15 +398,17 @@ public abstract class ImageDefinitionFunctionalTest {
     public void shouldGetImageDefinitionViewsByType() {
         // Given
         var mcpImageDef1 = FunctionalTestHelper.createMcpImageDefinition();
-        mcpImageDef1.setName("mcp-model");
+        mcpImageDef1.setId("mcp-model-1");
+        mcpImageDef1.setDisplayName("mcp-model");
         mcpImageDef1.setVersion("1.0.0");
 
         var mcpImageDef2 = FunctionalTestHelper.createMcpImageDefinition();
-        mcpImageDef2.setName("mcp-model");
+        mcpImageDef2.setId("mcp-model-2");
+        mcpImageDef2.setDisplayName("mcp-model");
         mcpImageDef2.setVersion("1.1.0");
 
         var interceptorImageDef = FunctionalTestHelper.createInterceptorImageDefinition();
-        interceptorImageDef.setName("interceptor-model");
+        interceptorImageDef.setDisplayName("interceptor-model");
         interceptorImageDef.setVersion("1.0.0");
 
         // When
@@ -415,17 +425,17 @@ public abstract class ImageDefinitionFunctionalTest {
         // Then
         Assertions.assertEquals(1, mcpViews.size());
         var mcpView = mcpViews.getFirst();
-        Assertions.assertEquals("mcp-model", mcpView.getName());
+        Assertions.assertEquals("mcp-model", mcpView.getDisplayName());
         Assertions.assertEquals(2, mcpView.getAvailableVersions().size());
         Assertions.assertEquals(createdMcp1.getId(), mcpView.getSelectedId());
 
         Assertions.assertEquals(1, interceptorViews.size());
         var interceptorView = interceptorViews.getFirst();
-        Assertions.assertEquals("interceptor-model", interceptorView.getName());
+        Assertions.assertEquals("interceptor-model", interceptorView.getDisplayName());
         Assertions.assertEquals(1, interceptorView.getAvailableVersions().size());
         Assertions.assertEquals(createdInterceptor.getId(), interceptorView.getSelectedId());
 
-        List<UUID> mcpVersionIds = mcpViews.stream()
+        List<String> mcpVersionIds = mcpViews.stream()
                 .flatMap(v -> v.getAvailableVersions().stream())
                 .map(ImageDefinitionViewElement::getId)
                 .toList();

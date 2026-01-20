@@ -51,7 +51,7 @@ class InferenceServiceEventHandlerTest {
     @Test
     void testHandleAddedResourceUpdatesStatusToRunning() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "dm-" + deploymentId;
         InferenceService service = mockInferenceService(serviceName);
 
@@ -61,7 +61,7 @@ class InferenceServiceEventHandlerTest {
         verify(inferenceDeploymentManager, times(1)).reconcile(configCaptor.capture());
 
         var reconcileConfig = configCaptor.getValue();
-        assertEquals(deploymentId.toString(), reconcileConfig.getDeploymentId());
+        assertEquals(deploymentId, reconcileConfig.getDeploymentId());
         assertEquals(service, reconcileConfig.getService());
         assertEquals(INITIATOR, reconcileConfig.getInitiator());
         assertFalse(reconcileConfig.isServiceIsMissing());
@@ -71,7 +71,7 @@ class InferenceServiceEventHandlerTest {
     @Test
     void testHandleModifiedResourceUpdatesStatusToCrashed() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "dm-" + deploymentId;
         InferenceService service = mockInferenceService(serviceName);
 
@@ -83,7 +83,7 @@ class InferenceServiceEventHandlerTest {
     @Test
     void testHandleAddedResourceWithNotReadyStateUpdatesToPending() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "dm-" + deploymentId;
         InferenceService service = mockInferenceService(serviceName);
 
@@ -95,7 +95,7 @@ class InferenceServiceEventHandlerTest {
     @Test
     void testHandleDeletedResourceUpdatesStatusToNotDeployed() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "dm-" + deploymentId;
         InferenceService service = mockInferenceService(serviceName);
 

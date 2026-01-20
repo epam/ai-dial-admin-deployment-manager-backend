@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
 
 @Slf4j
@@ -68,8 +67,8 @@ public class DisposableResourceCleaner {
         log.info("Cleaned up all cleanable disposable resources by group ID '{}'", groupId);
     }
 
-    public void cleanTemporaryByGroupId(UUID groupId) {
-        var resources = disposableResourceManager.getAllTemporaryByGroupId(String.valueOf(groupId));
+    public void cleanTemporaryByGroupId(String groupId) {
+        var resources = disposableResourceManager.getAllTemporaryByGroupId(groupId);
         cleanDisposableResources(resources);
         log.info("Cleaned up all temporary disposable resources by group ID '{}'", groupId);
     }

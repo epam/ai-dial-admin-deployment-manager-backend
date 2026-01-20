@@ -23,8 +23,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.UUID;
-
 @Slf4j
 @LogExecution
 @RestController
@@ -40,18 +38,18 @@ public class ImageBuildController {
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public void buildImage(@RequestBody @Valid CreateBuildImageRequestDto requestDto) {
-        imageBuildRunner.buildImage(requestDto.imageDefinitionId());
+        imageBuildRunner.buildImage(requestDto.imageDefinitionName());
     }
 
     @GetMapping(path = "{id}/status",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribeToStatus(@PathVariable UUID id) {
+    public SseEmitter subscribeToStatus(@PathVariable String id) {
         return imageBuildLogsService.streamStatus(id);
     }
 
     @GetMapping(path = "/{id}/details",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ImageBuildDetailsDto getImageBuildLogsById(@PathVariable UUID id) {
+    public ImageBuildDetailsDto getImageBuildLogsById(@PathVariable String id) {
         return imageDefinitionService.getImageDefinition(id)
                 .map(dtoMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("ImageDefinition not found by id: %s".formatted(id)));
@@ -59,7 +57,7 @@ public class ImageBuildController {
 
     @GetMapping(path = "{id}/logs",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribeToLogs(@PathVariable UUID id) {
+    public SseEmitter subscribeToLogs(@PathVariable String id) {
         return imageBuildLogsService.streamLogs(id);
     }
 

@@ -7,8 +7,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.util.UUID;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,6 +14,6 @@ import java.util.UUID;
 @EqualsAndHashCode(callSuper = true)
 public abstract class CreateImageBasedDeploymentRequestDto extends CreateDeploymentRequestDto {
     @NotNull
-    private UUID imageDefinitionId;
+    private String imageDefinitionName;
 }
 

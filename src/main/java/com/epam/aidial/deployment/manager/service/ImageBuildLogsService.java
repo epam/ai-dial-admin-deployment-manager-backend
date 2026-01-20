@@ -11,7 +11,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,23 +31,23 @@ public class ImageBuildLogsService {
     @Value("${app.sse.min-streaming-interval-ms:2000}")
     private final long minStreamingIntervalMs;
 
-    public SseEmitter streamLogs(UUID imageDefinitionId) {
+    public SseEmitter streamLogs(String imageDefinitionId) {
         return sseEmitterFactory.createEmitter(
-                String.valueOf(imageDefinitionId),
+                imageDefinitionId,
                 "ImageBuild-log",
                 emitter -> startLogStreaming(imageDefinitionId, emitter)
         );
     }
 
-    public SseEmitter streamStatus(UUID imageDefinitionId) {
+    public SseEmitter streamStatus(String imageDefinitionId) {
         return sseEmitterFactory.createEmitter(
-                String.valueOf(imageDefinitionId),
+                imageDefinitionId,
                 "ImageBuild-status",
                 emitter -> startStatusStreaming(imageDefinitionId, emitter)
         );
     }
 
-    private SafeAutoCloseable startLogStreaming(UUID imageDefinitionId, SseEmitter emitter) {
+    private SafeAutoCloseable startLogStreaming(String imageDefinitionId, SseEmitter emitter) {
         var logIndex = new AtomicInteger();
         var lastStatus = new AtomicInteger();
         var startTime = Instant.now();
@@ -118,7 +117,7 @@ public class ImageBuildLogsService {
         return () -> future.cancel(true);
     }
 
-    private SafeAutoCloseable startStatusStreaming(UUID imageDefinitionId, SseEmitter emitter) {
+    private SafeAutoCloseable startStatusStreaming(String imageDefinitionId, SseEmitter emitter) {
         var lastStatus = new AtomicInteger();
 
         Future<?> future = executorService.submit(() -> {

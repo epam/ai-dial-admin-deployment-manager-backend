@@ -28,6 +28,8 @@ import java.util.List;
 public abstract class ImageDefinitionRequestDto {
     @NotNull
     private String name;
+    @NotNull
+    private String displayName;
     @Nullable
     private String description;
     @NotNull

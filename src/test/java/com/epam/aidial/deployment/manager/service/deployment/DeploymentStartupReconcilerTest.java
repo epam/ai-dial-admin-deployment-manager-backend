@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DeploymentStartupReconcilerTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+    private static final String DEPLOYMENT_ID = UUID.randomUUID().toString();
 
     private static final int BATCH_SIZE = 2;
     private static final int BOOTSTRAP_THREADS = 2;
@@ -80,8 +80,8 @@ class DeploymentStartupReconcilerTest {
 
     @Test
     void init_whenBootstrapEnabled_shouldProcessAllDeployments() throws InterruptedException {
-        String id1 = String.valueOf(UUID.randomUUID());
-        String id2 = String.valueOf(UUID.randomUUID());
+        String id1 = UUID.randomUUID().toString();
+        String id2 = UUID.randomUUID().toString();
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         List<Deployment> deployments = List.of(dep1, dep2);
@@ -112,9 +112,9 @@ class DeploymentStartupReconcilerTest {
 
     @Test
     void init_whenMultiplePages_shouldProcessAllBatches() throws InterruptedException {
-        String id1 = String.valueOf(UUID.randomUUID());
-        String id2 = String.valueOf(UUID.randomUUID());
-        String id3 = String.valueOf(UUID.randomUUID());
+        String id1 = UUID.randomUUID().toString();
+        String id2 = UUID.randomUUID().toString();
+        String id3 = UUID.randomUUID().toString();
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         Deployment dep3 = createDeployment(id3, DeploymentStatus.PENDING);

@@ -41,7 +41,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ImageBuildLogsServiceTest {
 
-    private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
+    private static final String IMAGE_DEFINITION_ID = UUID.randomUUID().toString();
     @Spy
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     @Mock
@@ -77,7 +77,7 @@ class ImageBuildLogsServiceTest {
                 .build();
 
         when(sseEmitterFactory.createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 anyString(),
                 (Function<SseEmitter, SafeAutoCloseable>) any(Function.class)
         )).thenReturn(sseEmitter);
@@ -118,7 +118,7 @@ class ImageBuildLogsServiceTest {
         // Then
         assertThat(result).isEqualTo(sseEmitter);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -156,7 +156,7 @@ class ImageBuildLogsServiceTest {
         // Then
         assertThat(result).isEqualTo(sseEmitter);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-status"),
                 emitterConsumerCaptor.capture()
         );
@@ -194,7 +194,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -231,7 +231,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamStatus(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-status"),
                 emitterConsumerCaptor.capture()
         );
@@ -268,7 +268,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -298,7 +298,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -336,7 +336,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamLogs(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-log"),
                 emitterConsumerCaptor.capture()
         );
@@ -385,7 +385,7 @@ class ImageBuildLogsServiceTest {
         // When
         imageBuildLogsService.streamStatus(IMAGE_DEFINITION_ID);
         verify(sseEmitterFactory).createEmitter(
-                eq(IMAGE_DEFINITION_ID.toString()),
+                eq(IMAGE_DEFINITION_ID),
                 eq("ImageBuild-status"),
                 emitterConsumerCaptor.capture()
         );

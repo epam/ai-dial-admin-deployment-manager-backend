@@ -68,8 +68,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KnativeDeploymentManagerTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
-    private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = UUID.randomUUID().toString();
+    private static final String IMAGE_DEFINITION_ID = UUID.randomUUID().toString();
     private static final int STARTUP_TIMEOUT = 60;
     private static final int UNDEPLOY_TIMEOUT = 300;
 

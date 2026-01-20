@@ -1,8 +1,8 @@
 [
   {
     "name": "decade00-0000-4000-a000-000000000000",
-    "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
-    "imageDefinitionName": "test-image",
+    "imageDefinitionName": "decade00-0000-4000-a000-000000000010",
+    "imageDefinitionDisplayName": "test-image",
     "imageDefinitionVersion": "1.2.3",
     "displayName": "example deployment 1",
     "description": "Description of example deployment 1",
@@ -22,8 +22,8 @@
   },
   {
     "name": "decade00-0000-4000-a000-000000000001",
-    "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
-    "imageDefinitionName": "test-image-1",
+    "imageDefinitionName": "decade00-0000-4000-a000-000000000010",
+    "imageDefinitionDisplayName": "test-image-1",
     "imageDefinitionVersion": "1.0.0",
     "displayName": "example deployment 2",
     "description": "Description of example deployment 2",

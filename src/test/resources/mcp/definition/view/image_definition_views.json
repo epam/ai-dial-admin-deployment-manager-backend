@@ -1,6 +1,6 @@
 [
   {
-    "name": "model1",
+    "displayName": "model1",
     "selectedId": "11111111-1111-1111-1111-111111111111",
     "availableVersions": [
       {
@@ -20,7 +20,7 @@
     ]
   },
   {
-    "name": "model2",
+    "displayName": "model2",
     "selectedId": "33333333-3333-3333-3333-333333333333",
     "availableVersions": [
       {

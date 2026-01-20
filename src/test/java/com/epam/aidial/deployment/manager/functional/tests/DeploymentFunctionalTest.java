@@ -68,7 +68,7 @@ public abstract class DeploymentFunctionalTest {
 
     private ObjectMeta secretMetaData;
 
-    private UUID imageDefinitionId;
+    private String imageDefinitionId;
     private String imageDefinitionName;
     private String imageDefinitionVersion;
 
@@ -78,7 +78,7 @@ public abstract class DeploymentFunctionalTest {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
         imageDefinitionId = createdImageDef.getId();
-        imageDefinitionName = imageDef.getName();
+        imageDefinitionName = imageDef.getDisplayName();
         imageDefinitionVersion = imageDef.getVersion();
 
         imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
@@ -115,7 +115,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
         Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
         Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
-        Assertions.assertEquals(imageDefinitionName, deployment.getImageDefinitionName());
+        Assertions.assertEquals(imageDefinitionName, deployment.getImageDefinitionDisplayName());
         Assertions.assertEquals(imageDefinitionVersion, deployment.getImageDefinitionVersion());
         Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
         Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
@@ -145,7 +145,7 @@ public abstract class DeploymentFunctionalTest {
     @Test
     public void shouldFailCreateDeploymentWhenImageNotFound() {
         // Given
-        var nonExistingImageDefinitionId = UUID.randomUUID();
+        var nonExistingImageDefinitionId = UUID.randomUUID().toString();
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         createDeployment.setImageDefinitionId(nonExistingImageDefinitionId);
 
@@ -239,7 +239,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
         Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getImageDefinitionId(), retrievedDeployment.getImageDefinitionId());
-        Assertions.assertEquals(imageDefinitionName, retrievedDeployment.getImageDefinitionName());
+        Assertions.assertEquals(imageDefinitionName, retrievedDeployment.getImageDefinitionDisplayName());
         Assertions.assertEquals(imageDefinitionVersion, retrievedDeployment.getImageDefinitionVersion());
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
     }
@@ -345,7 +345,8 @@ public abstract class DeploymentFunctionalTest {
         var savedDeployment = deploymentService.createDeployment(createDeployment);
 
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef.setName(imageDef.getName() + "-updated");
+        imageDef.setId(imageDef.getId() + "-updated");
+        imageDef.setDisplayName(imageDef.getDisplayName() + "-updated");
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
         imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
         var newImageDefinitionId = createdImageDef.getId();
@@ -447,7 +448,7 @@ public abstract class DeploymentFunctionalTest {
         var savedDeployment2 = deploymentService.createDeployment(createDeployment2);
 
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef.setName(imageDef.getName() + "-updated");
+        imageDef.setDisplayName(imageDef.getDisplayName() + "-updated");
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
         imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
         var newImageDefinitionId = createdImageDef.getId();
@@ -700,7 +701,7 @@ public abstract class DeploymentFunctionalTest {
     @Test
     public void shouldSuccessfullyDuplicateDeployment() {
         // Given
-        var newDeploymentId = String.valueOf(UUID.randomUUID());
+        var newDeploymentId = UUID.randomUUID().toString();
 
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         createDeployment.setDisplayName("original-deployment");
@@ -735,8 +736,8 @@ public abstract class DeploymentFunctionalTest {
     @Test
     public void shouldFailDuplicateDeploymentWhenEtalonNotFound() {
         // Given
-        var nonExistingDeploymentId = String.valueOf(UUID.randomUUID());
-        var newDeploymentId = String.valueOf(UUID.randomUUID());
+        var nonExistingDeploymentId = UUID.randomUUID().toString();
+        var newDeploymentId = UUID.randomUUID().toString();
 
         // When & Then
         var exception = assertThrows(

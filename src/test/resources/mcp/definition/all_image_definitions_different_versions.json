@@ -2,7 +2,7 @@
   {
     "$type": "mcp",
     "id": "decade00-0000-4000-a000-000000000000",
-    "name": "echo-mcp",
+    "displayName": "echo-mcp",
     "description": "description",
     "version": "1.0.0",
     "source": {
@@ -35,7 +35,7 @@
   {
     "$type": "mcp",
     "id": "decddd00-0000-4000-a000-000000000000",
-    "name": "echo-mcp",
+    "displayName": "echo-mcp",
     "description": "description",
     "version": "2.0.0",
     "source": {

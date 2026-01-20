@@ -30,7 +30,7 @@ public abstract class DeploymentMapper {
 
     @Mapping(target = "url", ignore = true)
     @Mapping(target = "envs", ignore = true)
-    @Mapping(target = "imageDefinitionName", ignore = true)
+    @Mapping(target = "imageDefinitionDisplayName", ignore = true)
     @Mapping(target = "imageDefinitionVersion", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)

@@ -4,12 +4,11 @@ import jakarta.validation.constraints.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
-import java.util.UUID;
 
 public record DeploymentInfoDto(
         @NotNull String name,
-        @NotNull UUID imageDefinitionId,
         @NotNull String imageDefinitionName,
+        @NotNull String imageDefinitionDisplayName,
         @NotNull String imageDefinitionVersion,
         @NotNull DeploymentTypeDto type,
         @NotNull String displayName,

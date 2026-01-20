@@ -54,7 +54,7 @@ class NimServiceEventHandlerTest {
     @Test
     void testHandleAddedResourceUpdatesStatusToRunning() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.READY);
 
@@ -64,7 +64,7 @@ class NimServiceEventHandlerTest {
         verify(nimDeploymentManager, times(1)).reconcile(configCaptor.capture());
 
         var reconcileConfig = configCaptor.getValue();
-        assertEquals(deploymentId.toString(), reconcileConfig.getDeploymentId());
+        assertEquals(deploymentId, reconcileConfig.getDeploymentId());
         assertEquals(service, reconcileConfig.getService());
         assertEquals(INITIATOR, reconcileConfig.getInitiator());
         assertFalse(reconcileConfig.isServiceIsMissing());
@@ -74,7 +74,7 @@ class NimServiceEventHandlerTest {
     @Test
     void testHandleModifiedResourceUpdatesStatusToCrashed() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.FAILED);
 
@@ -86,7 +86,7 @@ class NimServiceEventHandlerTest {
     @Test
     void testHandleAddedResourceWithNotReadyStateUpdatesToPending() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.NOT_READY);
 
@@ -98,7 +98,7 @@ class NimServiceEventHandlerTest {
     @Test
     void testHandleDeletedResourceUpdatesStatusToNotDeployed() {
         setupExecutorServiceToRunSynchronously();
-        UUID deploymentId = UUID.randomUUID();
+        String deploymentId = UUID.randomUUID().toString();
         String serviceName = "mcp-" + deploymentId;
         NIMService service = mockNimService(serviceName, ServiceState.READY);
 

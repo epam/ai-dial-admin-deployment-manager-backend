@@ -11,7 +11,6 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Data
 @SuperBuilder
@@ -19,8 +18,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public abstract class Deployment {
     private String id;
-    private UUID imageDefinitionId;
-    private String imageDefinitionName;
+    private String imageDefinitionId;
+    private String imageDefinitionDisplayName;
     private String imageDefinitionVersion;
     private String displayName;
     private String description;

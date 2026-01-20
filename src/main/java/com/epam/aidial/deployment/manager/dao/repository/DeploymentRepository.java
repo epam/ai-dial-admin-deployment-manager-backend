@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -48,7 +47,7 @@ public class DeploymentRepository {
                 .toList();
     }
 
-    public List<Deployment> getAllByImageDefinitionId(UUID imageDefinitionId) {
+    public List<Deployment> getAllByImageDefinitionId(String imageDefinitionId) {
         return deploymentJpaRepository.findAllByImageDefinitionId(imageDefinitionId).stream()
                 .map(mapper::toDomain)
                 .toList();
@@ -152,7 +151,7 @@ public class DeploymentRepository {
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public void updateImageDefinitionForDeployments(ImageDefinition imageDefinition, List<String> deploymentIds) {
-        deploymentJpaRepository.updateImageDefinitionIdForDeployments(imageDefinition.getId(), imageDefinition.getName(),
+        deploymentJpaRepository.updateImageDefinitionIdForDeployments(imageDefinition.getId(), imageDefinition.getDisplayName(),
                 imageDefinition.getVersion(), deploymentIds);
         log.debug("Image definition updated for deployments: {}", deploymentIds);
     }

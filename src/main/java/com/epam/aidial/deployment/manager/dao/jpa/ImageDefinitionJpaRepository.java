@@ -12,10 +12,9 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
-public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinitionEntity, UUID> {
+public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinitionEntity, String> {
 
     @Modifying
     @Query("""
@@ -24,7 +23,7 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
                 WHERE i.id = :id
             """)
     int updateBuildStatus(
-            @Param("id") UUID id,
+            @Param("id") String id,
             @Param("buildStatus") PersistenceImageStatus buildStatus
     );
 
@@ -35,7 +34,7 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
                 WHERE i.id = :id
             """)
     int setImageName(
-            @Param("id") UUID id,
+            @Param("id") String id,
             @Param("imageName") String imageName
     );
 
@@ -46,7 +45,7 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
                 WHERE i.id = :id
             """)
     int setBuiltAt(
-            @Param("id") UUID id,
+            @Param("id") String id,
             @Param("builtAt") Long builtAt
     );
 
@@ -56,20 +55,20 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
                 SET i.buildLogs = null
                 WHERE i.id = :id
             """)
-    int resetBuildLogs(@Param("id") UUID id);
+    int resetBuildLogs(@Param("id") String id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<ImageDefinitionEntity> findForUpdateById(UUID id);
+    Optional<ImageDefinitionEntity> findForUpdateById(String id);
 
     @Query("SELECT i FROM ImageDefinitionEntity i WHERE TYPE(i) = :type")
     List<ImageDefinitionEntity> findAllByType(@Param("type") Class<? extends ImageDefinitionEntity> type);
 
-    @Query("SELECT i FROM ImageDefinitionEntity i WHERE i.name = :name AND TYPE(i) = :type")
-    List<ImageDefinitionEntity> findAllByNameAndType(
-            @Param("name") String name,
+    @Query("SELECT i FROM ImageDefinitionEntity i WHERE i.displayName = :displayName AND TYPE(i) = :type")
+    List<ImageDefinitionEntity> findAllByDisplayNameAndType(
+            @Param("displayName") String displayName,
             @Param("type") Class<? extends ImageDefinitionEntity> type
     );
 
-    List<ImageDefinitionEntity> findAllByName(@Param("name") String name);
+    List<ImageDefinitionEntity> findAllByDisplayName(@Param("displayName") String displayName);
 
 }

@@ -22,7 +22,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Stream;
 
 public abstract class FullWorkflowFunctionalTest {
@@ -54,7 +53,7 @@ public abstract class FullWorkflowFunctionalTest {
 
         // Build image
         var image = imageBuildRunner.buildImage(createdImageDefinition.getId());
-        UUID imageId = waitForImageBuild(image.getId());
+        var imageId = waitForImageBuild(image.getId());
 
         // Create deployment
         deployment.setImageDefinitionId(imageId);
@@ -91,8 +90,8 @@ public abstract class FullWorkflowFunctionalTest {
         Assertions.assertTrue(maybeDeletedDeployment.isEmpty());
     }
 
-    private UUID waitForImageBuild(UUID imageId) throws Exception {
-        UUID builtImageId;
+    private String waitForImageBuild(String imageId) throws Exception {
+        String builtImageId;
 
         long buildStartTime = System.currentTimeMillis();
         while (true) {

@@ -54,7 +54,7 @@ public interface PersistenceImageDefinitionMapper {
         }
 
         // do not update id, createdAt, updatedAt, buildStatus, imageName, buildLogs, builtAt, type
-        existingEntity.setName(updatedEntity.getName());
+        existingEntity.setDisplayName(updatedEntity.getDisplayName());
         existingEntity.setDescription(updatedEntity.getDescription());
         existingEntity.setSource(updatedEntity.getSource());
         existingEntity.setLicense(updatedEntity.getLicense());

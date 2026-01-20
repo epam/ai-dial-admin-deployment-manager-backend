@@ -11,12 +11,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.UUID;
 
 @Repository
 public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity, String> {
 
-    List<DeploymentEntity> findAllByImageDefinitionId(UUID imageDefinitionId);
+    List<DeploymentEntity> findAllByImageDefinitionId(String imageDefinitionId);
 
     @Query("SELECT d FROM DeploymentEntity d WHERE TYPE(d) = :type")
     List<DeploymentEntity> findAllByType(
@@ -31,12 +30,12 @@ public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity,
     @Modifying
     @Query("UPDATE DeploymentEntity d SET "
             + "d.imageDefinitionId = :imageDefinitionId, "
-            + "d.imageDefinitionName = :imageDefinitionName, "
+            + "d.imageDefinitionDisplayName = :imageDefinitionDisplayName, "
             + "d.imageDefinitionVersion = :imageDefinitionVersion "
             + "WHERE d.id IN :deployments")
     void updateImageDefinitionIdForDeployments(
-            @Param("imageDefinitionId") UUID imageDefinitionId,
-            @Param("imageDefinitionName") String imageDefinitionName,
+            @Param("imageDefinitionId") String imageDefinitionId,
+            @Param("imageDefinitionDisplayName") String imageDefinitionDisplayName,
             @Param("imageDefinitionVersion") String imageDefinitionVersion,
             @Param("deployments") List<String> deployments
     );

@@ -87,14 +87,14 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         });
 
         String name = "echo-mcp";
-        doReturn(models).when(imageDefinitionService).getAllImageDefinitionsByName(name);
+        doReturn(models).when(imageDefinitionService).getAllImageDefinitionsByDisplayName(name);
 
         var dtosJson = ResourceUtils.readResource("/mcp/definition/base_image_details_response.json");
         mockMvc.perform(get("/api/v1/images/definitions/{name}/versions", name))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
 
-        verify(imageDefinitionService).getAllImageDefinitionsByName(name);
+        verify(imageDefinitionService).getAllImageDefinitionsByDisplayName(name);
     }
 
     @Test
@@ -104,7 +104,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         });
 
         String name = "echo-mcp";
-        doReturn(models).when(imageDefinitionService).getAllImageDefinitionsByNameAndType(name, ImageTypeDto.MCP);
+        doReturn(models).when(imageDefinitionService).getAllImageDefinitionsByDisplayNameAndType(name, ImageTypeDto.MCP);
 
         var dtosJson = ResourceUtils.readResource("/mcp/definition/base_image_details_response.json");
         mockMvc.perform(get("/api/v1/images/definitions/{name}/versions", name)
@@ -112,7 +112,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtosJson, JsonCompareMode.LENIENT));
 
-        verify(imageDefinitionService).getAllImageDefinitionsByNameAndType(name,  ImageTypeDto.MCP);
+        verify(imageDefinitionService).getAllImageDefinitionsByDisplayNameAndType(name,  ImageTypeDto.MCP);
     }
 
     @Test
@@ -166,7 +166,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testGetImageDefinitionById_notFound() throws Exception {
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
         when(imageDefinitionService.getImageDefinition(imageId))
                 .thenReturn(Optional.empty());
 
@@ -291,7 +291,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testDeleteImageDefinition() throws Exception {
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
 
         mockMvc.perform(delete("/api/v1/images/definitions/" + imageId))
                 .andExpect(status().isNoContent());
@@ -302,7 +302,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void testDeleteImageDefinition_whenImageInUse() throws Exception {
         // Given
-        var imageId = UUID.randomUUID();
+        var imageId = UUID.randomUUID().toString();
         var errorMessage = "You cannot delete image, cause there is deployments referencing it.";
         doThrow(new ImageInUseException(errorMessage)).when(imageDefinitionService).deleteImageDefinitionAsync(eq(imageId));
 

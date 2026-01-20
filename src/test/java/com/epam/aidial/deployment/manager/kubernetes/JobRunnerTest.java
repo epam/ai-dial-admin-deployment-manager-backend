@@ -73,7 +73,7 @@ class JobRunnerTest {
     private JobSpecification jobSpecification;
 
     private JobRunner jobRunner;
-    private UUID groupId;
+    private String groupId;
 
     private CiliumNetworkPolicy ciliumNetworkPolicy;
 
@@ -81,7 +81,7 @@ class JobRunnerTest {
     void setUp() {
         jobRunner = new JobRunner(globalDomainWhitelistService, ciliumNetworkPolicyCreator, disposableResourceManager,
                 k8sClient, podLogReader);
-        groupId = UUID.randomUUID();
+        groupId = UUID.randomUUID().toString();
 
         when(jobSpecification.getJobId()).thenReturn(LABEL_VALUE);
         when(jobSpecification.getNamespace()).thenReturn(NAMESPACE);

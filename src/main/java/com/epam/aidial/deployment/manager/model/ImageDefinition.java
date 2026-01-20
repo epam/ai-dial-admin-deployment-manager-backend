@@ -8,15 +8,14 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Data
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class ImageDefinition {
-    private UUID id;
-    private String name;
+    private String id;
+    private String displayName;
     private String description;
     private String version;
     private ImageSource source;

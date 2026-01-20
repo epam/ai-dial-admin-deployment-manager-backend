@@ -25,15 +25,15 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class FunctionalTestHelper {
 
     public static McpImageDefinition createMcpImageDefinition() {
         var source = new DockerImageSource("http://test-uri", List.of("entry1"));
         return McpImageDefinition.builder()
+                .id("mcp-image")
                 .version("1.0.0")
-                .name("mcpImage")
+                .displayName("mcpImage")
                 .description("someDesc")
                 .license("someLicense")
                 .source(source)
@@ -47,7 +47,8 @@ public class FunctionalTestHelper {
     public static ImageDefinition createInterceptorImageDefinition() {
         var source = new DockerImageSource("http://test-uri-1", List.of("entry2"));
         return InterceptorImageDefinition.builder()
-                .name("interceptorImage")
+                .id("interceptor-image")
+                .displayName("interceptorImage")
                 .version("1.0.0")
                 .description("someDesc")
                 .license("someLicense")
@@ -61,7 +62,8 @@ public class FunctionalTestHelper {
     public static ImageDefinition createRealInterceptorImageDefinition(String imageUri) {
         var source = new DockerImageSource(imageUri, List.of());
         return InterceptorImageDefinition.builder()
-                .name("interceptor-example-test")
+                .id("interceptor-example-test")
+                .displayName("interceptor-example-test")
                 .version("1.0.0")
                 .description("End-to-end testing")
                 .license("")
@@ -77,7 +79,8 @@ public class FunctionalTestHelper {
                 List.of("/docker_entrypoint.sh", "/bin/sh", "-c", "uvicorn aidial_interceptors_sdk.examples.app:app --host 0.0.0.0 --port 8080"));
 
         return McpImageDefinition.builder()
-                .name("mcp-docker-stdio-test")
+                .id("mcp-docker-stdio-test")
+                .displayName("mcp-docker-stdio-test")
                 .version("1.0.0")
                 .description("End-to-end testing")
                 .license("")
@@ -93,7 +96,8 @@ public class FunctionalTestHelper {
                 .url(imageUrl)
                 .build();
         return McpImageDefinition.builder()
-                .name("mcp-git-sse-test")
+                .id("mcp-git-sse-test")
+                .displayName("mcpGitSseTest")
                 .version("1.0.0")
                 .description("End-to-end testing")
                 .license("")
@@ -109,7 +113,8 @@ public class FunctionalTestHelper {
                 .url(imageUrl)
                 .build();
         return McpImageDefinition.builder()
-                .name("mcp-git-stdio-test")
+                .id("mcp-git-stdio-test")
+                .displayName("mcpGitStdioTest")
                 .version("1.0.0")
                 .description("End-to-end testing")
                 .license("")
@@ -123,7 +128,8 @@ public class FunctionalTestHelper {
     public static ImageDefinition createAdapterImageDefinition() {
         var source = new DockerImageSource("http://test-uri-adapter", List.of("entry-adapter"));
         return AdapterImageDefinition.builder()
-                .name("adapterImage")
+                .id("adapter-image")
+                .displayName("adapterImage")
                 .version("1.0.0")
                 .description("adapterDesc")
                 .license("adapterLicense")
@@ -144,7 +150,7 @@ public class FunctionalTestHelper {
                 .build();
     }
 
-    public static CreateDeployment createInterceptorDeploymentRequest(UUID imageDefinitionId) {
+    public static CreateDeployment createInterceptorDeploymentRequest(String imageDefinitionId) {
         return CreateInterceptorDeployment.builder()
                 .id("interceptor-test-deployment-1")
                 .imageDefinitionId(imageDefinitionId)
@@ -175,7 +181,7 @@ public class FunctionalTestHelper {
                 .build();
     }
 
-    public static CreateDeployment createMcpDeploymentRequest(UUID imageDefinitionId) {
+    public static CreateDeployment createMcpDeploymentRequest(String imageDefinitionId) {
         return CreateMcpDeployment.builder()
                 .id("mcp-test-deployment-1")
                 .imageDefinitionId(imageDefinitionId)

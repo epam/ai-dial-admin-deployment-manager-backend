@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class EventInfoMapperTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+    private static final String DEPLOYMENT_ID = UUID.randomUUID().toString();
     private static final EventType EVENT_TYPE = EventType.NORMAL;
     private static final String EVENT_REASON = "Created";
     private static final String EVENT_MESSAGE = "Pod created successfully";

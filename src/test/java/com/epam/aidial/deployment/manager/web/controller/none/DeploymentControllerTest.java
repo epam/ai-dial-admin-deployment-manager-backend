@@ -59,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+    private static final String DEPLOYMENT_ID = UUID.randomUUID().toString();
 
     @Autowired
     private ObjectMapper objectMapper;

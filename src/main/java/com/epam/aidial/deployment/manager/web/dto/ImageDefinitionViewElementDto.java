@@ -5,10 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-import java.util.UUID;
 
 public record ImageDefinitionViewElementDto(
-        @NotNull UUID id,
+        @NotNull String name,
         @NotNull @ValidSemanticVersion String version,
         @Nullable ImageStatusDto status,
         @Nullable String description,

@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class InferenceDeploymentManagerTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
+    private static final String DEPLOYMENT_ID = UUID.randomUUID().toString();
     private static final int STARTUP_TIMEOUT = 60;
     private static final String NAMESPACE = "test-namespace";
     private static final String SERVICE_NAME = "service-" + DEPLOYMENT_ID;

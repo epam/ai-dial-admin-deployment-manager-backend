@@ -18,7 +18,7 @@ public class PersistenceImageDefinitionViewMapper {
 
     public List<ImageDefinitionView> toViews(List<ImageDefinitionEntity> imageDefinitions) {
         Map<String, List<ImageDefinitionEntity>> groupedByName = imageDefinitions.stream()
-                .collect(Collectors.groupingBy(ImageDefinitionEntity::getName));
+                .collect(Collectors.groupingBy(ImageDefinitionEntity::getDisplayName));
 
         List<ImageDefinitionView> views = new ArrayList<>();
 
@@ -30,7 +30,7 @@ public class PersistenceImageDefinitionViewMapper {
                     .collect(Collectors.toList());
 
             var view = new ImageDefinitionView();
-            view.setName(entry.getKey());
+            view.setDisplayName(entry.getKey());
             view.setSelectedId(selectedEntity.getId());
             view.setAvailableVersions(viewElements);
 

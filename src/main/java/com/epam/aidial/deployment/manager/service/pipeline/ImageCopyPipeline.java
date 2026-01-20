@@ -11,8 +11,6 @@ import com.epam.aidial.deployment.manager.service.pipeline.step.ImageCopyStep;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Component
 @LogExecution
 @RequiredArgsConstructor
@@ -23,7 +21,7 @@ public class ImageCopyPipeline {
 
     private final ImageCopyStep imageCopyStep;
 
-    public void run(UUID imageDefinitionId) {
+    public void run(String imageDefinitionId) {
         var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(imageDefinitionId)));
 

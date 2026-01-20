@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Predicate;
 
 @Slf4j
@@ -37,7 +36,7 @@ public class JobRunner {
             @NotNull JobSpecification jobSpecification,
             @NotNull JobCallback jobCallback,
             int imageBuildTimeoutSec,
-            @NotNull UUID groupId,
+            @NotNull String groupId,
             @NotNull List<String> containerNames,
             @NotNull List<String> allowedDomains
     ) {
@@ -121,7 +120,7 @@ public class JobRunner {
         return finishedState == JobPhase.SUCCEEDED;
     }
 
-    private void createCiliumNetworkPolicy(@NotNull UUID groupId,
+    private void createCiliumNetworkPolicy(@NotNull String groupId,
                                            @NotNull List<String> allowedDomains,
                                            String jobId,
                                            String namespace,

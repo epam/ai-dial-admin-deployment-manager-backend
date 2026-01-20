@@ -40,7 +40,7 @@ class ImageBuildRunnerTest {
 
     @Test
     void buildImage_resetsLogsBeforeStartingNewBuild() {
-        var imageDefinitionId = UUID.randomUUID();
+        var imageDefinitionId = UUID.randomUUID().toString();
         var imageDefinition = McpImageDefinition.builder()
                 .id(imageDefinitionId)
                 .buildStatus(ImageStatus.NOT_BUILT)

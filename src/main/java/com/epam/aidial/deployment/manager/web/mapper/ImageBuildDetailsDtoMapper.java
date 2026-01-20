@@ -10,7 +10,7 @@ public interface ImageBuildDetailsDtoMapper {
 
     @Mapping(source = "buildStatus", target = "status")
     @Mapping(source = "buildLogs", target = "logs")
-    @Mapping(source = "id", target = "imageDefinitionId")
+    @Mapping(source = "id", target = "imageDefinitionName")
     ImageBuildDetailsDto toDto(ImageDefinition imageDefinition);
 
 }

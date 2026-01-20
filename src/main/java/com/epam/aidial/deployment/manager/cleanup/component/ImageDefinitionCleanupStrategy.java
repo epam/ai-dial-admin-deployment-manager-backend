@@ -13,8 +13,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 @Slf4j
 @Service
 @LogExecution
@@ -43,19 +41,17 @@ class ImageDefinitionCleanupStrategy extends AbstractCleanupStrategy {
     @Override
     @Transactional
     public void delete(String id) {
-        UUID uuid = UUID.fromString(id);
-
-        imageDefinitionRepository.getImageDefinitionForUpdateById(uuid);
+        imageDefinitionRepository.getImageDefinitionForUpdateById(id);
 
         cleanupResources(id);
 
         // Clean up deployments that reference this image definition
-        deploymentRepository.getAllByImageDefinitionId(uuid).stream()
+        deploymentRepository.getAllByImageDefinitionId(id).stream()
                 .map(Deployment::getId)
                 .forEach(deploymentId
                         -> componentCleanupService.deleteAsync(ComponentRemoval.of(deploymentId, ComponentType.DEPLOYMENT)));
 
-        imageDefinitionRepository.deleteImageDefinitionById(uuid);
-        log.info("Image definition '{}' deleted successfully", uuid);
+        imageDefinitionRepository.deleteImageDefinitionById(id);
+        log.info("Image definition '{}' deleted successfully", id);
     }
 }

@@ -40,7 +40,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -57,12 +56,12 @@ public class DeploymentController {
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public List<DeploymentInfoDto> getAllDeployments(
-            @RequestParam(value = "imageDefinitionId", required = false) UUID imageDefinitionId,
+            @RequestParam(value = "imageDefinitionName", required = false) String imageDefinitionName,
             @RequestParam(required = false) List<DeploymentTypeDto> type
     ) {
         Collection<Deployment> deployments;
-        if (imageDefinitionId != null) {
-            deployments = deploymentService.getAllDeployments(imageDefinitionId);
+        if (imageDefinitionName != null) {
+            deployments = deploymentService.getAllDeployments(imageDefinitionName);
         } else if (!CollectionUtils.isEmpty(type)) {
             deployments = deploymentService.getAllDeploymentsByType(type);
         } else {
@@ -105,7 +104,7 @@ public class DeploymentController {
     @ResponseStatus(HttpStatus.OK)
     public void changeImage(@RequestBody @Valid DeploymentImageChangeRequestDto requestDto) {
         deploymentService.updateImageDefinitionForDeployments(
-                requestDto.imageDefinitionId(),
+                requestDto.imageDefinitionName(),
                 requestDto.deployments()
         );
     }

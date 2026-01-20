@@ -1,7 +1,7 @@
 [
   {
     "id": "decade00-0000-4000-a000-000000000000",
-    "name": "echo-mcp",
+    "displayName": "echo-mcp",
     "description": "description",
     "imageName": "aidial/echo-mcp:latest"
   }

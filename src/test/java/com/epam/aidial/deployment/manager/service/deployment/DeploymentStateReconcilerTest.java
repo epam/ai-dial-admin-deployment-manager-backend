@@ -64,9 +64,9 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void performFullReconciliation_whenMultiplePages_shouldProcessAllDeployments() {
-        var id1 = String.valueOf(UUID.randomUUID());
-        var id2 = String.valueOf(UUID.randomUUID());
-        var id3 = String.valueOf(UUID.randomUUID());
+        var id1 = UUID.randomUUID().toString();
+        var id2 = UUID.randomUUID().toString();
+        var id3 = UUID.randomUUID().toString();
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         Deployment dep3 = createDeployment(id3, DeploymentStatus.PENDING);
@@ -115,8 +115,8 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void performFullReconciliation_whenReconcileThrowsException_shouldContinueProcessing() {
-        var id1 = String.valueOf(UUID.randomUUID());
-        var id2 = String.valueOf(UUID.randomUUID());
+        var id1 = UUID.randomUUID().toString();
+        var id2 = UUID.randomUUID().toString();
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
 
@@ -140,7 +140,7 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void reconcileDeploymentState_shouldCallReconcileAndReturnResult() {
-        var id = String.valueOf(UUID.randomUUID());
+        var id = UUID.randomUUID().toString();
         Deployment deployment = createDeployment(id, DeploymentStatus.PENDING);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
@@ -156,7 +156,7 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void reconcileDeploymentState_whenReconcileReturnsFalse_shouldReturnFalse() {
-        var id = String.valueOf(UUID.randomUUID());
+        var id = UUID.randomUUID().toString();
         Deployment deployment = createDeployment(id, DeploymentStatus.RUNNING);
 
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
@@ -172,7 +172,7 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void reconcileDeploymentState_whenProviderThrowsException_shouldPropagateException() {
-        var id = String.valueOf(UUID.randomUUID());
+        var id = UUID.randomUUID().toString();
         Deployment deployment = createDeployment(id, DeploymentStatus.PENDING);
         RuntimeException exception = new RuntimeException("Provider failed");
 
@@ -186,7 +186,7 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void reconcileDeploymentState_whenReconcileThrowsException_shouldPropagateException() {
-        var id = String.valueOf(UUID.randomUUID());
+        var id = UUID.randomUUID().toString();
         Deployment deployment = createDeployment(id, DeploymentStatus.PENDING);
         RuntimeException exception = new RuntimeException("Reconciliation failed");
 
@@ -202,9 +202,9 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void checkPendingDeployments_whenMultiplePages_shouldProcessAllPendingDeployments() {
-        var id1 = String.valueOf(UUID.randomUUID());
-        var id2 = String.valueOf(UUID.randomUUID());
-        var id3 = String.valueOf(UUID.randomUUID());
+        var id1 = UUID.randomUUID().toString();
+        var id2 = UUID.randomUUID().toString();
+        var id3 = UUID.randomUUID().toString();
         Deployment dep1 = createDeployment(id1, DeploymentStatus.PENDING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         Deployment dep3 = createDeployment(id3, DeploymentStatus.PENDING);
@@ -253,8 +253,8 @@ class DeploymentStateReconcilerTest {
 
     @Test
     void checkPendingDeployments_whenReconcileThrowsException_shouldContinueProcessing() {
-        var id1 = String.valueOf(UUID.randomUUID());
-        var id2 = String.valueOf(UUID.randomUUID());
+        var id1 = UUID.randomUUID().toString();
+        var id2 = UUID.randomUUID().toString();
         Deployment dep1 = createDeployment(id1, DeploymentStatus.PENDING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
 

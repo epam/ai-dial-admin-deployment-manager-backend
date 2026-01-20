@@ -17,7 +17,6 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -30,7 +29,7 @@ import static org.mockito.Mockito.when;
 class McpServiceTest {
 
     private static final String DEPLOYMENT_ID = "facade00-0000-0001-a000-000000000000";
-    private static final UUID IMAGE_DEFINITION_ID = UUID.fromString("facade00-0000-0003-a000-000000000000");
+    private static final String IMAGE_DEFINITION_ID = "facade00-0000-0003-a000-000000000000";
     private static final String NEXT_CURSOR = "test-cursor";
     private static final String DEPLOYMENT_URL = "http://test-deployment.com";
 

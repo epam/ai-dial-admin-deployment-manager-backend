@@ -17,8 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 @Slf4j
 @Component
 @LogExecution
@@ -32,7 +30,7 @@ public class ImageBuildFromGitPipeline {
     private final ImageAnalysisStep imageAnalysisStep;
     private final WrapperImageBuildStep wrapperImageBuildStep;
 
-    public void run(UUID imageDefinitionId) {
+    public void run(String imageDefinitionId) {
         log.debug("run. imageDefinitionId: {}", imageDefinitionId);
 
         var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)

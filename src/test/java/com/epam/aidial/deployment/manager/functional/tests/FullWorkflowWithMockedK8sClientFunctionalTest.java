@@ -63,7 +63,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -125,7 +124,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(specCaptor.capture(), callbackCaptor.capture(), anyInt(), any(UUID.class), any(), any())).thenAnswer(invocation -> {
+        when(jobRunner.run(specCaptor.capture(), callbackCaptor.capture(), anyInt(), eq(imageDefinition.getId()), any(), any())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(List.of("ID: debian", "VERSION: 10"));
             return true;
@@ -141,16 +140,16 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         Assertions.assertEquals("default", jobSpec.getNamespace());
 
         var expectedJobSpecProvider = getExpectedJobSpec(imageDefinition);
-        var expectedJobSpec = expectedJobSpecProvider.apply(image.getId().toString());
+        var expectedJobSpec = expectedJobSpecProvider.apply(image.getId());
         Assertions.assertEquals(expectedJobSpec, jobSpec.getJob().getSpec());
 
-        var jobSecret = jobSpec.getSecrets().get(0);
+        var jobSecret = jobSpec.getSecrets().getFirst();
         var expectedJobSecret = createJobSecret(getAuthValueFromSecret(jobSecret), jobSecret.getMetadata().getName());
         Assertions.assertEquals(List.of(expectedJobSecret), jobSpec.getSecrets());
 
         if (compareConfigMaps) {
             var source = ((DockerImageSource) imageDefinition.getSource());
-            var expectedJobConfigMap = createJobConfigMap(image.getId().toString(), source.getImageUri(), source.getEntrypoint());
+            var expectedJobConfigMap = createJobConfigMap(image.getId(), source.getImageUri(), source.getEntrypoint());
             Assertions.assertEquals(List.of(expectedJobConfigMap), jobSpec.getConfigMaps());
         }
 
@@ -163,7 +162,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         when(secretResource.create()).thenReturn(new Secret());
 
         var maybeBuiltImage = imageDefinitionService.getImageDefinition(image.getId());
-        UUID imageId = maybeBuiltImage.map(ImageDefinition::getId).orElse(null);
+        String imageId = maybeBuiltImage.map(ImageDefinition::getId).orElse(null);
 
         var dialUrlEnv = new EnvVarDefinition("DIAL_URL", new SimpleEnvVarValue("http://test-dial-url.svc.cluster.local"),
                 EnvVarMountType.CONTENT, "Sample DIAL URL");
@@ -203,7 +202,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // Then - Deploy
         var service = serviceCaptor.getValue();
         var serviceName = service.getMetadata().getName();
-        var imageName = service.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+        var imageName = service.getSpec().getTemplate().getSpec().getContainers().getFirst().getImage();
         var expectedService = createKnativeService(serviceName, imageName, secretName);
         Assertions.assertEquals(expectedService, service);
 
@@ -252,7 +251,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         throw new IllegalArgumentException("Expected job spec is not supported for image definition: " + imageDefinition);
     }
 
-    private static JobSpec createJobSpec(String uuid) {
+    private static JobSpec createJobSpec(String id) {
         // Container
         var container = new Container();
         container.setName("builder-container");
@@ -260,7 +259,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         container.setArgs(Arrays.asList(
                 "copy",
                 "docker://workflow-test-repo.azurecr.io/interceptor-sample-image:latest",
-                "docker://test-docker-registry/app-copy-" + uuid + ":1.0.0",
+                "docker://test-docker-registry/app-copy-" + id + ":1.0.0",
                 "--authfile",
                 "/config/config.json"
         ));
@@ -273,7 +272,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // Volume
         var secretVolumeSource = new SecretVolumeSource();
-        secretVolumeSource.setSecretName("dm-registry-copy-" + uuid);
+        secretVolumeSource.setSecretName("dm-registry-copy-" + id);
 
         var volume = new Volume();
         volume.setName("secret-volume");
@@ -385,13 +384,13 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         return service;
     }
 
-    private static JobSpec createWrapperJobSpec(String uuid) {
+    private static JobSpec createWrapperJobSpec(String id) {
         // Container
         var container = new Container();
         container.setName("builder-container");
         container.setImage("gcr.io/kaniko-project/executor:v1.24.0");
         container.setArgs(Arrays.asList(
-                "--destination=test-docker-registry/app-wrapper-" + uuid + ":1.0.0",
+                "--destination=test-docker-registry/app-wrapper-" + id + ":1.0.0",
                 "--context=/sources",
                 "--dockerfile=/templates/Dockerfile"
         ));
@@ -431,7 +430,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // Dockerfile ConfigMap volume
         var configMapVolumeSource = new ConfigMapVolumeSource();
-        configMapVolumeSource.setName("dm-dockerfile-wrapper-" + uuid);
+        configMapVolumeSource.setName("dm-dockerfile-wrapper-" + id);
         configMapVolumeSource.setItems(Collections.emptyList());
         configMapVolumeSource.setAdditionalProperties(new HashMap<>());
 
@@ -446,7 +445,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // Secret volume
         var secretVolumeSource = new SecretVolumeSource();
-        secretVolumeSource.setSecretName("dm-registry-wrapper-" + uuid);
+        secretVolumeSource.setSecretName("dm-registry-wrapper-" + id);
         secretVolumeSource.setItems(Collections.emptyList());
         secretVolumeSource.setAdditionalProperties(new HashMap<>());
 

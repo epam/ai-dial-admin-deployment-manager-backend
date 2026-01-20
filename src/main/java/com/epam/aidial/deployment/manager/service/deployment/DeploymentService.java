@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -68,7 +67,7 @@ public class DeploymentService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<Deployment> getAllDeployments(UUID imageDefinitionId) {
+    public Collection<Deployment> getAllDeployments(String imageDefinitionId) {
         return deploymentRepository.getAllByImageDefinitionId(imageDefinitionId);
     }
 
@@ -112,7 +111,7 @@ public class DeploymentService {
 
         if (request.getImageDefinitionId() != null) {
             var imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
-            deployment.setImageDefinitionName(imageDefinition.getName());
+            deployment.setImageDefinitionDisplayName(imageDefinition.getDisplayName());
             deployment.setImageDefinitionVersion(imageDefinition.getVersion());
         }
 
@@ -167,7 +166,7 @@ public class DeploymentService {
         deployment.setStatus(status);
 
         if (imageDefinition != null) {
-            deployment.setImageDefinitionName(imageDefinition.getName());
+            deployment.setImageDefinitionDisplayName(imageDefinition.getDisplayName());
             deployment.setImageDefinitionVersion(imageDefinition.getVersion());
         }
 
@@ -214,7 +213,7 @@ public class DeploymentService {
     }
 
     @Transactional
-    public void updateImageDefinitionForDeployments(UUID imageDefinitionId, List<String> deployments) {
+    public void updateImageDefinitionForDeployments(String imageDefinitionId, List<String> deployments) {
         // loading image definition to verify that it is built
         var imageDefinition = loadImageDefinitionOrThrow(imageDefinitionId);
         deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deployments);
@@ -294,7 +293,7 @@ public class DeploymentService {
         return ListUtils.union(sensitive, simple);
     }
 
-    private ImageDefinition loadImageDefinitionOrThrow(UUID id) {
+    private ImageDefinition loadImageDefinitionOrThrow(String id) {
         var imageDefinition = imageDefinitionService.getImageDefinition(id)
                 .orElseThrow(notFound("ImageDefinition", id));
         if (imageDefinition.getBuildStatus() != ImageStatus.BUILD_SUCCESSFUL) {

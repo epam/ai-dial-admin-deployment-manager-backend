@@ -23,7 +23,6 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "deployment")
@@ -38,10 +37,10 @@ public class DeploymentEntity {
     private String id;
 
     @Column(name = "image_definition_id")
-    private UUID imageDefinitionId;
+    private String imageDefinitionId;
 
-    @Column(name = "image_definition_name")
-    private String imageDefinitionName;
+    @Column(name = "image_definition_display_name")
+    private String imageDefinitionDisplayName;
 
     @Column(name = "image_definition_version")
     private String imageDefinitionVersion;

@@ -1,13 +1,13 @@
 [
   {
-    "id": "decade00-0000-4000-a000-000000000000",
-    "name": "echo-mcp",
+    "name": "decade00-0000-4000-a000-000000000000",
+    "displayName": "echo-mcp",
     "version": "1.0.0",
     "status": "build_successful"
   },
   {
-    "id": "decddd00-0000-4000-a000-000000000000",
-    "name": "echo-mcp",
+    "name": "decddd00-0000-4000-a000-000000000000",
+    "displayName": "echo-mcp",
     "version": "2.0.0",
     "status": "build_failed"
   }

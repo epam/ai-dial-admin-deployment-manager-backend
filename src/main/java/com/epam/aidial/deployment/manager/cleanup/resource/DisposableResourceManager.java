@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -118,14 +117,6 @@ public class DisposableResourceManager {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveK8sResources(List<? extends HasMetadata> k8sResources,
                                  K8sResourceKind resourceKind,
-                                 UUID groupId,
-                                 String namespace) {
-        saveK8sResources(k8sResources, resourceKind, String.valueOf(groupId), namespace);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveK8sResources(List<? extends HasMetadata> k8sResources,
-                                 K8sResourceKind resourceKind,
                                  String groupId,
                                  String namespace) {
         var now = Instant.now();
@@ -160,9 +151,9 @@ public class DisposableResourceManager {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveContainerRegistryResource(String imageName, UUID groupId, ResourceLifecycleState lifecycleState) {
+    public void saveContainerRegistryResource(String imageName, String groupId, ResourceLifecycleState lifecycleState) {
         var imageResource = DisposableResource.builder()
-                .groupId(String.valueOf(groupId))
+                .groupId(groupId)
                 .reference(ContainerRegistryResourceReference.builder()
                         .name(imageName)
                         .build())

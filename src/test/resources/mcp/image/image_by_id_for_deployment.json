@@ -1,7 +1,7 @@
 {
   "$type": "mcp",
   "id": "decade00-0000-4000-a000-000000000000",
-  "name": "test-image",
+  "displayName": "test-image",
   "description": "Test image definition",
   "source": {
     "$type": "docker",
