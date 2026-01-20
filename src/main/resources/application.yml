@@ -187,6 +187,8 @@ app:
           volumes:
             - name: workspace-volume
               emptyDir: { }
+            - name: build-volume
+              emptyDir: { }
   init-builder-container-config:
     name: init-container
     image: ${app.git-clone-image}
@@ -199,6 +201,68 @@ app:
     volumeMounts:
       - name: workspace-volume
         mountPath: /workspace
+      - name: build-volume
+        mountPath: /image-build
+  push-container-config:
+    name: push-container
+    image: ${app.copy-image}
+    command:
+      - /bin/sh
+      - -c
+    env:
+      - name: MAX_RETRIES
+        value: "120"
+      - name: AUTH_FILE_PATH
+        value: "/kaniko/.docker/config.json"
+      - name: SLEEP_INTERVAL_IN_SECONDS
+        value: "2"
+      - name: TAR_PATH
+        value: "/image-build/image-tarball.tar"
+    args: |
+      RETRY=0
+      echo "[push-container] Waiting for image tarball to be created and stable..."
+      while [ $RETRY -lt $MAX_RETRIES ]; do
+        if [ -f "$TAR_PATH" ]; then
+          SIZE1=$(stat -c%s "$TAR_PATH")
+          sleep ${SLEEP_INTERVAL_IN_SECONDS}
+          SIZE2=$(stat -c%s "$TAR_PATH")
+          if [ "$SIZE1" -eq "$SIZE2" ] && [ "$SIZE1" -gt 0 ]; then
+            echo "[push-container] Image tarball found and stable. Starting push with Skopeo..."
+            skopeo copy docker-archive:${TAR_PATH} docker://${TARGET_IMAGE} --authfile ${AUTH_FILE_PATH}
+            if [ $? -eq 0 ]; then
+              echo "[push-container] Image push completed successfully."
+              exit 0
+            else
+              echo "[push-container] ERROR: Image push failed."
+              exit 1
+            fi
+          else
+            echo "[push-container] Tarball exists but is still being written. Waiting..."
+          fi
+        else
+          echo "[push-container] Image tarball not found yet. Sleeping... ($RETRY/$MAX_RETRIES)"
+        fi
+        sleep ${SLEEP_INTERVAL_IN_SECONDS}
+        RETRY=$((RETRY+1))
+      done
+      echo "[push-container] ERROR: Image tarball not found or not stable after $MAX_RETRIES attempts. Exiting."
+      exit 1
+    securityContext:
+      capabilities:
+        drop:
+          - ALL
+      privileged: false
+      seLinuxOptions: {}
+      runAsUser: 1000
+      runAsGroup: 1000
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
+    volumeMounts:
+      - name: build-volume
+        mountPath: /image-build
   builder-secret-config:
     apiVersion: v1
     kind: Secret

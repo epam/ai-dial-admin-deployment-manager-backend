@@ -14,6 +14,7 @@ import com.epam.aidial.deployment.manager.utils.mapping.Mappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
@@ -86,6 +87,7 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
 
         configureInitContainer(podSpec);
         configureBuilderContainer(podSpec, targetImage);
+        configurePushContainer(podSpec, targetImage);
 
         return config.data();
     }
@@ -152,7 +154,6 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
     private void configureBuilderContainer(MappingChain<PodSpec> podSpec, String targetImage) {
         var builder = getBuilderContainerChain(podSpec);
         configureBuilderContainerArgs(builder, targetImage);
-        configureRegistryAuth(podSpec, builder);
     }
 
     private MappingChain<Container> getBuilderContainerChain(MappingChain<PodSpec> podSpec) {
@@ -163,7 +164,9 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
     private void configureBuilderContainerArgs(MappingChain<Container> builder, String targetImage) {
         var args = new ArrayList<>(List.of(
                 "--destination=%s".formatted(targetImage),
-                "--context=%s".formatted(WORKSPACE_PATH)
+                "--context=%s".formatted(WORKSPACE_PATH),
+                "--no-push",
+                "--tar-path=/image-build/image-tarball.tar"
         ));
 
         if (StringUtils.isNotBlank(gitDockerfileImageSource.getBaseDirectory())) {
@@ -174,6 +177,23 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
         builder.get(Mappers.CONTAINER_ARGS_FIELD)
                 .data()
                 .addAll(args);
+    }
+
+    private void configurePushContainer(MappingChain<PodSpec> podSpec, String targetImage) {
+        var builder = getPushContainerChain(podSpec);
+        configurePushContainerEnvVars(builder, targetImage);
+        configureRegistryAuth(podSpec, builder);
+    }
+
+    private MappingChain<Container> getPushContainerChain(MappingChain<PodSpec> podSpec) {
+        return podSpec.getList(Mappers.POD_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
+                .getOrDefault(appConfig.getPushContainerConfig().getName(), appConfig::clonePushContainerConfig);
+    }
+
+    private void configurePushContainerEnvVars(MappingChain<Container> pushContainerChain, String targetImage) {
+        pushContainerChain.get(Mappers.CONTAINER_ENV_FIELD)
+                .data()
+                .add(new EnvVarBuilder().withName("TARGET_IMAGE").withValue(targetImage).build());
     }
 
     private void configureRegistryAuth(MappingChain<PodSpec> podSpec, MappingChain<Container> builder) {
