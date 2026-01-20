@@ -23,7 +23,6 @@ import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
-import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
@@ -58,6 +57,7 @@ import com.epam.aidial.deployment.manager.web.dto.internal.McpDeploymentInternal
 import com.epam.aidial.deployment.manager.web.dto.internal.NimDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.value.EnvVarValueDto;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.exec.CommandLine;
@@ -88,8 +88,6 @@ public abstract class DeploymentDtoMapper {
     @Autowired
     private EnvVarValueDtoMapper envVarValueDtoMapper;
     @Autowired
-    private ImageDefinitionService imageDefinitionService;
-    @Autowired
     private McpEndpointPathResolver mcpEndpointPathResolver;
 
     @Mapping(target = "id", source = "name")
@@ -106,8 +104,6 @@ public abstract class DeploymentDtoMapper {
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
-    @Mapping(target = "command", source = "command", qualifiedByName = "stringToList")
-    @Mapping(target = "args", source = "args", qualifiedByName = "stringToList")
     public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
 
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSourceDto.class, target = InferenceDeploymentHuggingFaceSource.class)
@@ -125,14 +121,6 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
     public abstract DeploymentDto toDeploymentDto(Deployment model);
-
-    @AfterMapping
-    protected void setInferenceDeploymentCommandAndArgs(@MappingTarget DeploymentDto dto, Deployment model) {
-        if (model instanceof InferenceDeployment inference && dto instanceof InferenceDeploymentDto inferenceDto) {
-            inferenceDto.setCommand(listToString(inference.getCommand()));
-            inferenceDto.setArgs(listToString(inference.getArgs()));
-        }
-    }
 
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSource.class, target = InferenceDeploymentHuggingFaceSourceDto.class)
     protected abstract InferenceDeploymentSourceDto toDto(InferenceDeploymentSource model);
@@ -258,7 +246,6 @@ public abstract class DeploymentDtoMapper {
         };
     }
 
-    @Named("stringToList")
     protected List<String> stringToList(String str) {
         if (StringUtils.isBlank(str)) {
             return null;
@@ -277,13 +264,14 @@ public abstract class DeploymentDtoMapper {
 
             return result;
         } catch (IllegalArgumentException e) {
-            log.error("Cannot parse command/arguments '{}'", str, e);
-            throw new IllegalArgumentException("Cannot parse command/arguments: '%s'".formatted(str), e);
+            var errorMessage = "Cannot parse command/arguments: '%s'".formatted(str);
+            log.warn(errorMessage, e);
+            throw new IllegalArgumentException(errorMessage, e);
         }
     }
 
     protected String listToString(List<String> list) {
-        if (list == null || list.isEmpty()) {
+        if (CollectionUtils.isEmpty(list)) {
             return null;
         }
 
