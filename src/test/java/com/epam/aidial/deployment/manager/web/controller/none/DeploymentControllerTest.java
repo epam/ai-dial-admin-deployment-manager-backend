@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.kubernetes.event.EventStreamerConfigur
 import com.epam.aidial.deployment.manager.model.EventType;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.ObjectKind;
+import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
@@ -351,6 +352,21 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         assertThat(cfg.sinceTime()).isEqualTo(sinceTime);
         assertThat(cfg.eventType()).isEqualTo(eventType);
         assertThat(cfg.involvedObjectKind()).isEqualTo(involvedObjectKind);
+    }
+
+    @Test
+    void testGetPods_withRestartInfo() throws Exception {
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9);
+
+        when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(
+                        "[{\"name\":\"pod-1\",\"createdAt\":\"2023-01-01T12:00:00Z\",\"restartCount\":5,\"lastTerminationReason\":\"OOMKilled\",\"lastExitCode\":137,\"lastSignal\":9}]"));
+
+        verify(deploymentService).getInstances(DEPLOYMENT_ID);
     }
 
     private static SseEmitter completedEmitter() {
