@@ -418,8 +418,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void testCreateInferenceDeployment_withNullCommandAndArgs() throws Exception {
         // Given
-        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_null_command_args.json");
-        var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response_null_command_args.json");
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
         var deployment = createInferenceDeployment("test-inference-deployment", null, null);
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
@@ -441,7 +441,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     void testCreateInferenceDeployment_withBlankCommandAndArgs() throws Exception {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_blank_command_args.json");
-        var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response_blank_command_args.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
         var deployment = createInferenceDeployment("test-inference-deployment", null, null);
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
@@ -481,7 +481,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void testGetInferenceDeployment_withNullCommandAndArgs() throws Exception {
         // Given
-        var expectedJson = ResourceUtils.readResource("/mcp/deployment/get_inference_deployment_response_null_command_args.json");
+        var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
         var deployment = createInferenceDeployment("test-inference-deployment", null, null);
 
         when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
