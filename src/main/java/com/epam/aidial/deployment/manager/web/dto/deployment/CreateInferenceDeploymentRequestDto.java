@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,8 +21,8 @@ public class CreateInferenceDeploymentRequestDto extends CreateDeploymentRequest
     @NotNull @Valid
     private InferenceDeploymentSourceDto source;
     @Nullable
-    private List<String> command;
+    private String command;
     @Nullable
-    private List<String> args;
+    private String args;
 
 }

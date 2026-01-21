@@ -1,0 +1,15 @@
+{
+  "$type": "inference",
+  "name": "test-inference-deployment",
+  "displayName": "Test Inference Deployment",
+  "modelFormat": "huggingface",
+  "source": {
+    "$type": "huggingface",
+    "modelName": "test-user/test-model"
+  },
+  "command": "python script.py --arg value",
+  "args": "--config config.json --log-level DEBUG",
+  "metadata": {
+    "envs": []
+  }
+}
