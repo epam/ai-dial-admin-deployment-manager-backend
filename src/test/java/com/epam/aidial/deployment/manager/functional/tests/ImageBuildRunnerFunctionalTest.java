@@ -78,7 +78,9 @@ public abstract class ImageBuildRunnerFunctionalTest {
     public void shouldFailBuildInterceptorImageWithGitSource() {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createInterceptorImageDefinition();
-        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
+        var randomSuffix = RandomStringUtils.secure().nextAlphabetic(6).toLowerCase();
+        imageDefToBeSaved.setId(imageDefToBeSaved.getId() + randomSuffix);
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + randomSuffix);
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
@@ -102,6 +104,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
     public void shouldSuccessfullyBuildMcpImageWithDockerSource() {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
+        imageDefToBeSaved.setId(imageDefToBeSaved.getId() + "1");
         imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + "1");
         imageDefToBeSaved.setTransportType(McpTransportType.REMOTE);
 
@@ -136,6 +139,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.REMOTE);
+        imageDefToBeSaved.setId(imageDefToBeSaved.getId() + "2");
         imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + "2");
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
 
@@ -168,7 +172,9 @@ public abstract class ImageBuildRunnerFunctionalTest {
     public void shouldSuccessfullyBuildMcpImageWithGitSourceAndStdioTransport() {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
-        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
+        var randomSuffix = RandomStringUtils.secure().nextAlphabetic(6).toLowerCase();
+        imageDefToBeSaved.setId(imageDefToBeSaved.getId() + randomSuffix);
+        imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + randomSuffix);
         imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
         imageDefToBeSaved.setTransportType(McpTransportType.LOCAL);
 
@@ -242,6 +248,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         // Given
         var imageDefToBeSaved = FunctionalTestHelper.createMcpImageDefinition();
         imageDefToBeSaved.setTransportType(McpTransportType.LOCAL);
+        imageDefToBeSaved.setId(imageDefToBeSaved.getId() + suffix);
         imageDefToBeSaved.setDisplayName(imageDefToBeSaved.getDisplayName() + suffix);
 
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);

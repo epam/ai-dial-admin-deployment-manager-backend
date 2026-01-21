@@ -102,7 +102,7 @@ public class DeploymentService {
     public Deployment createDeployment(CreateDeployment request) {
         var id = request.getId();
 
-        checkNoResourcesAreAssociatedWithId(id);
+        disposableResourceManager.checkNoResourcesAreAssociatedWithId(id, "deployment");
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
@@ -246,14 +246,6 @@ public class DeploymentService {
     public List<PodInfo> getInstances(String id) {
         return deploymentManagerProvider.provide(id)
                 .getInstances(id);
-    }
-
-    private void checkNoResourcesAreAssociatedWithId(String id) {
-        var existingDisposableResources = disposableResourceManager.getAllByGroupId(id);
-        if (CollectionUtils.isNotEmpty(existingDisposableResources)) {
-            throw new IllegalArgumentException("Failed to create deployment with ID '%s'. There are resources awaiting deletion associated with this ID."
-                    .formatted(id));
-        }
     }
 
     private EnvPartition validateAndPartitionEnvs(DeploymentMetadata metadata) {

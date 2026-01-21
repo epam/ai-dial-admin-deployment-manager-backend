@@ -12,6 +12,7 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +56,15 @@ public class DisposableResourceManager {
     @Transactional(readOnly = true)
     public List<DisposableResource> getAllTemporaryByGroupId(String groupId) {
         return resourceRepository.getAllByGroupIdAndLifecycleStates(groupId, Set.of(ResourceLifecycleState.TEMPORARY));
+    }
+
+    @Transactional(readOnly = true)
+    public void checkNoResourcesAreAssociatedWithId(String id, String entityType) {
+        var existingDisposableResources = getAllByGroupId(id);
+        if (CollectionUtils.isNotEmpty(existingDisposableResources)) {
+            throw new IllegalArgumentException("Failed to create %s with ID '%s'. There are resources awaiting deletion associated with this ID."
+                    .formatted(entityType, id));
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

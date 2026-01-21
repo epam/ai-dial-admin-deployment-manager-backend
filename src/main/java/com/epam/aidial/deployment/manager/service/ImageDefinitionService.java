@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -30,6 +31,7 @@ public class ImageDefinitionService {
     private final ImageDefinitionRepository imageDefinitionRepository;
     private final ComponentCleanupService componentCleanupService;
     private final SecurityClaimsExtractor securityClaimsExtractor;
+    private final DisposableResourceManager disposableResourceManager;
 
     @Transactional(readOnly = true)
     public Collection<ImageDefinition> getAllImageDefinitions() {
@@ -68,6 +70,8 @@ public class ImageDefinitionService {
 
     @Transactional
     public ImageDefinition createImageDefinition(ImageDefinition imageDefinition) {
+        disposableResourceManager.checkNoResourcesAreAssociatedWithId(imageDefinition.getId(), "image definition");
+
         imageDefinition.setBuildStatus(ImageStatus.NOT_BUILT);
 
         // Set author information - use provided author or extract from security context
