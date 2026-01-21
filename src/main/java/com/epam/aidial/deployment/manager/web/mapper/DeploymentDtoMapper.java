@@ -56,11 +56,11 @@ import com.epam.aidial.deployment.manager.web.dto.internal.InterceptorDeployment
 import com.epam.aidial.deployment.manager.web.dto.internal.McpDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.NimDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.value.EnvVarValueDto;
+import com.epam.aidial.deployment.manager.web.utils.CommandLineUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.exec.CommandLine;
 import org.apache.commons.lang3.StringUtils;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
@@ -72,7 +72,6 @@ import org.mapstruct.SubclassMapping;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -252,10 +251,7 @@ public abstract class DeploymentDtoMapper {
         }
 
         try {
-            // Parse the string; this automatically handles quoted tokens (e.g., "foo bar")
-            CommandLine commandLine = CommandLine.parse(str);
-
-            return Arrays.asList(commandLine.toStrings());
+            return CommandLineUtils.parseCommandline(str);
         } catch (IllegalArgumentException e) {
             var errorMessage = "Cannot parse command/arguments: '%s'".formatted(str);
             log.warn(errorMessage, e);
@@ -268,18 +264,9 @@ public abstract class DeploymentDtoMapper {
             return null;
         }
 
-        // 1. Create CommandLine using the first element as the executable
-        CommandLine commandLine = new CommandLine(list.getFirst());
-
-        // 2. Add the rest of the list as arguments
-        if (list.size() > 1) {
-            String[] args = list.subList(1, list.size()).toArray(new String[0]);
-            commandLine.addArguments(args);
-        }
-
-        // 3. toStrings() automatically quotes the executable and arguments as needed
-        String[] parts = commandLine.toStrings();
-        return String.join(" ", parts);
+        return list.stream()
+                .map(CommandLineUtils::quoteArgument)
+                .collect(Collectors.joining(" "));
     }
 
 }
