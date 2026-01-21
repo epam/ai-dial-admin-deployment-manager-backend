@@ -72,6 +72,7 @@ import org.mapstruct.SubclassMapping;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -276,7 +277,7 @@ public abstract class DeploymentDtoMapper {
         }
 
         // 1. Create CommandLine using the first element as the executable
-        CommandLine commandLine = new CommandLine(list.get(0));
+        CommandLine commandLine = new CommandLine(list.getFirst());
 
         // 2. Add the rest of the list as arguments
         if (list.size() > 1) {
@@ -284,8 +285,9 @@ public abstract class DeploymentDtoMapper {
             commandLine.addArguments(args);
         }
 
-        // 3. toString() automatically quotes the executable and arguments as needed
-        return commandLine.toString();
+        // 3. toStrings() automatically quotes the executable and arguments as needed
+        String[] parts = commandLine.toStrings();
+        return String.join(" ", parts);
     }
 
 }
