@@ -73,7 +73,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -256,14 +255,7 @@ public abstract class DeploymentDtoMapper {
             // Parse the string; this automatically handles quoted tokens (e.g., "foo bar")
             CommandLine commandLine = CommandLine.parse(str);
 
-            List<String> result = new ArrayList<>();
-
-            // 1. Add the executable (the first token)
-            result.add(commandLine.getExecutable());
-            // 2. Add the arguments (remaining tokens)
-            Collections.addAll(result, commandLine.getArguments());
-
-            return result;
+            return Arrays.asList(commandLine.toStrings());
         } catch (IllegalArgumentException e) {
             var errorMessage = "Cannot parse command/arguments: '%s'".formatted(str);
             log.warn(errorMessage, e);
