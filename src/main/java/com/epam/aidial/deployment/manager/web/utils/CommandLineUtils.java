@@ -74,7 +74,7 @@ public class CommandLineUtils {
             final String nextTok = tok.nextToken();
             switch (state) {
                 case inQuote:
-                    if ("'".equals(nextTok)) {
+                    if (SINGLE_QUOTE.equals(nextTok)) {
                         lastTokenHasBeenQuoted = true;
                         state = normal;
                     } else {
@@ -82,7 +82,7 @@ public class CommandLineUtils {
                     }
                     break;
                 case inDoubleQuote:
-                    if ("\"".equals(nextTok)) {
+                    if (DOUBLE_QUOTE.equals(nextTok)) {
                         lastTokenHasBeenQuoted = true;
                         state = normal;
                     } else {
@@ -91,8 +91,8 @@ public class CommandLineUtils {
                     break;
                 default:
                     switch (nextTok) {
-                        case "'" -> state = inQuote;
-                        case "\"" -> state = inDoubleQuote;
+                        case SINGLE_QUOTE -> state = inQuote;
+                        case DOUBLE_QUOTE -> state = inDoubleQuote;
                         case " " -> {
                             if (lastTokenHasBeenQuoted || !current.isEmpty()) {
                                 list.add(current.toString());
