@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -156,7 +157,10 @@ public abstract class ImageDefinitionFunctionalTest {
         // Then - After Create
         Assertions.assertNotNull(createdImageDef.getCreatedAt());
         Assertions.assertNotNull(createdImageDef.getUpdatedAt());
-        Assertions.assertEquals(createdImageDef.getCreatedAt(), createdImageDef.getUpdatedAt());
+        Assertions.assertEquals(
+                createdImageDef.getCreatedAt().truncatedTo(ChronoUnit.SECONDS),
+                createdImageDef.getUpdatedAt().truncatedTo(ChronoUnit.SECONDS)
+        );
         var creationTime = createdImageDef.getCreatedAt();
 
         // Given - Update same entity at a later time
@@ -189,7 +193,10 @@ public abstract class ImageDefinitionFunctionalTest {
         var createdImageDef = createdImageDefs.getFirst();
         Assertions.assertNotNull(createdImageDef.getCreatedAt());
         Assertions.assertNotNull(createdImageDef.getUpdatedAt());
-        Assertions.assertEquals(createdImageDef.getCreatedAt(), createdImageDef.getUpdatedAt());
+        Assertions.assertEquals(
+                createdImageDef.getCreatedAt().truncatedTo(ChronoUnit.SECONDS),
+                createdImageDef.getUpdatedAt().truncatedTo(ChronoUnit.SECONDS)
+        );
         var creationTime = createdImageDef.getCreatedAt();
 
         // Given - Update

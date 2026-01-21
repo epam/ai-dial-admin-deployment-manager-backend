@@ -219,7 +219,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                 Arguments.of(
                         "name is null",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setName(null)),
-                        "Field [name]: must not be null\n"
+                        "Field [name]: must not be blank\n"
                 ),
                 Arguments.of(
                         "source is null",

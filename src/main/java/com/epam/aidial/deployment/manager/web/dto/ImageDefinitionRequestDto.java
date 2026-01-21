@@ -29,7 +29,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class ImageDefinitionRequestDto {
-    @NotNull
     @NotBlank
     @Size(max = 36)
     @Pattern(regexp = "^[a-z0-9-]+$", message = "Image definition ID must contain only lowercase Latin letters, numbers, and hyphens")
