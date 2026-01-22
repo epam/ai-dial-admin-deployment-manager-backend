@@ -10,6 +10,6 @@
   "metadata": {
     "envs": []
   },
-  "command": "[python, \"script with spaces.py\", --arg, \"value with spaces\"]",
-  "args": "[--config, \"config file.json\"]"
+  "command": "python \"script with spaces.py\" --arg \"value with spaces\"",
+  "args": "--config \"config file.json\""
 }

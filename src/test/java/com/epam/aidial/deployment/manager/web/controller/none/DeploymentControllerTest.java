@@ -412,8 +412,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         verify(deploymentService).createDeployment(createInferenceDeploymentCaptor.capture());
         var createDeployment = createInferenceDeploymentCaptor.getValue();
-        assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "\"script with spaces.py\"", "--arg", "\"value with spaces\""));
-        assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "\"config file.json\""));
+        assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "script with spaces.py", "--arg", "value with spaces"));
+        assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config file.json"));
     }
 
     @Test

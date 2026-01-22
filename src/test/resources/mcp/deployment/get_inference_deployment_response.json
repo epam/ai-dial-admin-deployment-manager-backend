@@ -10,6 +10,6 @@
   "metadata": {
     "envs": []
   },
-  "command": "[python, script.py, --arg, value]",
-  "args": "[--config, config.json, --log-level, DEBUG]"
+  "command": "python script.py --arg value",
+  "args": "--config config.json --log-level DEBUG"
 }
