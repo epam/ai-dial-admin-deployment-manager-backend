@@ -1137,6 +1137,29 @@
                 }
               },
               "response": []
+            },
+            {
+              "name": "api docs",
+              "protocolProfileBehavior": {
+                "followRedirects": true,
+                "disableUrlEncoding": false,
+                "disableCookies": false
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{HOST}}/v3/api-docs",
+                  "host": [
+                    "{{HOST}}"
+                  ],
+                  "path": [
+                    "v3",
+                    "api-docs"
+                  ]
+                }
+              },
+              "response": []
             }
           ]
         }
