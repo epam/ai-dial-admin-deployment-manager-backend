@@ -206,21 +206,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public boolean reconcile(String id, boolean ignorePendingOnServiceNotFound) {
-        var serviceName = getServiceName(id);
-        var service = getService(namespace, serviceName);
-        var reconcileConfig = ReconcileConfig.<S>builder()
-                .deploymentId(id)
-                .service(service)
-                .serviceIsMissing(service == null)
-                .initiator("Reconciliation")
-                .ignorePendingOnServiceNotFound(ignorePendingOnServiceNotFound)
-                .build();
-        return reconcile(reconcileConfig);
-    }
-
-    @Override
-    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public boolean reconcile(ReconcileConfig<S> config) {
         var deploymentId = config.getDeploymentId();
         var initiator = config.getInitiator();
@@ -247,8 +232,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             }
 
             if (status.isInactive()) {
-                if (deployment.getStatus().isInactive()
-                        || (deployment.getStatus() == DeploymentStatus.PENDING && config.isIgnorePendingOnServiceNotFound())) {
+                if (deployment.getStatus().isInactive() || deployment.getStatus() == DeploymentStatus.PENDING) {
                     log.debug("{}: deployment '{}' not found in Kubernetes and marked as {} in DB. Skipping",
                             initiator, deploymentId, deployment.getStatus());
                     return false;
@@ -277,7 +261,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         initiator, deploymentId, serviceName);
                 try {
                     var serviceUrl = resolveServiceUrl(service, deployment);
-                    performHealthChecks(deployment, serviceUrl, System.currentTimeMillis());
+                    performHealthChecks(deployment, serviceUrl);
                     deployment.setUrl(serviceUrl);
                     deployment.setStatus(DeploymentStatus.RUNNING);
                     deploymentRepository.update(deploymentId, deployment);
@@ -517,8 +501,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected abstract void deleteService(String namespace, String name);
 
-    protected abstract S getService(String namespace, String name);
-
     protected abstract List<Pod> getServicePods(String namespace, String name);
 
     protected abstract Pod getServicePod(String namespace, String name, String podName);
@@ -537,7 +519,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected abstract String resolveServiceUrl(S service, D deployment);
 
-    protected void performHealthChecks(D deployment, String serviceUrl, long startTime) {
+    protected void performHealthChecks(D deployment, String serviceUrl) {
         // Default implementation does nothing
     }
 

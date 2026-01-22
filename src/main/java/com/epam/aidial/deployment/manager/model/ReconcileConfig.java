@@ -14,5 +14,4 @@ public class ReconcileConfig<S> {
     private S service;
     private boolean serviceIsMissing;
     private String initiator;
-    private boolean ignorePendingOnServiceNotFound;
 }

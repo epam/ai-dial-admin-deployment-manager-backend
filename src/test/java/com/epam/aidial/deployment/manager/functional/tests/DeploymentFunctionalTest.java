@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceMan
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
+import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -11,11 +12,12 @@ import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarMountType;
 import com.epam.aidial.deployment.manager.model.FileEnvVarValue;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.deployment.DeploymentManagerProvider;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
-import com.epam.aidial.deployment.manager.service.deployment.DeploymentStateReconciler;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import io.cilium.v2.CiliumNetworkPolicy;
@@ -60,9 +62,11 @@ public abstract class DeploymentFunctionalTest {
     @Autowired
     private KnativeClient knativeClient;
     @Autowired
+    private K8sKnativeClient k8sKnativeClient;
+    @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
-    private DeploymentStateReconciler deploymentStateReconciler;
+    private DeploymentManagerProvider deploymentManagerProvider;
     @Autowired
     private DisposableResourceManager disposableResourceManager;
 
@@ -427,7 +431,9 @@ public abstract class DeploymentFunctionalTest {
 
         // Manually trigger reconciliation to update status from STOPPING to STOPPED
         var deploymentToReconcile = deploymentRepository.getById(savedDeployment.getId()).orElseThrow();
-        deploymentStateReconciler.reconcileDeploymentState(deploymentToReconcile, true);
+
+        var reconcileConfig = getReconcileConfig(deploymentToReconcile.getId());
+        deploymentManagerProvider.provide(deploymentToReconcile.getId()).reconcile(reconcileConfig);
 
         // Wait for complete stop
         waitForDeployment(savedDeployment.getId(), DeploymentStatus.STOPPED, "Undeploy timed out");
@@ -645,7 +651,9 @@ public abstract class DeploymentFunctionalTest {
 
         // Manually trigger reconciliation to update status from STOPPING to STOPPED
         var deploymentToReconcile = deploymentRepository.getById(savedDeployment.getId()).orElseThrow();
-        deploymentStateReconciler.reconcileDeploymentState(deploymentToReconcile, true);
+
+        var reconcileConfig = getReconcileConfig(deploymentToReconcile.getId());
+        deploymentManagerProvider.provide(deploymentToReconcile.getId()).reconcile(reconcileConfig);
 
         // Wait for complete stop
         waitForDeployment(savedDeployment.getId(), DeploymentStatus.STOPPED, "Undeploy timed out");
@@ -782,5 +790,15 @@ public abstract class DeploymentFunctionalTest {
             }
             Thread.sleep(pollIntervalMs);
         }
+    }
+
+    @SuppressWarnings("rawtypes")
+    private ReconcileConfig getReconcileConfig(String deploymentId) {
+        return ReconcileConfig.<Service>builder()
+                .deploymentId(deploymentId)
+                .service(null)
+                .serviceIsMissing(true)
+                .initiator("DeploymentFunctionalTest")
+                .build();
     }
 }

@@ -23,7 +23,7 @@ public class HealthCheckProvider {
     @Value("${app.deployment-healthcheck-enabled}")
     private boolean healthcheckEnabled;
 
-    public void waitReady(String deploymentId, String serviceUrl, Duration remainingDuration) {
+    public void waitReady(String deploymentId, String serviceUrl, Duration timeout) {
         if (!healthcheckEnabled) {
             log.debug("Not performing healthcheck for deployment '{}'. Feature is disabled.", deploymentId);
             return;
@@ -34,7 +34,7 @@ public class HealthCheckProvider {
         healthCheckers.stream()
                 .filter(checker -> checker.supports(deployment))
                 .findFirst()
-                .ifPresent(checker -> checker.waitReady(serviceUrl, deployment, remainingDuration));
+                .ifPresent(checker -> checker.waitReady(serviceUrl, deployment, timeout));
     }
 }
 

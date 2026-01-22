@@ -39,7 +39,6 @@ public class KnativeServiceEventHandler extends AbstractResourceEventHandler<Ser
                 .service(resource)
                 .serviceIsMissing(isDeleted)
                 .initiator("KnativeServiceWatcher")
-                .ignorePendingOnServiceNotFound(true)
                 .build();
         knativeDeploymentManager.reconcile(reconcileConfig);
     }

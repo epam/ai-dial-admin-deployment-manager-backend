@@ -136,11 +136,6 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected Service getService(String namespace, String name) {
-        return k8sKnativeClient.getService(namespace, name);
-    }
-
-    @Override
     protected List<Pod> getServicePods(String namespace, String name) {
         return k8sKnativeClient.getServicePods(namespace, name).getItems();
     }
@@ -228,21 +223,9 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected void performHealthChecks(Deployment deployment, String serviceUrl, long startTime) {
-        var podInitTime = System.currentTimeMillis() - startTime;
-        log.info("Deployment '{}' container is ready at {} (startup {}ms)", deployment.getId(), serviceUrl, podInitTime);
-        healthCheckProvider.waitReady(deployment.getId(), serviceUrl,
-                getRemainingDuration(deployment.getId(), podInitTime));
-    }
-
-    private Duration getRemainingDuration(String id, long podInitTime) {
-        var totalDuration = Duration.ofSeconds(startupTimeoutSec);
-        var remainingDuration = totalDuration.minus(Duration.ofMillis(podInitTime));
-        if (remainingDuration.isNegative() || remainingDuration.isZero()) {
-            log.warn("No time remaining for health check after pod initialization for deployment '{}'", id);
-            remainingDuration = Duration.ZERO;
-        }
-        return remainingDuration;
+    protected void performHealthChecks(Deployment deployment, String serviceUrl) {
+        log.info("Deployment '{}' container is ready at {}", deployment.getId(), serviceUrl);
+        healthCheckProvider.waitReady(deployment.getId(), serviceUrl, Duration.ofSeconds(startupTimeoutSec));
     }
 
     private boolean hasReadyCondition(List<Condition> conditions) {

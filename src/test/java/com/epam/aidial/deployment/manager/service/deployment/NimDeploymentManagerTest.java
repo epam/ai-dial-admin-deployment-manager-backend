@@ -543,7 +543,6 @@ class NimDeploymentManagerTest {
                 .service(service)
                 .serviceIsMissing(false)
                 .initiator("Reconciliation Test")
-                .ignorePendingOnServiceNotFound(false)
                 .build();
 
         // When
