@@ -6,6 +6,7 @@ import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.CiliumNetworkPolicySpec;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
 import io.cilium.v2.ciliumnetworkpolicyspec.EndpointSelector;
+import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToEndpoints;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToFQDNs;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToPorts;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Ports;
@@ -25,9 +26,12 @@ import java.util.Map;
 @LogExecution
 public class CiliumNetworkPolicyCreator {
 
-    private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String TCP_PORT = "443";
     private static final String UDP_PORT = "53";
+    private static final String KUBE_DNS_LABEL_NAME = "k8s-app";
+    private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
+    private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
+    private static final String KUBE_DNS_NAMESPACE_LABEL_VALUE = "kube-system";
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
@@ -42,7 +46,20 @@ public class CiliumNetworkPolicyCreator {
         EndpointSelector endpointSelector = new EndpointSelector();
         endpointSelector.setMatchLabels(Map.of(matchLabelName, matchLabelValue));
 
-        // Egress to allowed FQDNs
+        // CiliumNetworkPolicySpec
+        CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
+        spec.setEndpointSelector(endpointSelector);
+        spec.setEgress(List.of(createFqdnEgress(allowedDomains), createKubeDnsEgress(allowedDomains)));
+
+        // CiliumNetworkPolicy
+        CiliumNetworkPolicy policy = new CiliumNetworkPolicy();
+        policy.setMetadata(metadata);
+        policy.setSpec(spec);
+
+        return policy;
+    }
+
+    private Egress createFqdnEgress(List<String> allowedDomains) {
         List<ToFQDNs> toFqdnsList = allowedDomains.stream()
                 .map(domain -> {
                     ToFQDNs toFqdns = new ToFQDNs();
@@ -57,40 +74,44 @@ public class CiliumNetworkPolicyCreator {
 
         ToPorts tcpToPorts = new ToPorts();
         tcpToPorts.setPorts(List.of(tcpPorts));
+        tcpToPorts.setServerNames(allowedDomains);
 
-        Egress egressFqdn = new Egress();
-        egressFqdn.setToFQDNs(toFqdnsList);
-        egressFqdn.setToPorts(List.of(tcpToPorts));
+        Egress egress = new Egress();
+        egress.setToFQDNs(toFqdnsList);
+        egress.setToPorts(List.of(tcpToPorts));
+        return egress;
+    }
 
-        // Egress for DNS
-        Ports udpPorts = new Ports();
-        udpPorts.setPort(UDP_PORT);
-        udpPorts.setProtocol(Protocol.UDP);
+    private Egress createKubeDnsEgress(List<String> allowedDomains) {
+        ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
+        kubeDnsToEndpoints.setMatchLabels(Map.of(
+                KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KUBE_DNS_NAMESPACE_LABEL_VALUE
+        ));
 
-        Dns dns = new Dns();
-        dns.setMatchPattern(UDP_DNS_PATTERN_ALL);
+        Ports kubeDnsPorts = new Ports();
+        kubeDnsPorts.setPort(UDP_PORT);
+        kubeDnsPorts.setProtocol(Protocol.ANY);
+
+        List<Dns> dnsList = allowedDomains.stream()
+                .map(domain -> {
+                    Dns dns = new Dns();
+                    dns.setMatchName(domain);
+                    return dns;
+                })
+                .toList();
 
         Rules rules = new Rules();
-        rules.setDns(List.of(dns));
+        rules.setDns(dnsList);
 
-        ToPorts udpToPorts = new ToPorts();
-        udpToPorts.setPorts(List.of(udpPorts));
-        udpToPorts.setRules(rules);
+        ToPorts kubeDnsToPorts = new ToPorts();
+        kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
+        kubeDnsToPorts.setRules(rules);
 
-        Egress egressDns = new Egress();
-        egressDns.setToPorts(List.of(udpToPorts));
-
-        // CiliumNetworkPolicySpec
-        CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
-        spec.setEndpointSelector(endpointSelector);
-        spec.setEgress(List.of(egressFqdn, egressDns));
-
-        // CiliumNetworkPolicy
-        CiliumNetworkPolicy policy = new CiliumNetworkPolicy();
-        policy.setMetadata(metadata);
-        policy.setSpec(spec);
-
-        return policy;
+        Egress egress = new Egress();
+        egress.setToEndpoints(List.of(kubeDnsToEndpoints));
+        egress.setToPorts(List.of(kubeDnsToPorts));
+        return egress;
     }
 
     public static String getPolicyName(String matchLabelValue) {
