@@ -11,12 +11,12 @@ public class DomainValidator {
     );
 
     public boolean isValid(String domain) {
-        if (domain == null ||
-                domain.contains("://") ||
-                domain.contains("/") ||
-                domain.contains("?") ||
-                domain.contains("#") ||
-                domain.contains(" ")) {
+        if (domain == null
+                || domain.contains("://")
+                || domain.contains("/")
+                || domain.contains("?")
+                || domain.contains("#")
+                || domain.contains(" ")) {
             return false;
         }
         return DOMAIN_PATTERN.matcher(domain).matches();

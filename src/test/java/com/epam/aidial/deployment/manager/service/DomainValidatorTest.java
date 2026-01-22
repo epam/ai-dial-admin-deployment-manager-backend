@@ -79,4 +79,5 @@ class DomainValidatorTest {
     void nullOrEmptyDomain_shouldReturnFalse() {
         assertFalse(domainValidator.isValid(null));
         assertFalse(domainValidator.isValid(""));
-    }}
+    }
+}
