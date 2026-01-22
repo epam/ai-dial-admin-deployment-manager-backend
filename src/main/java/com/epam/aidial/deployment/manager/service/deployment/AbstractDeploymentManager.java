@@ -22,6 +22,9 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -31,6 +34,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.springframework.transaction.annotation.Isolation;
@@ -402,11 +406,76 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         if (filter != null) {
             podsStream = podsStream.filter(filter);
         }
-        return podsStream.map(pod -> new PodInfo(
-                        pod.getMetadata().getName(),
-                        Instant.parse(pod.getMetadata().getCreationTimestamp())
-                ))
-                .toList();
+        return podsStream.map(this::toPodInfo).toList();
+    }
+
+    private PodInfo toPodInfo(Pod pod) {
+        var containerStatuses = pod.getStatus() != null
+                ? pod.getStatus().getContainerStatuses()
+                : null;
+
+        var containerInfo = extractContainerInfo(containerStatuses);
+
+        return new PodInfo(
+                pod.getMetadata().getName(),
+                Instant.parse(pod.getMetadata().getCreationTimestamp()),
+                containerInfo.restartCount(),
+                containerInfo.lastTerminationReason(),
+                containerInfo.lastExitCode(),
+                containerInfo.lastSignal()
+        );
+    }
+
+    private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
+        if (CollectionUtils.isEmpty(containerStatuses)) {
+            return new ContainerInfo(0, null, null, null);
+        }
+
+        int totalRestartCount = 0;
+        ContainerStateTerminated mostRecentTermination = null;
+
+        for (var containerStatus : containerStatuses) {
+            totalRestartCount += containerStatus.getRestartCount() != null ? containerStatus.getRestartCount() : 0;
+
+            // Check both 'state' (current) and 'lastState' (previous)
+            // to find the most recent failure event.
+            var currentTerminated = getTerminatedState(containerStatus.getState());
+            var previousTerminated = getTerminatedState(containerStatus.getLastState());
+
+            // Compare timestamps to find the true "latest" error
+            mostRecentTermination = getLaterTermination(mostRecentTermination, currentTerminated);
+            mostRecentTermination = getLaterTermination(mostRecentTermination, previousTerminated);
+        }
+
+        if (mostRecentTermination != null) {
+            return new ContainerInfo(
+                    totalRestartCount,
+                    mostRecentTermination.getReason(),
+                    mostRecentTermination.getExitCode(),
+                    mostRecentTermination.getSignal()
+            );
+        }
+
+        return new ContainerInfo(totalRestartCount, null, null, null);
+    }
+
+    private ContainerStateTerminated getTerminatedState(ContainerState state) {
+        return (state != null) ? state.getTerminated() : null;
+    }
+
+    private ContainerStateTerminated getLaterTermination(ContainerStateTerminated currentBest,
+                                                         ContainerStateTerminated candidate) {
+        if (candidate == null) {
+            return currentBest;
+        }
+        if (currentBest == null) {
+            return candidate;
+        }
+
+        var t1 = Instant.parse(currentBest.getFinishedAt());
+        var t2 = Instant.parse(candidate.getFinishedAt());
+
+        return t2.isAfter(t1) ? candidate : currentBest;
     }
 
     @Override
@@ -562,4 +631,13 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .map(entry -> Map.entry(entry.getKey(), entry.getValue().getValue()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
+
+    private record ContainerInfo(
+            int restartCount,
+            String lastTerminationReason,
+            Integer lastExitCode,
+            Integer lastSignal
+    ) {
+    }
+
 }

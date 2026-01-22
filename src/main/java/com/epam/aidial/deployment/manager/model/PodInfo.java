@@ -12,4 +12,8 @@ import java.time.Instant;
 public class PodInfo {
     private String name;
     private Instant createdAt;
+    private int restartCount;
+    private String lastTerminationReason;
+    private Integer lastExitCode;
+    private Integer lastSignal;
 }
