@@ -22,6 +22,7 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
 import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
@@ -423,7 +424,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 containerInfo.lastTerminationReason(),
                 containerInfo.lastExitCode(),
                 containerInfo.lastSignal(),
-                containerInfo.lastFinishedAt
+                containerInfo.lastFinishedAt()
         );
     }
 
@@ -454,7 +455,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     mostRecentTermination.getReason(),
                     mostRecentTermination.getExitCode(),
                     mostRecentTermination.getSignal(),
-                    Instant.parse(mostRecentTermination.getFinishedAt())
+                    K8sParseUtils.parseInstant(mostRecentTermination.getFinishedAt())
             );
         }
 
@@ -474,8 +475,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             return candidate;
         }
 
-        var t1 = Instant.parse(currentBest.getFinishedAt());
-        var t2 = Instant.parse(candidate.getFinishedAt());
+        var t1 = K8sParseUtils.parseInstant(currentBest.getFinishedAt());
+        var t2 = K8sParseUtils.parseInstant(candidate.getFinishedAt());
+        if (t1 == null) {
+            return candidate;
+        }
+        if (t2 == null) {
+            return currentBest;
+        }
 
         return t2.isAfter(t1) ? candidate : currentBest;
     }
