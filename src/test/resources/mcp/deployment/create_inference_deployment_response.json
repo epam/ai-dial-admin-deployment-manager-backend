@@ -10,6 +10,14 @@
   "metadata": {
     "envs": []
   },
+  "scaling": {
+    "minReplicas": 1,
+    "maxReplicas": 3,
+    "strategy": {
+      "$type": "hardware_usage",
+      "threshold": 85
+    }
+  },
   "command": "python script.py --arg value",
   "args": "--config config.json --log-level DEBUG"
 }

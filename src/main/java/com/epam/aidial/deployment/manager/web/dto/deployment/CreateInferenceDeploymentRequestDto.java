@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.deployment;
 
+import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -24,5 +25,7 @@ public class CreateInferenceDeploymentRequestDto extends CreateDeploymentRequest
     private String command;
     @Nullable
     private String args;
+    @Nullable @Valid
+    private ScalingDto scaling;
 
 }
