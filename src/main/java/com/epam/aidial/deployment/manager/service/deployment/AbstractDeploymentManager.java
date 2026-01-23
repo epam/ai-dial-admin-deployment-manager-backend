@@ -422,13 +422,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 containerInfo.restartCount(),
                 containerInfo.lastTerminationReason(),
                 containerInfo.lastExitCode(),
-                containerInfo.lastSignal()
+                containerInfo.lastSignal(),
+                containerInfo.lastFinishedAt
         );
     }
 
     private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
         if (CollectionUtils.isEmpty(containerStatuses)) {
-            return new ContainerInfo(0, null, null, null);
+            return new ContainerInfo(0, null, null, null, null);
         }
 
         int totalRestartCount = 0;
@@ -452,11 +453,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     totalRestartCount,
                     mostRecentTermination.getReason(),
                     mostRecentTermination.getExitCode(),
-                    mostRecentTermination.getSignal()
+                    mostRecentTermination.getSignal(),
+                    Instant.parse(mostRecentTermination.getFinishedAt())
             );
         }
 
-        return new ContainerInfo(totalRestartCount, null, null, null);
+        return new ContainerInfo(totalRestartCount, null, null, null, null);
     }
 
     private ContainerStateTerminated getTerminatedState(ContainerState state) {
@@ -636,7 +638,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             int restartCount,
             String lastTerminationReason,
             Integer lastExitCode,
-            Integer lastSignal
+            Integer lastSignal,
+            Instant lastFinishedAt
     ) {
     }
 
