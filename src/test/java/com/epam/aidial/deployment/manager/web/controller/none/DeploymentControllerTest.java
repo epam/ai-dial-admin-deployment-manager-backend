@@ -10,6 +10,9 @@ import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.ObjectKind;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
@@ -365,15 +368,22 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
-    void testCreateInferenceDeployment_withCommandAndArgs() throws Exception {
+    void testCreateInferenceDeployment() throws Exception {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response.json");
-        var deployment = createInferenceDeployment(
-                "test-inference-deployment",
-                List.of("python", "script.py", "--arg", "value"),
-                List.of("--config", "config.json", "--log-level", "DEBUG")
-        );
+
+        var scalingStrategy = new ScalingStrategy();
+        scalingStrategy.setType(ScalingStrategyType.HARDWARE_USAGE);
+        scalingStrategy.setThreshold(85);
+        var scaling = new Scaling();
+        scaling.setMinReplicas(1);
+        scaling.setMaxReplicas(3);
+        scaling.setStrategy(scalingStrategy);
+        var deployment = createInferenceDeployment("test-inference-deployment");
+        deployment.setCommand(List.of("python", "script.py", "--arg", "value"));
+        deployment.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
+        deployment.setScaling(scaling);
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -388,6 +398,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var createDeployment = createInferenceDeploymentCaptor.getValue();
         assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "script.py", "--arg", "value"));
         assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config.json", "--log-level", "DEBUG"));
+        assertThat(createDeployment.getScaling()).isEqualTo(scaling);
     }
 
     @Test
@@ -395,11 +406,9 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_quoted.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response_quoted.json");
-        var deployment = createInferenceDeployment(
-                "test-inference-deployment",
-                List.of("python", "script with spaces.py", "--arg", "value with spaces"),
-                List.of("--config", "config file.json")
-        );
+        var deployment = createInferenceDeployment("test-inference-deployment");
+        deployment.setCommand(List.of("python", "script with spaces.py", "--arg", "value with spaces"));
+        deployment.setArgs(List.of("--config", "config file.json"));
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -421,7 +430,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
-        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+        var deployment = createInferenceDeployment("test-inference-deployment");
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -443,7 +452,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_blank_command_args.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
-        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+        var deployment = createInferenceDeployment("test-inference-deployment");
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -461,14 +470,21 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
-    void testGetInferenceDeployment_shouldConvertCommandAndArgsListsToStrings() throws Exception {
+    void testGetInferenceDeployment() throws Exception {
         // Given
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/get_inference_deployment_response.json");
-        var deployment = createInferenceDeployment(
-                "test-inference-deployment",
-                List.of("python", "script.py", "--arg", "value"),
-                List.of("--config", "config.json", "--log-level", "DEBUG")
-        );
+
+        var scalingStrategy = new ScalingStrategy();
+        scalingStrategy.setType(ScalingStrategyType.HARDWARE_USAGE);
+        scalingStrategy.setThreshold(85);
+        var scaling = new Scaling();
+        scaling.setMinReplicas(1);
+        scaling.setMaxReplicas(3);
+        scaling.setStrategy(scalingStrategy);
+        var deployment = createInferenceDeployment("test-inference-deployment");
+        deployment.setCommand(List.of("python", "script.py", "--arg", "value"));
+        deployment.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
+        deployment.setScaling(scaling);
 
         when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
 
@@ -483,7 +499,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     void testGetInferenceDeployment_withNullCommandAndArgs() throws Exception {
         // Given
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
-        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+        var deployment = createInferenceDeployment("test-inference-deployment");
 
         when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
 
@@ -545,14 +561,12 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         return emitter;
     }
 
-    private InferenceDeployment createInferenceDeployment(String id, List<String> command, List<String> args) {
+    private InferenceDeployment createInferenceDeployment(String id) {
         var deployment = new InferenceDeployment();
         deployment.setId(id);
         deployment.setDisplayName("Test Inference Deployment");
         deployment.setModelFormat("huggingface");
         deployment.setSource(new InferenceDeploymentHuggingFaceSource("test-user/test-model"));
-        deployment.setCommand(command);
-        deployment.setArgs(args);
         deployment.setMetadata(new DeploymentMetadata(new ArrayList<>()));
         deployment.setStatus(DeploymentStatus.NOT_DEPLOYED);
         deployment.setUrl("http://test-url");
