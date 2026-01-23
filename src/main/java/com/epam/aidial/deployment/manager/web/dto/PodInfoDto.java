@@ -10,6 +10,7 @@ public record PodInfoDto(
         int restartCount,
         String lastTerminationReason,
         Integer lastExitCode,
-        Integer lastSignal
+        Integer lastSignal,
+        Instant lastFinishedAt
 ) {
 }
