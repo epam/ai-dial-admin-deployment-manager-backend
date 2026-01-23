@@ -169,6 +169,16 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.component-cleaner-cron` | `COMPONENT_CLEANER_CRON` | `0 0 5 * * *` | No | - | Cron expression for component cleanup (daily at 5 AM) |
 | `app.component-cleaner-scheduler-lock-at-most-for` | `COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR` | `10m` | No | - | Maximum lock duration for component cleaner |
 
+#### Deployment State Synchronization Configuration
+| Property                                                  | Environment Variable                                  | Default Value    | Required | Applied when | Description                                                                           |
+|-----------------------------------------------------------|-------------------------------------------------------|------------------|----------|--------------|---------------------------------------------------------------------------------------|
+| `app.deployment-pending-check-cron`                       | `DEPLOYMENT_PENDING_CHECK_CRON`                       | `0 */15 * * * *` | No       | -            | Cron expression for checking pending deployments                                      |
+| `app.deployment-pending-check-scheduler-lock-at-most-for` | `DEPLOYMENT_PENDING_CHECK_SCHEDULER_LOCK_AT_MOST_FOR` | `5m`             | No       | -            | Maximum lock duration for pending deployment checks                                   |
+| `app.deployment-pending-check-cut-off-mins`               | `DEPLOYMENT_PENDING_CHECK_CUT_OFF_MINS`               | `10`             | No       | -            | Maximum time allowed for deployment to stay in pending state until marking as crashed |
+| `app.deployment-bootstrap-enabled`                        | `DEPLOYMENT_BOOTSTRAP_ENABLED`                        | `true`           | No       | -            | Enable or disable deployment state synchronization process on app startup (bootstrap) |
+| `app.deployment-bootstrap-batch-size`                     | `DEPLOYMENT_BOOTSTRAP_BATCH_SIZE`                     | `50`             | No       | -            | Number of deployments to process in a single batch during bootstrap                   |
+| `app.deployment-bootstrap-threads`                        | `DEPLOYMENT_BOOTSTRAP_THREADS`                        | `2`              | No       | -            | Number of threads to use for deployment bootstrap processing                          |
+
 #### Knative Service Default Configuration
 | Property | Environment Variable | Default Value | Required | Applied when | Description |
 |----------|---------------------|---------------|----------|--------------|-------------|

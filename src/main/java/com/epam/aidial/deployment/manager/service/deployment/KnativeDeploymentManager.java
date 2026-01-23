@@ -136,6 +136,11 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
+    protected Service getService(String namespace, String name) {
+        return k8sKnativeClient.getService(namespace, name);
+    }
+
+    @Override
     protected List<Pod> getServicePods(String namespace, String name) {
         return k8sKnativeClient.getServicePods(namespace, name).getItems();
     }

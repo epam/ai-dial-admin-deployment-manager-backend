@@ -41,6 +41,7 @@ public class InferenceServiceEventHandler extends AbstractResourceEventHandler<I
                 .service(resource)
                 .serviceIsMissing(isDeleted)
                 .initiator("InferenceServiceWatcher")
+                .ignorePendingOnServiceNotFound(true)
                 .build();
         inferenceDeploymentManager.reconcile(reconcileConfig);
     }

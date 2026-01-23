@@ -16,10 +16,15 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +36,8 @@ import java.util.stream.Collectors;
 @Repository
 @RequiredArgsConstructor
 public class DeploymentRepository {
+
+    private static final String UPDATED_AT_COLUMN_NAME = "updatedAt";
 
     private final DeploymentJpaRepository deploymentJpaRepository;
     private final PersistenceDeploymentMapper mapper;
@@ -72,6 +79,29 @@ public class DeploymentRepository {
             case NIM -> NimDeploymentEntity.class;
             case INFERENCE -> InferenceDeploymentEntity.class;
         };
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Deployment> getAllActiveDeploymentsPaged(int pageSize, int pageNumber) {
+        var pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Direction.ASC, UPDATED_AT_COLUMN_NAME));
+        var deploymentEntities = deploymentJpaRepository.findAllByStatusIn(
+                List.of(
+                        PersistenceDeploymentStatus.PENDING,
+                        PersistenceDeploymentStatus.RUNNING,
+                        PersistenceDeploymentStatus.STOPPING,
+                        PersistenceDeploymentStatus.CRASHED),
+                pageable);
+        return deploymentEntities.map(mapper::toDomain);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Deployment> getPendingDeploymentsBeforePaged(Instant time, int pageSize, int pageNumber) {
+        var pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Direction.ASC, UPDATED_AT_COLUMN_NAME));
+        var deploymentEntities = deploymentJpaRepository.findAllByStatusAndUpdatedAtBefore(
+                PersistenceDeploymentStatus.PENDING,
+                time.toEpochMilli(),
+                pageable);
+        return deploymentEntities.map(mapper::toDomain);
     }
 
     public Optional<Deployment> getById(String id) {

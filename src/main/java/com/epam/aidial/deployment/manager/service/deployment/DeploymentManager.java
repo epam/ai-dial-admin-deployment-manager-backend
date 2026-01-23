@@ -19,7 +19,11 @@ public interface DeploymentManager<S> {
 
     Deployment deploy(String id);
 
+    boolean reconcile(String id, boolean ignorePendingOnServiceNotFound);
+
     boolean reconcile(ReconcileConfig<S> config);
+
+    void stopOnServiceNotFound(String id);
 
     Deployment undeploy(String id);
 

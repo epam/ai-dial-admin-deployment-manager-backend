@@ -119,6 +119,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
+    protected InferenceService getService(String namespace, String name) {
+        return k8sKserveClient.getService(namespace, name);
+    }
+
+    @Override
     protected List<Pod> getServicePods(String namespace, String name) {
         return k8sKserveClient.getServicePods(namespace, name).getItems();
     }

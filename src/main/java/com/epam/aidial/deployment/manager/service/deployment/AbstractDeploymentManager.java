@@ -206,6 +206,21 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public boolean reconcile(String id, boolean ignorePendingOnServiceNotFound) {
+        var serviceName = getServiceName(id);
+        var service = getService(namespace, serviceName);
+        var reconcileConfig = ReconcileConfig.<S>builder()
+                .deploymentId(id)
+                .service(service)
+                .serviceIsMissing(service == null)
+                .initiator("Reconciliation")
+                .ignorePendingOnServiceNotFound(ignorePendingOnServiceNotFound)
+                .build();
+        return reconcile(reconcileConfig);
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public boolean reconcile(ReconcileConfig<S> config) {
         var deploymentId = config.getDeploymentId();
         var initiator = config.getInitiator();
@@ -232,7 +247,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             }
 
             if (status.isInactive()) {
-                if (deployment.getStatus().isInactive() || deployment.getStatus() == DeploymentStatus.PENDING) {
+                if (deployment.getStatus().isInactive()
+                        || (deployment.getStatus() == DeploymentStatus.PENDING && config.isIgnorePendingOnServiceNotFound())) {
                     log.debug("{}: deployment '{}' not found in Kubernetes and marked as {} in DB. Skipping",
                             initiator, deploymentId, deployment.getStatus());
                     return false;
@@ -282,6 +298,27 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         } catch (Exception e) {
             log.error("{}: unexpected error for deployment '{}'", initiator, deploymentId, e);
             throw e;
+        }
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void stopOnServiceNotFound(String id) {
+        if (log.isTraceEnabled()) {
+            log.trace("stopOnServiceNotFound. Deployment ID: {}", id);
+        }
+
+        var serviceName = getServiceName(id);
+        var service = getService(namespace, serviceName);
+        var deploymentOptional = getDeploymentOptional(id);
+
+        if (deploymentOptional.isPresent() && service == null) {
+            var deployment = deploymentOptional.get();
+            log.info("Reconciliation: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
+                    id, deployment.getStatus());
+            deployment.setUrl(null);
+            deployment.setStatus(DeploymentStatus.STOPPED);
+            deploymentRepository.update(id, deployment);
         }
     }
 
@@ -500,6 +537,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected abstract void updateService(String namespace, S service);
 
     protected abstract void deleteService(String namespace, String name);
+
+    protected abstract S getService(String namespace, String name);
 
     protected abstract List<Pod> getServicePods(String namespace, String name);
 

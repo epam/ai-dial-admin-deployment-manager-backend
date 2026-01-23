@@ -799,6 +799,7 @@ public abstract class DeploymentFunctionalTest {
                 .service(null)
                 .serviceIsMissing(true)
                 .initiator("DeploymentFunctionalTest")
+                .ignorePendingOnServiceNotFound(true)
                 .build();
     }
 }

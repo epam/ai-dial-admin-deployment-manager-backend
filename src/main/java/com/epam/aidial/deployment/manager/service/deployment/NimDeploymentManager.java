@@ -118,6 +118,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
+    protected NIMService getService(String namespace, String name) {
+        return k8sNimClient.getService(namespace, name);
+    }
+
+    @Override
     protected List<Pod> getServicePods(String namespace, String name) {
         return k8sNimClient.getServicePods(namespace, name).getItems();
     }

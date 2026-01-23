@@ -41,6 +41,7 @@ public class NimServiceEventHandler extends AbstractResourceEventHandler<NIMServ
                 .service(resource)
                 .serviceIsMissing(isDeleted)
                 .initiator("NimServiceWatcher")
+                .ignorePendingOnServiceNotFound(true)
                 .build();
         nimDeploymentManager.reconcile(reconcileConfig);
     }
