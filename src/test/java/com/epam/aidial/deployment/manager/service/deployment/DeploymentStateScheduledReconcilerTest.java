@@ -47,7 +47,7 @@ class DeploymentStateScheduledReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        setField("reconcilePendingCutOffMinutes", 30);
+        setField("staleThreshold", 30);
     }
 
     private void setField(String fieldName, Object value) {

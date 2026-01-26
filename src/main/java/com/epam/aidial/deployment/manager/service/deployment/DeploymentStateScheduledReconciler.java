@@ -23,8 +23,8 @@ public class DeploymentStateScheduledReconciler {
 
     private static final int MAX_BATCH_SIZE = 50;
 
-    @Value("${app.deployment-pending-check-cut-off-mins}")
-    private int reconcilePendingCutOffMinutes;
+    @Value("${app.deployment.reconcile.background.stale-threshold}")
+    private int staleThreshold;
 
     private final DeploymentRepository deploymentRepository;
     private final DeploymentManagerProvider deploymentManagerProvider;
@@ -33,13 +33,13 @@ public class DeploymentStateScheduledReconciler {
      * Periodically reconciles deployments stuck in PENDING to determine their actual state.
      * Acting as a safety net for cases when event updates are missed.
      */
-    @Scheduled(cron = "${app.deployment-pending-check-cron}")
-    @SchedulerLock(name = "pendingDeploymentCheck", lockAtMostFor = "${app.deployment-pending-check-scheduler-lock-at-most-for:5m}")
+    @Scheduled(cron = "${app.deployment.reconcile.background.cron}")
+    @SchedulerLock(name = "backgroundReconciliation", lockAtMostFor = "${app.deployment.reconcile.background.lock-at-most:5m}")
     @Transactional
     public void checkPendingDeployments() {
         log.info("Checking for stuck pending deployments");
 
-        var cutoffTime = Instant.now().minus(reconcilePendingCutOffMinutes, ChronoUnit.MINUTES);
+        var cutoffTime = Instant.now().minus(staleThreshold, ChronoUnit.MINUTES);
 
         var result = processDeployments(
                 pageNumber -> deploymentRepository.getPendingDeploymentsBeforePaged(
