@@ -41,12 +41,14 @@ public abstract class CreateDeploymentRequestDto {
     @Pattern(regexp = "^[a-z0-9-]+$", message = "Deployment ID must contain only lowercase Latin letters, numbers, and hyphens")
     private String name;
     @NotNull
+    @Size(min = 2, max = 255, message = "Display name must be between 2 and 255 characters")
     private String displayName;
     @Nullable
     private String description;
     @NotNull
     @Valid
     private DeploymentMetadataDto metadata;
+    // TODO: validate that 0 <= minScale <= initialScale <= maxScale <= 10
     @Nullable
     private Integer initialScale;
     @Nullable
