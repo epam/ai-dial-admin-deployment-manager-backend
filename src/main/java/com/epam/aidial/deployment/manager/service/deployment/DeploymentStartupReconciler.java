@@ -16,8 +16,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Component responsible for stopping active deployments to if their Kubernetes resources are not found on application startup,
- * to ensure the application's internal state matches the actual state of Kubernetes resources.
+ * Component responsible for marking active deployments as stopped in the database if their Kubernetes resources are missing at startup,
+ * ensuring the application's internal state matches the actual state of Kubernetes resources.
  * The main components of state synchronization are event handlers:
  * {@link com.epam.aidial.deployment.manager.kubernetes.informer.handler.AbstractResourceEventHandler}.
  */
