@@ -91,13 +91,20 @@ public class DefaultExceptionHandler {
             MethodArgumentNotValidException ex) {
         logUncaught(ex);
 
-        StringBuffer message = new StringBuffer();
-        ex.getBindingResult().getAllErrors().forEach(error -> message
-                .append("Field [")
-                .append(((FieldError) error).getField())
-                .append("]: ")
-                .append(error.getDefaultMessage())
-                .append("\n"));
+        var message = new StringBuffer();
+        ex.getBindingResult()
+                .getAllErrors()
+                .forEach(error -> {
+                    if (error instanceof FieldError fieldError) {
+                        message
+                                .append("Field [")
+                                .append(fieldError.getField())
+                                .append("]: ");
+                    }
+                    message
+                            .append(error.getDefaultMessage())
+                            .append("\n");
+                });
         return new ErrorView(req, HttpStatus.BAD_REQUEST, message.toString());
     }
 
