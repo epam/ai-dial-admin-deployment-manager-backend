@@ -20,7 +20,7 @@ public class HealthCheckProvider {
     private final List<HealthChecker> healthCheckers;
     private final DeploymentRepository deploymentRepository;
 
-    @Value("${app.deployment-healthcheck-enabled}")
+    @Value("${app.deployment.healthcheck-enabled}")
     private boolean healthcheckEnabled;
 
     public void waitReady(String deploymentId, String serviceUrl, Duration timeout) {

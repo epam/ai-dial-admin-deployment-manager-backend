@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 class DeploymentStartupReconcilerTest {
 
     private static final int BATCH_SIZE = 2;
-    private static final int BOOTSTRAP_THREADS = 2;
+    private static final int CONCURRENCY = 2;
 
     @Mock
     private DeploymentRepository deploymentRepository;
@@ -48,9 +48,9 @@ class DeploymentStartupReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        setField("bootstrapEnabled", true);
+        setField("reconcileOnStartupEnabled", true);
         setField("batchSize", BATCH_SIZE);
-        setField("bootstrapThreads", BOOTSTRAP_THREADS);
+        setField("concurrency", CONCURRENCY);
     }
 
     private void setField(String fieldName, Object value) {
@@ -64,8 +64,8 @@ class DeploymentStartupReconcilerTest {
     }
 
     @Test
-    void init_whenBootstrapDisabled_shouldNotProcessDeployments() {
-        setField("bootstrapEnabled", false);
+    void init_whenReconciliationDisabled_shouldNotProcessDeployments() {
+        setField("reconcileOnStartupEnabled", false);
 
         startupReconciler.init();
 
@@ -74,7 +74,7 @@ class DeploymentStartupReconcilerTest {
     }
 
     @Test
-    void init_whenBootstrapEnabled_shouldProcessAllDeployments() {
+    void init_whenReconciliationEnabled_shouldProcessAllDeployments() {
         String id1 = String.valueOf(UUID.randomUUID());
         String id2 = String.valueOf(UUID.randomUUID());
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);

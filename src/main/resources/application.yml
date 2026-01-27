@@ -109,16 +109,20 @@ app:
   resource-cleaner-scheduler-lock-at-most-for: ${RESOURCE_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
   component-cleaner-cron: ${COMPONENT_CLEANER_CRON:0 0 5 * * *}
   component-cleaner-scheduler-lock-at-most-for: ${COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
-  deployment-pending-check-cron: ${DEPLOYMENT_PENDING_CHECK_CRON:0 */15 * * * *}
-  deployment-pending-check-scheduler-lock-at-most-for: ${DEPLOYMENT_PENDING_CHECK_SCHEDULER_LOCK_AT_MOST_FOR:5m}
-  deployment-pending-check-cut-off-mins: ${DEPLOYMENT_PENDING_CHECK_CUT_OFF_MINS:10}
-  deployment-bootstrap-enabled: ${DEPLOYMENT_BOOTSTRAP_ENABLED:true}
-  deployment-bootstrap-batch-size: ${DEPLOYMENT_BOOTSTRAP_BATCH_SIZE:50}
-  deployment-bootstrap-threads: ${DEPLOYMENT_BOOTSTRAP_THREADS:2}
-  deployment-healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}
-  deployment-reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
   cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}
   resource-name-prefix: ${RESOURCE_NAME_PREFIX:}
+  deployment:
+    healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}
+    reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
+    reconcile:
+      background:
+        cron: ${DEPLOYMENT_RECONCILE_BACKGROUND_CRON:0 */15 * * * *}
+        lock-at-most: ${DEPLOYMENT_RECONCILE_BACKGROUND_LOCK_AT_MOST:5m}
+        stale-threshold: ${DEPLOYMENT_RECONCILE_BACKGROUND_STALE_THRESHOLD_MINS:10}
+      startup:
+        enabled: ${DEPLOYMENT_RECONCILE_ON_STARTUP_ENABLED:true}
+        batch-size: ${DEPLOYMENT_RECONCILE_ON_STARTUP_BATCH_SIZE:50}
+        concurrency: ${DEPLOYMENT_RECONCILE_ON_STARTUP_CONCURRENCY:2}
   knative-service-config:
     apiVersion: serving.knative.dev/v1
     kind: Service
