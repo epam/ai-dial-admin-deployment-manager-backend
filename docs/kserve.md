@@ -32,12 +32,12 @@ KServe is installed using Helm. Follow these steps to install the KServe Custom 
 
 - **Install KServe CRDs**:
   ```bash
-  helm install kserve-crd oci://ghcr.io/kserve/charts/kserve-crd --version v0.15.0 -n your_namespace --create-namespace
+  helm install kserve-crd oci://ghcr.io/kserve/charts/kserve-crd --version v0.16.0 -n your_namespace --create-namespace
   ```
 
 - **Install KServe**:
   ```bash
-  helm install kserve oci://ghcr.io/kserve/charts/kserve --version v0.15.0 \
+  helm install kserve oci://ghcr.io/kserve/charts/kserve --version v0.16.0 \
     --set kserve.controller.deploymentMode=Standard \
     --set kserve.controller.gateway.ingressGateway.className=istio \
     -n your_namespace
