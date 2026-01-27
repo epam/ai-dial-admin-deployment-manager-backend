@@ -9,8 +9,8 @@ import org.jetbrains.annotations.Nullable;
 
 public record EnvVarDefinitionDto(
         @NotNull
-        @Size(min = 1, max = 255, message = "Name must be between 1 and 255 characters")
-        @Pattern(regexp = "^[-._a-zA-Z0-9]+$", message = "Name must contain only alphanumeric characters, dots, hyphens, and underscores")
+        @Size(min = 1, max = 253, message = "Env variable name must be between 1 and 253 characters")
+        @Pattern(regexp = "^[-._a-zA-Z0-9]+$", message = "Env variable name must contain only letters, numbers, dots (.), hyphens (-), and underscores (_)")
         String name,
         @Nullable @Valid EnvVarValueDto value,
         EnvVarMountTypeDto mountType,
