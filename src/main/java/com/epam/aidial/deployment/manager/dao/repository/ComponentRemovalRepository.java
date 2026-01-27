@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -30,7 +29,7 @@ public class ComponentRemovalRepository {
         return mapper.toDomain(savedEntity);
     }
 
-    public void delete(UUID id, ComponentType type) {
+    public void delete(String id, ComponentType type) {
         jpaRepository.deleteById(new ComponentId(id, type));
     }
 

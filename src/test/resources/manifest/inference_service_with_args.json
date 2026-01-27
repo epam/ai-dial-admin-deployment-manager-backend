@@ -11,7 +11,9 @@
           "--arg1",
           "value1",
           "--arg2",
-          "value2"
+          "value2",
+          "--model_name",
+          "args-inference-app"
         ],
         "env": [],
         "modelFormat": {

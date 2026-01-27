@@ -12,33 +12,34 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface DeploymentManager<S> {
 
     List<Class<? extends Deployment>> getSupportedDeploymentClasses();
 
-    Deployment deploy(UUID id);
+    Deployment deploy(String id);
 
-    boolean reconcile(UUID id, boolean ignorePendingOnServiceNotFound);
+    boolean reconcile(String id, boolean ignorePendingOnServiceNotFound);
 
     boolean reconcile(ReconcileConfig<S> config);
 
-    Deployment undeploy(UUID id);
+    void stopOnServiceNotFound(String id);
 
-    void rollingUpdate(UUID id);
+    Deployment undeploy(String id);
 
-    List<PodInfo> getActiveInstances(UUID id);
+    void rollingUpdate(String id);
 
-    List<PodInfo> getInstances(UUID id);
+    List<PodInfo> getActiveInstances(String id);
+
+    List<PodInfo> getInstances(String id);
 
     NonNamespaceOperation<Event, EventList, Resource<Event>> getAllEventsBase();
 
-    ContainerResource getContainerResource(UUID id, String podName);
+    ContainerResource getContainerResource(String id, String podName);
 
-    List<SensitiveEnvVar> provisionSecrets(UUID deploymentId, EnvPartition envPartition);
+    List<SensitiveEnvVar> provisionSecrets(String deploymentId, EnvPartition envPartition);
 
-    void cleanupSecrets(UUID deploymentId, List<EnvVar> currentEnvs);
+    void cleanupSecrets(String deploymentId, List<EnvVar> currentEnvs);
 
     Deployment resolveSecrets(Deployment deployment);
 }

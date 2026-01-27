@@ -87,6 +87,8 @@ public abstract class FullWorkflowFunctionalTest {
         // Delete deployment
         deploymentService.deleteDeployment(deployedDeployment.getId());
 
+        waitForDeployment(deployedDeployment.getId(), null, "Deletion timed out");
+
         var maybeDeletedDeployment = deploymentService.getDeployment(deployedDeployment.getId());
         Assertions.assertTrue(maybeDeletedDeployment.isEmpty());
     }
@@ -113,10 +115,13 @@ public abstract class FullWorkflowFunctionalTest {
         return builtImageId;
     }
 
-    private void waitForDeployment(UUID deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
+    private void waitForDeployment(String deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
         long deployStartTime = System.currentTimeMillis();
         while (true) {
             var maybeDeployment = deploymentService.getDeployment(deploymentId);
+            if (maybeDeployment.isEmpty() && expectedStatus == null) {
+                break;
+            }
             if (maybeDeployment.isPresent() && maybeDeployment.get().getStatus().equals(expectedStatus)) {
                 break;
             }
@@ -130,12 +135,9 @@ public abstract class FullWorkflowFunctionalTest {
     private static Stream<Arguments> getFullWorkflowParams() {
         var dialUrlEnv = new EnvVarDefinition("DIAL_URL", new SimpleEnvVarValue("http://test-dial-url.svc.cluster.local"),
                 EnvVarMountType.CONTENT, "Sample DIAL URL");
-        var interceptorImageUri = getEnvVarOrDefault("K8S_TEST_INTERCEPTOR_IMAGE_URI",
-                "dialadminartefactslocal.azurecr.io/dial-interceptor-example-1:latest");
-        var mcpGitSseImageGitUrl = getEnvVarOrDefault("K8S_TEST_MCP_GIT_SSE_IMAGE_URI",
-                "https://github.com/siarhei-fedziukovich/PubChem-MCP-Server.git");
-        var mcpGitStdioImageGitUrl = getEnvVarOrDefault("K8S_TEST_MCP_GIT_STDIO_IMAGE_URI",
-                "https://github.com/ekarankow/an-uniprot-mcp");
+        var interceptorImageUri = getEnvVarOrThrow("K8S_TEST_INTERCEPTOR_IMAGE_URI");
+        var mcpGitSseImageGitUrl = getEnvVarOrThrow("K8S_TEST_MCP_GIT_SSE_IMAGE_URI");
+        var mcpGitStdioImageGitUrl = getEnvVarOrThrow("K8S_TEST_MCP_GIT_STDIO_IMAGE_URI");
         return Stream.of(
                 Arguments.of(FunctionalTestHelper.createRealInterceptorImageDefinition(interceptorImageUri),
                         FunctionalTestHelper.createRealInterceptorDeploymentRequest("interceptor-docker-deployment", List.of(dialUrlEnv))),
@@ -148,8 +150,11 @@ public abstract class FullWorkflowFunctionalTest {
         );
     }
 
-    private static String getEnvVarOrDefault(String envVarName, String defaultValue) {
+    private static String getEnvVarOrThrow(String envVarName) {
         String value = System.getenv(envVarName);
-        return StringUtils.isNotEmpty(value) ? value : defaultValue;
+        if (StringUtils.isBlank(value)) {
+            throw new IllegalArgumentException("Environment variable '%s' should be set");
+        }
+        return value;
     }
 }

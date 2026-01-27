@@ -52,26 +52,26 @@ class DeploymentInternalControllerTest extends AbstractControllerNoneSecureTest 
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/internal/deployment_by_id_response.json");
         var modelJson = ResourceUtils.readResource("/mcp/deployment/internal/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
-        var deployId = model.getId();
+        var deploymentId = model.getId();
 
         when(deploymentService.getDeployment(any(), anyBoolean())).thenReturn(Optional.of(model));
 
-        mockMvc.perform(get("/api/internal/v1/deployments/{id}", deployId))
+        mockMvc.perform(get("/api/internal/v1/deployments/{id}", deploymentId))
                 .andExpect(status().isOk())
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
-        verify(deploymentService).getDeployment(deployId, false);
+        verify(deploymentService).getDeployment(deploymentId, false);
     }
 
     @Test
     void testGetDeploymentById_notFound() throws Exception {
-        var deployId = UUID.randomUUID();
+        var deploymentId = String.valueOf(UUID.randomUUID());
         when(deploymentService.getDeployment(any(), anyBoolean())).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/internal/v1/deployments/{id}", deployId))
+        mockMvc.perform(get("/api/internal/v1/deployments/{id}", deploymentId))
                 .andExpect(status().isNotFound());
 
-        verify(deploymentService).getDeployment(deployId, false);
+        verify(deploymentService).getDeployment(deploymentId, false);
     }
 
 }

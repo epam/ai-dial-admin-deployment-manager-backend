@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.pipeline.specification;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.CiliumNetworkPolicySpec;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
@@ -12,27 +13,24 @@ import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Ports.Protocol;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Rules;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.rules.Dns;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
+@Getter
 @Component
 @LogExecution
 public class CiliumNetworkPolicyCreator {
 
-    private static final String POLICY_NAME_TEMPLATE = "restrict-egress-%s";
     private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String TCP_PORT = "443";
     private static final String UDP_PORT = "53";
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
-
-    public boolean isCiliumNetworkPoliciesEnabled() {
-        return ciliumNetworkPoliciesEnabled;
-    }
 
     public CiliumNetworkPolicy create(String namespace, String matchLabelName, String matchLabelValue, List<String> allowedDomains) {
         // Metadata
@@ -96,6 +94,6 @@ public class CiliumNetworkPolicyCreator {
     }
 
     public static String getPolicyName(String matchLabelValue) {
-        return POLICY_NAME_TEMPLATE.formatted(matchLabelValue);
+        return K8sNamingUtils.generateName(matchLabelValue);
     }
 }

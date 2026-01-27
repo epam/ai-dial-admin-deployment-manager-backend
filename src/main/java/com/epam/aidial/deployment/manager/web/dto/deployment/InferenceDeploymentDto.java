@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.deployment;
 
+import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -8,8 +9,6 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -22,7 +21,9 @@ public class InferenceDeploymentDto extends DeploymentDto {
     @NotNull @Valid
     private InferenceDeploymentSourceDto source;
     @Nullable
-    private List<String> command;
+    private String command;
     @Nullable
-    private List<String> args;
+    private String args;
+    @Nullable @Valid
+    private ScalingDto scaling;
 }

@@ -22,6 +22,10 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -31,6 +35,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.springframework.transaction.annotation.Isolation;
@@ -44,7 +49,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -86,7 +90,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public Deployment deploy(UUID id) {
+    public Deployment deploy(String id) {
         var deployment = getDeployment(id);
 
         if (deployment.getStatus().isActive()) {
@@ -128,7 +132,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public Deployment undeploy(UUID id) {
+    public Deployment undeploy(String id) {
         var deployment = getDeployment(id);
         if (deployment.getStatus().isInactive() || deployment.getStatus() == DeploymentStatus.STOPPING) {
             log.info("Deployment '{}' is not active; skipping undeploy", id);
@@ -168,7 +172,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void rollingUpdate(UUID id) {
+    public void rollingUpdate(String id) {
         var deployment = getDeployment(id);
 
         if (deployment.getStatus() != DeploymentStatus.RUNNING) {
@@ -203,7 +207,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public boolean reconcile(UUID id, boolean ignorePendingOnServiceNotFound) {
+    public boolean reconcile(String id, boolean ignorePendingOnServiceNotFound) {
         var serviceName = getServiceName(id);
         var service = getService(namespace, serviceName);
         var reconcileConfig = ReconcileConfig.<S>builder()
@@ -231,8 +235,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var deployment = deploymentOptional.get();
 
         var status = config.isServiceIsMissing() ? DeploymentStatus.NOT_DEPLOYED : mapStatus(service);
-        if (log.isDebugEnabled()) {
-            log.debug("{}: started state sync for deployment '{}' with DB status {} and K8s status {}. Service: {}",
+        if (log.isTraceEnabled()) {
+            log.trace("{}: started state sync for deployment '{}' with DB status {} and K8s status {}. Service: {}",
                     initiator, deploymentId, deployment.getStatus(), status, Serialization.asYaml(service));
         }
 
@@ -274,7 +278,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         initiator, deploymentId, serviceName);
                 try {
                     var serviceUrl = resolveServiceUrl(service, deployment);
-                    performHealthChecks(deployment, serviceUrl, System.currentTimeMillis());
+                    performHealthChecks(deployment, serviceUrl);
                     deployment.setUrl(serviceUrl);
                     deployment.setStatus(DeploymentStatus.RUNNING);
                     deploymentRepository.update(deploymentId, deployment);
@@ -299,7 +303,28 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public List<SensitiveEnvVar> provisionSecrets(UUID deploymentId, EnvPartition envPartition) {
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void stopOnServiceNotFound(String id) {
+        if (log.isTraceEnabled()) {
+            log.trace("stopOnServiceNotFound. Deployment ID: {}", id);
+        }
+
+        var serviceName = getServiceName(id);
+        var service = getService(namespace, serviceName);
+        var deploymentOptional = getDeploymentOptional(id);
+
+        if (deploymentOptional.isPresent() && service == null) {
+            var deployment = deploymentOptional.get();
+            log.info("Reconciliation: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
+                    id, deployment.getStatus());
+            deployment.setUrl(null);
+            deployment.setStatus(DeploymentStatus.STOPPED);
+            deploymentRepository.update(id, deployment);
+        }
+    }
+
+    @Override
+    public List<SensitiveEnvVar> provisionSecrets(String deploymentId, EnvPartition envPartition) {
         var sensitiveEnvs = envPartition.sensitive();
         var sensitiveFileEnvs = envPartition.sensitiveFile();
 
@@ -307,7 +332,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             return List.of();
         }
 
-        var secretName = K8sNamingUtils.generateUniqueName(deploymentId.toString(), "envs");
+        var secretName = K8sNamingUtils.generateUniqueName(deploymentId, "envs");
         var transformedSensitiveEnvs = transformEnvs(sensitiveEnvs);
         var transformedSensitiveFileEnvs = transformEnvs(sensitiveFileEnvs);
         var secret = manifestGenerator.secretConfig(secretName, transformedSensitiveEnvs, transformedSensitiveFileEnvs);
@@ -341,7 +366,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public void cleanupSecrets(UUID deploymentId, List<EnvVar> currentEnvs) {
+    public void cleanupSecrets(String deploymentId, List<EnvVar> currentEnvs) {
         currentEnvs.stream()
                 .filter(SensitiveEnvVar.class::isInstance)
                 .map(SensitiveEnvVar.class::cast)
@@ -387,31 +412,104 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public List<PodInfo> getActiveInstances(UUID id) {
+    public List<PodInfo> getActiveInstances(String id) {
         return getInstances(id, pod -> isPodReady(pod.getStatus()));
     }
 
     @Override
-    public List<PodInfo> getInstances(UUID id) {
+    public List<PodInfo> getInstances(String id) {
         return getInstances(id, null);
     }
 
-    protected List<PodInfo> getInstances(UUID id, Predicate<? super Pod> filter) {
+    protected List<PodInfo> getInstances(String id, Predicate<? super Pod> filter) {
         var serviceName = getServiceName(id);
         var podList = getServicePods(namespace, serviceName);
         var podsStream = podList.stream();
         if (filter != null) {
             podsStream = podsStream.filter(filter);
         }
-        return podsStream.map(pod -> new PodInfo(
-                        pod.getMetadata().getName(),
-                        Instant.parse(pod.getMetadata().getCreationTimestamp())
-                ))
-                .toList();
+        return podsStream.map(this::toPodInfo).toList();
+    }
+
+    private PodInfo toPodInfo(Pod pod) {
+        var containerStatuses = pod.getStatus() != null
+                ? pod.getStatus().getContainerStatuses()
+                : null;
+
+        var containerInfo = extractContainerInfo(containerStatuses);
+
+        return new PodInfo(
+                pod.getMetadata().getName(),
+                Instant.parse(pod.getMetadata().getCreationTimestamp()),
+                containerInfo.restartCount(),
+                containerInfo.lastTerminationReason(),
+                containerInfo.lastExitCode(),
+                containerInfo.lastSignal(),
+                containerInfo.lastFinishedAt()
+        );
+    }
+
+    private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
+        if (CollectionUtils.isEmpty(containerStatuses)) {
+            return new ContainerInfo(0, null, null, null, null);
+        }
+
+        int totalRestartCount = 0;
+        ContainerStateTerminated mostRecentTermination = null;
+
+        for (var containerStatus : containerStatuses) {
+            totalRestartCount += containerStatus.getRestartCount() != null ? containerStatus.getRestartCount() : 0;
+
+            // Check both 'state' (current) and 'lastState' (previous)
+            // to find the most recent failure event.
+            var currentTerminated = getTerminatedState(containerStatus.getState());
+            var previousTerminated = getTerminatedState(containerStatus.getLastState());
+
+            // Compare timestamps to find the true "latest" error
+            mostRecentTermination = getLaterTermination(mostRecentTermination, currentTerminated);
+            mostRecentTermination = getLaterTermination(mostRecentTermination, previousTerminated);
+        }
+
+        if (mostRecentTermination != null) {
+            return new ContainerInfo(
+                    totalRestartCount,
+                    mostRecentTermination.getReason(),
+                    mostRecentTermination.getExitCode(),
+                    mostRecentTermination.getSignal(),
+                    K8sParseUtils.parseInstant(mostRecentTermination.getFinishedAt())
+            );
+        }
+
+        return new ContainerInfo(totalRestartCount, null, null, null, null);
+    }
+
+    private ContainerStateTerminated getTerminatedState(ContainerState state) {
+        return (state != null) ? state.getTerminated() : null;
+    }
+
+    private ContainerStateTerminated getLaterTermination(ContainerStateTerminated currentBest,
+                                                         ContainerStateTerminated candidate) {
+        if (candidate == null) {
+            return currentBest;
+        }
+        if (currentBest == null) {
+            return candidate;
+        }
+
+        var t1 = K8sParseUtils.parseInstant(currentBest.getFinishedAt());
+        var t2 = K8sParseUtils.parseInstant(candidate.getFinishedAt());
+        if (t1 == null) {
+            return candidate;
+        }
+        if (t2 == null) {
+            return currentBest;
+        }
+
+        return t2.isAfter(t1) ? candidate : currentBest;
     }
 
     @Override
-    public ContainerResource getContainerResource(UUID id, String podName) {
+    public ContainerResource getContainerResource(String id, String podName) {
         var serviceName = getServiceName(id);
 
         var pod = getServicePod(namespace, serviceName, podName);
@@ -433,11 +531,11 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return k8sClient.getAllEventsBase(namespace);
     }
 
-    protected abstract String getServiceName(UUID id);
+    protected abstract String getServiceName(String id);
 
-    protected abstract Optional<D> getDeploymentOptional(UUID id);
+    protected abstract Optional<D> getDeploymentOptional(String id);
 
-    protected D getDeployment(UUID id) {
+    protected D getDeployment(String id) {
         return getDeploymentOptional(id).orElseThrow(notFound("Deployment", id));
     }
 
@@ -461,15 +559,15 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected abstract String getServiceNameLabel();
 
-    protected abstract void saveDisposableResource(UUID id, String namespace);
+    protected abstract void saveDisposableResource(String id, String namespace);
 
-    protected abstract List<DisposableResource> markServiceDisposableResourcesForCleanup(UUID id, String namespace);
+    protected abstract List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace);
 
     protected abstract DeploymentStatus mapStatus(S service);
 
     protected abstract String resolveServiceUrl(S service, D deployment);
 
-    protected void performHealthChecks(D deployment, String serviceUrl, long startTime) {
+    protected void performHealthChecks(D deployment, String serviceUrl) {
         // Default implementation does nothing
     }
 
@@ -488,7 +586,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return () -> new EntityNotFoundException(String.format("%s not found: %s", what, id));
     }
 
-    private List<DisposableResource> markDisposableResourcesForCleanup(UUID id, String namespace) {
+    private List<DisposableResource> markDisposableResourcesForCleanup(String id, String namespace) {
         log.trace("markDisposableResourcesForCleanup. id='{}', namespace='{}'", id, namespace);
         var serviceDisposableResources = markServiceDisposableResourcesForCleanup(id, namespace);
         log.debug("Service disposable resources marked for cleanup: {}", serviceDisposableResources);
@@ -506,7 +604,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return disposableResources;
     }
 
-    private void createCiliumNetworkPolicy(UUID groupId, List<String> allowedDomains) {
+    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains) {
         log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}", groupId, allowedDomains);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
@@ -525,7 +623,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         log.trace("createCiliumNetworkPolicy. Created Cilium Network Policy: {}", ciliumNetworkPolicy);
     }
 
-    private void updateCiliumNetworkPolicy(UUID groupId, List<String> allowedDomains) {
+    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains) {
         log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}", groupId, allowedDomains);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
@@ -563,4 +661,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .map(entry -> Map.entry(entry.getKey(), entry.getValue().getValue()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
+
+    private record ContainerInfo(
+            int restartCount,
+            String lastTerminationReason,
+            Integer lastExitCode,
+            Integer lastSignal,
+            Instant lastFinishedAt
+    ) {
+    }
+
 }

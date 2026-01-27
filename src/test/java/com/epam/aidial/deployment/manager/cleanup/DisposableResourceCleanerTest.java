@@ -34,7 +34,7 @@ import static org.mockito.Mockito.when;
 public class DisposableResourceCleanerTest {
 
     private static final String NAMESPACE = "some-namespace";
-    private static final UUID GROUP_ID = UUID.randomUUID();
+    private static final String GROUP_ID = String.valueOf(UUID.randomUUID());
     private static final Instant NOW = Instant.now();
 
     @Mock

@@ -27,7 +27,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Slf4j
 @Component
@@ -66,12 +65,12 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected String getServiceName(UUID id) {
-        return K8sNamingUtils.generateName(id.toString());
+    protected String getServiceName(String id) {
+        return K8sNamingUtils.generateName(id);
     }
 
     @Override
-    protected Optional<InferenceDeployment> getDeploymentOptional(UUID id) {
+    protected Optional<InferenceDeployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id)
                 .map(deployment -> {
                     if (deployment instanceof InferenceDeployment inferenceDeployment) {
@@ -91,7 +90,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
         return inferenceManifestGenerator.serviceConfig(
-                deployment.getId().toString(),
+                deployment.getId(),
                 deployment.getModelFormat(),
                 deployment.getSource().getStorageUri(),
                 userDefinedSimpleEnvs,
@@ -135,12 +134,12 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected void saveDisposableResource(UUID id, String namespace) {
+    protected void saveDisposableResource(String id, String namespace) {
         disposableResourceManager.saveInferenceServiceResource(id, namespace);
     }
 
     @Override
-    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(UUID id, String namespace) {
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace) {
         return disposableResourceManager.markInferenceServiceResourceForCleanup(id, namespace);
     }
 

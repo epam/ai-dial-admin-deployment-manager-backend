@@ -8,6 +8,6 @@ import java.util.UUID;
 
 public record DeploymentImageChangeRequestDto(
         @NotNull UUID imageDefinitionId,
-        @NotNull @NotEmpty List<UUID> deployments
+        @NotNull @NotEmpty List<String> deployments
 ) {
 }

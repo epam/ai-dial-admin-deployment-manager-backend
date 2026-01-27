@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Component
@@ -21,10 +20,10 @@ public class HealthCheckProvider {
     private final List<HealthChecker> healthCheckers;
     private final DeploymentRepository deploymentRepository;
 
-    @Value("${app.deployment-healthcheck-enabled}")
+    @Value("${app.deployment.healthcheck-enabled}")
     private boolean healthcheckEnabled;
 
-    public void waitReady(UUID deploymentId, String serviceUrl, Duration remainingDuration) {
+    public void waitReady(String deploymentId, String serviceUrl, Duration timeout) {
         if (!healthcheckEnabled) {
             log.debug("Not performing healthcheck for deployment '{}'. Feature is disabled.", deploymentId);
             return;
@@ -35,7 +34,7 @@ public class HealthCheckProvider {
         healthCheckers.stream()
                 .filter(checker -> checker.supports(deployment))
                 .findFirst()
-                .ifPresent(checker -> checker.waitReady(serviceUrl, deployment, remainingDuration));
+                .ifPresent(checker -> checker.waitReady(serviceUrl, deployment, timeout));
     }
 }
 

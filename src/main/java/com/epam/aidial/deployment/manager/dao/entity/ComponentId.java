@@ -8,14 +8,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 @Embeddable
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ComponentId {
-    private UUID id;
+    private String id;
     @Enumerated(value = EnumType.STRING)
     private ComponentType type;
 }

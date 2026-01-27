@@ -123,7 +123,7 @@ public class ImageDefinitionService {
     }
 
     public void deleteImageDefinitionAsync(UUID id) {
-        componentCleanupService.deleteAsync(ComponentRemoval.of(id, ComponentType.IMAGE_DEFINITION));
+        componentCleanupService.deleteAsync(ComponentRemoval.of(String.valueOf(id), ComponentType.IMAGE_DEFINITION));
     }
 
 }

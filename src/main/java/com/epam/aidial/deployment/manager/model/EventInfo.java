@@ -14,7 +14,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class EventInfo {
     private UUID id;
-    private UUID deploymentId;
+    private String deploymentId;
     private EventType eventType;
     private String reason;
     private String message;

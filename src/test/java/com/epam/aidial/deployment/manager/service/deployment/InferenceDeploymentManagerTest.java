@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class InferenceDeploymentManagerTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final int STARTUP_TIMEOUT = 60;
     private static final String NAMESPACE = "test-namespace";
     private static final String SERVICE_NAME = "service-" + DEPLOYMENT_ID;
@@ -144,7 +144,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("ready-pod");
+        assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
     }
 
     @Test
@@ -181,6 +181,69 @@ class InferenceDeploymentManagerTest {
         assertThatThrownBy(() -> inferenceDeploymentManager.getActiveInstances(DEPLOYMENT_ID))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("A container is missing in the service pod");
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithRestartInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
+        podList.setItems(List.of(pod));
+
+        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-with-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(5);
+        assertThat(podInfo.getLastTerminationReason()).isEqualTo("OOMKilled");
+        assertThat(podInfo.getLastExitCode()).isEqualTo(137);
+        assertThat(podInfo.getLastSignal()).isEqualTo(9);
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithoutTerminationInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPod("pod-no-restarts", true);
+        podList.setItems(List.of(pod));
+
+        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-no-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(0);
+        assertThat(podInfo.getLastTerminationReason()).isNull();
+        assertThat(podInfo.getLastExitCode()).isNull();
+        assertThat(podInfo.getLastSignal()).isNull();
+    }
+
+    @Test
+    void getInstances_shouldAggregateRestartCountsFromMultipleContainers() {
+        // Given
+        var podList = new PodList();
+        var pod = createPodWithMultipleContainers("pod-multi-container", 3, 2);
+        podList.setItems(List.of(pod));
+
+        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-multi-container");
+        assertThat(podInfo.getRestartCount()).isEqualTo(5); // 3 + 2
     }
 
     @Test
@@ -244,7 +307,7 @@ class InferenceDeploymentManagerTest {
                 .thenReturn(containerPort);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID.toString()), any(), any(), any(), any(), any(),
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), eq(containerPort))).thenReturn(serviceSpec);
 
         // When
@@ -419,7 +482,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID.toString()), any(), any(), any(), any(), any(),
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(),
                 any(), any(), any(), any(), eq(containerPort))).thenReturn(serviceSpec);
 
         // When
@@ -713,6 +776,75 @@ class InferenceDeploymentManagerTest {
         var container = new Container();
         container.setName(CONTAINER_NAME);
         spec.setContainers(List.of(container));
+        pod.setSpec(spec);
+
+        return pod;
+    }
+
+    private Pod createPodWithRestartInfo(String name, int restartCount, String terminationReason, Integer exitCode, Integer signal) {
+        var pod = new Pod();
+        pod.setMetadata(new ObjectMeta());
+        pod.getMetadata().setName(name);
+        pod.getMetadata().setCreationTimestamp(Instant.now().toString());
+
+        var status = new PodStatus();
+        var containerStatus = new ContainerStatus();
+        containerStatus.setName(CONTAINER_NAME);
+        containerStatus.setRestartCount(restartCount);
+
+        // Set last terminated state
+        var terminatedState = new ContainerStateBuilder()
+                .withNewTerminated()
+                .withReason(terminationReason)
+                .withExitCode(exitCode)
+                .withSignal(signal)
+                .withFinishedAt(Instant.now().toString())
+                .endTerminated()
+                .build();
+        containerStatus.setLastState(terminatedState);
+
+        // Set current state as running
+        containerStatus.setState(new ContainerStateBuilder().build());
+
+        status.setContainerStatuses(List.of(containerStatus));
+        pod.setStatus(status);
+
+        var spec = new PodSpec();
+        var container = new Container();
+        container.setName(CONTAINER_NAME);
+        spec.setContainers(List.of(container));
+        pod.setSpec(spec);
+
+        return pod;
+    }
+
+    private Pod createPodWithMultipleContainers(String name, int restartCount1, int restartCount2) {
+        var pod = new Pod();
+        pod.setMetadata(new ObjectMeta());
+        pod.getMetadata().setName(name);
+        pod.getMetadata().setCreationTimestamp(Instant.now().toString());
+
+        var status = new PodStatus();
+        
+        var containerStatus1 = new ContainerStatus();
+        containerStatus1.setName(CONTAINER_NAME);
+        containerStatus1.setRestartCount(restartCount1);
+        containerStatus1.setState(new ContainerStateBuilder().build());
+
+        var containerStatus2 = new ContainerStatus();
+        containerStatus2.setName("sidecar-container");
+        containerStatus2.setRestartCount(restartCount2);
+        containerStatus2.setState(new ContainerStateBuilder().build());
+
+        status.setContainerStatuses(List.of(containerStatus1, containerStatus2));
+        pod.setStatus(status);
+
+        var spec = new PodSpec();
+        var container1 = new Container();
+        container1.setName(CONTAINER_NAME);
+        var container2 = new Container();
+        container2.setName("sidecar-container");
+        spec.setContainers(List.of(container1, container2));
         pod.setSpec(spec);
 
         return pod;

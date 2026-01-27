@@ -7,6 +7,10 @@
   "spec": {
     "predictor": {
       "model": {
+        "args": [
+          "--model_name",
+          "resource-inference-app"
+        ],
         "env": [],
         "modelFormat": {
           "name": "huggingface"

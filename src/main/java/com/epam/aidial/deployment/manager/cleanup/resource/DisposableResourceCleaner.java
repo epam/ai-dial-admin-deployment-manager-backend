@@ -62,14 +62,14 @@ public class DisposableResourceCleaner {
         log.info("Cleaned up all {} disposable resources", lifecycleStateForLog);
     }
 
-    public void cleanAllCleanableByGroupId(UUID groupId) {
+    public void cleanAllCleanableByGroupId(String groupId) {
         var resources = disposableResourceManager.getAllCleanableByGroupId(groupId);
         cleanDisposableResources(resources);
         log.info("Cleaned up all cleanable disposable resources by group ID '{}'", groupId);
     }
 
     public void cleanTemporaryByGroupId(UUID groupId) {
-        var resources = disposableResourceManager.getAllTemporaryByGroupId(groupId);
+        var resources = disposableResourceManager.getAllTemporaryByGroupId(String.valueOf(groupId));
         cleanDisposableResources(resources);
         log.info("Cleaned up all temporary disposable resources by group ID '{}'", groupId);
     }

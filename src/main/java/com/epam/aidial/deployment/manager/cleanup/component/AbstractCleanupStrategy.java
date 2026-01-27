@@ -6,8 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-
 @Slf4j
 @RequiredArgsConstructor
 abstract class AbstractCleanupStrategy implements CleanupStrategy {
@@ -16,7 +14,7 @@ abstract class AbstractCleanupStrategy implements CleanupStrategy {
     protected final DisposableResourceCleaner resourceCleaner;
 
     @Transactional
-    protected void cleanupResources(UUID groupId) {
+    protected void cleanupResources(String groupId) {
         resourceManager.markResourcesForCleanupByGroupId(groupId);
         resourceCleaner.cleanAllCleanableByGroupId(groupId);
     }

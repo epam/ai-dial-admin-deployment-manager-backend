@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class McpServiceTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.fromString("facade00-0000-0001-a000-000000000000");
+    private static final String DEPLOYMENT_ID = "facade00-0000-0001-a000-000000000000";
     private static final UUID IMAGE_DEFINITION_ID = UUID.fromString("facade00-0000-0003-a000-000000000000");
     private static final String NEXT_CURSOR = "test-cursor";
     private static final String DEPLOYMENT_URL = "http://test-deployment.com";

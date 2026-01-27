@@ -11,16 +11,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Component responsible for initial state synchronization on application startup.
- * Performs reconciliation of all active deployments with their current Kubernetes resource states
- * to ensure the application's internal state matches the actual state of Kubernetes resources
- * when the application starts or restarts.
+ * Component responsible for marking active deployments as stopped in the database if their Kubernetes resources are missing at startup,
+ * ensuring the application's internal state matches the actual state of Kubernetes resources.
+ * The main components of state synchronization are event handlers:
+ * {@link com.epam.aidial.deployment.manager.kubernetes.informer.handler.AbstractResourceEventHandler}.
  */
 @Slf4j
 @Component
@@ -33,27 +32,26 @@ public class DeploymentStartupReconciler {
     private final DeploymentRepository deploymentRepository;
     private final DeploymentManagerProvider deploymentManagerProvider;
 
-    @Value("${app.deployment-bootstrap-enabled}")
-    private boolean bootstrapEnabled;
+    @Value("${app.deployment.reconcile.startup.enabled}")
+    private boolean reconcileOnStartupEnabled;
 
-    @Value("${app.deployment-bootstrap-batch-size}")
+    @Value("${app.deployment.reconcile.startup.batch-size}")
     private int batchSize;
 
-    @Value("${app.deployment-bootstrap-threads}")
-    private int bootstrapThreads;
+    @Value("${app.deployment.reconcile.startup.concurrency}")
+    private int concurrency;
 
     @PostConstruct
     public void init() {
-        if (!bootstrapEnabled) {
-            log.info("Deployment bootstrap is disabled. Skipping initial state synchronization.");
+        if (!reconcileOnStartupEnabled) {
+            log.info("Deployment reconciliation on startup is disabled. Skipping initial state synchronization.");
             return;
         }
 
-        log.info("Starting deployment bootstrap process with {} threads and batch size {}",
-                bootstrapThreads, batchSize);
+        log.info("Starting deployment reconciliation process with {} threads and batch size {}", concurrency, batchSize);
 
-        ExecutorService executor = Executors.newFixedThreadPool(bootstrapThreads, r -> {
-            Thread thread = new Thread(r, "deployment-bootstrap");
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency, r -> {
+            Thread thread = new Thread(r, "deployment-startup-reconciliation");
             thread.setDaemon(true);
             return thread;
         });
@@ -63,14 +61,14 @@ public class DeploymentStartupReconciler {
 
             executor.shutdown();
             if (!executor.awaitTermination(EXECUTOR_TERMINATION_TIMEOUT, TimeUnit.MINUTES)) {
-                log.warn("Deployment bootstrap executor did not complete within {} minutes timeout. "
+                log.warn("Deployment reconciliation executor did not complete within {} minutes timeout. "
                         + "Forcing shutdown.", EXECUTOR_TERMINATION_TIMEOUT);
                 executor.shutdownNow();
             }
 
-            log.info("Deployment bootstrap process completed successfully");
+            log.info("Deployment reconciliation process completed successfully");
         } catch (Exception e) {
-            String message = "Failed to complete deployment bootstrap process: %s".formatted(e.getMessage());
+            String message = "Failed to complete deployment reconciliation process: %s".formatted(e.getMessage());
             log.error(message, e);
             throw new RuntimeException(message, e);
         }
@@ -96,7 +94,7 @@ public class DeploymentStartupReconciler {
                         deployments.size(), pageNumber, totalProcessed);
 
                 for (Deployment deployment : deployments) {
-                    executor.execute(() -> synchronizeDeploymentState(deployment));
+                    executor.execute(() -> stopDeploymentOnServiceNotFound(deployment));
                 }
 
                 totalProcessed += deployments.size();
@@ -112,16 +110,14 @@ public class DeploymentStartupReconciler {
         }
     }
 
-    public void synchronizeDeploymentState(Deployment deployment) {
-        UUID deploymentId = deployment.getId();
+    private void stopDeploymentOnServiceNotFound(Deployment deployment) {
+        String deploymentId = deployment.getId();
 
         try {
-            log.debug("Synchronizing state for deployment ID: {}", deploymentId);
             deploymentManagerProvider.provide(deploymentId)
-                    .reconcile(deploymentId, true);
-            log.debug("Successfully synchronized state for deployment ID: {}", deploymentId);
+                    .stopOnServiceNotFound(deploymentId);
         } catch (Exception e) {
-            log.error("Failed to synchronize state for deployment ID {} during bootstrap: {}",
+            log.error("Failed to synchronize state for deployment ID {} during reconciliation: {}",
                     deploymentId, e.getMessage(), e);
             throw e;
         }

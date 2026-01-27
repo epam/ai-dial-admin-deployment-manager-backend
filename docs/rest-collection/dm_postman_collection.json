@@ -1,1110 +1,1239 @@
 {
-	"info": {
-		"_postman_id": "58930932-1ba6-4cd7-a2ba-dba42ff02721",
-		"name": "DIAL Admin Deployment Manager",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "12103676"
-	},
-	"item": [
-		{
-			"name": "DIAL",
-			"item": [
-				{
-					"name": "deployment-manager",
-					"item": [
-						{
-							"name": "images",
-							"item": [
-								{
-									"name": "definitions",
-									"item": [
-										{
-											"name": "whitelist",
-											"item": [
-												{
-													"name": "get whitelist",
-													"protocolProfileBehavior": {
-														"followRedirects": true,
-														"disableUrlEncoding": false,
-														"disableCookies": false
-													},
-													"request": {
-														"method": "GET",
-														"header": [],
-														"url": {
-															"raw": "{{host}}/api/v1/global-whitelist/image-build",
-															"host": [
-																"{{host}}"
-															],
-															"path": [
-																"api",
-																"v1",
-																"global-whitelist",
-																"image-build"
-															]
-														}
-													},
-													"response": []
-												},
-												{
-													"name": "update whitelist",
-													"protocolProfileBehavior": {
-														"followRedirects": true,
-														"disableUrlEncoding": false,
-														"disableCookies": false
-													},
-													"request": {
-														"method": "POST",
-														"header": [
-															{
-																"key": "Content-Type",
-																"value": "application/json"
-															}
-														],
-														"body": {
-															"mode": "raw",
-															"raw": "[\"github.com\", \"epam.com\"]",
-															"options": {
-																"raw": {
-																	"language": "json"
-																}
-															}
-														},
-														"url": {
-															"raw": "{{host}}/api/v1/global-whitelist/image-build",
-															"host": [
-																"{{host}}"
-															],
-															"path": [
-																"api",
-																"v1",
-																"global-whitelist",
-																"image-build"
-															]
-														}
-													},
-													"response": []
-												}
-											]
-										},
-										{
-											"name": "create image",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "POST",
-												"header": [
-													{
-														"key": "Content-Type",
-														"value": "application/json"
-													}
-												],
-												"body": {
-													"mode": "raw",
-													"raw": "{\n\t\"$type\": \"mcp\",\n\t\"name\": \"fetch\",\n\t\"version\": \"1.0.0\",\n\t\"description\": \"Fetch MCP\",\n\t\"source\": {\n\t\t\"$type\": \"docker\",\n\t\t\"imageUri\": \"mcp/fetch\"\n\t},\n    \"transportType\": \"local\",\n\t\"license\": \"MIT License\",\n\t\"topics\": [\"fetch\"],\n\t\"author\": \"local-user\"\n}",
-													"options": {
-														"raw": {
-															"language": "json"
-														}
-													}
-												},
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "update image",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "PUT",
-												"header": [
-													{
-														"key": "Content-Type",
-														"value": "application/json"
-													}
-												],
-												"body": {
-													"mode": "raw",
-													"raw": "{\n    \"$type\": \"mcp\",\n    \"name\": \"fetch\",\n    \"version\": \"1.0.0\",\n    \"description\": \"Fetch MCP\",\n    \"source\": {\n        \"$type\": \"docker\",\n        \"imageUri\": \"mcp/fetch\"\n    },\n    \"transportType\": \"local\",\n    \"license\": \"MIT License\",\n    \"topics\": [\n        \"fetch\"\n    ],\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ]\n}",
-													"options": {
-														"raw": {
-															"language": "json"
-														}
-													}
-												},
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions/{{image-definition-id}}",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions",
-														"{{image-definition-id}}"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "delete image",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "DELETE",
-												"header": [],
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions/{{image-definition-id}}",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions",
-														"{{image-definition-id}}"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "get images",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "GET",
-												"header": [],
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions?type=MCP",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions"
-													],
-													"query": [
-														{
-															"key": "type",
-															"value": "MCP"
-														}
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "get image by id",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "GET",
-												"header": [],
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions/{{image-definition-id}}",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions",
-														"{{image-definition-id}}"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "get image versions by name",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "GET",
-												"header": [],
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions/{{image-definition-name}}/versions?type=INTERCEPTOR",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions",
-                                                        "{{image-definition-name}}",
-														"versions"
-													],
-													"query": [
-														{
-															"key": "type",
-															"value": "INTERCEPTOR"
-														}
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "get images grouped",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "GET",
-												"header": [],
-												"url": {
-													"raw": "{{host}}/api/v1/images/definitions/grouped?type=INTERCEPTOR",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"definitions",
-														"grouped"
-													],
-													"query": [
-														{
-															"key": "type",
-															"value": "INTERCEPTOR"
-														}
-													]
-												}
-											},
-											"response": []
-										}
-									]
-								},
-								{
-									"name": "builds",
-									"item": [
-										{
-											"name": "build image",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "POST",
-												"header": [
-													{
-														"key": "Content-Type",
-														"value": "application/json"
-													}
-												],
-												"body": {
-													"mode": "raw",
-													"raw": "{\n    \"imageDefinitionId\": \"{{image-definition-id}}\"\n  }",
-													"options": {
-														"raw": {
-															"language": "json"
-														}
-													}
-												},
-												"url": {
-													"raw": "{{host}}/api/v1/images/builds",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"builds"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "get details",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false,
-												"disabledSystemHeaders": {}
-											},
-											"request": {
-												"method": "GET",
-												"header": [],
-												"url": {
-													"raw": "{{host}}/api/v1/images/builds/{{image-definition-id}}/details",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"builds",
-														"{{image-definition-id}}",
-														"details"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "status stream",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "GET",
-												"header": [
-													{
-														"key": "Accept",
-														"value": "text/event-stream"
-													}
-												],
-												"url": {
-													"raw": "{{host}}/api/v1/images/builds/{{image-definition-id}}/status",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"builds",
-														"{{image-definition-id}}",
-														"status"
-													]
-												}
-											},
-											"response": []
-										},
-										{
-											"name": "logs stream",
-											"protocolProfileBehavior": {
-												"followRedirects": true,
-												"disableUrlEncoding": false,
-												"disableCookies": false
-											},
-											"request": {
-												"method": "GET",
-												"header": [
-													{
-														"key": "Accept",
-														"value": "text/event-stream"
-													}
-												],
-												"url": {
-													"raw": "{{host}}/api/v1/images/builds/{{image-definition-id}}/logs",
-													"host": [
-														"{{host}}"
-													],
-													"path": [
-														"api",
-														"v1",
-														"images",
-														"builds",
-														"{{image-definition-id}}",
-														"logs"
-													]
-												}
-											},
-											"response": []
-										}
-									]
-								}
-							]
-						},
-						{
-							"name": "deployments",
-							"item": [
-								{
-									"name": "create deployment",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{host}}/api/v1/deployments",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "update deployment",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "PUT",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ]\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "delete deployment",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "DELETE",
-										"header": [],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "get deployments",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments?type=MCP,INTERCEPTOR",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments"
-											],
-											"query": [
-												{
-													"key": "type",
-													"value": "MCP,INTERCEPTOR"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "get deployment by id",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "deploy deployment",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}/deploy",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}",
-												"deploy"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "undeploy deployment",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}/undeploy",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}",
-												"undeploy"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "change image",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n\t\"imageDefinitionId\": \"{{image-definition-id}}\",\n\t\"deployments\": [\"{{deployment-id}}\"]\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/change-image",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"change-image"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "duplicate deployment",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n\t\"sourceDeploymentId\": \"{{deployment-id}}\",\n\t\"newDeploymentName\": \"deployment-1-clone\"\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/duplicate",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"duplicate"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "get deployment pods",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}/pods",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}",
-												"pods"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "get active deployment pods",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}/active-pods",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}",
-												"active-pods"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "deployments/streaming",
-							"item": [
-								{
-									"name": "stream events",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "text/event-stream"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}/events/stream?eventType=WARNING&involvedObjectKind=POD",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}",
-												"events",
-												"stream"
-											],
-											"query": [
-												{
-													"key": "eventType",
-													"value": "WARNING"
-												},
-												{
-													"key": "involvedObjectKind",
-													"value": "POD"
-												}
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "stream logs",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Accept",
-												"value": "text/event-stream"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/{{deployment-id}}/pods/{{pod-id}}/logs",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"{{deployment-id}}",
-												"pods",
-												"{{pod-id}}",
-												"logs"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "mcp",
-							"item": [
-								{
-									"name": "get tools",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/mcp/{{deployment-id}}/tools",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"mcp",
-												"{{deployment-id}}",
-												"tools"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "get prompts",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/mcp/{{deployment-id}}/prompts",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"mcp",
-												"{{deployment-id}}",
-												"prompts"
-											]
-										}
-									},
-									"response": []
-								},
-								{
-									"name": "get resources",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											}
-										],
-										"url": {
-											"raw": "{{host}}/api/v1/deployments/mcp/{{deployment-id}}/resources",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"deployments",
-												"mcp",
-												"{{deployment-id}}",
-												"resources"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "topics",
-							"item": [
-								{
-									"name": "get topics",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": {
-											"raw": "{{host}}/api/v1/topics",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"topics"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "disposable resources",
-							"item": [
-								{
-									"name": "clean resources",
-									"protocolProfileBehavior": {
-										"followRedirects": true,
-										"disableUrlEncoding": false,
-										"disableCookies": false
-									},
-									"request": {
-										"method": "POST",
-										"header": [],
-										"url": {
-											"raw": "{{host}}/api/v1/disposable/clean",
-											"host": [
-												"{{host}}"
-											],
-											"path": [
-												"api",
-												"v1",
-												"disposable",
-												"clean"
-											]
-										}
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "healthcheck",
-							"protocolProfileBehavior": {
-								"followRedirects": true,
-								"disableUrlEncoding": false,
-								"disableCookies": false
-							},
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{host}}/api/v1/health",
-									"host": [
-										"{{host}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"health"
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				}
-			],
-			"auth": {
-				"type": "bearer",
-				"bearer": [
-					{
-						"key": "token",
-						"value": "{{TOKEN}}",
-						"type": "string"
-					}
-				]
-			}
-		}
-	]
+  "info": {
+    "name": "DIAL Admin Deployment Manager",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "DIAL",
+      "item": [
+        {
+          "name": "deployment-manager",
+          "item": [
+            {
+              "name": "images",
+              "item": [
+                {
+                  "name": "definitions",
+                  "item": [
+                    {
+                      "name": "whitelist",
+                      "item": [
+                        {
+                          "name": "get whitelist",
+                          "protocolProfileBehavior": {
+                            "followRedirects": true,
+                            "disableUrlEncoding": false,
+                            "disableCookies": false
+                          },
+                          "request": {
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                              "raw": "{{HOST}}/api/v1/global-whitelist/image-build",
+                              "host": [
+                                "{{HOST}}"
+                              ],
+                              "path": [
+                                "api",
+                                "v1",
+                                "global-whitelist",
+                                "image-build"
+                              ]
+                            }
+                          },
+                          "response": []
+                        },
+                        {
+                          "name": "update whitelist",
+                          "protocolProfileBehavior": {
+                            "followRedirects": true,
+                            "disableUrlEncoding": false,
+                            "disableCookies": false
+                          },
+                          "request": {
+                            "method": "POST",
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                              }
+                            ],
+                            "body": {
+                              "mode": "raw",
+                              "raw": "[\"github.com\", \"epam.com\"]",
+                              "options": {
+                                "raw": {
+                                  "language": "json"
+                                }
+                              }
+                            },
+                            "url": {
+                              "raw": "{{HOST}}/api/v1/global-whitelist/image-build",
+                              "host": [
+                                "{{HOST}}"
+                              ],
+                              "path": [
+                                "api",
+                                "v1",
+                                "global-whitelist",
+                                "image-build"
+                              ]
+                            }
+                          },
+                          "response": []
+                        }
+                      ]
+                    },
+                    {
+                      "name": "create image",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "POST",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n\t\"$type\": \"mcp\",\n\t\"name\": \"fetch\",\n\t\"version\": \"1.0.0\",\n\t\"description\": \"Fetch MCP\",\n\t\"source\": {\n\t\t\"$type\": \"docker\",\n\t\t\"imageUri\": \"mcp/fetch\"\n\t},\n    \"transportType\": \"local\",\n\t\"license\": \"MIT License\",\n\t\"topics\": [\"fetch\"],\n\t\"author\": \"local-user\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "update image",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "PUT",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n    \"$type\": \"mcp\",\n    \"name\": \"fetch\",\n    \"version\": \"1.0.0\",\n    \"description\": \"Fetch MCP\",\n    \"source\": {\n        \"$type\": \"docker\",\n        \"imageUri\": \"mcp/fetch\"\n    },\n    \"transportType\": \"local\",\n    \"license\": \"MIT License\",\n    \"topics\": [\n        \"fetch\"\n    ],\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ]\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/{{IMAGE_DEFINITION_ID}}",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "{{IMAGE_DEFINITION_ID}}"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "delete image",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/{{IMAGE_DEFINITION_ID}}",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "{{IMAGE_DEFINITION_ID}}"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get images",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions?type=MCP",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions"
+                          ],
+                          "query": [
+                            {
+                              "key": "type",
+                              "value": "MCP"
+                            }
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get image by id",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/{{IMAGE_DEFINITION_ID}}",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "{{IMAGE_DEFINITION_ID}}"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get image versions by name",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/{{IMAGE_DIFINITION_NAME}}/versions?type=INTERCEPTOR",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "{{IMAGE_DIFINITION_NAME}}",
+                            "versions"
+                          ],
+                          "query": [
+                            {
+                              "key": "type",
+                              "value": "INTERCEPTOR"
+                            }
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get images grouped",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/grouped?type=INTERCEPTOR",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "grouped"
+                          ],
+                          "query": [
+                            {
+                              "key": "type",
+                              "value": "INTERCEPTOR"
+                            }
+                          ]
+                        }
+                      },
+                      "response": []
+                    }
+                  ]
+                },
+                {
+                  "name": "builds",
+                  "item": [
+                    {
+                      "name": "build image",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "POST",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n    \"imageDefinitionId\": \"{{IMAGE_DEFINITION_ID}}\"\n  }",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/builds",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "builds"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get details",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false,
+                        "disabledSystemHeaders": {}
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/builds/{{IMAGE_DEFINITION_ID}}/details",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "builds",
+                            "{{IMAGE_DEFINITION_ID}}",
+                            "details"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "status stream",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "text/event-stream"
+                          }
+                        ],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/builds/{{IMAGE_DEFINITION_ID}}/status",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "builds",
+                            "{{IMAGE_DEFINITION_ID}}",
+                            "status"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "logs stream",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [
+                          {
+                            "key": "Accept",
+                            "value": "text/event-stream"
+                          }
+                        ],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/builds/{{IMAGE_DEFINITION_ID}}/logs",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "builds",
+                            "{{IMAGE_DEFINITION_ID}}",
+                            "logs"
+                          ]
+                        }
+                      },
+                      "response": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "deployments",
+              "item": [
+                {
+                  "name": "mcp",
+                  "item": [
+                    {
+                      "name": "create deployment",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "POST",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{IMAGE_DEFINITION_ID}}\",\n    \"name\": \"{{DEPLOYMENT_NAME}}\",\n    \"displayName\": \"Fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/deployments",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "deployments"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "update deployment",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "PUT",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch-1\",\n    \"displayName\": \"Fetch 1\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ]\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "deployments",
+                            "{{DEPLOYMENT_NAME}}"
+                          ]
+                        }
+                      },
+                      "response": []
+                    }
+                  ]
+                },
+                {
+                  "name": "inference",
+                  "item": [
+                    {
+                      "name": "create text-classification deployment",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "POST",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n    \"$type\": \"inference\",\n    \"name\": \"{{DEPLOYMENT_NAME}}\",\n    \"displayName\": \"Deberta v3\",\n    \"description\": \"Text classification Deberta v3 model\",\n    \"modelFormat\": \"huggingface\",\n    \"source\": {\n        \"$type\": \"huggingface\",\n        \"modelName\": \"protectai/deberta-v3-base-prompt-injection\"\n    },\n    \"containerPort\": 8080,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.5\",\n            \"memory\": \"104857600\",\n            \"nvidia.com/gpu\": \"0\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.5\",\n            \"memory\": \"104857600\",\n            \"nvidia.com/gpu\": \"0\"\n        }\n    },\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"test\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"0\"\n                },\n                \"mountType\": \"content\",\n                \"description\": \"\"\n            }\n        ]\n    },\n    \"scaling\": {\n        \"minReplicas\": 0,\n        \"maxReplicas\": 1,\n        \"scaleToZeroDelaySeconds\": 3600,\n        \"strategy\": {\n            \"$type\": \"PENDING_REQUESTS\", // or \"HARDWARE_USAGE\"\n            \"threshold\": 1.5\n        }\n    },\n    \"author\": \"local-user\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/deployments",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "deployments"
+                          ]
+                        }
+                      },
+                      "response": []
+                    }
+                  ]
+                },
+                {
+                  "name": "delete deployment",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get deployments",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments?type=MCP,INTERCEPTOR",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments"
+                      ],
+                      "query": [
+                        {
+                          "key": "type",
+                          "value": "MCP,INTERCEPTOR"
+                        }
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get deployment by id",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "deploy deployment",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/deploy",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "deploy"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "undeploy deployment",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/undeploy",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "undeploy"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "change image",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n\t\"imageDefinitionId\": \"{{IMAGE_DEFINITION_ID}}\",\n\t\"deployments\": [\"{{DEPLOYMENT_NAME}}\"]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/change-image",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "change-image"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "duplicate deployment",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n\t\"sourceDeploymentName\": \"{{DEPLOYMENT_NAME}}\",\n\t\"newDeploymentName\": \"deployment-1-clone\",\n\t\"newDeploymentDisplayName\": \"Deployment clone\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/duplicate",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "duplicate"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get deployment pods",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/pods",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "pods"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get active deployment pods",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/active-pods",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "active-pods"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "deployments/streaming",
+              "item": [
+                {
+                  "name": "stream events",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "text/event-stream"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/events/stream?eventType=WARNING&involvedObjectKind=POD",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "events",
+                        "stream"
+                      ],
+                      "query": [
+                        {
+                          "key": "eventType",
+                          "value": "WARNING"
+                        },
+                        {
+                          "key": "involvedObjectKind",
+                          "value": "POD"
+                        }
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "stream logs",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "text/event-stream"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/pods/{{POD_ID}}/logs",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "pods",
+                        "{{POD_ID}}",
+                        "logs"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "mcp",
+              "item": [
+                {
+                  "name": "get tools",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/mcp/{{DEPLOYMENT_NAME}}/tools",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "mcp",
+                        "{{DEPLOYMENT_NAME}}",
+                        "tools"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get prompts",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/mcp/{{DEPLOYMENT_NAME}}/prompts",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "mcp",
+                        "{{DEPLOYMENT_NAME}}",
+                        "prompts"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get resources",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/mcp/{{DEPLOYMENT_NAME}}/resources",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "mcp",
+                        "{{DEPLOYMENT_NAME}}",
+                        "resources"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "topics",
+              "item": [
+                {
+                  "name": "get topics",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/topics",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "topics"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "disposable resources",
+              "item": [
+                {
+                  "name": "clean resources",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/disposable/clean",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "disposable",
+                        "clean"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "healthcheck",
+              "protocolProfileBehavior": {
+                "followRedirects": true,
+                "disableUrlEncoding": false,
+                "disableCookies": false
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{HOST}}/api/v1/health",
+                  "host": [
+                    "{{HOST}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "api docs",
+              "protocolProfileBehavior": {
+                "followRedirects": true,
+                "disableUrlEncoding": false,
+                "disableCookies": false
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{HOST}}/v3/api-docs",
+                  "host": [
+                    "{{HOST}}"
+                  ],
+                  "path": [
+                    "v3",
+                    "api-docs"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{TOKEN}}",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{TOKEN}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "HOST",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "TOKEN",
+      "value": "test_token"
+    },
+    {
+      "key": "IMAGE_DEFINITION_ID",
+      "value": "test_image_definition_id"
+    },
+    {
+      "key": "IMAGE_DIFINITION_NAME",
+      "value": "fetch"
+    },
+    {
+      "key": "DEPLOYMENT_NAME",
+      "value": "test_deployment_name"
+    },
+    {
+      "key": "POD_ID",
+      "value": "test_pod_id"
+    }
+  ]
 }

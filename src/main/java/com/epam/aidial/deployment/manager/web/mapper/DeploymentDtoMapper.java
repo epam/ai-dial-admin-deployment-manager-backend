@@ -23,7 +23,6 @@ import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
-import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
@@ -57,8 +56,12 @@ import com.epam.aidial.deployment.manager.web.dto.internal.InterceptorDeployment
 import com.epam.aidial.deployment.manager.web.dto.internal.McpDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.NimDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.value.EnvVarValueDto;
+import com.epam.aidial.deployment.manager.web.utils.CommandLineUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -73,6 +76,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Mapper(
         componentModel = "spring",
         uses = {EnvVarValueDtoMapper.class},
@@ -83,10 +87,9 @@ public abstract class DeploymentDtoMapper {
     @Autowired
     private EnvVarValueDtoMapper envVarValueDtoMapper;
     @Autowired
-    private ImageDefinitionService imageDefinitionService;
-    @Autowired
     private McpEndpointPathResolver mcpEndpointPathResolver;
 
+    @Mapping(target = "id", source = "name")
     @SubclassMapping(source = CreateMcpDeploymentRequestDto.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = CreateAdapterDeploymentRequestDto.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = CreateInterceptorDeploymentRequestDto.class, target = CreateInterceptorDeployment.class)
@@ -94,9 +97,11 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = CreateInferenceDeploymentRequestDto.class, target = CreateInferenceDeployment.class)
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
 
+    @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
     public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
 
+    @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
     public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
 
@@ -106,6 +111,7 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = NimDeploymentNgcRegistrySourceDto.class, target = NimDeploymentNgcRegistrySource.class)
     protected abstract NimDeploymentSource toModel(NimDeploymentSourceDto dto);
 
+    @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentDto.class)
@@ -188,6 +194,7 @@ public abstract class DeploymentDtoMapper {
         throw new IllegalArgumentException("Unknown deployment type: " + deployment.getClass().getName());
     }
 
+    @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "type", source = "model", qualifiedByName = "toDeploymentTypeDto")
     public abstract DeploymentInfoDto toDeploymentInfoDto(Deployment model);
@@ -236,6 +243,30 @@ public abstract class DeploymentDtoMapper {
             case SSE -> McpTransportDto.SSE;
             case HTTP_STREAMING -> McpTransportDto.HTTP_STREAMING;
         };
+    }
+
+    protected List<String> stringToList(String str) {
+        if (StringUtils.isBlank(str)) {
+            return null;
+        }
+
+        try {
+            return CommandLineUtils.parseCommandline(str);
+        } catch (IllegalArgumentException e) {
+            var errorMessage = "Cannot parse command/arguments: '%s'".formatted(str);
+            log.warn(errorMessage, e);
+            throw new IllegalArgumentException(errorMessage, e);
+        }
+    }
+
+    protected String listToString(List<String> list) {
+        if (CollectionUtils.isEmpty(list)) {
+            return null;
+        }
+
+        return list.stream()
+                .map(CommandLineUtils::quoteArgument)
+                .collect(Collectors.joining(" "));
     }
 
 }

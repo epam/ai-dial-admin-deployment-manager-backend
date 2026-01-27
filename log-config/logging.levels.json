@@ -1,0 +1,10 @@
+{
+  "loggerLevels": {
+    "com.epam.aidial.deployment.manager": {
+      "defaultLevel": "INFO"
+    },
+    "com.epam.aidial.deployment.manager.service.deployment.AbstractDeploymentManager": {
+      "defaultLevel": "DEBUG"
+    }
+  }
+}

@@ -6,6 +6,11 @@ import java.time.Instant;
 
 public record PodInfoDto(
         @NotNull String name,
-        @NotNull Instant createdAt
+        @NotNull Instant createdAt,
+        int restartCount,
+        String lastTerminationReason,
+        Integer lastExitCode,
+        Integer lastSignal,
+        Instant lastFinishedAt
 ) {
 }

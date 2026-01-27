@@ -7,8 +7,10 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
+import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.kserve.serving.v1beta1.InferenceService;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Model;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Env;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Ports;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.ValueFrom;
@@ -23,6 +25,8 @@ import java.util.List;
 @Component
 @LogExecution
 public class InferenceManifestGenerator extends DeployableManifestGenerator {
+
+    private static final String MODEL_NAME_ARGUMENT_NAME = "--model_name";
 
     public InferenceManifestGenerator(AppProperties appconfig) {
         super(appconfig);
@@ -72,6 +76,11 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data().addAll(args);
         }
 
+        // Explicitly set model name to ensure the model uses the intended name.
+        // If omitted, the inference service will default to the Kubernetes service name,
+        // which may differ from the actual model name due to naming transformations.
+        setModelNameIfNotSet(name, modelChain);
+
         var envListMapper = modelChain
                 .getList(InferenceMappers.MODEL_ENV_FIELD, InferenceMappers.ENV_VAR_NAME);
         applySimpleEnvs(envListMapper, envs, Env::setValue);
@@ -92,6 +101,26 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         }
 
         return config.data();
+    }
+
+    private void setModelNameIfNotSet(String modelName, MappingChain<Model> modelChain) {
+        var command = modelChain.getNullable(InferenceMappers.MODEL_COMMAND_FIELD).data();
+        var args = modelChain.getNullable(InferenceMappers.MODEL_ARGS_FIELD).data();
+
+        if (isArgPresent(MODEL_NAME_ARGUMENT_NAME, command) || isArgPresent(MODEL_NAME_ARGUMENT_NAME, args)) {
+            log.info("Argument {} is already set for model '{}', skipping.", MODEL_NAME_ARGUMENT_NAME, modelName);
+            return;
+        }
+        modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data().addAll(List.of(MODEL_NAME_ARGUMENT_NAME, modelName));
+    }
+
+    private boolean isArgPresent(String targetArg, List<String> existingArgs) {
+        if (existingArgs == null) {
+            return false;
+        }
+        var targetArgWithEquals = targetArg + "=";
+        return existingArgs.stream()
+                .anyMatch(arg -> arg.equals(targetArg) || arg.startsWith(targetArgWithEquals));
     }
 
     private ValueFrom buildInferenceServiceSecretRef(SensitiveEnvVar env) {

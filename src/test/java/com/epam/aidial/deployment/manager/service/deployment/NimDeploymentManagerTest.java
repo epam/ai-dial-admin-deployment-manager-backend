@@ -64,7 +64,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class NimDeploymentManagerTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
     private static final int STARTUP_TIMEOUT = 60;
     private static final String NAMESPACE = "test-namespace";
@@ -134,7 +134,7 @@ class NimDeploymentManagerTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("ready-pod");
+        assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
     }
 
     @Test
@@ -150,6 +150,50 @@ class NimDeploymentManagerTest {
 
         // Then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithRestartInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
+        podList.setItems(List.of(pod));
+
+        when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = nimDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-with-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(5);
+        assertThat(podInfo.getLastTerminationReason()).isEqualTo("OOMKilled");
+        assertThat(podInfo.getLastExitCode()).isEqualTo(137);
+        assertThat(podInfo.getLastSignal()).isEqualTo(9);
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithoutTerminationInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPod("pod-no-restarts", true);
+        podList.setItems(List.of(pod));
+
+        when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = nimDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-no-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(0);
+        assertThat(podInfo.getLastTerminationReason()).isNull();
+        assertThat(podInfo.getLastExitCode()).isNull();
+        assertThat(podInfo.getLastSignal()).isNull();
     }
 
     @Test
@@ -208,7 +252,7 @@ class NimDeploymentManagerTest {
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID.toString()),
+                eq(DEPLOYMENT_ID),
                 any(),
                 any(),
                 any(),
@@ -286,7 +330,7 @@ class NimDeploymentManagerTest {
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID.toString()),
+                eq(DEPLOYMENT_ID),
                 any(),
                 any(),
                 any(),
@@ -540,6 +584,43 @@ class NimDeploymentManagerTest {
         } else {
             containerStatus.setState(new ContainerStateBuilder().withNewWaiting().withReason("NotReady").endWaiting().build());
         }
+
+        status.setContainerStatuses(List.of(containerStatus));
+        pod.setStatus(status);
+
+        var spec = new PodSpec();
+        var container = new Container();
+        container.setName(CONTAINER_NAME);
+        spec.setContainers(List.of(container));
+        pod.setSpec(spec);
+
+        return pod;
+    }
+
+    private Pod createPodWithRestartInfo(String name, int restartCount, String terminationReason, Integer exitCode, Integer signal) {
+        var pod = new Pod();
+        pod.setMetadata(new ObjectMeta());
+        pod.getMetadata().setName(name);
+        pod.getMetadata().setCreationTimestamp(Instant.now().toString());
+
+        var status = new PodStatus();
+        var containerStatus = new ContainerStatus();
+        containerStatus.setName(CONTAINER_NAME);
+        containerStatus.setRestartCount(restartCount);
+
+        // Set last terminated state
+        var terminatedState = new ContainerStateBuilder()
+                .withNewTerminated()
+                .withReason(terminationReason)
+                .withExitCode(exitCode)
+                .withSignal(signal)
+                .withFinishedAt(Instant.now().toString())
+                .endTerminated()
+                .build();
+        containerStatus.setLastState(terminatedState);
+
+        // Set current state as running
+        containerStatus.setState(new ContainerStateBuilder().build());
 
         status.setContainerStatuses(List.of(containerStatus));
         pod.setStatus(status);

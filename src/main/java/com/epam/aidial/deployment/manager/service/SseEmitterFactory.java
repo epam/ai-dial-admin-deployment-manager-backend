@@ -10,7 +10,6 @@ import org.springframework.web.context.request.async.AsyncRequestNotUsableExcept
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,7 +32,7 @@ public class SseEmitterFactory {
      * “real” streaming work (logs, status, …).
      */
     public SseEmitter createEmitter(
-            UUID businessId,
+            String businessId,
             String humanReadableId,
             Function<SseEmitter, SafeAutoCloseable> startStreaming) {
 
@@ -62,7 +61,7 @@ public class SseEmitterFactory {
         return emitter;
     }
 
-    private SafeAutoCloseable startHeartbeat(UUID id,
+    private SafeAutoCloseable startHeartbeat(String id,
                                              String humanReadableId,
                                              SseEmitter emitter) {
         Future<?> future = executorService.submit(() -> {

@@ -1,0 +1,15 @@
+{
+  "$type": "inference",
+  "name": "test-inference-deployment",
+  "displayName": "Test Inference Deployment",
+  "modelFormat": "huggingface",
+  "source": {
+    "$type": "huggingface",
+    "modelName": "test-user/test-model"
+  },
+  "command": "   ",
+  "args": "\t",
+  "metadata": {
+    "envs": []
+  }
+}

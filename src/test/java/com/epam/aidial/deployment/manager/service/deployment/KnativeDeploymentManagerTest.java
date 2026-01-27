@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthC
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.Container;
@@ -35,7 +36,9 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import io.fabric8.kubernetes.client.dsl.PodResource;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -65,13 +68,13 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KnativeDeploymentManagerTest {
 
-    private static final UUID DEPLOYMENT_ID = UUID.randomUUID();
+    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
     private static final int STARTUP_TIMEOUT = 60;
     private static final int UNDEPLOY_TIMEOUT = 300;
 
     private static final String SERVICE_URL = "https://service-url.example.com";
-    private static final String SERVICE_NAME = "mcp-" + DEPLOYMENT_ID;
+    private static final String SERVICE_NAME = "test-" + DEPLOYMENT_ID;
     private static final String SERVICE_CONTAINER = "user-container";
     private static final String IMAGE_NAME = "test-image:latest";
     private static final String NAMESPACE = "test-namespace";
@@ -105,6 +108,16 @@ class KnativeDeploymentManagerTest {
     private CiliumNetworkPolicy ciliumNetworkPolicy;
 
     private KnativeDeploymentManager knativeDeploymentManager;
+
+    @BeforeAll
+    static void setPrefix() {
+        K8sNamingUtils.setResourceNamePrefix("test");
+    }
+
+    @AfterAll
+    static void dropPrefix() {
+        K8sNamingUtils.setResourceNamePrefix("");
+    }
 
     @BeforeEach
     void setUp() {
@@ -153,7 +166,7 @@ class KnativeDeploymentManagerTest {
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("ready-pod");
+        assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
     }
 
     @Test
@@ -179,7 +192,7 @@ class KnativeDeploymentManagerTest {
         // Create a pod with container status but container name doesn't match
         var pod = createPod("pod-with-wrong-container", true);
         // Override the container name to simulate a different container
-        pod.getStatus().getContainerStatuses().get(0).setName("wrong-container-name");
+        pod.getStatus().getContainerStatuses().getFirst().setName("wrong-container-name");
         podList.setItems(List.of(pod));
 
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
@@ -188,6 +201,50 @@ class KnativeDeploymentManagerTest {
         assertThatThrownBy(() -> knativeDeploymentManager.getActiveInstances(DEPLOYMENT_ID))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container " + SERVICE_CONTAINER + " is missing in service pod");
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithRestartInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
+        podList.setItems(List.of(pod));
+
+        when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = knativeDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-with-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(5);
+        assertThat(podInfo.getLastTerminationReason()).isEqualTo("OOMKilled");
+        assertThat(podInfo.getLastExitCode()).isEqualTo(137);
+        assertThat(podInfo.getLastSignal()).isEqualTo(9);
+    }
+
+    @Test
+    void getInstances_shouldReturnPodsWithoutTerminationInfo() {
+        // Given
+        var podList = new PodList();
+        var pod = createPod("pod-no-restarts", true);
+        podList.setItems(List.of(pod));
+
+        when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = knativeDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var podInfo = result.getFirst();
+        assertThat(podInfo.getName()).isEqualTo("pod-no-restarts");
+        assertThat(podInfo.getRestartCount()).isEqualTo(0);
+        assertThat(podInfo.getLastTerminationReason()).isNull();
+        assertThat(podInfo.getLastExitCode()).isNull();
+        assertThat(podInfo.getLastSignal()).isNull();
     }
 
     @Test
@@ -235,7 +292,7 @@ class KnativeDeploymentManagerTest {
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), any())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID.toString()),
+                eq(DEPLOYMENT_ID),
                 any(),
                 any(),
                 any(),
@@ -511,6 +568,43 @@ class KnativeDeploymentManagerTest {
         } else {
             containerStatus.setState(new ContainerStateBuilder().withNewWaiting().withReason("NotReady").endWaiting().build());
         }
+
+        status.setContainerStatuses(List.of(containerStatus));
+        pod.setStatus(status);
+
+        var spec = new PodSpec();
+        var container = new Container();
+        container.setName(SERVICE_CONTAINER);
+        spec.setContainers(List.of(container));
+        pod.setSpec(spec);
+
+        return pod;
+    }
+
+    private Pod createPodWithRestartInfo(String name, int restartCount, String terminationReason, Integer exitCode, Integer signal) {
+        var pod = new Pod();
+        pod.setMetadata(new ObjectMeta());
+        pod.getMetadata().setName(name);
+        pod.getMetadata().setCreationTimestamp(Instant.now().toString());
+
+        var status = new PodStatus();
+        var containerStatus = new ContainerStatus();
+        containerStatus.setName(SERVICE_CONTAINER);
+        containerStatus.setRestartCount(restartCount);
+
+        // Set last terminated state
+        var terminatedState = new ContainerStateBuilder()
+                .withNewTerminated()
+                .withReason(terminationReason)
+                .withExitCode(exitCode)
+                .withSignal(signal)
+                .withFinishedAt(Instant.now().toString())
+                .endTerminated()
+                .build();
+        containerStatus.setLastState(terminatedState);
+
+        // Set current state as running
+        containerStatus.setState(new ContainerStateBuilder().build());
 
         status.setContainerStatuses(List.of(containerStatus));
         pod.setStatus(status);

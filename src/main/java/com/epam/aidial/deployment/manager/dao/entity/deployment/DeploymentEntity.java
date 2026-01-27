@@ -35,7 +35,7 @@ import java.util.UUID;
 public class DeploymentEntity {
 
     @Id
-    private UUID id;
+    private String id;
 
     @Column(name = "image_definition_id")
     private UUID imageDefinitionId;
@@ -46,7 +46,7 @@ public class DeploymentEntity {
     @Column(name = "image_definition_version")
     private String imageDefinitionVersion;
 
-    private String name;
+    private String displayName;
 
     private String description;
 

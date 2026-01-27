@@ -18,11 +18,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class Deployment {
-    private UUID id;
+    private String id;
     private UUID imageDefinitionId;
     private String imageDefinitionName;
     private String imageDefinitionVersion;
-    private String name;
+    private String displayName;
     private String description;
     private List<EnvVar> envs;
     private DeploymentMetadata metadata;
