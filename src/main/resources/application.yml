@@ -396,3 +396,8 @@ logger:
   configuration:
     path: ${LOG_CONFIG_PATH:log-config/logging.levels.json}
     interval: ${LOG_CONFIG_INTERVAL:10}
+
+huggingface:
+  base-url: ${HUGGINGFACE_BASE_URL:https://huggingface.co}
+  api-token: ${HUGGINGFACE_API_TOKEN:}
+  tag-cache-duration: ${HUGGINGFACE_TAG_CACHE_DURATION:24h}

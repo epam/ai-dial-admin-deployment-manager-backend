@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder
@@ -15,18 +14,14 @@ import java.util.Map;
 public class HuggingFaceModelDto {
     private String id;
     private String author;
-    private Boolean gated;
+    private String createdAt;
     private String lastModified;
     private Long likes;
-    private Long trendingScore;
-    private Boolean isPrivate;
-    private String sha;
-    private Map<String, Object> config;
     private Long downloads;
+    private Long parameters;
     private List<String> tags;
-    private String pipelineTag;
-    private String libraryName;
-    private String createdAt;
-    private String modelId;
-    private List<HuggingFaceModelSiblingDto> siblings;
+    private List<String> libraries;
+    private List<String> languages;
+    private List<String> licenses;
+    private List<String> datasets;
 }

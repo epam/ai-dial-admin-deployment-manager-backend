@@ -208,6 +208,13 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim-service-config.spec.storage.pvc.size` | - | `20Gi` | No | - | Default Persistent volume claim size |
 | `app.nim-service-config.spec.resources.limits.[nvidia.com/gpu]` | - | `1` | No | - | Default GPU resource limit |
 
+### Hugging Face Configuration
+| Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |
+|----------------------------------|----------------------------------|--------------------------|----------|--------------|--------------------------------------------|
+| `huggingface.base-url`           | `HUGGINGFACE_BASE_URL`           | `https://huggingface.co` | No       | -            | Base URL for Hugging Face API              |
+| `huggingface.api-token`          | `HUGGINGFACE_API_TOKEN`          | -                        | No       | -            | API token for authentication               |
+| `huggingface.tag-cache-duration` | `HUGGINGFACE_TAG_CACHE_DURATION` | `24h`                    | No       | -            | Duration to cache tag data (e.g. 24h, 60m) |
+
 ### Validation Configuration
 
 | Property                            | Environment Variable                  | Default Value                                                  | Required | Applied when  | Description                 |

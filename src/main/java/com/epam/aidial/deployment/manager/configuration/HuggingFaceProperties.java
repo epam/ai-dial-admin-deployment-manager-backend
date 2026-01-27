@@ -5,18 +5,17 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+
 @Component
 @ConfigurationProperties(prefix = "huggingface")
 @Getter
 @Setter
 public class HuggingFaceProperties {
-    /**
-     * Base URL for Hugging Face API.
-     */
-    private String baseUrl = "https://huggingface.co";
 
-    /**
-     * API token for authentication (optional).
-     */
+    private String baseUrl;
+
     private String apiToken;
+
+    private Duration tagCacheDuration;
 }
