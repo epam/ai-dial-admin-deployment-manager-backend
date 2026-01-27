@@ -21,6 +21,7 @@ class ResourcesValidatorTest {
 
     private static final String CPU = "cpu";
     private static final String MEMORY = "memory";
+    private static final String NVIDIA_GPU = "nvidia.com/gpu";
 
     private ResourcesValidator validator;
     private ConstraintValidatorContext context;
@@ -31,6 +32,7 @@ class ResourcesValidatorTest {
         // inject test configuration values
         setField(validator, "maxCpuResourceLimitInCores", 10d);
         setField(validator, "maxMemoryResourceLimitInMb", 100_000d);
+        setField(validator, "maxNvidiaGpuResourceLimit", 5d);
         context = mock(ConstraintValidatorContext.class);
         var builder = mock(ConstraintValidatorContext.ConstraintViolationBuilder.class);
         when(context.buildConstraintViolationWithTemplate(anyString())).thenReturn(builder);
@@ -137,6 +139,17 @@ class ResourcesValidatorTest {
         String overLimit = String.valueOf(100_000_000_020L);
         when(dto.limits()).thenReturn(Map.of(MEMORY, overLimit));
         when(dto.requests()).thenReturn(Map.of(MEMORY, "1000"));
+
+        assertFalse(validator.isValid(dto, context));
+        verify(context).disableDefaultConstraintViolation();
+        verify(context).buildConstraintViolationWithTemplate(contains("must not exceed"));
+    }
+
+    @Test
+    void testNvidiaExceedsConfiguredLimit() {
+        var dto = mock(ResourcesDto.class);
+        when(dto.limits()).thenReturn(Map.of(NVIDIA_GPU, "20"));
+        when(dto.requests()).thenReturn(Map.of(NVIDIA_GPU, "5"));
 
         assertFalse(validator.isValid(dto, context));
         verify(context).disableDefaultConstraintViolation();

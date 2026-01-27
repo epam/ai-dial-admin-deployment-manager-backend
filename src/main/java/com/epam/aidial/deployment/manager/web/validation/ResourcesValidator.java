@@ -15,12 +15,16 @@ public class ResourcesValidator implements ConstraintValidator<ValidResources, R
 
     private static final String CPU = "cpu";
     private static final String MEMORY = "memory";
+    private static final String NVIDIA_GPU = "nvidia.com/gpu";
 
     @Value("${app.validation.resources.max-cpu-in-cores}")
     private double maxCpuResourceLimitInCores;
 
     @Value("${app.validation.resources.max-memory-in-mb}")
     private double maxMemoryResourceLimitInMb;
+
+    @Value("${app.validation.resources.max-nvidia-gpu}")
+    private double maxNvidiaGpuResourceLimit;
 
     @Override
     public boolean isValid(ResourcesDto resources, ConstraintValidatorContext context) {
@@ -107,7 +111,7 @@ public class ResourcesValidator implements ConstraintValidator<ValidResources, R
                                         double requestNumeric,
                                         double limitNumeric,
                                         ConstraintValidatorContext context) {
-        // Upper bound checks for CPU and memory
+        // Upper bound checks for CPU, memory and nvidia.com/gpu
         if (key.equalsIgnoreCase(CPU)) {
             if (requestNumeric > maxCpuResourceLimitInCores || limitNumeric > maxCpuResourceLimitInCores) {
                 log.warn(
@@ -130,6 +134,18 @@ public class ResourcesValidator implements ConstraintValidator<ValidResources, R
                 context.buildConstraintViolationWithTemplate(
                                 "Request and limit for '%s' must not exceed %s bytes"
                                         .formatted(key, (long) maxMemoryResourceLimitInBytes))
+                        .addConstraintViolation();
+                return false;
+            }
+        } else if (key.equalsIgnoreCase(NVIDIA_GPU)) {
+            if (requestNumeric > maxNvidiaGpuResourceLimit || limitNumeric > maxNvidiaGpuResourceLimit) {
+                log.warn(
+                        "Validation failed for '{}': values exceed max allowed value (request={}, limit={}, max={})",
+                        key, requestNumeric, limitNumeric, maxNvidiaGpuResourceLimit);
+                context.disableDefaultConstraintViolation();
+                context.buildConstraintViolationWithTemplate(
+                                "Request and limit for '%s' must not exceed %s"
+                                        .formatted(key, maxNvidiaGpuResourceLimit))
                         .addConstraintViolation();
                 return false;
             }
