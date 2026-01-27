@@ -31,15 +31,15 @@ public class McpHealthChecker implements HealthChecker {
     }
 
     @Override
-    public void waitReady(String serviceUrl, Deployment deployment, Duration remainingDuration) {
+    public void waitReady(String serviceUrl, Deployment deployment, Duration timeout) {
         if (!(deployment instanceof McpDeployment mcpDeployment)) {
             throw new IllegalArgumentException("McpHealthChecker only supports MCP deployments");
         }
 
         var endpointPath = mcpEndpointPathResolver.resolveEndpointPath(mcpDeployment);
-        var retryTemplate = retryTemplateFactory.apply(remainingDuration);
+        var retryTemplate = retryTemplateFactory.apply(timeout);
 
-        log.debug("Waiting for MCP service to be ready at URL: {} with remaining duration: {}", serviceUrl, remainingDuration);
+        log.debug("Waiting for MCP service to be ready at URL: {} with timeout: {}s", serviceUrl, timeout.toSeconds());
         try {
             retryTemplate.execute(context -> {
                 try (var mcpClient = mcpClientFactory.create(serviceUrl, endpointPath, mcpDeployment.getTransport())) {

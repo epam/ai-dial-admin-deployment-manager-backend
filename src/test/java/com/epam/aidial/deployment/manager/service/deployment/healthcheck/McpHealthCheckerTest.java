@@ -36,7 +36,7 @@ class McpHealthCheckerTest {
 
     private static final String SERVICE_URL = "http://test-service.com";
     private static final String ENDPOINT_PATH = "/mcp";
-    private static final Duration REMAINING_DURATION = Duration.ofSeconds(30);
+    private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     @Mock
     private McpClientFactory mcpClientFactory;
@@ -90,9 +90,9 @@ class McpHealthCheckerTest {
             return callback.doWithRetry(mock(RetryContext.class));
         });
 
-        mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, REMAINING_DURATION);
+        mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT);
 
-        verify(retryTemplateFactory).apply(REMAINING_DURATION);
+        verify(retryTemplateFactory).apply(TIMEOUT);
         verify(mcpEndpointPathResolver).resolveEndpointPath(mcpDeployment);
         verify(mcpClientFactory).create(SERVICE_URL, ENDPOINT_PATH, McpTransport.HTTP_STREAMING);
         verify(mcpSyncClient).initialize();
@@ -104,7 +104,7 @@ class McpHealthCheckerTest {
 
         var exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> mcpHealthChecker.waitReady(SERVICE_URL, adapterDepl, REMAINING_DURATION)
+                () -> mcpHealthChecker.waitReady(SERVICE_URL, adapterDepl, TIMEOUT)
         );
 
         assertThat(exception).hasMessageContaining("McpHealthChecker only supports MCP deployments");
@@ -120,13 +120,13 @@ class McpHealthCheckerTest {
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
-                () -> mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, REMAINING_DURATION)
+                () -> mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT)
         );
 
         assertThat(exception)
                 .hasMessageContaining("MCP service failed to become ready at URL: " + SERVICE_URL)
                 .hasCause(initializationException);
-        verify(retryTemplateFactory).apply(REMAINING_DURATION);
+        verify(retryTemplateFactory).apply(TIMEOUT);
         verify(mcpEndpointPathResolver).resolveEndpointPath(mcpDeployment);
     }
 
@@ -138,7 +138,7 @@ class McpHealthCheckerTest {
             return callback.doWithRetry(context);
         });
 
-        mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, REMAINING_DURATION);
+        mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT);
 
         verify(mcpSyncClient).initialize();
         verify(mcpSyncClient).close();

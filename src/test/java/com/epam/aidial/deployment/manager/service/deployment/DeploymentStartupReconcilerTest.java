@@ -15,11 +15,8 @@ import org.springframework.data.domain.Page;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,10 +30,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DeploymentStartupReconcilerTest {
 
-    private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
-
     private static final int BATCH_SIZE = 2;
-    private static final int BOOTSTRAP_THREADS = 2;
+    private static final int CONCURRENCY = 2;
 
     @Mock
     private DeploymentRepository deploymentRepository;
@@ -53,9 +48,9 @@ class DeploymentStartupReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        setField("bootstrapEnabled", true);
+        setField("reconcileOnStartupEnabled", true);
         setField("batchSize", BATCH_SIZE);
-        setField("bootstrapThreads", BOOTSTRAP_THREADS);
+        setField("concurrency", CONCURRENCY);
     }
 
     private void setField(String fieldName, Object value) {
@@ -69,8 +64,8 @@ class DeploymentStartupReconcilerTest {
     }
 
     @Test
-    void init_whenBootstrapDisabled_shouldNotProcessDeployments() {
-        setField("bootstrapEnabled", false);
+    void init_whenReconciliationDisabled_shouldNotProcessDeployments() {
+        setField("reconcileOnStartupEnabled", false);
 
         startupReconciler.init();
 
@@ -79,39 +74,29 @@ class DeploymentStartupReconcilerTest {
     }
 
     @Test
-    void init_whenBootstrapEnabled_shouldProcessAllDeployments() throws InterruptedException {
+    void init_whenReconciliationEnabled_shouldProcessAllDeployments() {
         String id1 = String.valueOf(UUID.randomUUID());
         String id2 = String.valueOf(UUID.randomUUID());
         Deployment dep1 = createDeployment(id1, DeploymentStatus.RUNNING);
         Deployment dep2 = createDeployment(id2, DeploymentStatus.PENDING);
         List<Deployment> deployments = List.of(dep1, dep2);
 
-        CountDownLatch latch = new CountDownLatch(deployments.size());
-
         when(page.getContent()).thenReturn(deployments);
         when(page.hasNext()).thenReturn(false);
         when(deploymentRepository.getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0))).thenReturn(page);
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
         doReturn(manager).when(deploymentManagerProvider).provide(anyString());
-        when(deploymentManager.reconcile(anyString(), eq(true))).thenAnswer(invocation -> {
-            latch.countDown();
-            return true;
-        });
 
         startupReconciler.init();
 
-        // Wait for all tasks to complete
-        boolean completed = latch.await(5, TimeUnit.SECONDS);
-        assert completed : "Not all deployments were processed within timeout";
-
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0));
         verify(deploymentManagerProvider, times(2)).provide(anyString());
-        verify(deploymentManager).reconcile(id1, true);
-        verify(deploymentManager).reconcile(id2, true);
+        verify(deploymentManager).stopOnServiceNotFound(id1);
+        verify(deploymentManager).stopOnServiceNotFound(id2);
     }
 
     @Test
-    void init_whenMultiplePages_shouldProcessAllBatches() throws InterruptedException {
+    void init_whenMultiplePages_shouldProcessAllBatches() {
         String id1 = String.valueOf(UUID.randomUUID());
         String id2 = String.valueOf(UUID.randomUUID());
         String id3 = String.valueOf(UUID.randomUUID());
@@ -129,28 +114,19 @@ class DeploymentStartupReconcilerTest {
         when(page2.getContent()).thenReturn(List.of(dep3));
         when(page2.hasNext()).thenReturn(false);
 
-        CountDownLatch latch = new CountDownLatch(3);
-
         when(deploymentRepository.getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0))).thenReturn(page1);
         when(deploymentRepository.getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(1))).thenReturn(page2);
         DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
         doReturn(manager).when(deploymentManagerProvider).provide(anyString());
-        when(deploymentManager.reconcile(anyString(), eq(true))).thenAnswer(invocation -> {
-            latch.countDown();
-            return true;
-        });
 
         startupReconciler.init();
-
-        boolean completed = latch.await(5, TimeUnit.SECONDS);
-        assert completed : "Not all deployments were processed within timeout";
 
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0));
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(1));
         verify(deploymentManagerProvider, times(3)).provide(anyString());
-        verify(deploymentManager).reconcile(id1, true);
-        verify(deploymentManager).reconcile(id2, true);
-        verify(deploymentManager).reconcile(id3, true);
+        verify(deploymentManager).stopOnServiceNotFound(id1);
+        verify(deploymentManager).stopOnServiceNotFound(id2);
+        verify(deploymentManager).stopOnServiceNotFound(id3);
     }
 
     @Test
@@ -162,48 +138,6 @@ class DeploymentStartupReconcilerTest {
 
         verify(deploymentRepository).getAllActiveDeploymentsPaged(eq(BATCH_SIZE), eq(0));
         verify(deploymentManagerProvider, never()).provide(anyString());
-    }
-
-    @Test
-    void synchronizeDeploymentState_shouldCallReconcile() {
-        Deployment deployment = createDeployment(DEPLOYMENT_ID, DeploymentStatus.PENDING);
-
-        DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
-        doReturn(manager).when(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        when(deploymentManager.reconcile(DEPLOYMENT_ID, true)).thenReturn(true);
-
-        startupReconciler.synchronizeDeploymentState(deployment);
-
-        verify(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        verify(deploymentManager).reconcile(DEPLOYMENT_ID, true);
-    }
-
-    @Test
-    void synchronizeDeploymentState_whenReconcileThrowsException_shouldPropagateException() {
-        Deployment deployment = createDeployment(DEPLOYMENT_ID, DeploymentStatus.PENDING);
-        RuntimeException exception = new RuntimeException("Reconciliation failed");
-
-        DeploymentManager<?> manager = (DeploymentManager<?>) deploymentManager;
-        doReturn(manager).when(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        when(deploymentManager.reconcile(DEPLOYMENT_ID, true)).thenThrow(exception);
-
-        assertThrows(RuntimeException.class, () -> startupReconciler.synchronizeDeploymentState(deployment));
-
-        verify(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        verify(deploymentManager).reconcile(DEPLOYMENT_ID, true);
-    }
-
-    @Test
-    void synchronizeDeploymentState_whenProviderThrowsException_shouldPropagateException() {
-        Deployment deployment = createDeployment(DEPLOYMENT_ID, DeploymentStatus.PENDING);
-        RuntimeException exception = new RuntimeException("Provider failed");
-
-        when(deploymentManagerProvider.provide(DEPLOYMENT_ID)).thenThrow(exception);
-
-        assertThrows(RuntimeException.class, () -> startupReconciler.synchronizeDeploymentState(deployment));
-
-        verify(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        verify(deploymentManager, never()).reconcile(anyString(), anyBoolean());
     }
 
     @Test

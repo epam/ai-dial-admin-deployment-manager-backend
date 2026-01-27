@@ -278,7 +278,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         initiator, deploymentId, serviceName);
                 try {
                     var serviceUrl = resolveServiceUrl(service, deployment);
-                    performHealthChecks(deployment, serviceUrl, System.currentTimeMillis());
+                    performHealthChecks(deployment, serviceUrl);
                     deployment.setUrl(serviceUrl);
                     deployment.setStatus(DeploymentStatus.RUNNING);
                     deploymentRepository.update(deploymentId, deployment);
@@ -299,6 +299,27 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         } catch (Exception e) {
             log.error("{}: unexpected error for deployment '{}'", initiator, deploymentId, e);
             throw e;
+        }
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void stopOnServiceNotFound(String id) {
+        if (log.isTraceEnabled()) {
+            log.trace("stopOnServiceNotFound. Deployment ID: {}", id);
+        }
+
+        var serviceName = getServiceName(id);
+        var service = getService(namespace, serviceName);
+        var deploymentOptional = getDeploymentOptional(id);
+
+        if (deploymentOptional.isPresent() && service == null) {
+            var deployment = deploymentOptional.get();
+            log.info("Reconciliation: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
+                    id, deployment.getStatus());
+            deployment.setUrl(null);
+            deployment.setStatus(DeploymentStatus.STOPPED);
+            deploymentRepository.update(id, deployment);
         }
     }
 
@@ -546,7 +567,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected abstract String resolveServiceUrl(S service, D deployment);
 
-    protected void performHealthChecks(D deployment, String serviceUrl, long startTime) {
+    protected void performHealthChecks(D deployment, String serviceUrl) {
         // Default implementation does nothing
     }
 

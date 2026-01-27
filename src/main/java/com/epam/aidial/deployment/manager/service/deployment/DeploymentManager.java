@@ -23,6 +23,8 @@ public interface DeploymentManager<S> {
 
     boolean reconcile(ReconcileConfig<S> config);
 
+    void stopOnServiceNotFound(String id);
+
     Deployment undeploy(String id);
 
     void rollingUpdate(String id);
