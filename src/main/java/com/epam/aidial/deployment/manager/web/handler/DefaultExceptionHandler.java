@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.web.handler;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.DatabaseException;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
@@ -40,7 +41,6 @@ public class DefaultExceptionHandler {
         return new ErrorView(req, HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     @ExceptionHandler({HttpRequestMethodNotSupportedException.class})
     public ErrorView handleMethodNotAllowedError(HttpServletRequest req, Exception ex) {
@@ -77,11 +77,18 @@ public class DefaultExceptionHandler {
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(DatabaseException.class)
+    public ErrorView handleDatabaseException(HttpServletRequest req, DatabaseException ex) {
+        log.warn("[{}] Request: {} failed due to database error", req.getMethod(), req.getServletPath(), ex);
+        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, "Database error occurred");
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(Exception.class)
     public ErrorView handleGeneralError(HttpServletRequest req, Exception ex) {
         log.warn("[{}] Request: {} raised exception", req.getMethod(), req.getServletPath(), ex);
 
-        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
