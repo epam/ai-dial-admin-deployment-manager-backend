@@ -14,7 +14,5 @@ import java.util.List;
 public class HuggingFaceModelsPageResponse {
     private List<HuggingFaceModel> models;
     private String nextPageUrl;
-    private Boolean hasNextPage;
     private String prevPageUrl;
-    private Boolean hasPrevPage;
 }

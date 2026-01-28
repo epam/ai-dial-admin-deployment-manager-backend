@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.huggingface.web.mapper;
 import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModel;
 import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceTagInfo;
 import com.epam.aidial.deployment.manager.huggingface.web.dto.HuggingFaceModelDto;
+import lombok.extern.slf4j.Slf4j;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Context;
 import org.mapstruct.Mapper;
@@ -12,20 +13,21 @@ import org.mapstruct.MappingTarget;
 import java.util.ArrayList;
 import java.util.Map;
 
+@Slf4j
 @Mapper(componentModel = "spring")
-public interface HuggingFaceModelDtoMapper {
+public abstract class HuggingFaceModelDtoMapper {
 
     @Mapping(target = "libraries", ignore = true)
     @Mapping(target = "languages", ignore = true)
     @Mapping(target = "licenses", ignore = true)
     @Mapping(target = "datasets", ignore = true)
     @Mapping(target = "parameters", source = "safetensors.total")
-    HuggingFaceModelDto toDto(HuggingFaceModel model, @Context Map<String, HuggingFaceTagInfo> tagDictionary);
+    public abstract HuggingFaceModelDto toDto(HuggingFaceModel model, @Context Map<String, HuggingFaceTagInfo> tagDictionary);
 
     @AfterMapping
-    default void mapTags(HuggingFaceModel model,
-                         @MappingTarget HuggingFaceModelDto dto,
-                         @Context Map<String, HuggingFaceTagInfo> tagDictionary) {
+    void mapTags(HuggingFaceModel model,
+                 @MappingTarget HuggingFaceModelDto dto,
+                 @Context Map<String, HuggingFaceTagInfo> tagDictionary) {
         if (model.getTags() == null || tagDictionary == null) {
             return;
         }
@@ -53,6 +55,9 @@ public interface HuggingFaceModelDtoMapper {
                     break;
                 case "dataset":
                     datasets.add(tagInfo.label());
+                    break;
+                default:
+                    log.debug("Received unsupported tag type: {}. tag: {}. model: {}", tagInfo.type(), tag, model.getId());
                     break;
             }
         }

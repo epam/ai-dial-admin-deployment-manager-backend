@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -20,6 +21,7 @@ public class HuggingFaceModel {
     private String lastModified;
     private Long likes;
     private Long downloads;
+    @Nullable
     private Safetensors safetensors;
     private List<String> tags;
 }

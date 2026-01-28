@@ -74,16 +74,14 @@ public class HuggingFaceController {
         return HuggingFaceModelsPageResponseDto.builder()
                 .models(modelDtos)
                 .nextPageUrl(pageResponse.getNextPageUrl())
-                .hasNextPage(pageResponse.getHasNextPage())
                 .prevPageUrl(pageResponse.getPrevPageUrl())
-                .hasPrevPage(pageResponse.getHasPrevPage())
                 .build();
     }
 
-    @GetMapping(value = "/{user}/{modelName}/resolve/{revision}/**")
+    @GetMapping(value = "/{namespace}/{repoName}/resolve/{revision}/**")
     public ResponseEntity<StreamingResponseBody> downloadFile(
-            @PathVariable String user,
-            @PathVariable String modelName,
+            @PathVariable String namespace,
+            @PathVariable String repoName,
             @PathVariable String revision,
             HttpServletRequest request
     ) {
@@ -92,10 +90,10 @@ public class HuggingFaceController {
         var rawFilePath = new AntPathMatcher().extractPathWithinPattern(bestMatchPattern, fullPath);
 
         var filePath = URLDecoder.decode(rawFilePath, StandardCharsets.UTF_8);
-        var repoId = user + "/" + modelName;
+        var modelName = namespace + "/" + repoName;
 
         var fileRequest = HuggingFaceFileRequest.builder()
-                .repoId(repoId)
+                .modelName(modelName)
                 .revision(revision)
                 .filePath(filePath)
                 .build();
@@ -120,7 +118,7 @@ public class HuggingFaceController {
                 try (inputStream) {
                     inputStream.transferTo(outputStream);
                 } catch (Exception e) {
-                    log.error("Stream error for file: {}", filePath, e);
+                    log.warn("Stream error for file: {}", filePath, e);
                 }
             };
 
@@ -136,7 +134,7 @@ public class HuggingFaceController {
             log.warn("Upstream error: {}", e.getMessage());
             return ResponseEntity.status(e.getStatusCode()).build();
         } catch (Exception e) {
-            log.error("Download failed", e);
+            log.warn("Download failed", e);
             return ResponseEntity.internalServerError().build();
         }
     }

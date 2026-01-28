@@ -65,22 +65,18 @@ public class HuggingFaceClient {
             return HuggingFaceModelsPageResponse.builder()
                     .models(pageResponse.models())
                     .nextPageUrl(nextPageUrl)
-                    .hasNextPage(nextPageUrl != null)
                     .prevPageUrl(prevPageUrl)
-                    .hasPrevPage(prevPageUrl != null)
                     .build();
         } catch (IOException e) {
-            log.warn("Error fetching models page from Hugging Face API: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to fetch models page from Hugging Face API", e);
+            var errorMessage = "Error fetching models page from Hugging Face API";
+            log.warn(errorMessage, e);
+            throw new RuntimeException(errorMessage, e);
         }
     }
 
     public Map<String, List<HuggingFaceTagInfo>> getTagsByType() {
         var url = HttpUrl.parse(properties.getBaseUrl() + TAGS_BY_TYPE_ENDPOINT);
-        var request = new Request.Builder()
-                .url(url)
-                .get()
-                .build();
+        var request = new Request.Builder().url(url).get().build();
 
         try (var response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
@@ -95,8 +91,9 @@ public class HuggingFaceClient {
             return jsonMapper.readValue(body.string(), new TypeReference<>() {
             });
         } catch (IOException e) {
-            log.error("Error fetching tags by type from Hugging Face API: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to fetch tags by type from Hugging Face API", e);
+            var errorMessage = "Error fetching tags by type from Hugging Face API";
+            log.error(errorMessage, e);
+            throw new RuntimeException(errorMessage, e);
         }
     }
 
@@ -140,9 +137,9 @@ public class HuggingFaceClient {
             return body;
 
         } catch (IOException e) {
-            var message = "Failed to download file from Hugging Face";
-            log.warn(message, e);
-            throw new RuntimeException(message, e);
+            var errorMessage = "Failed to download file from Hugging Face";
+            log.warn(errorMessage, e);
+            throw new RuntimeException(errorMessage, e);
         }
     }
 
@@ -211,7 +208,7 @@ public class HuggingFaceClient {
      */
     private String buildFileUrl(HuggingFaceFileRequest fileRequest) {
         var path = String.format("/%s/resolve/%s/%s",
-                fileRequest.getRepoId(),
+                fileRequest.getModelName(),
                 fileRequest.getRevision(),
                 fileRequest.getFilePath());
 

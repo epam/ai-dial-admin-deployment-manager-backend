@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -13,8 +14,8 @@ import java.util.List;
 @AllArgsConstructor
 public class HuggingFaceModelsPageResponseDto {
     private List<HuggingFaceModelDto> models;
+    @Nullable
     private String nextPageUrl;
-    private Boolean hasNextPage;
+    @Nullable
     private String prevPageUrl;
-    private Boolean hasPrevPage;
 }

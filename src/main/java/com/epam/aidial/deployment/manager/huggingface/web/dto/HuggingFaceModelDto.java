@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -18,6 +19,7 @@ public class HuggingFaceModelDto {
     private String lastModified;
     private Long likes;
     private Long downloads;
+    @Nullable
     private Long parameters;
     private List<String> tags;
     private List<String> libraries;
