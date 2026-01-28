@@ -7,15 +7,12 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
-@Component
-@ConfigurationProperties(prefix = "huggingface")
 @Getter
 @Setter
+@Component
+@ConfigurationProperties(prefix = "huggingface")
 public class HuggingFaceProperties {
-
     private String baseUrl;
-
     private String apiToken;
-
     private Duration tagCacheDuration;
 }

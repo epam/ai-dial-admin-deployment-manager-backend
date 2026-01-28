@@ -19,8 +19,6 @@ public class HttpClientConfiguration {
                 .connectTimeout(properties.getConnectTimeout(), TimeUnit.MILLISECONDS)
                 .readTimeout(properties.getReadTimeout(), TimeUnit.MILLISECONDS)
                 .writeTimeout(properties.getWriteTimeout(), TimeUnit.MILLISECONDS)
-                .followRedirects(true) // Enable redirect following for LFS files
-                .followSslRedirects(true) // Enable HTTPS redirects to CDN
                 .build();
     }
 
