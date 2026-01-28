@@ -8,8 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Service
 @LogExecution
@@ -17,7 +15,6 @@ import java.util.stream.Collectors;
 public class GlobalDomainWhitelistService {
 
     private final GlobalDomainWhitelistRepository repository;
-    private final DomainValidator domainValidator;
 
     @Transactional(readOnly = true)
     public List<String> getDomainWhitelist() {
@@ -26,13 +23,6 @@ public class GlobalDomainWhitelistService {
 
     @Transactional
     public List<String> updateDomainWhitelist(@NotNull List<String> allowedDomains) {
-        List<String> invalidDomains = allowedDomains.stream()
-                .filter(domain -> !domainValidator.isValid(domain))
-                .toList();
-
-        if (!invalidDomains.isEmpty()) {
-            throw new IllegalArgumentException("Invalid domains: " + invalidDomains);
-        }
         return repository.updateAllowedDomains(allowedDomains);
     }
 }

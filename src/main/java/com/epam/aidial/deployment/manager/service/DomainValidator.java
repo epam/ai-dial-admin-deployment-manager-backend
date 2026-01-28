@@ -12,7 +12,6 @@ public class DomainValidator {
 
     public boolean isValid(String domain) {
         if (domain == null
-                || domain.contains("://")
                 || domain.contains("/")
                 || domain.contains("?")
                 || domain.contains("#")
