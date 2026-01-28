@@ -62,7 +62,7 @@ public class ImageCopyJobSpecification implements JobSpecification {
         var config = new MappingChain<>(this.appConfig.cloneCopyImageJobConfig());
         config.get(Mappers.JOB_METADATA_FIELD)
                 .data()
-                .setName(K8sNamingUtils.generateMcpPrefixedName(jobId));
+                .setName(K8sNamingUtils.generateName(jobId));
         var podSpec = config.get(Mappers.JOB_SPEC_FIELD)
                 .get(Mappers.JOB_TEMPLATE_FIELD)
                 .get(Mappers.JOB_TEMPLATE_SPEC_FIELD);
