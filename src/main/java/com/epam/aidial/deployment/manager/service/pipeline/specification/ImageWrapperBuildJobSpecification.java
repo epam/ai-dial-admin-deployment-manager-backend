@@ -83,7 +83,7 @@ public class ImageWrapperBuildJobSpecification implements JobSpecification {
         var config = new MappingChain<>(this.appConfig.cloneBuilderJobConfig());
         config.get(Mappers.JOB_METADATA_FIELD)
                 .data()
-                .setName(K8sNamingUtils.generateMcpPrefixedName(buildId));
+                .setName(K8sNamingUtils.generateName(buildId));
         var podSpec = config.get(Mappers.JOB_SPEC_FIELD)
                 .get(Mappers.JOB_TEMPLATE_FIELD)
                 .get(Mappers.JOB_TEMPLATE_SPEC_FIELD);
