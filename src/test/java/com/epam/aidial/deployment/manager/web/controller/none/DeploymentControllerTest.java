@@ -24,7 +24,11 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
+import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DuplicateDeploymentRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.EnvVarDefinitionDto;
+import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -59,6 +63,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -160,6 +165,92 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
         verify(deploymentService).createDeployment(any());
+    }
+
+    @Test
+    void testCreateDeployment_withMinScaleBiggerThanMaxScale() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        requestDto.setMinScale(5);
+        requestDto.setInitialScale(null);
+        requestDto.setMaxScale(2);
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("minScale must be less than or equal to maxScale\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withCpuResourceExceedingMaxLimit() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        var limits = Map.of(
+                "cpu", "11",
+                "limit2", "some-value-2"
+        );
+        var requests = Map.of(
+                "cpu", "11",
+                "request1", "some-rvalue-1"
+        );
+        requestDto.setResources(new ResourcesDto(limits, requests));
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Field [resources]: Request and limit for 'cpu' must not exceed 10.0 cores\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withNameExceedingMaxSize() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        requestDto.setName(requestDto.getName() + "a");
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Field [name]: Deployment ID must be between 2 and 36 characters\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withEnvVarNameContainingRestrictedSymbol() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        var originalMetadata = requestDto.getMetadata();
+        var originalEnvs = new ArrayList<>(originalMetadata.envs());
+        var firstEnv = originalEnvs.getFirst();
+        var invalidEnv = new EnvVarDefinitionDto(
+                "INVALID$NAME",
+                firstEnv.value(),
+                firstEnv.mountType(),
+                firstEnv.description()
+        );
+        originalEnvs.set(0, invalidEnv);
+        requestDto.setMetadata(new DeploymentMetadataDto(originalEnvs));
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "Field [metadata.envs[0].name]: Env variable name must contain only letters, numbers, dots (.), hyphens (-), and underscores (_)\n"));
     }
 
     @Test
