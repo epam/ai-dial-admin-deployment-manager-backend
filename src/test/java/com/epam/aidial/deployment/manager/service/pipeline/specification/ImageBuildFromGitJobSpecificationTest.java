@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -214,7 +215,7 @@ class ImageBuildFromGitJobSpecificationTest {
         Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
 
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("--context=workspace/src/app")));
+        assertThat(args).contains("--context=/workspace/src/app");
     }
 
     @Test
