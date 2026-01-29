@@ -111,6 +111,11 @@ app:
   component-cleaner-scheduler-lock-at-most-for: ${COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
   cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}
   resource-name-prefix: ${RESOURCE_NAME_PREFIX:}
+  validation:
+    resources:
+      max-cpu-in-cores: ${RESOURCES_MAX_CPU_IN_CORES:10}
+      max-memory-in-mb: ${RESOURCES_MAX_MEMORY_IN_MB:100000}
+      max-nvidia-gpu: ${RESOURCES_MAX_NVIDIA_GPU:5}
   deployment:
     healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}
     reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}

@@ -210,9 +210,12 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 ### Validation Configuration
 
-| Property                            | Environment Variable                  | Default Value                                                  | Required | Applied when  | Description                 |
-|-------------------------------------|---------------------------------------|----------------------------------------------------------------|----------|---------------|-----------------------------|
-| `app.deployment.reserved-env-names` | `DEPLOYMENT_RESERVED_ENV_NAMES`       | `PORT,K_SERVICE,K_CONFIGURATION,K_REVISION`                    | No       | -             | Reserved env variable names |
+| Property                            | Environment Variable            | Default Value                               | Required | Applied when  | Description                                        |
+|-------------------------------------|---------------------------------|---------------------------------------------|----------|---------------|----------------------------------------------------|
+| `app.deployment.reserved-env-names` | `DEPLOYMENT_RESERVED_ENV_NAMES` | `PORT,K_SERVICE,K_CONFIGURATION,K_REVISION` | No       | -             | Reserved env variable names                        |
+| `app.resources.max-cpu-in-cores`    | `RESOURCES_MAX_CPU_IN_CORES`    | `10`                                        | No       | -             | Maximum allowed value for CPU resource (in cores)  |
+| `app.resources.max-memory-in-mb`    | `RESOURCES_MAX_MEMORY_IN_MB`    | `100000`                                    | No       | -             | Maximum allowed value for memory resource (in mb)  |
+| `app.resources.max-nvidia-gpu`      | `RESOURCES_MAX_NVIDIA_GPU`      | `5`                                         | No       | -             | Maximum allowed value for nvidia.com/gpu resource  |
 
 ### HTTP Client Configuration
 
