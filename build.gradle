@@ -40,6 +40,10 @@ configurations {
     configureEach {
         exclude group: 'commons-logging', module: 'commons-logging'
         exclude group: "org.springframework.boot", module: "spring-boot-starter-logging"
+        resolutionStrategy {
+            force 'com.google.code.gson:gson:2.8.9'
+            force 'commons-beanutils:commons-beanutils:1.11.0'
+        }
     }
 }
 
@@ -151,9 +155,6 @@ dependencies {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework:spring-core:6.2.11') {
-            because("previous versions have vulnerabilities")
-        }
-        implementation ('commons-beanutils:commons-beanutils:1.11.0') {
             because("previous versions have vulnerabilities")
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
