@@ -1,7 +1,8 @@
 package com.epam.aidial.deployment.manager.web.dto;
 
+import com.epam.aidial.deployment.manager.web.validation.NoPathTraversal;
+import com.epam.aidial.deployment.manager.web.validation.NoSurroundingWhitespace;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.jetbrains.annotations.Nullable;
 
@@ -11,7 +12,7 @@ public record GitDockerfileImageSourceDto(
         @NotNull String url,
         @Nullable String branchName,
         @Nullable String sha,
-        @Nullable @Pattern(regexp = "^[^/].*[^/]$|^[^/]+$", message = "Path must not start or end with '/'") String baseDirectory,
+        @Nullable @NoSurroundingWhitespace @NoPathTraversal String baseDirectory,
         @Nullable @Size(min = 1) List<@NotNull String> entrypoint
 ) implements ImageSourceDto {
 }
