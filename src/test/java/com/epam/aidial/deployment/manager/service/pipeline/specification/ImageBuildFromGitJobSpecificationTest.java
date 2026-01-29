@@ -174,7 +174,7 @@ class ImageBuildFromGitJobSpecificationTest {
     }
 
     @Test
-    void getJob_shouldIncludeContextSubPathWhenBaseDirectoryIsProvided() {
+    void getJob_shouldUseCorrectContextWhenBaseDirectoryIsProvided() {
         // Given
         String baseDirectory = "src/app";
         gitDockerfileImageSource = GitDockerfileImageSource.builder()
@@ -214,52 +214,7 @@ class ImageBuildFromGitJobSpecificationTest {
         Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
 
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("--context-sub-path=src/app")));
-    }
-
-    @Test
-    void getJob_shouldTrimLeadingSlashFromBaseDirectory() {
-        // Given
-        String baseDirectory = "/src/app";
-        gitDockerfileImageSource = GitDockerfileImageSource.builder()
-                .url(GIT_URL)
-                .branchName(GIT_BRANCH)
-                .baseDirectory(baseDirectory)
-                .build();
-
-        jobSpecification = new ImageBuildFromGitJobSpecification(
-                registryService,
-                manifestGenerator,
-                gitService,
-                appConfig,
-                NAMESPACE,
-                DOCKER_CONFIG_PATH,
-                BUILD_ID,
-                IMAGE_NAME,
-                gitDockerfileImageSource
-        );
-
-        Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
-        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
-        when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
-        when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
-        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
-        when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
-        when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
-
-        String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
-        when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
-
-        // When
-        Job job = jobSpecification.getJob();
-
-        // Then
-        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
-        List<String> args = buildContainer.getArgs();
-
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("--context-sub-path=src/app")));
-        assertFalse(args.stream().anyMatch(arg -> arg.equals("--context-sub-path=/src/app")));
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("--context=workspace/src/app")));
     }
 
     @Test
