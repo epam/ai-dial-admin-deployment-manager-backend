@@ -28,7 +28,7 @@ public class CiliumNetworkPolicyCreator {
 
     private static final String TCP_PORT = "443";
     private static final String UDP_PORT = "53";
-    private static final String KUBE_DNS_LABEL_NAME = "k8s-app";
+    private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
     private static final String KUBE_DNS_NAMESPACE_LABEL_VALUE = "kube-system";
