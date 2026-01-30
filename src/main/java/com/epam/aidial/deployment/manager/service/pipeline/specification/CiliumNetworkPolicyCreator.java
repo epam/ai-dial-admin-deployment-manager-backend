@@ -164,11 +164,13 @@ public class CiliumNetworkPolicyCreator {
                 new io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts();
         ingressToPorts.setPorts(List.of(port8012, port8022));
 
-        Ingress ingressRule = new Ingress();
-        ingressRule.setFromEndpoints(List.of(fromEndpoints, fromEndpointsActivator, fromEndpointsAutoscaler));
-        ingressRule.setToPorts(List.of(ingressToPorts));
+        Ingress fromEndpointsIngressRule = new Ingress();
+        fromEndpointsIngressRule.setFromEndpoints(List.of(fromEndpoints, fromEndpointsActivator, fromEndpointsAutoscaler));
 
-        return List.of(ingressRule);
+        Ingress toPortsIngressRule = new Ingress();
+        toPortsIngressRule.setToPorts(List.of(ingressToPorts));
+
+        return List.of(fromEndpointsIngressRule, toPortsIngressRule);
     }
 
     public static String getPolicyName(String matchLabelValue) {
