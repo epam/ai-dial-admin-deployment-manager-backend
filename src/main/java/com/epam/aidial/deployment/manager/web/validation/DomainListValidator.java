@@ -18,7 +18,6 @@ public class DomainListValidator implements ConstraintValidator<ValidDomainList,
         }
         for (String domain : domains) {
             if (domain == null
-                    || domain.contains("://")
                     || domain.contains("/")
                     || domain.contains("?")
                     || domain.contains("#")

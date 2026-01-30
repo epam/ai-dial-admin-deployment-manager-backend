@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 class DomainListValidatorTest {
@@ -21,6 +22,18 @@ class DomainListValidatorTest {
         context = mock(ConstraintValidatorContext.class);
     }
 
+    @Test
+    void validDomains_shouldReturnTrue() {
+        assertTrue(domainValidator.isValid(List.of("example.com", "sub.domain.org"), context));
+        assertTrue(domainValidator.isValid(List.of("one.two.three.domain.org"), context));
+        assertTrue(domainValidator.isValid(List.of("my-domain123.net", "a.co"), context));
+        assertTrue(domainValidator.isValid(List.of("registry.untrusted-qwe-int32.aws.sandbox.dial.io"), context));
+        assertTrue(domainValidator.isValid(List.of("github.com", "index.docker.io", "auth.docker.io"), context));
+        assertTrue(domainValidator.isValid(List.of("docker-images-prod.s3.dualstack.us-east-1.amazonaws.com"), context));
+        assertTrue(domainValidator.isValid(List.of("deb.debian.org", "debian.map.fastlydns.net", "astral.sh"), context));
+        assertTrue(domainValidator.isValid(List.of("untrusted-aks-int32-distribution-registry.s3.amazonaws.com"), context));
+        assertTrue(domainValidator.isValid(List.of("files.pythonhosted.org", "toolbox-data.anchore.io"), context));
+    }
 
     @Test
     void domainsWithSchema_shouldReturnFalse() {
