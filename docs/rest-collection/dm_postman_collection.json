@@ -1118,12 +1118,17 @@
               "name": "huggingface",
               "item": [
                 {
-                  "name": "get models page",
+                  "name": "models",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
                   "request": {
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{HOST}}/api/v1/huggingface/models?limit=10",
+                      "raw": "{{HOST}}/api/v1/huggingface/models",
                       "host": [
                         "{{HOST}}"
                       ],
@@ -1132,24 +1137,23 @@
                         "v1",
                         "huggingface",
                         "models"
-                      ],
-                      "query": [
-                        {
-                          "key": "limit",
-                          "value": "10"
-                        }
                       ]
                     }
                   },
                   "response": []
                 },
                 {
-                  "name": "download file",
+                  "name": "files",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
                   "request": {
                     "method": "GET",
                     "header": [],
                     "url": {
-                      "raw": "{{HOST}}/api/v1/huggingface/models/{{NAMESPACE}}/{{REPO_NAME}}/resolve/{{REVISION}}/{{FILE_PATH}}",
+                      "raw": "{{HOST}}/api/v1/huggingface/models/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md",
                       "host": [
                         "{{HOST}}"
                       ],
@@ -1158,11 +1162,11 @@
                         "v1",
                         "huggingface",
                         "models",
-                        "{{NAMESPACE}}",
-                        "{{REPO_NAME}}",
+                        "sentence-transformers",
+                        "all-MiniLM-L6-v2",
                         "resolve",
-                        "{{REVISION}}",
-                        "{{FILE_PATH}}"
+                        "main",
+                        "README.md"
                       ]
                     }
                   },
