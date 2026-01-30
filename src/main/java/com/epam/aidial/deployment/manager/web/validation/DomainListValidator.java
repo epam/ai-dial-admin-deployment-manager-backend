@@ -17,11 +17,7 @@ public class DomainListValidator implements ConstraintValidator<ValidDomainList,
             return true; // Let @NotNull handle null validation
         }
         for (String domain : domains) {
-            if (domain == null
-                    || domain.contains("/")
-                    || domain.contains("?")
-                    || domain.contains("#")
-                    || domain.contains(" ")) {
+            if (domain == null) {
                 return false;
             }
             if (!DOMAIN_PATTERN.matcher(domain).matches()) {

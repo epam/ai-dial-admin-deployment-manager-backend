@@ -3,12 +3,17 @@ package com.epam.aidial.deployment.manager.web.validation;
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 
 class DomainListValidatorTest {
@@ -22,17 +27,24 @@ class DomainListValidatorTest {
         context = mock(ConstraintValidatorContext.class);
     }
 
-    @Test
-    void validDomains_shouldReturnTrue() {
-        assertTrue(domainValidator.isValid(List.of("example.com", "sub.domain.org"), context));
-        assertTrue(domainValidator.isValid(List.of("one.two.three.domain.org"), context));
-        assertTrue(domainValidator.isValid(List.of("my-domain123.net", "a.co"), context));
-        assertTrue(domainValidator.isValid(List.of("registry.untrusted-qwe-int32.aws.sandbox.dial.io"), context));
-        assertTrue(domainValidator.isValid(List.of("github.com", "index.docker.io", "auth.docker.io"), context));
-        assertTrue(domainValidator.isValid(List.of("docker-images-prod.s3.dualstack.us-east-1.amazonaws.com"), context));
-        assertTrue(domainValidator.isValid(List.of("deb.debian.org", "debian.map.fastlydns.net", "astral.sh"), context));
-        assertTrue(domainValidator.isValid(List.of("untrusted-aks-int32-distribution-registry.s3.amazonaws.com"), context));
-        assertTrue(domainValidator.isValid(List.of("files.pythonhosted.org", "toolbox-data.anchore.io"), context));
+    @ParameterizedTest
+    @MethodSource("validDomainsProvider")
+    void validDomains_shouldReturnTrue(List<String> domains) {
+        assertTrue(domainValidator.isValid(domains, context));
+    }
+
+    static Stream<Arguments> validDomainsProvider() {
+        return Stream.of(
+                arguments(List.of("example.com", "sub.domain.org")),
+                arguments(List.of("one.two.three.domain.org")),
+                arguments(List.of("my-domain123.net", "a.co")),
+                arguments(List.of("registry.untrusted-qwe-int32.aws.sandbox.dial.io")),
+                arguments(List.of("github.com", "index.docker.io", "auth.docker.io")),
+                arguments(List.of("docker-images-prod.s3.dualstack.us-east-1.amazonaws.com")),
+                arguments(List.of("deb.debian.org", "debian.map.fastlydns.net", "astral.sh")),
+                arguments(List.of("untrusted-aks-int32-distribution-registry.s3.amazonaws.com")),
+                arguments(List.of("files.pythonhosted.org", "toolbox-data.anchore.io"))
+        );
     }
 
     @Test
