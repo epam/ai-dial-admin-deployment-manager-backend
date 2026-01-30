@@ -16,6 +16,7 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Model {
     private String id;
+    private String sha;
     private String author;
     private String createdAt;
     private String lastModified;

@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.huggingface.service.HuggingFaceService
 import com.epam.aidial.deployment.manager.huggingface.web.dto.ModelsPageResponseDto;
 import com.epam.aidial.deployment.manager.huggingface.web.mapper.HuggingFaceModelDtoMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.constraints.Max;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ContentDisposition;
@@ -45,8 +46,8 @@ public class HuggingFaceController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String filter,
-            @RequestParam(required = false) String sort,
-            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false, defaultValue = "downloads") String sort,
+            @RequestParam(required = false, defaultValue = "100") @Max(1000) int limit,
             @RequestParam(required = false) String pageUrl
     ) {
         var request = ModelsRequest.builder()
@@ -56,7 +57,6 @@ public class HuggingFaceController {
                 .sort(sort)
                 .limit(limit)
                 .build();
-
 
         var tagDictionary = huggingFaceService.getTagDictionary();
 

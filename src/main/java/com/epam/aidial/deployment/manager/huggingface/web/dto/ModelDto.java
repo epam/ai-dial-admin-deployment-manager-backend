@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ModelDto {
     private String id;
+    private String sha;
     private String author;
     private String createdAt;
     private String lastModified;

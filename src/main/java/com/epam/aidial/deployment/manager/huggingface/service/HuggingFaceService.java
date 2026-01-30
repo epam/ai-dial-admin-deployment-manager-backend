@@ -26,6 +26,7 @@ import static java.util.stream.Collectors.toMap;
 public class HuggingFaceService {
 
     private static final List<String> FIELDS_TO_RETURN = List.of(
+            "sha",
             "author",
             "createdAt",
             "downloads",
