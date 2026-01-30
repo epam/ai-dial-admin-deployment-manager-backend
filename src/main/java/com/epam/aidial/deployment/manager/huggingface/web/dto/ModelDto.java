@@ -12,7 +12,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class HuggingFaceModelDto {
+public class ModelDto {
     private String id;
     private String author;
     private String createdAt;

@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.configuration;
+package com.epam.aidial.deployment.manager.huggingface.properties;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +10,7 @@ import java.time.Duration;
 @Getter
 @Setter
 @Component
-@ConfigurationProperties(prefix = "huggingface")
+@ConfigurationProperties(prefix = "app.huggingface")
 public class HuggingFaceProperties {
     private String baseUrl;
     private String apiToken;

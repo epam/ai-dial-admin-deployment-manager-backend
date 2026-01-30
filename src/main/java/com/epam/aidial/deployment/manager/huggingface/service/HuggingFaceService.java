@@ -1,15 +1,16 @@
 package com.epam.aidial.deployment.manager.huggingface.service;
 
-import com.epam.aidial.deployment.manager.configuration.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceFileRequest;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModelsPageResponse;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModelsRequest;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceTagInfo;
+import com.epam.aidial.deployment.manager.huggingface.configuration.HuggingFaceCachingConfig;
+import com.epam.aidial.deployment.manager.huggingface.model.FileRequest;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelsPageResponse;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelsRequest;
+import com.epam.aidial.deployment.manager.huggingface.model.TagInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.ResponseBody;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,11 +25,16 @@ import static java.util.stream.Collectors.toMap;
 @RequiredArgsConstructor
 public class HuggingFaceService {
 
-    private final HuggingFaceClient huggingFaceClient;
-    private final HuggingFaceProperties properties;
+    private static final List<String> FIELDS_TO_RETURN = List.of(
+            "author",
+            "createdAt",
+            "downloads",
+            "lastModified",
+            "likes",
+            "safetensors",
+            "tags");
 
-    private volatile Map<String, HuggingFaceTagInfo> tagDictionary;
-    private volatile long lastTagCacheUpdate = 0;
+    private final HuggingFaceClient huggingFaceClient;
 
     /**
      * Get a single page of models from Hugging Face API.
@@ -37,36 +43,26 @@ public class HuggingFaceService {
      * @param pageUrl optional URL for a specific page (if null, fetches first page)
      * @return paginated response with models and next page URL
      */
-    public HuggingFaceModelsPageResponse getModelsPage(HuggingFaceModelsRequest request, String pageUrl) {
+    public ModelsPageResponse getModelsPage(ModelsRequest request, String pageUrl) {
+        request.setExpand(FIELDS_TO_RETURN);
         return huggingFaceClient.getModelsPage(request, pageUrl);
     }
 
-    public Map<String, HuggingFaceTagInfo> getTagDictionary() {
-        var now = System.currentTimeMillis();
-        var cacheDurationMillis = properties.getTagCacheDuration().toMillis();
-
-        if (tagDictionary == null || (now - lastTagCacheUpdate) > cacheDurationMillis) {
-            synchronized (this) {
-                now = System.currentTimeMillis();
-                if (tagDictionary == null || (now - lastTagCacheUpdate) > cacheDurationMillis) {
-                    var tagsByType = huggingFaceClient.getTagsByType();
-                    tagDictionary = tagsByType.values().stream()
-                            .flatMap(List::stream)
-                            .collect(toMap(HuggingFaceTagInfo::id, Function.identity(), (a, b) -> a));
-                    lastTagCacheUpdate = now;
-                }
-            }
-        }
-        return tagDictionary;
+    @Cacheable(HuggingFaceCachingConfig.HF_TAG_CACHE_NAME)
+    public Map<String, TagInfo> getTagDictionary() {
+        var tagsByType = huggingFaceClient.getTagsByType();
+        return tagsByType.getAllTags().stream()
+                .collect(toMap(TagInfo::id, Function.identity(), (a, b) -> a));
     }
 
     /**
      * Download a file from Hugging Face Hub.
      *
-     * @param fileRequest request containing repo ID, revision, file path, and repo type
+     * @param fileRequest request containing repo ID, revision, file path, and repo
+     *                    type
      * @return response body containing the file content
      */
-    public ResponseBody downloadFile(HuggingFaceFileRequest fileRequest) {
+    public ResponseBody downloadFile(FileRequest fileRequest) {
         return huggingFaceClient.downloadFile(fileRequest);
     }
 }

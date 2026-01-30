@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 
-class HuggingFaceModelNameValidatorTest {
+class ModelNameValidatorTest {
 
     private HuggingFaceModelNameValidator validator;
     private ConstraintValidatorContext context;

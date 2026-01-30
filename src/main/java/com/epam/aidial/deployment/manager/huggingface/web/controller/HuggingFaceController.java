@@ -2,10 +2,10 @@ package com.epam.aidial.deployment.manager.huggingface.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClientException;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceFileRequest;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModelsRequest;
+import com.epam.aidial.deployment.manager.huggingface.model.FileRequest;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelsRequest;
 import com.epam.aidial.deployment.manager.huggingface.service.HuggingFaceService;
-import com.epam.aidial.deployment.manager.huggingface.web.dto.HuggingFaceModelsPageResponseDto;
+import com.epam.aidial.deployment.manager.huggingface.web.dto.ModelsPageResponseDto;
 import com.epam.aidial.deployment.manager.huggingface.web.mapper.HuggingFaceModelDtoMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -41,40 +41,34 @@ public class HuggingFaceController {
     private final HuggingFaceModelDtoMapper dtoMapper;
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public HuggingFaceModelsPageResponseDto getModelsPage(
+    public ModelsPageResponseDto getModelsPage(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String filter,
             @RequestParam(required = false) String sort,
-            @RequestParam(required = false) String direction,
             @RequestParam(required = false) Integer limit,
-            @RequestParam(required = false) Boolean full,
-            @RequestParam(required = false) Boolean config,
             @RequestParam(required = false) String pageUrl
     ) {
-        var request = HuggingFaceModelsRequest.builder()
+        var request = ModelsRequest.builder()
                 .search(search)
                 .author(author)
                 .filter(filter)
                 .sort(sort)
-                .direction(direction)
                 .limit(limit)
-                .full(full)
-                .config(config)
                 .build();
 
-        var pageResponse = huggingFaceService.getModelsPage(request, pageUrl);
 
         var tagDictionary = huggingFaceService.getTagDictionary();
 
-        var modelDtos = pageResponse.getModels().stream()
+        var modelsPage = huggingFaceService.getModelsPage(request, pageUrl);
+        var modelDtos = modelsPage.getModels().stream()
                 .map(model -> dtoMapper.toDto(model, tagDictionary))
                 .collect(Collectors.toList());
 
-        return HuggingFaceModelsPageResponseDto.builder()
+        return ModelsPageResponseDto.builder()
                 .models(modelDtos)
-                .nextPageUrl(pageResponse.getNextPageUrl())
-                .prevPageUrl(pageResponse.getPrevPageUrl())
+                .nextPageUrl(modelsPage.getNextPageUrl())
+                .prevPageUrl(modelsPage.getPrevPageUrl())
                 .build();
     }
 
@@ -92,7 +86,7 @@ public class HuggingFaceController {
         var filePath = URLDecoder.decode(rawFilePath, StandardCharsets.UTF_8);
         var modelName = namespace + "/" + repoName;
 
-        var fileRequest = HuggingFaceFileRequest.builder()
+        var fileRequest = FileRequest.builder()
                 .modelName(modelName)
                 .revision(revision)
                 .filePath(filePath)
@@ -133,9 +127,6 @@ public class HuggingFaceController {
         } catch (HuggingFaceClientException e) {
             log.warn("Upstream error: {}", e.getMessage());
             return ResponseEntity.status(e.getStatusCode()).build();
-        } catch (Exception e) {
-            log.warn("Download failed", e);
-            return ResponseEntity.internalServerError().build();
         }
     }
 

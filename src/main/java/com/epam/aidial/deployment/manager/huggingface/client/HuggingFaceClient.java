@@ -1,11 +1,12 @@
 package com.epam.aidial.deployment.manager.huggingface.client;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceFileRequest;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModel;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModelsPageResponse;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModelsRequest;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceTagInfo;
+import com.epam.aidial.deployment.manager.huggingface.model.FileRequest;
+import com.epam.aidial.deployment.manager.huggingface.model.Model;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelsPageResponse;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelsRequest;
+import com.epam.aidial.deployment.manager.huggingface.model.TagsInfo;
+import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
@@ -14,12 +15,11 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.ResponseBody;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -32,20 +32,9 @@ public class HuggingFaceClient {
     private static final String TAGS_BY_TYPE_ENDPOINT = "/api/models-tags-by-type";
     private static final Pattern LINK_PATTERN = Pattern.compile("<([^>]+)>;\\s*rel=\"([^\"]+)\"");
 
-    private static final List<String> FIELDS_TO_RETURN = List.of(
-            "author",
-            "cardData",
-            "createdAt",
-            "downloads",
-            "lastModified",
-            "likes",
-            "safetensors",
-            "tags"
-    );
-
     private final OkHttpClient httpClient;
     private final JsonMapper jsonMapper;
-    private final HuggingFaceClientProperties properties;
+    private final HuggingFaceProperties properties;
 
     /**
      * Get a single page of models from Hugging Face API.
@@ -54,46 +43,56 @@ public class HuggingFaceClient {
      * @param pageUrl optional URL for a specific page (if null, fetches first page)
      * @return paginated response with models and next page URL
      */
-    public HuggingFaceModelsPageResponse getModelsPage(HuggingFaceModelsRequest request, String pageUrl) {
-        var url = pageUrl != null ? pageUrl : buildUrl(request);
-
-        try {
-            var pageResponse = fetchModelsPage(url);
-            var nextPageUrl = extractUrlByRel(pageResponse.linkHeader(), "next");
-            var prevPageUrl = extractUrlByRel(pageResponse.linkHeader(), "prev");
-
-            return HuggingFaceModelsPageResponse.builder()
-                    .models(pageResponse.models())
-                    .nextPageUrl(nextPageUrl)
-                    .prevPageUrl(prevPageUrl)
-                    .build();
-        } catch (IOException e) {
-            var errorMessage = "Error fetching models page from Hugging Face API";
-            log.warn(errorMessage, e);
-            throw new RuntimeException(errorMessage, e);
+    public ModelsPageResponse getModelsPage(ModelsRequest request, String pageUrl) {
+        log.debug("Retrieving huggingface models. Request: {}. Page URL: {}. Base URL: {}.",
+                request, pageUrl, properties.getBaseUrl());
+        String url;
+        if (StringUtils.isNotBlank(pageUrl)) {
+            if (!pageUrl.startsWith(properties.getBaseUrl())) {
+                throw new IllegalArgumentException("Invalid page URL: " + pageUrl);
+            }
+            url = pageUrl;
+        } else {
+            url = buildUrl(request);
         }
+
+        var pageResponse = fetchModelsPage(url);
+        var nextPageUrl = extractUrlByRel(pageResponse.linkHeader(), "next");
+        var prevPageUrl = extractUrlByRel(pageResponse.linkHeader(), "prev");
+
+        var result = ModelsPageResponse.builder()
+                .models(pageResponse.models())
+                .nextPageUrl(nextPageUrl)
+                .prevPageUrl(prevPageUrl)
+                .build();
+        log.debug("huggingface models were retrieved. Models count: {}. Request: {}. Page URL: {}. Base URL: {}.",
+                pageResponse.models().size(), request, pageUrl, properties.getBaseUrl());
+        return result;
     }
 
-    public Map<String, List<HuggingFaceTagInfo>> getTagsByType() {
+    public TagsInfo getTagsByType() {
+        log.debug("Retrieving huggingface tags. Base URL: {}", properties.getBaseUrl());
         var url = HttpUrl.parse(properties.getBaseUrl() + TAGS_BY_TYPE_ENDPOINT);
         var request = new Request.Builder().url(url).get().build();
 
         try (var response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response code: " + response.code());
+                throw new HuggingFaceClientException("Unexpected response code: " + response.code(), response.code());
             }
 
             var body = response.body();
             if (body == null) {
-                return Collections.emptyMap();
+                return new TagsInfo();
             }
 
-            return jsonMapper.readValue(body.string(), new TypeReference<>() {
+            var result = jsonMapper.readValue(body.string(), new TypeReference<TagsInfo>() {
             });
+            log.debug("huggingface tags has been successfully retrieved. Base URL: {}", properties.getBaseUrl());
+            return result;
         } catch (IOException e) {
             var errorMessage = "Error fetching tags by type from Hugging Face API";
-            log.error(errorMessage, e);
-            throw new RuntimeException(errorMessage, e);
+            log.warn(errorMessage, e);
+            throw new HuggingFaceClientException(errorMessage, 500);
         }
     }
 
@@ -105,12 +104,14 @@ public class HuggingFaceClient {
      * @return response body containing the file content
      * @throws RuntimeException if download fails
      */
-    public ResponseBody downloadFile(HuggingFaceFileRequest fileRequest) {
+    public ResponseBody downloadFile(FileRequest fileRequest) {
+        log.debug("Downloading huggingface model file. Request: {}. Base URL: {}",
+                fileRequest, properties.getBaseUrl());
         var url = buildFileUrl(fileRequest);
 
         var requestBuilder = new Request.Builder().url(url).get();
 
-        if (properties.getApiToken() != null && !properties.getApiToken().isBlank()) {
+        if (StringUtils.isNotBlank(properties.getApiToken())) {
             requestBuilder.header("Authorization", "Bearer " + properties.getApiToken());
         }
 
@@ -121,32 +122,32 @@ public class HuggingFaceClient {
 
             if (!response.isSuccessful()) {
                 response.close();
-                var errorMessage = String.format(
-                        "Failed to download file: %s (HTTP %d)",
-                        fileRequest.getFilePath(),
-                        response.code());
+                var errorMessage = "Failed to download file: %s (HTTP %d)"
+                        .formatted(fileRequest.getFilePath(), response.code());
                 throw new HuggingFaceClientException(errorMessage, response.code());
             }
 
             var body = response.body();
             if (body == null) {
                 response.close(); // Close on error
-                throw new IOException("Response body is null");
+                throw new HuggingFaceClientException("Response body is null", 500);
             }
 
+            log.debug("Stream to download huggingface model file has been successfully opened." +
+                    " Request: {}. Base URL: {}", fileRequest, properties.getBaseUrl());
             return body;
 
         } catch (IOException e) {
             var errorMessage = "Failed to download file from Hugging Face";
             log.warn(errorMessage, e);
-            throw new RuntimeException(errorMessage, e);
+            throw new HuggingFaceClientException(errorMessage, 500);
         }
     }
 
-    private ModelsPageResponse fetchModelsPage(String url) throws IOException {
+    private InternalModelsPageResponse fetchModelsPage(String url) {
         var requestBuilder = new Request.Builder().url(url).get();
 
-        if (properties.getApiToken() != null && !properties.getApiToken().isBlank()) {
+        if (StringUtils.isNotBlank(properties.getApiToken())) {
             requestBuilder.header("Authorization", "Bearer " + properties.getApiToken());
         }
 
@@ -154,49 +155,46 @@ public class HuggingFaceClient {
 
         try (var response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response code: " + response.code());
+                throw new HuggingFaceClientException("Unexpected response code: " + response.code(), response.code());
             }
 
             var body = response.body();
             if (body == null) {
-                throw new IOException("Response body is null");
+                throw new HuggingFaceClientException("Response body is null", 500);
             }
 
             var linkHeader = response.header("Link");
-            var models = jsonMapper.readValue(body.string(), new TypeReference<List<HuggingFaceModel>>() {
+            var models = jsonMapper.readValue(body.string(), new TypeReference<List<Model>>() {
             });
 
-            return new ModelsPageResponse(models, linkHeader);
+            return new InternalModelsPageResponse(models, linkHeader);
+        } catch (IOException e) {
+            var errorMessage = "Error fetching models page from Hugging Face API";
+            log.warn(errorMessage, e);
+            throw new HuggingFaceClientException(errorMessage, 500);
         }
     }
 
-    private String buildUrl(HuggingFaceModelsRequest request) {
+    private String buildUrl(ModelsRequest request) {
         var urlBuilder = HttpUrl.parse(properties.getBaseUrl() + MODELS_ENDPOINT).newBuilder();
-        FIELDS_TO_RETURN.forEach(value -> urlBuilder.addQueryParameter("expand", value));
 
-        if (request.getSearch() != null && !request.getSearch().isBlank()) {
+        if (StringUtils.isNotBlank(request.getSearch())) {
             urlBuilder.addQueryParameter("search", request.getSearch());
         }
-        if (request.getAuthor() != null && !request.getAuthor().isBlank()) {
+        if (StringUtils.isNotBlank(request.getAuthor())) {
             urlBuilder.addQueryParameter("author", request.getAuthor());
         }
-        if (request.getFilter() != null && !request.getFilter().isBlank()) {
+        if (StringUtils.isNotBlank(request.getFilter())) {
             urlBuilder.addQueryParameter("filter", request.getFilter());
         }
-        if (request.getSort() != null && !request.getSort().isBlank()) {
+        if (StringUtils.isNotBlank(request.getSort())) {
             urlBuilder.addQueryParameter("sort", request.getSort());
-        }
-        if (request.getDirection() != null && !request.getDirection().isBlank()) {
-            urlBuilder.addQueryParameter("direction", request.getDirection());
         }
         if (request.getLimit() != null) {
             urlBuilder.addQueryParameter("limit", String.valueOf(request.getLimit()));
         }
-        if (request.getFull() != null) {
-            urlBuilder.addQueryParameter("full", String.valueOf(request.getFull()));
-        }
-        if (request.getConfig() != null) {
-            urlBuilder.addQueryParameter("config", String.valueOf(request.getConfig()));
+        if (request.getExpand() != null) {
+            request.getExpand().forEach(value -> urlBuilder.addQueryParameter("expand", value));
         }
 
         return urlBuilder.build().toString();
@@ -206,7 +204,7 @@ public class HuggingFaceClient {
      * Build the Hugging Face resolve URL for file download from models.
      * Pattern: /{repoId}/resolve/{revision}/{filePath}
      */
-    private String buildFileUrl(HuggingFaceFileRequest fileRequest) {
+    private String buildFileUrl(FileRequest fileRequest) {
         var path = String.format("/%s/resolve/%s/%s",
                 fileRequest.getModelName(),
                 fileRequest.getRevision(),
@@ -235,8 +233,8 @@ public class HuggingFaceClient {
         return null;
     }
 
-    private record ModelsPageResponse(
-            List<HuggingFaceModel> models,
+    private record InternalModelsPageResponse(
+            List<Model> models,
             String linkHeader
     ) {
     }

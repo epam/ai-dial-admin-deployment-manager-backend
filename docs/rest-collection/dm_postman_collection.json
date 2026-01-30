@@ -1115,6 +1115,62 @@
               ]
             },
             {
+              "name": "huggingface",
+              "item": [
+                {
+                  "name": "get models page",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/huggingface/models?limit=10",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "huggingface",
+                        "models"
+                      ],
+                      "query": [
+                        {
+                          "key": "limit",
+                          "value": "10"
+                        }
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "download file",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/huggingface/models/{{NAMESPACE}}/{{REPO_NAME}}/resolve/{{REVISION}}/{{FILE_PATH}}",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "huggingface",
+                        "models",
+                        "{{NAMESPACE}}",
+                        "{{REPO_NAME}}",
+                        "resolve",
+                        "{{REVISION}}",
+                        "{{FILE_PATH}}"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
               "name": "healthcheck",
               "protocolProfileBehavior": {
                 "followRedirects": true,

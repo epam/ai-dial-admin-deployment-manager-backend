@@ -1,8 +1,8 @@
 package com.epam.aidial.deployment.manager.huggingface.web.mapper;
 
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceModel;
-import com.epam.aidial.deployment.manager.huggingface.model.HuggingFaceTagInfo;
-import com.epam.aidial.deployment.manager.huggingface.web.dto.HuggingFaceModelDto;
+import com.epam.aidial.deployment.manager.huggingface.model.Model;
+import com.epam.aidial.deployment.manager.huggingface.model.TagInfo;
+import com.epam.aidial.deployment.manager.huggingface.web.dto.ModelDto;
 import lombok.extern.slf4j.Slf4j;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Context;
@@ -22,12 +22,12 @@ public abstract class HuggingFaceModelDtoMapper {
     @Mapping(target = "licenses", ignore = true)
     @Mapping(target = "datasets", ignore = true)
     @Mapping(target = "parameters", source = "safetensors.total")
-    public abstract HuggingFaceModelDto toDto(HuggingFaceModel model, @Context Map<String, HuggingFaceTagInfo> tagDictionary);
+    public abstract ModelDto toDto(Model model, @Context Map<String, TagInfo> tagDictionary);
 
     @AfterMapping
-    void mapTags(HuggingFaceModel model,
-                 @MappingTarget HuggingFaceModelDto dto,
-                 @Context Map<String, HuggingFaceTagInfo> tagDictionary) {
+    void mapTags(Model model,
+                 @MappingTarget ModelDto dto,
+                 @Context Map<String, TagInfo> tagDictionary) {
         if (model.getTags() == null || tagDictionary == null) {
             return;
         }
@@ -44,19 +44,19 @@ public abstract class HuggingFaceModelDtoMapper {
             }
 
             switch (tagInfo.type()) {
-                case "library":
+                case LIBRARY:
                     libraries.add(tagInfo.label());
                     break;
-                case "language":
+                case LANGUAGE:
                     languages.add(tagInfo.label());
                     break;
-                case "license":
+                case LICENSE:
                     licenses.add(tagInfo.label());
                     break;
-                case "dataset":
+                case DATASET:
                     datasets.add(tagInfo.label());
                     break;
-                default:
+                case null, default:
                     log.debug("Received unsupported tag type: {}. tag: {}. model: {}", tagInfo.type(), tag, model.getId());
                     break;
             }

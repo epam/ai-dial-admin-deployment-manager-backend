@@ -1,9 +1,10 @@
-package com.epam.aidial.deployment.manager.huggingface.model;
+package com.epam.aidial.deployment.manager.huggingface.web.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -11,8 +12,10 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class HuggingFaceModelsPageResponse {
-    private List<HuggingFaceModel> models;
+public class ModelsPageResponseDto {
+    private List<ModelDto> models;
+    @Nullable
     private String nextPageUrl;
+    @Nullable
     private String prevPageUrl;
 }

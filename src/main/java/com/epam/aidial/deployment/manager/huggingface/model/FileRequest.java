@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class HuggingFaceFileRequest {
+public class FileRequest {
 
     /**
      * The repository identifier (e.g., "meta-llama/Llama-2-7b").
@@ -20,7 +20,7 @@ public class HuggingFaceFileRequest {
     private String modelName;
 
     /**
-     * Branch, tag, or commit hash. Defaults to "main" if not specified.
+     * Branch, tag, or commit hash (e.g., "main").
      */
     private String revision;
 

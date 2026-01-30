@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class HuggingFaceModel {
+public class Model {
     private String id;
     private String author;
     private String createdAt;
