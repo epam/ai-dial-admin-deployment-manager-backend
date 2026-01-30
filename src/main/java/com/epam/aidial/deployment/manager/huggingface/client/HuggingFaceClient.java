@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.huggingface.model.TagsInfo;
 import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -25,7 +24,7 @@ import java.util.regex.Pattern;
 @Slf4j
 @Component
 @LogExecution
-@RequiredArgsConstructor
+
 public class HuggingFaceClient {
 
     private static final String MODELS_ENDPOINT = "/api/models";
@@ -35,6 +34,14 @@ public class HuggingFaceClient {
     private final OkHttpClient httpClient;
     private final JsonMapper jsonMapper;
     private final HuggingFaceProperties properties;
+    private final HttpUrl baseHttpUrl;
+
+    public HuggingFaceClient(OkHttpClient httpClient, JsonMapper jsonMapper, HuggingFaceProperties properties) {
+        this.httpClient = httpClient;
+        this.jsonMapper = jsonMapper;
+        this.properties = properties;
+        this.baseHttpUrl = HttpUrl.parse(properties.getBaseUrl());
+    }
 
     /**
      * Get a single page of models from Hugging Face API.
@@ -48,9 +55,7 @@ public class HuggingFaceClient {
                 request, pageUrl, properties.getBaseUrl());
         String url;
         if (StringUtils.isNotBlank(pageUrl)) {
-            if (!pageUrl.startsWith(properties.getBaseUrl())) {
-                throw new IllegalArgumentException("Invalid page URL: " + pageUrl);
-            }
+            validatePageUrl(pageUrl);
             url = pageUrl;
         } else {
             url = buildUrl(request);
@@ -172,6 +177,17 @@ public class HuggingFaceClient {
             var errorMessage = "Error fetching models page from Hugging Face API";
             log.warn(errorMessage, e);
             throw new HuggingFaceClientException(errorMessage, 500);
+        }
+    }
+
+    private void validatePageUrl(String pageUrl) {
+        var parsedPageUrl = HttpUrl.parse(pageUrl);
+
+        if (baseHttpUrl == null || parsedPageUrl == null
+                || !parsedPageUrl.scheme().equals(baseHttpUrl.scheme())
+                || !parsedPageUrl.host().equals(baseHttpUrl.host())
+                || parsedPageUrl.port() != baseHttpUrl.port()) {
+            throw new IllegalArgumentException("Invalid page URL: " + pageUrl);
         }
     }
 
