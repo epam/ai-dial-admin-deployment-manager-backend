@@ -1,15 +1,14 @@
 package com.epam.aidial.deployment.manager.huggingface.model;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
-
-import org.jetbrains.annotations.Nullable;
 
 @Data
 @Builder

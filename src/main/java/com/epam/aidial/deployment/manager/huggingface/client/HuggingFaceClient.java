@@ -138,8 +138,8 @@ public class HuggingFaceClient {
                 throw new HuggingFaceClientException("Response body is null", 500);
             }
 
-            log.debug("Stream to download huggingface model file has been successfully opened." +
-                    " Request: {}. Base URL: {}", fileRequest, properties.getBaseUrl());
+            log.debug("Stream to download huggingface model file has been successfully opened."
+                    + " Request: {}. Base URL: {}", fileRequest, properties.getBaseUrl());
             return body;
 
         } catch (IOException e) {
