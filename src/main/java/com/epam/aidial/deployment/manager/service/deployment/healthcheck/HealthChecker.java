@@ -8,5 +8,5 @@ public interface HealthChecker {
 
     boolean supports(Deployment deployment);
 
-    void waitReady(String serviceUrl, Deployment deployment, Duration remainingDuration);
+    void waitReady(String serviceUrl, Deployment deployment, Duration timeout);
 }

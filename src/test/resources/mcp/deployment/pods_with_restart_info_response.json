@@ -1,0 +1,10 @@
+[
+  {
+    "name": "pod-1",
+    "createdAt": 1672574400000,
+    "restartCount": 5,
+    "lastTerminationReason": "OOMKilled",
+    "lastExitCode": 137,
+    "lastSignal": 9
+  }
+]

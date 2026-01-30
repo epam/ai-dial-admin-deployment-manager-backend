@@ -59,7 +59,7 @@ public class DeploymentService {
     private final SecurityClaimsExtractor securityClaimsExtractor;
     private final DisposableResourceManager disposableResourceManager;
 
-    @Value("${app.deployment-reserved-env-names}")
+    @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;
 
     @Transactional(readOnly = true)

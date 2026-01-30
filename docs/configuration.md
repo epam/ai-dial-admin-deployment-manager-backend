@@ -111,6 +111,7 @@ app:
 | `app.cilium-network-policies-enabled`   | `CILIUM_NETWORK_POLICIES_ENABLED` | `false`                                 | No                                                   | -            | Flag that allows to enable Cilium network policies for image build and deployments.                                                                                                                        |
 | `app.image-name-format`                 | `IMAGE_NAME_FORMAT`               | `app-%s`                                | No                                                   | -            | Name format for images that are built using Deployment Manager. Must contain `%s` that will be replaced by image definition ID.                                                                            |
 | `app.resource-name-prefix`              | `RESOURCE_NAME_PREFIX`            | -                                       | No                                                   | -            | Prefix that will be added to all resources that image build and deployments produce. Important note: do not change this value on exising setups, otherwise existing images and K8s resources will be lost. |
+| `app.deployment.healthcheck-enabled`    | `DEPLOYMENT_HEALTHCHECK_ENABLED`  | `true`                                  | No                                                   | -            | Flag that allows to enable/disable deployment healthchecks                                                                                                                                                 |
 
 #### MCP Proxy Configuration
 
@@ -169,22 +170,14 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.component-cleaner-scheduler-lock-at-most-for` | `COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR` | `10m` | No | - | Maximum lock duration for component cleaner |
 
 #### Deployment State Synchronization Configuration
-| Property | Environment Variable | Default Value    | Required | Applied when | Description                                                                        |
-|----------|---------------------|------------------|----------|--------------|------------------------------------------------------------------------------------|
-| `app.deployment-reconcile-cron` | `DEPLOYMENT_RECONCILE_CRON` | `0 0 */2 * * *`  | No | - | Cron expression for deployment state reconciliation                                |
-| `app.deployment-reconcile-scheduler-lock-at-most-for` | `DEPLOYMENT_RECONCILE_SCHEDULER_LOCK_AT_MOST_FOR` | `30m`            | No | - | Maximum lock duration for deployment reconciliation |
-| `app.deployment-pending-check-cron` | `DEPLOYMENT_PENDING_CHECK_CRON` | `0 */15 * * * *` | No | - | Cron expression for checking pending deployments |
-| `app.deployment-pending-check-scheduler-lock-at-most-for` | `DEPLOYMENT_PENDING_CHECK_SCHEDULER_LOCK_AT_MOST_FOR` | `5m`             | No | - | Maximum lock duration for pending deployment checks |
-| `app.deployment-reconcile-pending-cut-off-mins` | `DEPLOYMENT_RECONCILE_PENDING_CUT_OFF_MINS` | `10` | No | - | Maximum time allowed for deployment to stay in pending state until marking as crashed |
-| `app.deployment-healthcheck-enabled`            | `DEPLOYMENT_HEALTHCHECK_ENABLED`            | `false`  | No | - | Enable or disable deployment healthchecks that run on deploy & state reconciliation |
-
-#### Deployment Watcher Configuration
-| Property | Environment Variable | Default Value | Required | Applied when | Description                                                                           |
-|----------|---------------------|---------------|----------|--------------|---------------------------------------------------------------------------------------|
-| `app.deployment-bootstrap-enabled` | `DEPLOYMENT_BOOTSTRAP_ENABLED` | `true` | No | - | Enable or disable deployment state synchronization process on app startup (bootstrap) |
-| `app.deployment-bootstrap-batch-size` | `DEPLOYMENT_BOOTSTRAP_BATCH_SIZE` | `50` | No | - | Number of deployments to process in a single batch during bootstrap                   |
-| `app.deployment-bootstrap-threads` | `DEPLOYMENT_BOOTSTRAP_THREADS` | `2` | No | - | Number of threads to use for deployment bootstrap processing                          |
-| `app.watcher-failure-reset-interval-ms` | `WATCHER_FAILURE_RESET_INTERVAL_MS` | `600000` | No | - | Interval in milliseconds after which to reset watcher failure status                  |
+| Property                                              | Environment Variable                                   | Default Value    | Required | Applied when | Description                                                                                          |
+|-------------------------------------------------------|--------------------------------------------------------|------------------|----------|--------------|------------------------------------------------------------------------------------------------------|
+| `app.deployment.reconcile.background.cron`            | `DEPLOYMENT_RECONCILE_BACKGROUND_CRON`                 | `0 */15 * * * *` | No       | -            | Cron expression for scheduled reconciliation of deployments in background                            |
+| `app.deployment.reconcile.background.lock-at-most`    | `DEPLOYMENT_RECONCILE_BACKGROUND_LOCK_AT_MOST`         | `5m`             | No       | -            | Maximum lock duration for background reconciliation                                                  |
+| `app.deployment.reconcile.background.stale-threshold` | `DEPLOYMENT_RECONCILE_BACKGROUND_STALE_THRESHOLD_MINS` | `10`             | No       | -            | Maximum time allowed for deployment to stay in pending state until triggering a fallback status sync |
+| `app.deployment.reconcile.startup.enabled`            | `DEPLOYMENT_RECONCILE_ON_STARTUP_ENABLED`              | `true`           | No       | -            | Enable or disable deployment state synchronization process on app startup                            |
+| `app.deployment.reconcile.startup.batch-size`         | `DEPLOYMENT_RECONCILE_ON_STARTUP_BATCH_SIZE`           | `50`             | No       | -            | Number of deployments to process in a single batch during reconciliation on startup                  |
+| `app.deployment.reconcile.startup.concurrency`        | `DEPLOYMENT_RECONCILE_ON_STARTUP_CONCURRENCY`          | `2`              | No       | -            | Number of threads to use during deployment reconciliation on startup                                 |
 
 #### Knative Service Default Configuration
 | Property | Environment Variable | Default Value | Required | Applied when | Description |
@@ -217,9 +210,12 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 ### Validation Configuration
 
-| Property                            | Environment Variable                  | Default Value                                                  | Required | Applied when  | Description                 |
-|-------------------------------------|---------------------------------------|----------------------------------------------------------------|----------|---------------|-----------------------------|
-| `app.deployment-reserved-env-names` | `DEPLOYMENT_RESERVED_ENV_NAMES`       | `PORT,K_SERVICE,K_CONFIGURATION,K_REVISION`                    | No       | -             | Reserved env variable names |
+| Property                            | Environment Variable            | Default Value                               | Required | Applied when  | Description                                        |
+|-------------------------------------|---------------------------------|---------------------------------------------|----------|---------------|----------------------------------------------------|
+| `app.deployment.reserved-env-names` | `DEPLOYMENT_RESERVED_ENV_NAMES` | `PORT,K_SERVICE,K_CONFIGURATION,K_REVISION` | No       | -             | Reserved env variable names                        |
+| `app.resources.max-cpu-in-cores`    | `RESOURCES_MAX_CPU_IN_CORES`    | `10`                                        | No       | -             | Maximum allowed value for CPU resource (in cores)  |
+| `app.resources.max-memory-in-mb`    | `RESOURCES_MAX_MEMORY_IN_MB`    | `100000`                                    | No       | -             | Maximum allowed value for memory resource (in mb)  |
+| `app.resources.max-nvidia-gpu`      | `RESOURCES_MAX_NVIDIA_GPU`      | `5`                                         | No       | -             | Maximum allowed value for nvidia.com/gpu resource  |
 
 ### HTTP Client Configuration
 

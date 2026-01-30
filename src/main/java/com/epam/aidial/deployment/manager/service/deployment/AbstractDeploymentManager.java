@@ -22,6 +22,10 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -31,6 +35,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.springframework.transaction.annotation.Isolation;
@@ -273,7 +278,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         initiator, deploymentId, serviceName);
                 try {
                     var serviceUrl = resolveServiceUrl(service, deployment);
-                    performHealthChecks(deployment, serviceUrl, System.currentTimeMillis());
+                    performHealthChecks(deployment, serviceUrl);
                     deployment.setUrl(serviceUrl);
                     deployment.setStatus(DeploymentStatus.RUNNING);
                     deploymentRepository.update(deploymentId, deployment);
@@ -294,6 +299,27 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         } catch (Exception e) {
             log.error("{}: unexpected error for deployment '{}'", initiator, deploymentId, e);
             throw e;
+        }
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void stopOnServiceNotFound(String id) {
+        if (log.isTraceEnabled()) {
+            log.trace("stopOnServiceNotFound. Deployment ID: {}", id);
+        }
+
+        var serviceName = getServiceName(id);
+        var service = getService(namespace, serviceName);
+        var deploymentOptional = getDeploymentOptional(id);
+
+        if (deploymentOptional.isPresent() && service == null) {
+            var deployment = deploymentOptional.get();
+            log.info("Reconciliation: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
+                    id, deployment.getStatus());
+            deployment.setUrl(null);
+            deployment.setStatus(DeploymentStatus.STOPPED);
+            deploymentRepository.update(id, deployment);
         }
     }
 
@@ -402,11 +428,84 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         if (filter != null) {
             podsStream = podsStream.filter(filter);
         }
-        return podsStream.map(pod -> new PodInfo(
-                        pod.getMetadata().getName(),
-                        Instant.parse(pod.getMetadata().getCreationTimestamp())
-                ))
-                .toList();
+        return podsStream.map(this::toPodInfo).toList();
+    }
+
+    private PodInfo toPodInfo(Pod pod) {
+        var containerStatuses = pod.getStatus() != null
+                ? pod.getStatus().getContainerStatuses()
+                : null;
+
+        var containerInfo = extractContainerInfo(containerStatuses);
+
+        return new PodInfo(
+                pod.getMetadata().getName(),
+                Instant.parse(pod.getMetadata().getCreationTimestamp()),
+                containerInfo.restartCount(),
+                containerInfo.lastTerminationReason(),
+                containerInfo.lastExitCode(),
+                containerInfo.lastSignal(),
+                containerInfo.lastFinishedAt()
+        );
+    }
+
+    private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
+        if (CollectionUtils.isEmpty(containerStatuses)) {
+            return new ContainerInfo(0, null, null, null, null);
+        }
+
+        int totalRestartCount = 0;
+        ContainerStateTerminated mostRecentTermination = null;
+
+        for (var containerStatus : containerStatuses) {
+            totalRestartCount += containerStatus.getRestartCount() != null ? containerStatus.getRestartCount() : 0;
+
+            // Check both 'state' (current) and 'lastState' (previous)
+            // to find the most recent failure event.
+            var currentTerminated = getTerminatedState(containerStatus.getState());
+            var previousTerminated = getTerminatedState(containerStatus.getLastState());
+
+            // Compare timestamps to find the true "latest" error
+            mostRecentTermination = getLaterTermination(mostRecentTermination, currentTerminated);
+            mostRecentTermination = getLaterTermination(mostRecentTermination, previousTerminated);
+        }
+
+        if (mostRecentTermination != null) {
+            return new ContainerInfo(
+                    totalRestartCount,
+                    mostRecentTermination.getReason(),
+                    mostRecentTermination.getExitCode(),
+                    mostRecentTermination.getSignal(),
+                    K8sParseUtils.parseInstant(mostRecentTermination.getFinishedAt())
+            );
+        }
+
+        return new ContainerInfo(totalRestartCount, null, null, null, null);
+    }
+
+    private ContainerStateTerminated getTerminatedState(ContainerState state) {
+        return (state != null) ? state.getTerminated() : null;
+    }
+
+    private ContainerStateTerminated getLaterTermination(ContainerStateTerminated currentBest,
+                                                         ContainerStateTerminated candidate) {
+        if (candidate == null) {
+            return currentBest;
+        }
+        if (currentBest == null) {
+            return candidate;
+        }
+
+        var t1 = K8sParseUtils.parseInstant(currentBest.getFinishedAt());
+        var t2 = K8sParseUtils.parseInstant(candidate.getFinishedAt());
+        if (t1 == null) {
+            return candidate;
+        }
+        if (t2 == null) {
+            return currentBest;
+        }
+
+        return t2.isAfter(t1) ? candidate : currentBest;
     }
 
     @Override
@@ -468,7 +567,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected abstract String resolveServiceUrl(S service, D deployment);
 
-    protected void performHealthChecks(D deployment, String serviceUrl, long startTime) {
+    protected void performHealthChecks(D deployment, String serviceUrl) {
         // Default implementation does nothing
     }
 
@@ -562,4 +661,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .map(entry -> Map.entry(entry.getKey(), entry.getValue().getValue()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
+
+    private record ContainerInfo(
+            int restartCount,
+            String lastTerminationReason,
+            Integer lastExitCode,
+            Integer lastSignal,
+            Instant lastFinishedAt
+    ) {
+    }
+
 }

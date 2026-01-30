@@ -36,4 +36,7 @@ public class InferenceDeploymentEntity extends DeploymentEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> args;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private PersistenceScaling scaling;
 }

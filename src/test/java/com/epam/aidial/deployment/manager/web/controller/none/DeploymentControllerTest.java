@@ -8,7 +8,11 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EventType;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.ObjectKind;
+import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
@@ -20,7 +24,11 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
+import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DuplicateDeploymentRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.EnvVarDefinitionDto;
+import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -55,6 +63,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -156,6 +165,92 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
 
         verify(deploymentService).createDeployment(any());
+    }
+
+    @Test
+    void testCreateDeployment_withMinScaleBiggerThanMaxScale() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        requestDto.setMinScale(5);
+        requestDto.setInitialScale(null);
+        requestDto.setMaxScale(2);
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("minScale must be less than or equal to maxScale\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withCpuResourceExceedingMaxLimit() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        var limits = Map.of(
+                "cpu", "11",
+                "limit2", "some-value-2"
+        );
+        var requests = Map.of(
+                "cpu", "11",
+                "request1", "some-rvalue-1"
+        );
+        requestDto.setResources(new ResourcesDto(limits, requests));
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Field [resources]: Request and limit for 'cpu' must not exceed 10.0 cores\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withNameExceedingMaxSize() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        requestDto.setName(requestDto.getName() + "a");
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Field [name]: Deployment ID must be between 2 and 36 characters\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withEnvVarNameContainingRestrictedSymbol() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+
+        var originalMetadata = requestDto.getMetadata();
+        var originalEnvs = new ArrayList<>(originalMetadata.envs());
+        var firstEnv = originalEnvs.getFirst();
+        var invalidEnv = new EnvVarDefinitionDto(
+                "INVALID$NAME",
+                firstEnv.value(),
+                firstEnv.mountType(),
+                firstEnv.description()
+        );
+        originalEnvs.set(0, invalidEnv);
+        requestDto.setMetadata(new DeploymentMetadataDto(originalEnvs));
+
+        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(
+                        "Field [metadata.envs[0].name]: Env variable name must contain only letters, numbers, dots (.), hyphens (-), and underscores (_)\n"));
     }
 
     @Test
@@ -319,7 +414,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         when(eventStreamingService.streamEvents(any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
-                    get("/api/v1/deployments/{id}/events/stream", DEPLOYMENT_ID))
+                        get("/api/v1/deployments/{id}/events/stream", DEPLOYMENT_ID))
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
@@ -344,10 +439,10 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         when(eventStreamingService.streamEvents(any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
-                get("/api/v1/deployments/{id}/events/stream", DEPLOYMENT_ID)
-                        .param("sinceTime", sinceTime.toString())
-                        .param("eventType", eventType.name())
-                        .param("involvedObjectKind", involvedObjectKind.name()))
+                        get("/api/v1/deployments/{id}/events/stream", DEPLOYMENT_ID)
+                                .param("sinceTime", sinceTime.toString())
+                                .param("eventType", eventType.name())
+                                .param("involvedObjectKind", involvedObjectKind.name()))
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
@@ -364,15 +459,22 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
-    void testCreateInferenceDeployment_withCommandAndArgs() throws Exception {
+    void testCreateInferenceDeployment() throws Exception {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response.json");
-        var deployment = createInferenceDeployment(
-                "test-inference-deployment",
-                List.of("python", "script.py", "--arg", "value"),
-                List.of("--config", "config.json", "--log-level", "DEBUG")
-        );
+
+        var scalingStrategy = new ScalingStrategy();
+        scalingStrategy.setType(ScalingStrategyType.HARDWARE_USAGE);
+        scalingStrategy.setThreshold(85);
+        var scaling = new Scaling();
+        scaling.setMinReplicas(1);
+        scaling.setMaxReplicas(3);
+        scaling.setStrategy(scalingStrategy);
+        var deployment = createInferenceDeployment("test-inference-deployment");
+        deployment.setCommand(List.of("python", "script.py", "--arg", "value"));
+        deployment.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
+        deployment.setScaling(scaling);
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -387,6 +489,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var createDeployment = createInferenceDeploymentCaptor.getValue();
         assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "script.py", "--arg", "value"));
         assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config.json", "--log-level", "DEBUG"));
+        assertThat(createDeployment.getScaling()).isEqualTo(scaling);
     }
 
     @Test
@@ -394,11 +497,9 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_quoted.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_response_quoted.json");
-        var deployment = createInferenceDeployment(
-                "test-inference-deployment",
-                List.of("python", "script with spaces.py", "--arg", "value with spaces"),
-                List.of("--config", "config file.json")
-        );
+        var deployment = createInferenceDeployment("test-inference-deployment");
+        deployment.setCommand(List.of("python", "script with spaces.py", "--arg", "value with spaces"));
+        deployment.setArgs(List.of("--config", "config file.json"));
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -420,7 +521,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
-        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+        var deployment = createInferenceDeployment("test-inference-deployment");
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -442,7 +543,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var requestJson = ResourceUtils.readResource("/mcp/deployment/create_inference_deployment_request_blank_command_args.json");
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
-        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+        var deployment = createInferenceDeployment("test-inference-deployment");
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -460,14 +561,21 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
-    void testGetInferenceDeployment_shouldConvertCommandAndArgsListsToStrings() throws Exception {
+    void testGetInferenceDeployment() throws Exception {
         // Given
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/get_inference_deployment_response.json");
-        var deployment = createInferenceDeployment(
-                "test-inference-deployment",
-                List.of("python", "script.py", "--arg", "value"),
-                List.of("--config", "config.json", "--log-level", "DEBUG")
-        );
+
+        var scalingStrategy = new ScalingStrategy();
+        scalingStrategy.setType(ScalingStrategyType.HARDWARE_USAGE);
+        scalingStrategy.setThreshold(85);
+        var scaling = new Scaling();
+        scaling.setMinReplicas(1);
+        scaling.setMaxReplicas(3);
+        scaling.setStrategy(scalingStrategy);
+        var deployment = createInferenceDeployment("test-inference-deployment");
+        deployment.setCommand(List.of("python", "script.py", "--arg", "value"));
+        deployment.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
+        deployment.setScaling(scaling);
 
         when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
 
@@ -482,7 +590,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     void testGetInferenceDeployment_withNullCommandAndArgs() throws Exception {
         // Given
         var expectedJson = ResourceUtils.readResource("/mcp/deployment/inference_deployment_without_command_args.json");
-        var deployment = createInferenceDeployment("test-inference-deployment", null, null);
+        var deployment = createInferenceDeployment("test-inference-deployment");
 
         when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
 
@@ -493,20 +601,66 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         verify(deploymentService).getDeployment("test-inference-deployment");
     }
 
+    @Test
+    void testGetPods_withRestartInfo() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_with_restart_info_response.json");
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
+        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9, finishedAt);
+
+        when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getInstances(DEPLOYMENT_ID);
+    }
+
+    @Test
+    void testGetPods_withoutTerminationInfo() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
+        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, finishedAt);
+
+        when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getInstances(DEPLOYMENT_ID);
+    }
+
+    @Test
+    void testGetActivePods() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
+        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null, finishedAt);
+
+        when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/active-pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getActiveInstances(DEPLOYMENT_ID);
+    }
+
     private static SseEmitter completedEmitter() {
         SseEmitter emitter = new SseEmitter();
         emitter.complete();
         return emitter;
     }
 
-    private InferenceDeployment createInferenceDeployment(String id, List<String> command, List<String> args) {
+    private InferenceDeployment createInferenceDeployment(String id) {
         var deployment = new InferenceDeployment();
         deployment.setId(id);
         deployment.setDisplayName("Test Inference Deployment");
         deployment.setModelFormat("huggingface");
         deployment.setSource(new InferenceDeploymentHuggingFaceSource("test-user/test-model"));
-        deployment.setCommand(command);
-        deployment.setArgs(args);
         deployment.setMetadata(new DeploymentMetadata(new ArrayList<>()));
         deployment.setStatus(DeploymentStatus.NOT_DEPLOYED);
         deployment.setUrl("http://test-url");

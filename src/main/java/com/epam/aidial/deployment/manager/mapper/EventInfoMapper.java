@@ -4,12 +4,11 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.EventInfo;
 import com.epam.aidial.deployment.manager.model.EventType;
 import com.epam.aidial.deployment.manager.model.ObjectKind;
+import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
 import io.fabric8.kubernetes.api.model.Event;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Slf4j
@@ -34,8 +33,8 @@ public class EventInfoMapper {
         if (metadata != null) {
             eventInfoBuilder
                     .id(UUID.fromString(metadata.getUid()))
-                    .firstTimestamp(parseInstant(metadata.getCreationTimestamp()))
-                    .lastTimestamp(parseInstant(metadata.getDeletionTimestamp()));
+                    .firstTimestamp(K8sParseUtils.parseInstant(metadata.getCreationTimestamp()))
+                    .lastTimestamp(K8sParseUtils.parseInstant(metadata.getDeletionTimestamp()));
         }
 
         var involvedObject = event.getInvolvedObject();
@@ -53,15 +52,4 @@ public class EventInfoMapper {
         return eventInfo;
     }
 
-    private static Instant parseInstant(String timestamp) {
-        if (StringUtils.isEmpty(timestamp)) {
-            return null;
-        }
-        try {
-            return Instant.parse(timestamp);
-        } catch (Exception e) {
-            log.debug("Failed to parse timestamp '{}' to Instant", timestamp, e);
-            return null;
-        }
-    }
 }

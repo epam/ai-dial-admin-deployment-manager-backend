@@ -135,6 +135,7 @@ public abstract class PersistenceDeploymentMapper {
             existingInference.setSource(updatedInference.getSource());
             existingInference.setCommand(updatedInference.getCommand());
             existingInference.setArgs(updatedInference.getArgs());
+            existingInference.setScaling(updatedInference.getScaling());
         }
     }
 
