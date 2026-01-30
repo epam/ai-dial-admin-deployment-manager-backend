@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
 import com.epam.aidial.deployment.manager.model.GitSecretConfig;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -11,6 +12,7 @@ import com.epam.aidial.deployment.manager.utils.GitCommandBuilder;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.Mappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
+import com.epam.aidial.deployment.manager.web.dto.ImageBuilderDto;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
@@ -44,6 +46,7 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
     private final String buildId;
     private final String targetImage;
     private final GitDockerfileImageSource gitDockerfileImageSource;
+    private final ImageBuilder imageBuilder;
 
     @Override
     public String getJobId() {
@@ -85,7 +88,20 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
         var podSpec = getPodSpec(config);
 
         configureInitContainer(podSpec);
-        configureBuilderContainer(podSpec, targetImage);
+        switch (imageBuilder) {
+            case BUILDKIT -> {
+                configureBuilderRootContainer(podSpec);
+                log.info("Buildkit is in use for image build");
+            }
+            case BUILDKIT_ROOTLESS -> {
+                configureBuilderRootlessContainer(podSpec);
+                log.info("Buildkit rootless is in use for image build");
+            }
+            default -> {
+                configureBuilderContainer(podSpec, targetImage);
+                log.info("Kaniko is in use for image build");
+            }
+        }
         configurePushContainer(podSpec, targetImage);
 
         return config.data();
@@ -171,6 +187,45 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
                 "--context=%s".formatted(context),
                 "--no-push",
                 "--tar-path=/image-build/image-tarball.tar"
+        ));
+
+        builder.get(Mappers.CONTAINER_ARGS_FIELD)
+                .data()
+                .addAll(args);
+    }
+
+    private void configureBuilderRootContainer(MappingChain<PodSpec> podSpec) {
+        var builder = getBuilderRootContainerChain(podSpec);
+        configureBuildkitContainerArgs(builder);
+    }
+
+    private MappingChain<Container> getBuilderRootContainerChain(MappingChain<PodSpec> podSpec) {
+        return podSpec.getList(Mappers.POD_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
+                .getOrDefault(appConfig.getBuilderRootContainerConfig().getName(), appConfig::cloneBuilderRootContainerConfig);
+    }
+
+    private void configureBuilderRootlessContainer(MappingChain<PodSpec> podSpec) {
+        var builder = getBuilderRootlessContainerChain(podSpec);
+        configureBuildkitContainerArgs(builder);
+    }
+
+    private MappingChain<Container> getBuilderRootlessContainerChain(MappingChain<PodSpec> podSpec) {
+        return podSpec.getList(Mappers.POD_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
+                .getOrDefault(appConfig.getBuilderRootlessContainerConfig().getName(), appConfig::cloneBuilderRootlessContainerConfig);
+    }
+
+
+    private void configureBuildkitContainerArgs(MappingChain<Container> builder) {
+
+        var context = StringUtils.isNotBlank(gitDockerfileImageSource.getBaseDirectory())
+                ? WORKSPACE_PATH + "/" + gitDockerfileImageSource.getBaseDirectory()
+                : WORKSPACE_PATH;
+
+        var args = new ArrayList<>(List.of(
+                "--local",
+                "context=%s".formatted(context),
+                "--local",
+                "dockerfile=%s".formatted(context)
         ));
 
         builder.get(Mappers.CONTAINER_ARGS_FIELD)

@@ -27,6 +27,8 @@ public class AppProperties {
     private Job builderJobConfig;
     private Container initBuilderContainerConfig;
     private Container builderContainerConfig;
+    private Container builderRootContainerConfig;
+    private Container builderRootlessContainerConfig;
     private Container pushContainerConfig;
     private Secret builderSecretConfig;
 
@@ -67,6 +69,14 @@ public class AppProperties {
 
     public Container cloneBuilderContainerConfig() {
         return new ContainerBuilder(builderContainerConfig).build();
+    }
+
+    public Container cloneBuilderRootContainerConfig() {
+        return new ContainerBuilder(builderRootContainerConfig).build();
+    }
+
+    public Container cloneBuilderRootlessContainerConfig() {
+        return new ContainerBuilder(builderRootlessContainerConfig).build();
     }
 
     public Container clonePushContainerConfig() {

@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.pipeline.specification;
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
@@ -79,7 +80,8 @@ class ImageBuildFromGitJobSpecificationTest {
                 DOCKER_CONFIG_PATH,
                 BUILD_ID,
                 IMAGE_NAME,
-                gitDockerfileImageSource
+                gitDockerfileImageSource,
+                ImageBuilder.KANIKO
         );
     }
 
@@ -193,7 +195,8 @@ class ImageBuildFromGitJobSpecificationTest {
                 DOCKER_CONFIG_PATH,
                 BUILD_ID,
                 IMAGE_NAME,
-                gitDockerfileImageSource
+                gitDockerfileImageSource,
+                ImageBuilder.KANIKO
         );
 
         Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
@@ -243,7 +246,8 @@ class ImageBuildFromGitJobSpecificationTest {
                 DOCKER_CONFIG_PATH,
                 BUILD_ID,
                 IMAGE_NAME,
-                gitDockerfileImageSource
+                gitDockerfileImageSource,
+                ImageBuilder.KANIKO
         );
 
         // When

@@ -72,6 +72,8 @@ app:
   build-namespace: ${K8S_BUILD_NAMESPACE:default}
   git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:2.52.0}
   builder-image: gcr.io/kaniko-project/executor:v1.24.0
+  builder-root-image: moby/buildkit:v0.27.1
+  builder-rootless-image: moby/buildkit:v0.27.1-rootless
   analyser-image: anchore/syft:v1.40.0
   copy-image: quay.io/skopeo/stable:v1.21.0
   docker-config-path: /kaniko/.docker/config.json
@@ -204,6 +206,48 @@ app:
   builder-container-config:
     name: builder-container
     image: ${app.builder-image}
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /workspace
+      - name: build-volume
+        mountPath: /image-build
+  builder-root-container-config:
+    name: builder-container
+    image: ${app.builder-root-image}
+    command:
+      - buildctl-daemonless.sh
+    args:
+      - build
+      - --frontend
+      - dockerfile.v0
+      - --output
+      - type=docker,dest=/image-build/image-tarball.tar
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /workspace
+      - name: build-volume
+        mountPath: /image-build
+  builder-rootless-container-config:
+    name: builder-container
+    image: ${app.builder-rootless-image}
+    command:
+      - buildctl-daemonless.sh
+    env:
+      - name: BUILDKITD_FLAGS
+        value: "--oci-worker-no-process-sandbox"
+    args:
+      - build
+      - --frontend
+      - dockerfile.v0
+      - --output
+      - type=docker,dest=/image-build/image-tarball.tar
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      appArmorProfile:
+        type: Unconfined
     volumeMounts:
       - name: workspace-volume
         mountPath: /workspace
