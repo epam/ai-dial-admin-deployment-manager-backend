@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto;
 
+import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidSemanticVersion;
 import com.epam.aidial.deployment.manager.web.validation.ValidTopics;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -50,5 +51,6 @@ public abstract class ImageDefinitionRequestDto {
     @Nullable
     private String author;
     @Nullable
+    @ValidDomainList
     private List<String> allowedDomains = new ArrayList<>();
 }
