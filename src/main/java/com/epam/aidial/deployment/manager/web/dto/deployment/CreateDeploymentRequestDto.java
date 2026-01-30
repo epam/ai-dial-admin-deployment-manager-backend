@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.web.dto.deployment;
 
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
 import com.epam.aidial.deployment.manager.web.validation.ValidScaleConfiguration;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -63,5 +64,6 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     private String author;
     @Nullable
+    @ValidDomainList
     private List<String> allowedDomains = new ArrayList<>();
 }

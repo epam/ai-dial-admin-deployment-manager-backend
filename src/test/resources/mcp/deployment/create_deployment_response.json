@@ -38,7 +38,7 @@
   },
   "transport": "sse",
   "containerPort": 8082,
-  "allowedDomains": ["first-test-domain", "second-test-domain"],
+  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"],
   "initialScale": 1,
   "minScale": 0,
   "maxScale": 2,

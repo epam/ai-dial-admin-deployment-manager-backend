@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
+import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -32,7 +33,7 @@ public class GlobalDomainWhitelistController {
     @PostMapping(path = "/image-build",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
-    public List<String> updateDomainWhitelistForImageBuild(@RequestBody @NotNull List<String> allowedDomains) {
+    public List<String> updateDomainWhitelistForImageBuild(@RequestBody @NotNull @ValidDomainList List<String> allowedDomains) {
         log.info("Updating global domain whitelist for image build. Allowed domains: {}", allowedDomains);
         var updatedAllowedDomains = globalDomainWhitelistService.updateDomainWhitelist(allowedDomains);
         log.info("Successfully updated global domain whitelist for image build.");

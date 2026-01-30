@@ -56,7 +56,7 @@
   },
   "transport": "sse",
   "containerPort": 8082,
-  "allowedDomains": ["first-test-domain", "second-test-domain"],
+  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"],
   "resources": {
     "limits": {
       "limit1": "some-value-1",

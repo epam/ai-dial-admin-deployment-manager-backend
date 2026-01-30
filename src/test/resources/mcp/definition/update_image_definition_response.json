@@ -14,5 +14,5 @@
   "topics": ["test"],
   "buildStatus": "build_successful",
   "transportType": "local",
-  "allowedDomains": ["first-test-domain", "second-test-domain"]
+  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"]
 }
