@@ -126,7 +126,9 @@ class HuggingFaceClientTest {
         var invalidUrl = "https://evil.com/api/models";
 
         assertThatThrownBy(() -> client.getModelsPage(request, invalidUrl))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid page URL: https://evil.com/api/models")
+                .hasMessageContaining("It must match base URL scheme, host and port. Base URL: https://huggingface.co");
     }
 
     @Test

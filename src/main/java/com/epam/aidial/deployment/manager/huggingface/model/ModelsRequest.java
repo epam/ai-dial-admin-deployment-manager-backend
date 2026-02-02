@@ -1,7 +1,5 @@
 package com.epam.aidial.deployment.manager.huggingface.model;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -46,8 +44,6 @@ public class ModelsRequest {
      * The limit on the number of models fetched. Leaving this option to None fetches all models.
      */
     @Nullable
-    @Min(1)
-    @Max(1000)
     private Integer limit;
 
     /**

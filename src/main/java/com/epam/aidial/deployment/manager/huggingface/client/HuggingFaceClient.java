@@ -15,6 +15,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.ResponseBody;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Nullable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -87,7 +89,8 @@ public class HuggingFaceClient {
 
             var body = response.body();
             if (body == null) {
-                return new TagsInfo();
+                throw new HuggingFaceClientException("Response does not have response body. Response code: "
+                        + response.code(), response.code());
             }
 
             var result = jsonMapper.readValue(body.string(), new TypeReference<TagsInfo>() {
@@ -97,7 +100,7 @@ public class HuggingFaceClient {
         } catch (IOException e) {
             var errorMessage = "Error fetching tags by type from Hugging Face API";
             log.warn(errorMessage, e);
-            throw new HuggingFaceClientException(errorMessage, 500);
+            throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }
 
@@ -107,7 +110,7 @@ public class HuggingFaceClient {
      *
      * @param fileRequest request containing repo ID, revision, file path, and repo type
      * @return response body containing the file content
-     * @throws RuntimeException if download fails
+     * @throws HuggingFaceClientException if download fails
      */
     public ResponseBody downloadFile(FileRequest fileRequest) {
         log.debug("Downloading huggingface model file. Request: {}. Base URL: {}",
@@ -135,7 +138,7 @@ public class HuggingFaceClient {
             var body = response.body();
             if (body == null) {
                 response.close(); // Close on error
-                throw new HuggingFaceClientException("Response body is null", 500);
+                throw new HuggingFaceClientException("Response body is null", HttpStatus.INTERNAL_SERVER_ERROR.value());
             }
 
             log.debug("Stream to download huggingface model file has been successfully opened."
@@ -145,7 +148,7 @@ public class HuggingFaceClient {
         } catch (IOException e) {
             var errorMessage = "Failed to download file from Hugging Face";
             log.warn(errorMessage, e);
-            throw new HuggingFaceClientException(errorMessage, 500);
+            throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }
 
@@ -165,7 +168,7 @@ public class HuggingFaceClient {
 
             var body = response.body();
             if (body == null) {
-                throw new HuggingFaceClientException("Response body is null", 500);
+                throw new HuggingFaceClientException("Response body is null", HttpStatus.INTERNAL_SERVER_ERROR.value());
             }
 
             var linkHeader = response.header("Link");
@@ -176,7 +179,7 @@ public class HuggingFaceClient {
         } catch (IOException e) {
             var errorMessage = "Error fetching models page from Hugging Face API";
             log.warn(errorMessage, e);
-            throw new HuggingFaceClientException(errorMessage, 500);
+            throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }
 
@@ -187,7 +190,9 @@ public class HuggingFaceClient {
                 || !parsedPageUrl.scheme().equals(baseHttpUrl.scheme())
                 || !parsedPageUrl.host().equals(baseHttpUrl.host())
                 || parsedPageUrl.port() != baseHttpUrl.port()) {
-            throw new IllegalArgumentException("Invalid page URL: " + pageUrl);
+            throw new IllegalArgumentException(String.format(
+                    "Invalid page URL: %s. It must match base URL scheme, host and port. Base URL: %s",
+                    pageUrl, baseHttpUrl));
         }
     }
 
@@ -229,8 +234,8 @@ public class HuggingFaceClient {
         return properties.getBaseUrl() + path;
     }
 
-    private String extractUrlByRel(String linkHeader, String relType) {
-        if (linkHeader == null || linkHeader.isBlank()) {
+    private String extractUrlByRel(@Nullable String linkHeader, String relType) {
+        if (StringUtils.isBlank(linkHeader)) {
             return null;
         }
 
@@ -251,7 +256,7 @@ public class HuggingFaceClient {
 
     private record InternalModelsPageResponse(
             List<Model> models,
-            String linkHeader
+            @Nullable String linkHeader
     ) {
     }
 }

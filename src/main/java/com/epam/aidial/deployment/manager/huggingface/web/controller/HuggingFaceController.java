@@ -9,6 +9,7 @@ import com.epam.aidial.deployment.manager.huggingface.web.dto.ModelsPageResponse
 import com.epam.aidial.deployment.manager.huggingface.web.mapper.HuggingFaceModelDtoMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ContentDisposition;
@@ -47,7 +48,7 @@ public class HuggingFaceController {
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String filter,
             @RequestParam(required = false, defaultValue = "downloads") String sort,
-            @RequestParam(required = false, defaultValue = "100") @Max(1000) int limit,
+            @RequestParam(required = false, defaultValue = "100") @Min(1) @Max(1000) int limit,
             @RequestParam(required = false) String pageUrl
     ) {
         var request = ModelsRequest.builder()
