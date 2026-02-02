@@ -93,7 +93,6 @@ public class CiliumNetworkPolicyCreator {
 
         ToPorts tcpToPorts = new ToPorts();
         tcpToPorts.setPorts(List.of(tcpPort443, tcpPort80));
-        tcpToPorts.setServerNames(allowedDomains);
 
         Egress egress = new Egress();
         egress.setToFQDNs(toFqdnsList);
