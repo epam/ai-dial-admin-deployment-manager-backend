@@ -19,14 +19,12 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.regex.Pattern;
 
 @Slf4j
 @Component
 @LogExecution
-
 public class HuggingFaceClient {
 
     private static final String MODELS_ENDPOINT = "/api/models";
@@ -97,7 +95,9 @@ public class HuggingFaceClient {
             });
             log.debug("huggingface tags has been successfully retrieved. Base URL: {}", properties.getBaseUrl());
             return result;
-        } catch (IOException e) {
+        } catch (HuggingFaceClientException e) {
+            throw e;
+        } catch (Exception e) {
             var errorMessage = "Error fetching tags by type from Hugging Face API";
             log.warn(errorMessage, e);
             throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
@@ -145,7 +145,9 @@ public class HuggingFaceClient {
                     + " Request: {}. Base URL: {}", fileRequest, properties.getBaseUrl());
             return body;
 
-        } catch (IOException e) {
+        } catch (HuggingFaceClientException e) {
+            throw e;
+        } catch (Exception e) {
             var errorMessage = "Failed to download file from Hugging Face";
             log.warn(errorMessage, e);
             throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
@@ -176,7 +178,9 @@ public class HuggingFaceClient {
             });
 
             return new InternalModelsPageResponse(models, linkHeader);
-        } catch (IOException e) {
+        } catch (HuggingFaceClientException e) {
+            throw e;
+        } catch (Exception e) {
             var errorMessage = "Error fetching models page from Hugging Face API";
             log.warn(errorMessage, e);
             throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
