@@ -24,6 +24,11 @@ public class InferenceMappers {
             InferenceService::getMetadata,
             InferenceService::setMetadata);
 
+    public static final FieldMapper<ObjectMeta, Map<String, String>> METADATA_ANNOTATIONS_FIELD = new FieldMapper<>(
+            HashMap::new,
+            ObjectMeta::getAnnotations,
+            ObjectMeta::setAnnotations);
+
     public static final FieldMapper<InferenceService, InferenceServiceSpec> SERVICE_SPEC_FIELD = new FieldMapper<>(
             InferenceServiceSpec::new,
             InferenceService::getSpec,

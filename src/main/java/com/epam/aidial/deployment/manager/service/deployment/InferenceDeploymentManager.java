@@ -96,8 +96,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
-                deployment.getMinScale(),
-                deployment.getMaxScale(),
+                deployment.getScaling(),
                 deployment.getCommand(),
                 deployment.getArgs(),
                 containerPort);
