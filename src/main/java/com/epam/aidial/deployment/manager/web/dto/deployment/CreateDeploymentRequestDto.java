@@ -2,13 +2,14 @@ package com.epam.aidial.deployment.manager.web.dto.deployment;
 
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
+import com.epam.aidial.deployment.manager.web.validation.ValidScaleConfiguration;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -31,16 +32,17 @@ import java.util.List;
         @JsonSubTypes.Type(value = CreateNimDeploymentRequestDto.class, name = "nim"),
         @JsonSubTypes.Type(value = CreateInferenceDeploymentRequestDto.class, name = "inference"),
 })
+@ValidScaleConfiguration
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public abstract class CreateDeploymentRequestDto {
     @NotNull
-    @NotBlank
-    @Size(max = 36)
+    @Size(min = 2, max = 36, message = "Deployment ID must be between 2 and 36 characters")
     @Pattern(regexp = "^[a-z0-9-]+$", message = "Deployment ID must contain only lowercase Latin letters, numbers, and hyphens")
     private String name;
     @NotNull
+    @Size(min = 2, max = 255, message = "Display name must be between 2 and 255 characters")
     private String displayName;
     @Nullable
     private String description;
@@ -62,5 +64,6 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     private String author;
     @Nullable
+    @ValidDomainList
     private List<String> allowedDomains = new ArrayList<>();
 }
