@@ -60,6 +60,10 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             var predictor = predictorChain.data();
             predictor.setMinReplicas(scaling.getMinReplicas());
             predictor.setMaxReplicas(scaling.getMaxReplicas());
+            var initialScale = Math.max(scaling.getMinReplicas(), 1);
+            var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
+                    .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
+            annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
 
             if (scaling.getStrategy() != null) {
                 if (scaling.getStrategy().getType() == ScalingStrategyType.PENDING_REQUESTS) {
@@ -74,8 +78,6 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             if (scaling.getScaleToZeroDelaySeconds() != null) {
                 var delay = scaling.getScaleToZeroDelaySeconds();
                 var delayStr = delay + "s";
-                var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
-                        .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
                 annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
             }
         }
