@@ -31,6 +31,7 @@ import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -71,6 +72,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         JsonMapperConfiguration.class,
         DeploymentDtoMapperImpl.class,
+        ProbePropertiesDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
         McpEndpointPathResolver.class
 })

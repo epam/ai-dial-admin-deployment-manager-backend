@@ -258,6 +258,7 @@ class NimDeploymentManagerTest {
                 any(),
                 eq(IMAGE_NAME),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -335,6 +336,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 eq(IMAGE_NAME),
+                any(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);

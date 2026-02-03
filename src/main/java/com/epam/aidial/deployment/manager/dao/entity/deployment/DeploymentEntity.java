@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentMetada
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceResources;
+import com.epam.aidial.deployment.manager.dao.entity.probe.PersistenceProbeProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -67,6 +68,10 @@ public class DeploymentEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     private PersistenceResources resources;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "probe_properties")
+    private PersistenceProbeProperties probeProperties;
 
     @Enumerated(EnumType.STRING)
     private PersistenceDeploymentStatus status;

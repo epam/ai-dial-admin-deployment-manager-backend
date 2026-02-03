@@ -31,7 +31,8 @@ class NimManifestGeneratorTest {
 
     @Mock
     private AppProperties appconfig;
-
+    @Mock
+    private ProbeConverter probeConverter;
     @InjectMocks
     private NimManifestGenerator manifestGenerator;
 
@@ -58,7 +59,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, null, null
+                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, null, null, null
         );
 
         // Then
@@ -79,7 +80,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, null, null
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, null, null, null
         );
 
         // Then
@@ -100,7 +101,8 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort, customGrpcPort
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
+                customGrpcPort, null
         );
 
         // Then
@@ -122,7 +124,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, null, null
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, null, null, null
         );
 
         // Then

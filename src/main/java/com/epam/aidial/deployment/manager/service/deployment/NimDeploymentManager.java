@@ -99,7 +99,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 deployment.getResources(),
                 imageRef,
                 containerPort,
-                containerGrpcPort);
+                containerGrpcPort,
+                deployment.getProbeProperties());
     }
 
     @Override

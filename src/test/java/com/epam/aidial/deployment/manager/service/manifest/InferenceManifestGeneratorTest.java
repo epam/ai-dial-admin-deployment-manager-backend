@@ -33,7 +33,8 @@ class InferenceManifestGeneratorTest {
 
     @Mock
     private AppProperties appconfig;
-
+    @Mock
+    private ProbeConverter probeConverter;
     @InjectMocks
     private InferenceManifestGenerator manifestGenerator;
 
@@ -61,7 +62,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null, null
+                null, null, null, null, null, null
         );
 
         // Then
@@ -83,7 +84,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null
+                null, null, null, null, null, null
         );
 
         // Then
@@ -105,7 +106,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                minScale, maxScale, null, null, null
+                minScale, maxScale, null, null, null, null
         );
 
         // Then
@@ -126,7 +127,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, containerPort
+                null, null, null, null, containerPort, null
         );
 
         // Then
@@ -147,7 +148,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, args, null
+                null, null, null, args, null, null
         );
 
         // Then
@@ -166,7 +167,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, args, null
+                null, null, null, args, null, null
         );
 
         // Then
@@ -186,7 +187,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, args, null
+                null, null, null, args, null, null
         );
 
         // Then
@@ -206,7 +207,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, command, Collections.emptyList(), null
+                null, null, command, Collections.emptyList(), null, null
         );
 
         // Then

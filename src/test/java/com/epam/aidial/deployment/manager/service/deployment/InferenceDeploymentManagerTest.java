@@ -308,7 +308,7 @@ class InferenceDeploymentManagerTest {
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(),
-                any(), any(), any(), any(), eq(containerPort))).thenReturn(serviceSpec);
+                any(), any(), any(), any(), eq(containerPort), any())).thenReturn(serviceSpec);
 
         // When
         Deployment result = inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
@@ -363,7 +363,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(inferenceManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
         doThrow(new RuntimeException("Test exception")).when(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), any());
 
         // When/Then
@@ -483,7 +483,7 @@ class InferenceDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(),
-                any(), any(), any(), any(), eq(containerPort))).thenReturn(serviceSpec);
+                any(), any(), any(), any(), eq(containerPort), any())).thenReturn(serviceSpec);
 
         // When
         inferenceDeploymentManager.rollingUpdate(DEPLOYMENT_ID);
@@ -522,7 +522,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(inferenceManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
         doThrow(new RuntimeException("Test exception")).when(k8sKserveClient).updateService(eq(NAMESPACE), any());
 
         // When

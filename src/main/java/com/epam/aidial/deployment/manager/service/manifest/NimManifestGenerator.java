@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
@@ -17,6 +18,7 @@ import com.nvidia.apps.v1alpha1.nimservicespec.env.valuefrom.SecretKeyRef;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -26,8 +28,12 @@ import java.util.List;
 @LogExecution
 public class NimManifestGenerator extends DeployableManifestGenerator {
 
-    public NimManifestGenerator(AppProperties appconfig) {
+    private final ProbeConverter probeConverter;
+
+    public NimManifestGenerator(AppProperties appconfig,
+                                ProbeConverter probeConverter) {
         super(appconfig);
+        this.probeConverter = probeConverter;
     }
 
     @SneakyThrows
@@ -38,7 +44,8 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             Resources resources,
             String imageName,
             Integer containerPort,
-            Integer containerGrpcPort
+            Integer containerGrpcPort,
+            @Nullable ProbeProperties probeProperties
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneNimServiceConfig,
@@ -72,7 +79,17 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             service.setGrpcPort(containerGrpcPort);
         }
 
+        applyStartupProbe(specChain, probeProperties);
+
         return config.data();
+    }
+
+    private void applyStartupProbe(MappingChain<NIMServiceSpec> specChain,
+                                   @Nullable ProbeProperties deploymentProbeProperties) {
+        var probe = probeConverter.toNimStartupProbe(deploymentProbeProperties);
+        if (probe != null) {
+            specChain.data().setStartupProbe(probe);
+        }
     }
 
     @SneakyThrows

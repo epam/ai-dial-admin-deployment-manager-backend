@@ -34,6 +34,8 @@ class KnativeManifestGeneratorTest {
             .enable(SerializationFeature.INDENT_OUTPUT);
     @Mock
     private AppProperties appconfig;
+    @Mock
+    private ProbeConverter probeConverter;
     @InjectMocks
     private KnativeManifestGenerator manifestGenerator;
 
@@ -62,7 +64,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, simpleEnvs, sensitiveEnvs, Collections.emptyList(), imageName,
-                null, null, null, resources, null
+                null, null, null, resources, null, null
         );
 
         // Then
@@ -80,7 +82,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                0, 0, 10, new Resources(), null
+                0, 0, 10, new Resources(), null, null
         );
 
         // Then
@@ -102,7 +104,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, resources, null
+                null, null, null, resources, null, null
         );
 
         // Then
@@ -121,14 +123,14 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), containerPort
+                null, null, null, new Resources(), containerPort, null
         );
 
         // Then
         assertThat(generatedService.getSpec().getTemplate().getSpec().getContainers())
                 .hasSize(1);
 
-        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().get(0);
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
         assertThat(container.getPorts())
                 .hasSize(1)
                 .first()
@@ -144,11 +146,11 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), null
+                null, null, null, new Resources(), null, null
         );
 
         // Then
-        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().get(0);
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
         assertThat(container.getPorts()).isNullOrEmpty();
     }
 
