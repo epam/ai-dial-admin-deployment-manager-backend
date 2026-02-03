@@ -76,7 +76,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
                 var delayStr = delay + "s";
                 var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
                         .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
-                annotations.put("autoscaling.knative.dev/scale-down-delay", delayStr);
+                annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
             }
         }
 
