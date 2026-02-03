@@ -56,29 +56,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var specChain = config.get(InferenceMappers.SERVICE_SPEC_FIELD);
         var predictorChain = specChain.get(InferenceMappers.SERVICE_SPEC_PREDICTOR_FIELD);
 
-        if (scaling != null) {
-            var predictor = predictorChain.data();
-            predictor.setMinReplicas(scaling.getMinReplicas());
-            predictor.setMaxReplicas(scaling.getMaxReplicas());
-            var initialScale = Math.max(scaling.getMinReplicas(), 1);
-            var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
-                    .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
-            annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
-
-            if (scaling.getStrategy().getType() == ScalingStrategyType.PENDING_REQUESTS) {
-                predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
-                predictor.setScaleTarget(scaling.getStrategy().getThreshold());
-            } else {
-                throw new IllegalArgumentException("Scaling strategy has to be PENDING_REQUESTS, used: %s"
-                        .formatted(scaling.getStrategy().getType()));
-            }
-
-            if (scaling.getScaleToZeroDelaySeconds() != null) {
-                var delay = scaling.getScaleToZeroDelaySeconds();
-                var delayStr = delay + "s";
-                annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
-            }
-        }
+        applyScaling(scaling, predictorChain, config);
 
         var modelChain = predictorChain.get(InferenceMappers.PREDICTOR_MODEL_FIELD);
         modelChain.data().setStorageUri(storageUri);
@@ -149,6 +127,37 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var valueFrom = new ValueFrom();
         valueFrom.setSecretKeyRef(secretKeyRef);
         return valueFrom;
+    }
+
+    private void applyScaling(@Nullable Scaling scaling,
+                              MappingChain<Predictor> predictorChain,
+                              MappingChain<InferenceService> config) {
+        if (scaling == null) {
+            return;
+        }
+
+        var predictor = predictorChain.data();
+        predictor.setMinReplicas(scaling.getMinReplicas());
+        predictor.setMaxReplicas(scaling.getMaxReplicas());
+
+        var initialScale = Math.max(scaling.getMinReplicas(), 1);
+        var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
+                .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
+        annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
+
+        if (scaling.getStrategy().getType() == ScalingStrategyType.PENDING_REQUESTS) {
+            predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
+            predictor.setScaleTarget(scaling.getStrategy().getThreshold());
+        } else {
+            throw new IllegalArgumentException("Scaling strategy has to be PENDING_REQUESTS, used: %s"
+                    .formatted(scaling.getStrategy().getType()));
+        }
+
+        if (scaling.getScaleToZeroDelaySeconds() != null) {
+            var delay = scaling.getScaleToZeroDelaySeconds();
+            var delayStr = delay + "s";
+            annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
+        }
     }
 
 }
