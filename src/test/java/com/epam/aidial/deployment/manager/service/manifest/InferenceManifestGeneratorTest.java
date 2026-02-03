@@ -124,7 +124,8 @@ class InferenceManifestGeneratorTest {
         var deploymentName = "scale-zero-delay-app";
         var storageUri = "s3://my-bucket/model";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-        var scaling = new Scaling(1, 5, null, null);
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.PENDING_REQUESTS, 10);
+        var scaling = new Scaling(1, 5, null, scalingStrategy);
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
@@ -134,7 +135,7 @@ class InferenceManifestGeneratorTest {
 
         // Then
         var jsonOutput = serialize(generatedService);
-        var expected = ResourceUtils.readResource("/manifest/inference_service_with_scaling_only_required_param.json");
+        var expected = ResourceUtils.readResource("/manifest/inference_service_with_scaling_only_required_params.json");
         JSONAssert.assertEquals(expected, jsonOutput, true);
     }
 

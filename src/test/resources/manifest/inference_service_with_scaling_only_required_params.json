@@ -2,6 +2,9 @@
   "apiVersion": "serving.kserve.io/v1beta1",
   "kind": "InferenceService",
   "metadata": {
+    "annotations": {
+      "autoscaling.knative.dev/initial-scale": "1"
+    },
     "name": "dm-scale-zero-delay-app"
   },
   "spec": {
@@ -22,7 +25,9 @@
           "requests": {}
         },
         "storageUri": "s3://my-bucket/model"
-      }
+      },
+      "scaleMetric": "concurrency",
+      "scaleTarget": 10
     }
   }
 }

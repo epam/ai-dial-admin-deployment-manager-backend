@@ -65,14 +65,12 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
                     .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
             annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
 
-            if (scaling.getStrategy() != null) {
-                if (scaling.getStrategy().getType() == ScalingStrategyType.PENDING_REQUESTS) {
-                    predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
-                    predictor.setScaleTarget(scaling.getStrategy().getThreshold());
-                } else {
-                    throw new IllegalArgumentException("Scaling strategy has to be PENDING_REQUESTS, used: %s"
-                            .formatted(scaling.getStrategy().getType()));
-                }
+            if (scaling.getStrategy().getType() == ScalingStrategyType.PENDING_REQUESTS) {
+                predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
+                predictor.setScaleTarget(scaling.getStrategy().getThreshold());
+            } else {
+                throw new IllegalArgumentException("Scaling strategy has to be PENDING_REQUESTS, used: %s"
+                        .formatted(scaling.getStrategy().getType()));
             }
 
             if (scaling.getScaleToZeroDelaySeconds() != null) {

@@ -3,7 +3,8 @@
   "kind": "InferenceService",
   "metadata": {
     "annotations": {
-      "autoscaling.knative.dev/scale-to-zero-pod-retention-period": "600s"
+      "autoscaling.knative.dev/scale-to-zero-pod-retention-period": "600s",
+      "autoscaling.knative.dev/initial-scale": "1"
     },
     "name": "dm-scaling-inference-app"
   },
