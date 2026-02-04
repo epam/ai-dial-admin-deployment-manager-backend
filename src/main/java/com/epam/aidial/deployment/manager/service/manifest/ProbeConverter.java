@@ -79,6 +79,16 @@ public class ProbeConverter {
         return probe;
     }
 
+    /**
+     * Sets timing-related fields on a Kubernetes Probe. Fields that are null are omitted from the
+     * probe, and Kubernetes will apply default values for them.
+     *
+     * @param probe the Kubernetes Probe to modify
+     * @param initialDelaySeconds seconds after container start before the probe is initiated (optional)
+     * @param periodSeconds how often to perform the probe (optional)
+     * @param timeoutSeconds seconds after which the probe attempt times out (optional)
+     * @param failureThreshold minimum consecutive failures for the probe to be considered failed (optional)
+     */
     private static void setTimingOnProbe(Probe probe,
             @Nullable Integer initialDelaySeconds,
             @Nullable Integer periodSeconds,
@@ -106,9 +116,8 @@ public class ProbeConverter {
     private record HandlerParams(
             String handlerType,
             IntOrString httpPort,
-            String httpPath) {
-
-    }
+            String httpPath
+    ) { }
 
     /**
      * Converts domain probe properties to KServe predictor model StartupProbe.
