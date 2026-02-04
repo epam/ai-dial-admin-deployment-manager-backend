@@ -12,5 +12,5 @@ import lombok.NoArgsConstructor;
 public class PersistenceScalingStrategy {
     @JsonProperty("$type")
     private PersistenceScalingStrategyType type;
-    private double threshold;
+    private int threshold;
 }
