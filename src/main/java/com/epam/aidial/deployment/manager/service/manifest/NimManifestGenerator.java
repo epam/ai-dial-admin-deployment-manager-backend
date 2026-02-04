@@ -79,15 +79,17 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             service.setGrpcPort(containerGrpcPort);
         }
 
-        applyStartupProbe(specChain, probeProperties);
+        applyStartupProbe(name, specChain, probeProperties);
 
         return config.data();
     }
 
-    private void applyStartupProbe(MappingChain<NIMServiceSpec> specChain,
+    private void applyStartupProbe(String name,
+                                   MappingChain<NIMServiceSpec> specChain,
                                    @Nullable ProbeProperties deploymentProbeProperties) {
         var probe = probeConverter.toNimStartupProbe(deploymentProbeProperties);
         if (probe != null) {
+            log.debug("Applying startup probe for NIM deployment '{}': {}", name, probe);
             specChain.data().setStartupProbe(probe);
         }
     }

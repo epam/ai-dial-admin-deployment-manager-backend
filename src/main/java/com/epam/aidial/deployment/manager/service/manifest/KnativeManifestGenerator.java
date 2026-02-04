@@ -107,15 +107,17 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             portsList.add(port);
         }
 
-        applyStartupProbe(containerChain, probeProperties);
+        applyStartupProbe(name, containerChain, probeProperties);
 
         return config.data();
     }
 
-    private void applyStartupProbe(MappingChain<Container> containerChain,
+    private void applyStartupProbe(String name,
+                                   MappingChain<Container> containerChain,
                                    @Nullable ProbeProperties deploymentProbeProperties) {
         Probe probe = probeConverter.toProbe(deploymentProbeProperties);
         if (probe != null) {
+            log.debug("Applying startup probe for Knative deployment '{}': {}", name, probe);
             containerChain.data().setStartupProbe(probe);
         }
     }

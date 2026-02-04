@@ -106,15 +106,17 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             modelChain.data().setPorts(List.of(ports));
         }
 
-        applyStartupProbe(modelChain, probeProperties);
+        applyStartupProbe(name, modelChain, probeProperties);
 
         return config.data();
     }
 
-    private void applyStartupProbe(MappingChain<Model> modelChain,
+    private void applyStartupProbe(String name,
+                                   MappingChain<Model> modelChain,
                                    @Nullable ProbeProperties deploymentProbeProperties) {
         var probe = probeConverter.toKserveStartupProbe(deploymentProbeProperties);
         if (probe != null) {
+            log.debug("Applying startup probe for Inference deployment '{}': {}", name, probe);
             modelChain.data().setStartupProbe(probe);
         }
     }
