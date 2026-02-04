@@ -1,26 +1,17 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.model.probe.ExecProbe;
-import com.epam.aidial.deployment.manager.model.probe.GrpcProbe;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeHandler;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
-import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
-import io.fabric8.kubernetes.api.model.ExecAction;
-import io.fabric8.kubernetes.api.model.GRPCAction;
 import io.fabric8.kubernetes.api.model.HTTPGetAction;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
-import io.fabric8.kubernetes.api.model.TCPSocketAction;
 import lombok.Builder;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 /**
  * Converts domain probe properties to Kubernetes probe and to KServe/NIM startup probe types.
@@ -54,7 +45,7 @@ public class ProbeConverter {
                 params);
         if (probe != null) {
             log.debug("Converted probe properties to Kubernetes Probe (handler type: {})",
-                    params.getHandlerType());
+                    params.handlerType());
         }
         return probe;
     }
@@ -69,61 +60,27 @@ public class ProbeConverter {
                     .httpHost(h.getHost())
                     .build();
         }
-        if (handler instanceof TcpSocketProbe t) {
-            return HandlerParams.builder()
-                    .handlerType("tcpSocket")
-                    .tcpPort(portFrom(t.getPort(), t.getPortName()))
-                    .tcpHost(t.getHost())
-                    .build();
-        }
-        if (handler instanceof ExecProbe e) {
-            return HandlerParams.builder()
-                    .handlerType("exec")
-                    .execCommand(e.getCommand())
-                    .build();
-        }
-        if (handler instanceof GrpcProbe g) {
-            return HandlerParams.builder()
-                    .handlerType("grpc")
-                    .grpcPort(g.getPort())
-                    .grpcService(g.getService())
-                    .build();
-        }
         return HandlerParams.builder().handlerType("unknown").build();
     }
 
-    private Probe buildProbe(
+    private static Probe buildProbe(
             @Nullable Integer initialDelaySeconds,
             @Nullable Integer periodSeconds,
             @Nullable Integer timeoutSeconds,
             @Nullable Integer failureThreshold,
             HandlerParams params) {
-        int handlerCount = (params.getHttpPath() != null ? 1 : 0) + (params.getTcpPort() != null ? 1 : 0)
-                + (params.getExecCommand() != null ? 1 : 0) + (params.getGrpcPort() != null ? 1 : 0);
-        if (handlerCount != 1) {
-            log.warn("Probe must have exactly one handler (httpGet, tcpSocket, exec or grpc), "
-                    + "got {}; probe not built", handlerCount);
+        if (params.httpPath() == null || params.httpPort() == null) {
+            log.warn("Probe must have httpGet handler with path and port; probe not built");
             return null;
         }
         var probe = new Probe();
         setTimingOnProbe(probe, initialDelaySeconds, periodSeconds, timeoutSeconds, failureThreshold);
-        if (params.getHttpPath() != null && params.getHttpPort() != null) {
-            var httpGet = new HTTPGetAction();
-            httpGet.setPath(params.getHttpPath());
-            httpGet.setPort(params.getHttpPort());
-            httpGet.setScheme(params.getHttpScheme());
-            httpGet.setHost(params.getHttpHost());
-            probe.setHttpGet(httpGet);
-        } else if (params.getTcpPort() != null) {
-            var tcpSocket = new TCPSocketAction();
-            tcpSocket.setPort(params.getTcpPort());
-            tcpSocket.setHost(params.getTcpHost());
-            probe.setTcpSocket(tcpSocket);
-        } else if (params.getExecCommand() != null) {
-            probe.setExec(new ExecAction(params.getExecCommand()));
-        } else if (params.getGrpcPort() != null) {
-            probe.setGrpc(new GRPCAction(params.getGrpcPort(), params.getGrpcService()));
-        }
+        var httpGet = new HTTPGetAction();
+        httpGet.setPath(params.httpPath());
+        httpGet.setPort(params.httpPort());
+        httpGet.setScheme(params.httpScheme());
+        httpGet.setHost(params.httpHost());
+        probe.setHttpGet(httpGet);
         return probe;
     }
 
@@ -156,20 +113,14 @@ public class ProbeConverter {
         return null;
     }
 
-    @Getter
     @Builder
-    private static final class HandlerParams {
+    private record HandlerParams(
+            String handlerType,
+            IntOrString httpPort,
+            String httpPath,
+            String httpScheme,
+            String httpHost) {
 
-        private final String handlerType;
-        private final IntOrString httpPort;
-        private final String httpPath;
-        private final String httpScheme;
-        private final String httpHost;
-        private final IntOrString tcpPort;
-        private final String tcpHost;
-        private final List<String> execCommand;
-        private final Integer grpcPort;
-        private final String grpcService;
     }
 
     /**
@@ -236,21 +187,6 @@ public class ProbeConverter {
             httpGet.setScheme(source.getHttpGet().getScheme());
             httpGet.setHost(source.getHttpGet().getHost());
             target.setHttpGet(httpGet);
-        } else if (source.getTcpSocket() != null) {
-            var tcpSocket =
-                    new io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.TcpSocket();
-            tcpSocket.setPort(source.getTcpSocket().getPort());
-            tcpSocket.setHost(source.getTcpSocket().getHost());
-            target.setTcpSocket(tcpSocket);
-        } else if (source.getExec() != null) {
-            var exec = new io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.Exec();
-            exec.setCommand(source.getExec().getCommand());
-            target.setExec(exec);
-        } else if (source.getGrpc() != null) {
-            var grpc = new io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.Grpc();
-            grpc.setPort(source.getGrpc().getPort());
-            grpc.setService(source.getGrpc().getService() != null ? source.getGrpc().getService() : "");
-            target.setGrpc(grpc);
         }
     }
 
@@ -320,20 +256,6 @@ public class ProbeConverter {
             httpGet.setScheme(source.getHttpGet().getScheme());
             httpGet.setHost(source.getHttpGet().getHost());
             target.setHttpGet(httpGet);
-        } else if (source.getTcpSocket() != null) {
-            var tcpSocket = new com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.TcpSocket();
-            tcpSocket.setPort(source.getTcpSocket().getPort());
-            tcpSocket.setHost(source.getTcpSocket().getHost());
-            target.setTcpSocket(tcpSocket);
-        } else if (source.getExec() != null) {
-            var exec = new com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.Exec();
-            exec.setCommand(source.getExec().getCommand());
-            target.setExec(exec);
-        } else if (source.getGrpc() != null) {
-            var grpc = new com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.Grpc();
-            grpc.setPort(source.getGrpc().getPort());
-            grpc.setService(source.getGrpc().getService() != null ? source.getGrpc().getService() : "");
-            target.setGrpc(grpc);
         }
     }
 }

@@ -37,7 +37,7 @@ public class ProbePropertiesDto {
     @Nullable
     private Integer failureThreshold;
     /**
-     * Probe handler. One of httpGet, tcpSocket, exec, or grpc (by type) must be set when enabled.
+     * Probe handler.
      */
     @Nullable
     @Valid

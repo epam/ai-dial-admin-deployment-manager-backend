@@ -18,9 +18,6 @@ public class ProbeProperties {
     private Integer timeoutSeconds;
     @Nullable
     private Integer failureThreshold;
-    /**
-     * Probe handler. Exactly one of httpGet, tcpSocket, exec, or grpc must be set when enabled.
-     */
     @Nullable
     private ProbeHandler probe;
 }
