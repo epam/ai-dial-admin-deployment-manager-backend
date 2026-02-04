@@ -12,7 +12,6 @@ import com.epam.aidial.deployment.manager.utils.GitCommandBuilder;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.Mappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
-import com.epam.aidial.deployment.manager.web.dto.ImageBuilderDto;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
@@ -217,15 +216,13 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
 
     private void configureBuildkitContainerArgs(MappingChain<Container> builder) {
 
-        var context = StringUtils.isNotBlank(gitDockerfileImageSource.getBaseDirectory())
+        var dockerfile = StringUtils.isNotBlank(gitDockerfileImageSource.getBaseDirectory())
                 ? WORKSPACE_PATH + "/" + gitDockerfileImageSource.getBaseDirectory()
                 : WORKSPACE_PATH;
 
         var args = new ArrayList<>(List.of(
                 "--local",
-                "context=%s".formatted(context),
-                "--local",
-                "dockerfile=%s".formatted(context)
+                "dockerfile=%s".formatted(dockerfile)
         ));
 
         builder.get(Mappers.CONTAINER_ARGS_FIELD)
