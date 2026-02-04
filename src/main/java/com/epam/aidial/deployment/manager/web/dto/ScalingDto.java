@@ -8,7 +8,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 
+import com.epam.aidial.deployment.manager.web.validation.ValidScaling;
+
 @Data
+@ValidScaling
 @NoArgsConstructor
 @AllArgsConstructor
 public class ScalingDto {
