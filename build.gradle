@@ -92,6 +92,9 @@ dependencies {
     implementation 'org.apache.commons:commons-collections4:4.5.0-M3'
     implementation 'org.springframework.retry:spring-retry'
 
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
+
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     implementation 'org.hibernate.validator:hibernate-validator:8.0.2.Final'
 
