@@ -1,0 +1,20 @@
+{
+  "models": [
+    {
+      "id": "user/model",
+      "sha": "sha123",
+      "author": "user",
+      "createdAt": "2023-01-01T00:00:00Z",
+      "lastModified": "2023-01-02T00:00:00Z",
+      "likes": 10,
+      "downloads": 100,
+      "parameters": 1000000,
+      "tags": ["pytorch", "en", "license:mit", "dataset:wikipedia"],
+      "libraries": ["PyTorchLibrary"],
+      "languages": ["EnglishLanguage"],
+      "licenses": ["MITLicense"],
+      "datasets": ["WikipediaDataset"]
+    }
+  ],
+  "nextPageUrl": "https://huggingface.co/api/models?page=2"
+}

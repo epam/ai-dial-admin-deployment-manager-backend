@@ -1115,6 +1115,66 @@
               ]
             },
             {
+              "name": "huggingface",
+              "item": [
+                {
+                  "name": "models",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/huggingface/models",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "huggingface",
+                        "models"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "files",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/huggingface/models/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "huggingface",
+                        "models",
+                        "sentence-transformers",
+                        "all-MiniLM-L6-v2",
+                        "resolve",
+                        "main",
+                        "README.md"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
               "name": "healthcheck",
               "protocolProfileBehavior": {
                 "followRedirects": true,
