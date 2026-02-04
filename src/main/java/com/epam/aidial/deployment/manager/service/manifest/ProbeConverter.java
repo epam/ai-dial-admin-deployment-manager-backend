@@ -26,12 +26,8 @@ public class ProbeConverter {
      */
     @Nullable
     public Probe toProbe(@Nullable ProbeProperties properties) {
-        if (properties == null) {
-            log.debug("Probe properties are null, skipping probe conversion");
-            return null;
-        }
-        if (!properties.isEnabled()) {
-            log.debug("Probe properties are disabled, skipping probe conversion");
+        if (properties == null || !properties.isEnabled()) {
+            log.debug("Probe properties are disabled or null, skipping probe conversion");
             return null;
         }
         ProbeHandler handler = properties.getProbe();
@@ -67,7 +63,7 @@ public class ProbeConverter {
             @Nullable Integer failureThreshold,
             HandlerParams params) {
         if (params.httpPath() == null || params.httpPort() == null) {
-            log.warn("Probe must have httpGet handler with path and port; probe not built");
+            log.warn("Probe must have httpGet handler with path and port. Probe not built.");
             return null;
         }
         var probe = new Probe();

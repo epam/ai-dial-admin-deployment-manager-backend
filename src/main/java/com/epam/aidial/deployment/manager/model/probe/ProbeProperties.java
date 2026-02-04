@@ -18,6 +18,5 @@ public class ProbeProperties {
     private Integer timeoutSeconds;
     @Nullable
     private Integer failureThreshold;
-    @Nullable
     private ProbeHandler probe;
 }

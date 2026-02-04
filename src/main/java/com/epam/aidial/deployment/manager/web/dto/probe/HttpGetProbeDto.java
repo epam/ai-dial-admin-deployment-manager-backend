@@ -21,7 +21,7 @@ public class HttpGetProbeDto implements ProbeHandlerDto {
     @Pattern(regexp = "^/[a-zA-Z0-9/_-]*$", message = "Must be a valid URL path starting with /")
     private String path;
     /**
-     * Number of the port to access on the container. Scheme defaults to HTTP, host to pod IP.
+     * Number of the port to access on the container.
      */
     @NotNull
     @Min(1) @Max(65535)
