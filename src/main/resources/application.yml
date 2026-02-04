@@ -225,8 +225,6 @@ app:
       - build
       - --frontend
       - dockerfile.v0
-      - --local
-      - context=/workspace
       - --output
       - type=docker,dest=/image-build/image-tarball.tar
     securityContext:
@@ -248,8 +246,6 @@ app:
       - build
       - --frontend
       - dockerfile.v0
-      - --local
-      - context=/workspace
       - --output
       - type=docker,dest=/image-build/image-tarball.tar
     securityContext:

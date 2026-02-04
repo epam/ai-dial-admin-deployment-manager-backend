@@ -222,6 +222,8 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
 
         var args = new ArrayList<>(List.of(
                 "--local",
+                "context=%s".formatted(WORKSPACE_PATH),
+                "--local",
                 "dockerfile=%s".formatted(dockerfile)
         ));
 
