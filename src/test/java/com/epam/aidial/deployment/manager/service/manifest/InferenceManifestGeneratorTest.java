@@ -154,7 +154,7 @@ class InferenceManifestGeneratorTest {
                 scaling, null, null, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Scaling strategy has to be PENDING_REQUESTS");
+                .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [PENDING_REQUESTS]");
     }
 
     @Test

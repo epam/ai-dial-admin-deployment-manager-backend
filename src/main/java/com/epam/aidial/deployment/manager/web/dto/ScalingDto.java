@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto;
 
+import com.epam.aidial.deployment.manager.web.validation.ValidScaling;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -7,8 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
-
-import com.epam.aidial.deployment.manager.web.validation.ValidScaling;
 
 @Data
 @ValidScaling
