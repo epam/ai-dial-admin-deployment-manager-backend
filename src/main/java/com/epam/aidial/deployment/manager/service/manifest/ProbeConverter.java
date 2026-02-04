@@ -9,7 +9,6 @@ import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -54,10 +53,8 @@ public class ProbeConverter {
         if (handler instanceof HttpGetProbe h) {
             return HandlerParams.builder()
                     .handlerType("httpGet")
-                    .httpPort(portFrom(h.getPort(), h.getPortName()))
+                    .httpPort(portFrom(h.getPort()))
                     .httpPath(h.getPath())
-                    .httpScheme(h.getScheme())
-                    .httpHost(h.getHost())
                     .build();
         }
         return HandlerParams.builder().handlerType("unknown").build();
@@ -78,8 +75,6 @@ public class ProbeConverter {
         var httpGet = new HTTPGetAction();
         httpGet.setPath(params.httpPath());
         httpGet.setPort(params.httpPort());
-        httpGet.setScheme(params.httpScheme());
-        httpGet.setHost(params.httpHost());
         probe.setHttpGet(httpGet);
         return probe;
     }
@@ -103,23 +98,15 @@ public class ProbeConverter {
         }
     }
 
-    private static IntOrString portFrom(@Nullable Integer port, @Nullable String portName) {
-        if (StringUtils.isNotBlank(portName)) {
-            return new IntOrString(portName);
-        }
-        if (port != null) {
-            return new IntOrString(port);
-        }
-        return null;
+    private static IntOrString portFrom(@Nullable Integer port) {
+        return port != null ? new IntOrString(port) : null;
     }
 
     @Builder
     private record HandlerParams(
             String handlerType,
             IntOrString httpPort,
-            String httpPath,
-            String httpScheme,
-            String httpHost) {
+            String httpPath) {
 
     }
 
@@ -184,8 +171,6 @@ public class ProbeConverter {
             var httpGet = new io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.HttpGet();
             httpGet.setPath(source.getHttpGet().getPath());
             httpGet.setPort(source.getHttpGet().getPort());
-            httpGet.setScheme(source.getHttpGet().getScheme());
-            httpGet.setHost(source.getHttpGet().getHost());
             target.setHttpGet(httpGet);
         }
     }
@@ -253,8 +238,6 @@ public class ProbeConverter {
             var httpGet = new com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.HttpGet();
             httpGet.setPath(source.getHttpGet().getPath());
             httpGet.setPort(source.getHttpGet().getPort());
-            httpGet.setScheme(source.getHttpGet().getScheme());
-            httpGet.setHost(source.getHttpGet().getHost());
             target.setHttpGet(httpGet);
         }
     }

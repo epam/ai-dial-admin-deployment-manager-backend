@@ -30,7 +30,7 @@ class ProbeConverterTest {
         void disabledProperties_returnsNull() {
             var properties = new ProbeProperties();
             properties.setEnabled(false);
-            properties.setProbe(new HttpGetProbe("/health", 8080, null, "HTTP", null));
+            properties.setProbe(new HttpGetProbe("/health", 8080));
 
             assertThat(probeConverter.toProbe(properties)).isNull();
         }
@@ -46,7 +46,7 @@ class ProbeConverterTest {
 
         @Test
         void httpGet_convertsToProbeWithHttpGetAndTiming() {
-            var httpGet = new HttpGetProbe("/ready", 9090, "http", "HTTPS", "localhost");
+            var httpGet = new HttpGetProbe("/ready", 9090);
             var properties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
 
             Probe probe = probeConverter.toProbe(properties);
@@ -58,14 +58,12 @@ class ProbeConverterTest {
             assertThat(probe.getFailureThreshold()).isEqualTo(2);
             assertThat(probe.getHttpGet()).isNotNull();
             assertThat(probe.getHttpGet().getPath()).isEqualTo("/ready");
-            assertThat(probe.getHttpGet().getPort().getStrVal()).isEqualTo("http");
-            assertThat(probe.getHttpGet().getScheme()).isEqualTo("HTTPS");
-            assertThat(probe.getHttpGet().getHost()).isEqualTo("localhost");
+            assertThat(probe.getHttpGet().getPort().getIntVal()).isEqualTo(9090);
         }
 
         @Test
         void httpGetWithPortNumber_usesIntOrStringPort() {
-            var httpGet = new HttpGetProbe("/health", 8080, null, null, null);
+            var httpGet = new HttpGetProbe("/health", 8080);
             var properties = new ProbeProperties(true, null, null, null, null, httpGet);
 
             Probe probe = probeConverter.toProbe(properties);
@@ -87,14 +85,14 @@ class ProbeConverterTest {
         void disabledProperties_returnsNull() {
             var properties = new ProbeProperties();
             properties.setEnabled(false);
-            properties.setProbe(new HttpGetProbe("/health", 8080, null, null, null));
+            properties.setProbe(new HttpGetProbe("/health", 8080));
 
             assertThat(probeConverter.toKserveStartupProbe(properties)).isNull();
         }
 
         @Test
         void httpGet_returnsKserveStartupProbeWithHttpGet() {
-            var httpGet = new HttpGetProbe("/health", 8080, null, "HTTP", null);
+            var httpGet = new HttpGetProbe("/health", 8080);
             var properties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
 
             var result = probeConverter.toKserveStartupProbe(properties);
@@ -122,14 +120,14 @@ class ProbeConverterTest {
         void disabledProperties_returnsNull() {
             var properties = new ProbeProperties();
             properties.setEnabled(false);
-            properties.setProbe(new HttpGetProbe("/health", 8080, null, null, null));
+            properties.setProbe(new HttpGetProbe("/health", 8080));
 
             assertThat(probeConverter.toNimStartupProbe(properties)).isNull();
         }
 
         @Test
         void httpGet_returnsNimStartupProbeWithEnabledAndHttpGet() {
-            var httpGet = new HttpGetProbe("/ready", 9090, null, null, null);
+            var httpGet = new HttpGetProbe("/ready", 9090);
             var properties = new ProbeProperties(true, 1, 5, 1, 1, httpGet);
 
             var result = probeConverter.toNimStartupProbe(properties);

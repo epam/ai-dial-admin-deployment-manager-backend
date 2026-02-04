@@ -12,10 +12,4 @@ public class HttpGetProbe implements ProbeHandler {
     private String path;
     @Nullable
     private Integer port;
-    @Nullable
-    private String portName;
-    @Nullable
-    private String scheme;
-    @Nullable
-    private String host;
 }

@@ -10,7 +10,4 @@ import lombok.NoArgsConstructor;
 public class PersistenceHttpGetProbe implements PersistenceProbeHandler {
     private String path;
     private Integer port;
-    private String portName;
-    private String scheme;
-    private String host;
 }

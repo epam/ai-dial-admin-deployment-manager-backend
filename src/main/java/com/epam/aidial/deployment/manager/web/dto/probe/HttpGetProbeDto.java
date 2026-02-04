@@ -16,24 +16,8 @@ public class HttpGetProbeDto implements ProbeHandlerDto {
      */
     private String path;
     /**
-     * Number or name of the port to access on the container.
-     * If portName is set, port is ignored for the probe.
+     * Number of the port to access on the container. Scheme defaults to HTTP, host to pod IP.
      */
     @Nullable
     private Integer port;
-    /**
-     * Name of the port to access on the container (e.g. "http").
-     */
-    @Nullable
-    private String portName;
-    /**
-     * Scheme (HTTP or HTTPS). Defaults to HTTP.
-     */
-    @Nullable
-    private String scheme;
-    /**
-     * Host name to connect to. Defaults to the pod IP.
-     */
-    @Nullable
-    private String host;
 }
