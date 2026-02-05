@@ -13,5 +13,5 @@ public class ScalingStrategyDto {
     @NotNull
     @JsonProperty("$type")
     private ScalingStrategyTypeDto type;
-    private double threshold;
+    private int threshold;
 }

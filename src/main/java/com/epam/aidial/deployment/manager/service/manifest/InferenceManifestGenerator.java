@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.service.manifest;
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
@@ -10,6 +12,7 @@ import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.kserve.serving.v1beta1.InferenceService;
+import io.kserve.serving.v1beta1.inferenceservicespec.Predictor;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Model;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Env;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Ports;
@@ -39,8 +42,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             List<SimpleEnvVar> envs,
             List<SensitiveEnvVar> sensitiveEnv,
             Resources resources,
-            @Nullable Integer minScale,
-            @Nullable Integer maxScale,
+            @Nullable Scaling scaling,
             @Nullable List<String> command,
             @Nullable List<String> args,
             @Nullable Integer containerPort
@@ -54,12 +56,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var specChain = config.get(InferenceMappers.SERVICE_SPEC_FIELD);
         var predictorChain = specChain.get(InferenceMappers.SERVICE_SPEC_PREDICTOR_FIELD);
 
-        if (minScale != null) {
-            predictorChain.data().setMinReplicas(minScale);
-        }
-        if (maxScale != null) {
-            predictorChain.data().setMaxReplicas(maxScale);
-        }
+        applyScaling(name, scaling, predictorChain, config);
 
         var modelChain = predictorChain.get(InferenceMappers.PREDICTOR_MODEL_FIELD);
         modelChain.data().setStorageUri(storageUri);
@@ -130,6 +127,46 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var valueFrom = new ValueFrom();
         valueFrom.setSecretKeyRef(secretKeyRef);
         return valueFrom;
+    }
+
+    private void applyScaling(String name,
+                              @Nullable Scaling scaling,
+                              MappingChain<Predictor> predictorChain,
+                              MappingChain<InferenceService> config) {
+        log.debug("Applying scaling for model '{}': {}", name, scaling);
+        if (scaling == null) {
+            return;
+        }
+
+        var predictor = predictorChain.data();
+        predictor.setMinReplicas(scaling.getMinReplicas());
+        predictor.setMaxReplicas(scaling.getMaxReplicas());
+        log.trace("Set minReplicas={}, maxReplicas={} for model '{}'",
+                scaling.getMinReplicas(), scaling.getMaxReplicas(), name);
+
+        var initialScale = Math.max(scaling.getMinReplicas(), 1);
+        var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
+                .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
+        annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
+        log.trace("Set annotation autoscaling.knative.dev/initial-scale={} for model '{}'", initialScale, name);
+
+        if (scaling.getStrategy().getType() == ScalingStrategyType.PENDING_REQUESTS) {
+            predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
+            predictor.setScaleTarget(scaling.getStrategy().getThreshold());
+            log.trace("Applied strategy PENDING_REQUESTS: metric={}, target={} for model '{}'",
+                    Predictor.ScaleMetric.CONCURRENCY, scaling.getStrategy().getThreshold(), name);
+        } else {
+            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
+                    .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.PENDING_REQUESTS)));
+        }
+
+        if (scaling.getScaleToZeroDelaySeconds() != null) {
+            var delay = scaling.getScaleToZeroDelaySeconds();
+            var delayStr = delay + "s";
+            annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
+            log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for model '{}'",
+                    delayStr, name);
+        }
     }
 
 }
