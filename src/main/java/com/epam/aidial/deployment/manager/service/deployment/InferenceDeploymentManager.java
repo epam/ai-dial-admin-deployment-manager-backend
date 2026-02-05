@@ -34,6 +34,7 @@ import java.util.Optional;
 @LogExecution
 public class InferenceDeploymentManager extends AbstractModelDeploymentManager<InferenceDeployment, InferenceService> {
 
+    private static final String SERVICE_NAME_LABEL = "serving.kserve.io/inferenceservice";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
@@ -219,6 +220,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return useClusterInternalUrl
                 ? getClusterInternalUrl(predictor, serviceName)
                 : getStatusUrl(predictor, serviceName);
+    }
+
+    @Override
+    protected String getServiceNameLabel() {
+        return SERVICE_NAME_LABEL;
     }
 
     private String getClusterInternalUrl(Components predictor, String serviceName) {
