@@ -41,7 +41,7 @@ import java.util.Optional;
 @LogExecution
 public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployment, Service> {
 
-    protected static final String SERVICE_NAME_LABEL = "serving.knative.dev/service";
+    private static final String SERVICE_NAME_LABEL = "serving.knative.dev/service";
 
     private final KnativeManifestGenerator knativeManifestGenerator;
     private final ImageDefinitionService imageDefinitionService;
