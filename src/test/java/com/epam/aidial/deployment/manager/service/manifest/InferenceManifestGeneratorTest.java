@@ -103,7 +103,7 @@ class InferenceManifestGeneratorTest {
         var storageUri = "s3://my-bucket/scaling-model";
 
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.PENDING_REQUESTS, 10);
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
         var scaling = new Scaling(1, 5, 600, scalingStrategy);
 
         // When
@@ -124,7 +124,7 @@ class InferenceManifestGeneratorTest {
         var deploymentName = "scale-zero-delay-app";
         var storageUri = "s3://my-bucket/model";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.PENDING_REQUESTS, 10);
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
         var scaling = new Scaling(1, 5, null, scalingStrategy);
 
         // When
@@ -154,7 +154,7 @@ class InferenceManifestGeneratorTest {
                 scaling, null, null, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [PENDING_REQUESTS]");
+                .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
     }
 
     @Test
