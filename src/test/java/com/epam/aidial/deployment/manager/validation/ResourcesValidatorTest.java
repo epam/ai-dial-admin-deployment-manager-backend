@@ -79,8 +79,8 @@ class ResourcesValidatorTest {
     @Test
     void testLimitEqualToRequest() {
         var dto = mock(ResourcesDto.class);
-        when(dto.limits()).thenReturn(Map.of(CPU, "2", MEMORY, "4", NVIDIA_GPU, "0"));
-        when(dto.requests()).thenReturn(Map.of(CPU, "2", MEMORY, "4", NVIDIA_GPU, "0"));
+        when(dto.limits()).thenReturn(Map.of(CPU, "0.5", MEMORY, "4", NVIDIA_GPU, "0"));
+        when(dto.requests()).thenReturn(Map.of(CPU, "0.5", MEMORY, "4", NVIDIA_GPU, "0"));
         assertTrue(validator.isValid(dto, context));
     }
 
