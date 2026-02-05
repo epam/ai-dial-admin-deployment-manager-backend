@@ -153,7 +153,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
             predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
             predictor.setScaleTarget(scaling.getStrategy().getThreshold());
-            log.trace("Applied strategy PENDING_REQUESTS: metric={}, target={} for model '{}'",
+            log.trace("Applied strategy ACTIVE_REQUESTS: metric={}, target={} for model '{}'",
                     Predictor.ScaleMetric.CONCURRENCY, scaling.getStrategy().getThreshold(), name);
         } else {
             throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
