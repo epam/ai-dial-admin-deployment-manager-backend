@@ -94,13 +94,16 @@ public class ResourcesValidator implements ConstraintValidator<ValidResources, R
                                            double requestNumeric,
                                            double limitNumeric,
                                            ConstraintValidatorContext context) {
-        // Lower bound check: both values must be greater than 0
-        if (requestNumeric <= 0 || limitNumeric <= 0) {
-            log.warn("Validation failed for '{}': values must be greater than 0 (request={}, limit={})",
-                    key, requestNumeric, limitNumeric);
+        // Define lower bound based on key
+        double lowerBound = NVIDIA_GPU.equals(key) ? 0 : 1;
+        String comparison = lowerBound == 0 ? "greater than or equal to 0" : "greater than 0";
+
+        if (requestNumeric < lowerBound || limitNumeric < lowerBound) {
+            log.warn("Validation failed for '{}': values must be {} (request={}, limit={})",
+                    key, comparison, requestNumeric, limitNumeric);
             context.disableDefaultConstraintViolation();
             context.buildConstraintViolationWithTemplate(
-                            "Request and limit values for '%s' must be greater than 0".formatted(key))
+                            "Request and limit values for '%s' must be %s".formatted(key, comparison))
                     .addConstraintViolation();
             return false;
         }
