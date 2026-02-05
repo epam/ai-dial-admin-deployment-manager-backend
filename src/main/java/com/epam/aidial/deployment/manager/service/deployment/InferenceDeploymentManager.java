@@ -19,9 +19,11 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.InferenceServiceStatus;
+import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -210,7 +212,12 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     private String getClusterInternalUrl(InferenceServiceStatus status, String serviceName) {
-        var address = status.getAddress();
+        var predictor = getPredictor(status, serviceName);
+        if (predictor == null) {
+            return null;
+        }
+
+        var address = predictor.getAddress();
         if (address == null) {
             log.debug("resolveServiceUrl. serviceName: '{}'. address is undefined", serviceName);
             return null;
@@ -221,8 +228,29 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     private String getStatusUrl(InferenceServiceStatus status, String serviceName) {
-        var url = status.getUrl();
-        log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
+        var predictor = getPredictor(status, serviceName);
+        if (predictor == null) {
+            return null;
+        }
+
+        var url = predictor.getUrl();
+        log.info("resolveServiceUrl. serviceName: '{}'. Using cluster external URL: {}", serviceName, url);
         return url;
     }
+
+    private @Nullable Components getPredictor(InferenceServiceStatus status, String serviceName) {
+        var components = status.getComponents();
+        if (components == null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. components is undefined", serviceName);
+            return null;
+        }
+
+        var predictor = components.get("predictor");
+        if (predictor == null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. predictor is undefined", serviceName);
+            return null;
+        }
+        return predictor;
+    }
+
 }

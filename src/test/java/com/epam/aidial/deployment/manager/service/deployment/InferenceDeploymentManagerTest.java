@@ -32,8 +32,9 @@ import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.InferenceServiceStatus;
-import io.kserve.serving.v1beta1.inferenceservicestatus.Address;
+import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
+import io.kserve.serving.v1beta1.inferenceservicestatus.components.Address;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +48,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -690,7 +692,7 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void reconcile_shouldSetEmptyUrlWhenModelStatusReadyButStatusUrlIsEmpty() {
+    void reconcile_shouldSetEmptyUrlWhenModelStatusReadyButUrlIsEmpty() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.PENDING);
         InferenceService service = createInferenceServiceWithStatus(
@@ -866,14 +868,17 @@ class InferenceDeploymentManagerTest {
         if (hasModelStatus) {
             InferenceServiceStatus status = mock(InferenceServiceStatus.class);
 
+            Components predicate = mock(Components.class);
+            when(status.getComponents()).thenReturn(Map.of("predictor", predicate));
+
             if (url != null) {
-                when(status.getUrl()).thenReturn(url);
+                when(predicate.getUrl()).thenReturn(url);
             }
 
             if (internalUrl != null) {
                 Address address = mock(Address.class);
                 when(address.getUrl()).thenReturn(internalUrl);
-                when(status.getAddress()).thenReturn(address);
+                when(predicate.getAddress()).thenReturn(address);
             }
 
             ModelStatus modelStatus = mock(ModelStatus.class);
