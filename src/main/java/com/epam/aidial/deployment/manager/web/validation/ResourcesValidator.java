@@ -95,8 +95,9 @@ public class ResourcesValidator implements ConstraintValidator<ValidResources, R
                                            double limitNumeric,
                                            ConstraintValidatorContext context) {
         // Define lower bound based on key
-        double lowerBound = NVIDIA_GPU.equals(key) ? 0 : 1;
-        String comparison = lowerBound == 0 ? "greater than or equal to 0" : "greater than 0";
+        boolean isNvidiaGpu = NVIDIA_GPU.equals(key);
+        double lowerBound = isNvidiaGpu ? 0 : Double.MIN_VALUE;
+        String comparison = isNvidiaGpu ? "greater than or equal to 0" : "greater than 0";
 
         if (requestNumeric < lowerBound || limitNumeric < lowerBound) {
             log.warn("Validation failed for '{}': values must be {} (request={}, limit={})",
