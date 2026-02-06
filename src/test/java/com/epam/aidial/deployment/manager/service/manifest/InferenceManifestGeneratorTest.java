@@ -38,7 +38,7 @@ class InferenceManifestGeneratorTest {
     @Mock
     private AppProperties appconfig;
     @Mock
-    private ProbeConverter probeConverter;
+    private KserveProbeConverter kserveProbeConverter;
     @InjectMocks
     private InferenceManifestGenerator manifestGenerator;
 
@@ -66,7 +66,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null, null, null
+                null, null, null, null, null
         );
 
         // Then
@@ -88,7 +88,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, null
+                null, null, null, null, null
         );
 
         // Then
@@ -131,7 +131,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null
+                scaling, null, null, null, null
         );
 
         // Then
@@ -152,7 +152,7 @@ class InferenceManifestGeneratorTest {
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null
+                scaling, null, null, null, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
@@ -170,7 +170,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, containerPort, null
+                null, null, null, containerPort, null
         );
 
         // Then

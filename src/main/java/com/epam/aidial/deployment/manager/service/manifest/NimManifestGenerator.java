@@ -28,12 +28,12 @@ import java.util.List;
 @LogExecution
 public class NimManifestGenerator extends DeployableManifestGenerator {
 
-    private final ProbeConverter probeConverter;
+    private final NimProbeConverter nimProbeConverter;
 
     public NimManifestGenerator(AppProperties appconfig,
-                                ProbeConverter probeConverter) {
+                                NimProbeConverter nimProbeConverter) {
         super(appconfig);
-        this.probeConverter = probeConverter;
+        this.nimProbeConverter = nimProbeConverter;
     }
 
     @SneakyThrows
@@ -87,7 +87,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     private void applyStartupProbe(String name,
                                    MappingChain<NIMServiceSpec> specChain,
                                    @Nullable ProbeProperties deploymentProbeProperties) {
-        var probe = probeConverter.toNimStartupProbe(deploymentProbeProperties);
+        var probe = nimProbeConverter.toNimStartupProbe(deploymentProbeProperties);
         if (probe != null) {
             log.debug("Applying startup probe for NIM deployment '{}': {}", name, probe);
             specChain.data().setStartupProbe(probe);

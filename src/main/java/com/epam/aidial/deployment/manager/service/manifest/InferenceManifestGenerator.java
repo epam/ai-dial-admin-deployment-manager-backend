@@ -32,12 +32,12 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
     private static final String MODEL_NAME_ARGUMENT_NAME = "--model_name";
 
-    private final ProbeConverter probeConverter;
+    private final KserveProbeConverter kserveProbeConverter;
 
     public InferenceManifestGenerator(AppProperties appconfig,
-                                     ProbeConverter probeConverter) {
+                                     KserveProbeConverter kserveProbeConverter) {
         super(appconfig);
-        this.probeConverter = probeConverter;
+        this.kserveProbeConverter = kserveProbeConverter;
     }
 
     public InferenceService serviceConfig(
@@ -111,7 +111,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
     private void applyStartupProbe(String name,
                                    MappingChain<Model> modelChain,
                                    @Nullable ProbeProperties deploymentProbeProperties) {
-        var probe = probeConverter.toKserveStartupProbe(deploymentProbeProperties);
+        var probe = kserveProbeConverter.toKserveStartupProbe(deploymentProbeProperties);
         if (probe != null) {
             log.debug("Applying startup probe for Inference deployment '{}': {}", name, probe);
             modelChain.data().setStartupProbe(probe);

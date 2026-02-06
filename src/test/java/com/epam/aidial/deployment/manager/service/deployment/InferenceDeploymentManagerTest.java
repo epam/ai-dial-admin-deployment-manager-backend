@@ -365,7 +365,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(inferenceManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
         doThrow(new RuntimeException("Test exception")).when(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), any());
 
         // When/Then
@@ -524,7 +524,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(inferenceManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
         doThrow(new RuntimeException("Test exception")).when(k8sKserveClient).updateService(eq(NAMESPACE), any());
 
         // When

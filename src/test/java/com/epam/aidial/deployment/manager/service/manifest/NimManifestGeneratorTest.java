@@ -32,7 +32,7 @@ class NimManifestGeneratorTest {
     @Mock
     private AppProperties appconfig;
     @Mock
-    private ProbeConverter probeConverter;
+    private NimProbeConverter nimProbeConverter;
     @InjectMocks
     private NimManifestGenerator manifestGenerator;
 
