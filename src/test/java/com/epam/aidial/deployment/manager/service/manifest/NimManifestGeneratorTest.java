@@ -5,6 +5,8 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -133,6 +135,35 @@ class NimManifestGeneratorTest {
         // Verify the default port from template is preserved (8000)
         var service = objectMapper.readValue(jsonOutput, NIMService.class);
         assertThat(service.getSpec().getExpose().getService().getPort()).isEqualTo(8000);
+    }
+
+    @Test
+    void testServiceConfig_withProbeProperties_setsStartupProbeOnSpec() {
+        // Given: generator with real NimProbeConverter so probe is built from properties
+        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()));
+        var deploymentName = "probe-nim-app";
+        var imageName = "my-registry.io/probe-image:v1";
+        var httpGet = new HttpGetProbe("/ready", 9090);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
+                null, null, probeProperties
+        );
+
+        // Then: spec has startup probe with expected enabled, path, port and timing
+        var startupProbe = generatedService.getSpec().getStartupProbe();
+        assertThat(startupProbe).isNotNull();
+        assertThat(startupProbe.getEnabled()).isTrue();
+        assertThat(startupProbe.getProbe()).isNotNull();
+        assertThat(startupProbe.getProbe().getHttpGet()).isNotNull();
+        assertThat(startupProbe.getProbe().getHttpGet().getPath()).isEqualTo("/ready");
+        assertThat(startupProbe.getProbe().getHttpGet().getPort().getIntVal()).isEqualTo(9090);
+        assertThat(startupProbe.getProbe().getInitialDelaySeconds()).isEqualTo(5);
+        assertThat(startupProbe.getProbe().getPeriodSeconds()).isEqualTo(10);
+        assertThat(startupProbe.getProbe().getTimeoutSeconds()).isEqualTo(3);
+        assertThat(startupProbe.getProbe().getFailureThreshold()).isEqualTo(2);
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
