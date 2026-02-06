@@ -18,6 +18,7 @@ import io.cilium.v2.ciliumnetworkpolicyspec.ingress.FromEndpoints;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -39,12 +40,23 @@ public class CiliumNetworkPolicyCreator {
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
     private static final String KUBE_DNS_NAMESPACE_LABEL_VALUE = "kube-system";
+    private static final String ALLOW_ALL_KEY = "*";
     private static final String APP = "app";
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
 
-    public CiliumNetworkPolicy create(String namespace, String matchLabelName, String matchLabelValue, List<String> allowedDomains) {
+    public CiliumNetworkPolicy create(@NotNull String namespace,
+                                      @NotNull String matchLabelName,
+                                      @NotNull String matchLabelValue,
+                                      @NotNull List<String> allowedDomains) {
+        // Detect if all egress to FQDNs should be allowed
+        boolean shouldAllowAllEgressToFqdns = false;
+        if (allowedDomains.size() == 1 && ALLOW_ALL_KEY.equals(allowedDomains.getFirst())) {
+            allowedDomains.removeFirst();
+            shouldAllowAllEgressToFqdns = true;
+        }
+
         // Metadata
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(getPolicyName(matchLabelValue));
@@ -58,7 +70,7 @@ public class CiliumNetworkPolicyCreator {
         CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
         spec.setEndpointSelector(endpointSelector);
         List<Egress> egressList = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(allowedDomains)) {
+        if (CollectionUtils.isNotEmpty(allowedDomains) || shouldAllowAllEgressToFqdns) {
             egressList.add(createFqdnEgress(allowedDomains));
         }
         egressList.add(createKubeDnsEgress(allowedDomains));

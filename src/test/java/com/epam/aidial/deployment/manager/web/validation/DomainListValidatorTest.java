@@ -43,7 +43,8 @@ class DomainListValidatorTest {
                 arguments(List.of("docker-images-prod.s3.dualstack.us-east-1.amazonaws.com")),
                 arguments(List.of("deb.debian.org", "debian.map.fastlydns.net", "astral.sh")),
                 arguments(List.of("untrusted-aks-int32-distribution-registry.s3.amazonaws.com")),
-                arguments(List.of("files.pythonhosted.org", "toolbox-data.anchore.io"))
+                arguments(List.of("files.pythonhosted.org", "toolbox-data.anchore.io")),
+                arguments(List.of("*"))
         );
     }
 
