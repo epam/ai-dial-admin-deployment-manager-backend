@@ -52,10 +52,12 @@ public class CiliumNetworkPolicyCreator {
                                       @NotNull String matchLabelValue,
                                       @NotNull List<String> allowedDomains,
                                       @Nullable Integer containerPort) {
+        List<String> domains = new ArrayList<>(allowedDomains);
+
         // Detect if all egress to FQDNs should be allowed
         boolean shouldAllowAllEgressToFqdns = false;
-        if (allowedDomains.size() == 1 && ALLOW_ALL_KEY.equals(allowedDomains.getFirst())) {
-            allowedDomains.removeFirst();
+        if (domains.size() == 1 && ALLOW_ALL_KEY.equals(domains.getFirst())) {
+            domains.removeFirst();
             shouldAllowAllEgressToFqdns = true;
         }
 
@@ -72,10 +74,10 @@ public class CiliumNetworkPolicyCreator {
         CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
         spec.setEndpointSelector(endpointSelector);
         List<Egress> egressList = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(allowedDomains) || shouldAllowAllEgressToFqdns) {
-            egressList.add(createFqdnEgress(allowedDomains));
+        if (CollectionUtils.isNotEmpty(domains) || shouldAllowAllEgressToFqdns) {
+            egressList.add(createFqdnEgress(domains));
         }
-        egressList.add(createKubeDnsEgress(allowedDomains));
+        egressList.add(createKubeDnsEgress(domains));
         spec.setEgress(egressList);
         spec.setIngress(createIngress(containerPort));
 
@@ -87,8 +89,8 @@ public class CiliumNetworkPolicyCreator {
         return policy;
     }
 
-    private Egress createFqdnEgress(List<String> allowedDomains) {
-        List<ToFQDNs> toFqdnsList = allowedDomains.stream()
+    private Egress createFqdnEgress(List<String> domains) {
+        List<ToFQDNs> toFqdnsList = domains.stream()
                 .map(domain -> {
                     ToFQDNs toFqdns = new ToFQDNs();
                     toFqdns.setMatchName(domain);
@@ -114,7 +116,7 @@ public class CiliumNetworkPolicyCreator {
         return egress;
     }
 
-    private Egress createKubeDnsEgress(List<String> allowedDomains) {
+    private Egress createKubeDnsEgress(List<String> domains) {
         ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
         kubeDnsToEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
@@ -125,7 +127,7 @@ public class CiliumNetworkPolicyCreator {
         kubeDnsPorts.setPort(UDP_PORT);
         kubeDnsPorts.setProtocol(Protocol.ANY);
 
-        List<Dns> dnsList = allowedDomains.stream()
+        List<Dns> dnsList = domains.stream()
                 .map(domain -> {
                     Dns dns = new Dns();
                     dns.setMatchName(domain);
