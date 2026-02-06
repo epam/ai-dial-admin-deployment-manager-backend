@@ -64,9 +64,6 @@ public class JwtProvidersProperties {
         if (StringUtils.isBlank(provider.getJwkSetUri())) {
             missingFields.add("jwkSetUri");
         }
-        if (CollectionUtils.isEmpty(provider.getRoleClaims())) {
-            missingFields.add("roleClaims");
-        }
         if (CollectionUtils.isEmpty(provider.getAudiences())) {
             missingFields.add("audiences");
         }
