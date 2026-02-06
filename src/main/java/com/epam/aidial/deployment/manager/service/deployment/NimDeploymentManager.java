@@ -33,6 +33,7 @@ import java.util.Optional;
 @LogExecution
 public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDeployment, NIMService> {
 
+    private static final String SERVICE_NAME_LABEL = "app.kubernetes.io/name";
     private static final int DEFAULT_NIM_SERVICE_PORT = 8000;
 
     private final NimManifestGenerator nimManifestGenerator;
@@ -192,6 +193,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         }
         return url;
+    }
+
+    @Override
+    protected String getServiceNameLabel() {
+        return SERVICE_NAME_LABEL;
     }
 
 }

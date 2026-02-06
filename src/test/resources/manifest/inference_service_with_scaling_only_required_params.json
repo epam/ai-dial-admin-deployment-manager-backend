@@ -3,10 +3,9 @@
   "kind": "InferenceService",
   "metadata": {
     "annotations": {
-      "autoscaling.knative.dev/scale-to-zero-pod-retention-period": "600s",
       "autoscaling.knative.dev/initial-scale": "1"
     },
-    "name": "dm-scaling-inference-app"
+    "name": "dm-scale-zero-delay-app"
   },
   "spec": {
     "predictor": {
@@ -15,7 +14,7 @@
       "model": {
         "args": [
           "--model_name",
-          "scaling-inference-app"
+          "scale-zero-delay-app"
         ],
         "env": [],
         "modelFormat": {
@@ -25,7 +24,7 @@
           "limits": {},
           "requests": {}
         },
-        "storageUri": "s3://my-bucket/scaling-model"
+        "storageUri": "s3://my-bucket/model"
       },
       "scaleMetric": "concurrency",
       "scaleTarget": 10

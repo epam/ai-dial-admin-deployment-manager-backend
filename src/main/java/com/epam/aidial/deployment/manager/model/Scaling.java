@@ -13,6 +13,5 @@ public class Scaling {
     private int maxReplicas;
     @Nullable
     private Integer scaleToZeroDelaySeconds;
-    @Nullable
     private ScalingStrategy strategy;
 }

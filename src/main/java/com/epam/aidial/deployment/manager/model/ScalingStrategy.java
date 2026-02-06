@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 public class ScalingStrategy {
     @JsonProperty("$type")
     private ScalingStrategyType type;
-    private double threshold;
+    private int threshold;
 }

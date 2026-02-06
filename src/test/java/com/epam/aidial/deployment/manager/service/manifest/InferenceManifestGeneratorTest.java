@@ -2,6 +2,9 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
@@ -24,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,21 +102,60 @@ class InferenceManifestGeneratorTest {
         // Given
         var deploymentName = "scaling-inference-app";
         var storageUri = "s3://my-bucket/scaling-model";
-        var minScale = 1;
-        var maxScale = 5;
 
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
+        var scaling = new Scaling(1, 5, 600, scalingStrategy);
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                minScale, maxScale, null, null, null, null
+                scaling, null, null, null, null
         );
 
         // Then
         var jsonOutput = serialize(generatedService);
         var expected = ResourceUtils.readResource("/manifest/inference_service_with_scaling.json");
         JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    @Test
+    void testServiceConfig_withOverriddenScaling_onlyRequiredParam() throws JsonProcessingException, JSONException {
+        // Given
+        var deploymentName = "scale-zero-delay-app";
+        var storageUri = "s3://my-bucket/model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
+        var scaling = new Scaling(1, 5, null, scalingStrategy);
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                scaling, null, null, null
+        );
+
+        // Then
+        var jsonOutput = serialize(generatedService);
+        var expected = ResourceUtils.readResource("/manifest/inference_service_with_scaling_only_required_params.json");
+        JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    @Test
+    void testServiceConfig_withInvalidScalingStrategy() {
+        // Given
+        var deploymentName = "invalid-strategy-app";
+        var storageUri = "s3://my-bucket/model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.HARDWARE_USAGE, 10);
+        var scaling = new Scaling(1, 5, null, scalingStrategy);
+
+        // When/Then
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                scaling, null, null, null
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
     }
 
     @Test
@@ -148,7 +191,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, args, null, null
+                null, null, args, null, null
         );
 
         // Then
@@ -167,7 +210,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, args, null, null
+                null, null, args, null, null
         );
 
         // Then
@@ -187,7 +230,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, args, null, null
+                null, null, args, null, null
         );
 
         // Then
@@ -207,7 +250,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, command, Collections.emptyList(), null, null
+                null, command, Collections.emptyList(), null, null
         );
 
         // Then
