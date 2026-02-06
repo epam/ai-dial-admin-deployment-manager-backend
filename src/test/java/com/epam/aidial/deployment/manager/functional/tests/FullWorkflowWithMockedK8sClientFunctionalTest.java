@@ -209,7 +209,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         var ciliumNetworkPolicy = cnpCaptor.getValue();
         var expectedCiliumNetworkPolicy = ciliumNetworkPolicyCreator.create("default", "serving.knative.dev/service",
-                serviceName, deployment.getAllowedDomains());
+                serviceName, deployment.getAllowedDomains(), deployment.getContainerPort());
         Assertions.assertEquals(Serialization.asYaml(expectedCiliumNetworkPolicy), Serialization.asYaml(ciliumNetworkPolicy));
 
         Assertions.assertNotNull(deployedDeployment);
