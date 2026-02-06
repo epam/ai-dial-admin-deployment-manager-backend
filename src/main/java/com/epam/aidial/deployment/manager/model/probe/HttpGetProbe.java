@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class HttpGetProbe implements ProbeHandler {
     private String path;
-    private Integer port;
+    private int port;
 }

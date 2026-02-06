@@ -25,5 +25,5 @@ public class HttpGetProbeDto implements ProbeHandlerDto {
      */
     @NotNull
     @Min(1) @Max(65535)
-    private Integer port;
+    private int port;
 }

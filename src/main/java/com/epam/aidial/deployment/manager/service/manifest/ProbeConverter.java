@@ -49,7 +49,7 @@ public class ProbeConverter {
         if (handler instanceof HttpGetProbe h) {
             return HandlerParams.builder()
                     .handlerType("httpGet")
-                    .httpPort(portFrom(h.getPort()))
+                    .httpPort(new IntOrString(h.getPort()))
                     .httpPath(h.getPath())
                     .build();
         }
@@ -104,15 +104,11 @@ public class ProbeConverter {
         }
     }
 
-    private static IntOrString portFrom(@Nullable Integer port) {
-        return port != null ? new IntOrString(port) : null;
-    }
-
     @Builder
     private record HandlerParams(
             String handlerType,
-            IntOrString httpPort,
-            String httpPath
+            @Nullable IntOrString httpPort,
+            @Nullable String httpPath
     ) { }
 
     /**
