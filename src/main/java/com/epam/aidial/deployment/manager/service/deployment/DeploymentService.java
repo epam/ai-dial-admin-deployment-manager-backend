@@ -209,6 +209,7 @@ public class DeploymentService {
                 .orElseThrow(() -> new EntityNotFoundException("Etalon deployment not found by id: '%s'".formatted(etalonDeploymentId)));
 
         var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentId, cloneDeploymentDisplayName);
+        createDeployment.setAuthor(securityClaimsExtractor.getEmail());
 
         return createDeployment(createDeployment);
     }
