@@ -935,7 +935,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/pods/{{POD_ID}}/logs",
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/pods/{{POD_ID}}/logs?previous=false",
                       "host": [
                         "{{HOST}}"
                       ],
@@ -947,6 +947,12 @@
                         "pods",
                         "{{POD_ID}}",
                         "logs"
+                      ],
+                      "query": [
+                        {
+                          "key": "previous",
+                          "value": "false"
+                        }
                       ]
                     }
                   },
