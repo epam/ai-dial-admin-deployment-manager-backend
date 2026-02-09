@@ -9,10 +9,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,47 +24,55 @@ class PodLogReaderTest {
     @Mock
     private ContainerResource containerResourceMock;
     @Mock
-    private LogWatch logWatchMock;
+    private LogWatch containerLogWatchMock;
     @Mock
-    private TimeTailPrettyLoggable timeTailPrettyLoggableMock;
-
+    private LogWatch terminatedLogWatchMock;
     @Mock
-    private Consumer<List<String>> consumerMock;
+    private TimeTailPrettyLoggable terminatedResourceMock;
 
     @Test
-    void readLogs_shouldCallTerminated_whenPreviousIsTrue() {
+    void readLogs_shouldReadFromTerminatedContainer_whenPreviousIsTrue() {
         // Given
-        var config = PodLogReaderConfiguration.builder()
-                .previous(true)
-                .build();
+        var config = PodLogReaderConfiguration.builder().previous(true).build();
         var reader = new PodLogReader(config);
 
-        when(containerResourceMock.terminated()).thenReturn(timeTailPrettyLoggableMock);
-        when(timeTailPrettyLoggableMock.watchLog()).thenReturn(logWatchMock);
-        when(logWatchMock.getOutput()).thenReturn(new ByteArrayInputStream("log line".getBytes()));
+        String terminatedLogs = "terminated container log line";
+        when(containerResourceMock.terminated()).thenReturn(terminatedResourceMock);
+        when(terminatedResourceMock.watchLog()).thenReturn(terminatedLogWatchMock);
+        when(terminatedLogWatchMock.getOutput()).thenReturn(new ByteArrayInputStream(terminatedLogs.getBytes()));
+
+        List<String> capturedLogs = new ArrayList<>();
+        Consumer<List<String>> consumer = capturedLogs::addAll;
 
         // When
-        reader.readLogs(containerResourceMock, consumerMock);
+        reader.readLogs(containerResourceMock, consumer);
 
         // Then
         verify(containerResourceMock).terminated();
+        verify(terminatedResourceMock).watchLog();
+        verifyNoInteractions(containerLogWatchMock);
+        assertThat(capturedLogs).containsExactly(terminatedLogs);
     }
 
     @Test
-    void readLogs_shouldNotCallTerminated_whenPreviousIsFalse() {
+    void readLogs_shouldReadFromCurrentContainer_whenPreviousIsFalse() {
         // Given
-        var config = PodLogReaderConfiguration.builder()
-                .previous(false)
-                .build();
+        var config = PodLogReaderConfiguration.builder().previous(false).build();
         var reader = new PodLogReader(config);
 
-        when(containerResourceMock.watchLog()).thenReturn(logWatchMock);
-        when(logWatchMock.getOutput()).thenReturn(new ByteArrayInputStream("log line".getBytes()));
+        String currentLogs = "current container log line";
+        when(containerResourceMock.watchLog()).thenReturn(containerLogWatchMock);
+        when(containerLogWatchMock.getOutput()).thenReturn(new ByteArrayInputStream(currentLogs.getBytes()));
+
+        List<String> capturedLogs = new ArrayList<>();
+        Consumer<List<String>> consumer = capturedLogs::addAll;
 
         // When
-        reader.readLogs(containerResourceMock, consumerMock);
+        reader.readLogs(containerResourceMock, consumer);
 
         // Then
         verify(containerResourceMock).watchLog();
+        verifyNoInteractions(terminatedResourceMock);
+        assertThat(capturedLogs).containsExactly(currentLogs);
     }
 }
