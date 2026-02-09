@@ -11,6 +11,7 @@ public record PodLogReaderConfiguration(
         @Min(1) Integer maxLogSize,
         @Min(1) Integer tailLogs,
         @Min(1) Integer sinceSeconds,
-        Instant sinceTime
+        Instant sinceTime,
+        boolean previous
 ) {
 }
