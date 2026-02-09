@@ -12,6 +12,8 @@ import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToFQDNs;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToPorts;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Ports;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Ports.Protocol;
+import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.Rules;
+import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.rules.Dns;
 import io.cilium.v2.ciliumnetworkpolicyspec.ingress.FromEndpoints;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import lombok.Getter;
@@ -24,7 +26,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 @Getter
 @Component
@@ -36,6 +37,7 @@ public class CiliumNetworkPolicyCreator {
     private static final String UDP_PORT = "53";
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
+    private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
@@ -55,8 +57,9 @@ public class CiliumNetworkPolicyCreator {
 
         // Detect if all egress to FQDNs should be allowed
         boolean shouldAllowAllEgressToFqdns = false;
-        if (CollectionUtils.isNotEmpty(domains)) {
-            shouldAllowAllEgressToFqdns = domains.removeIf(domain -> Objects.equals(domain, ALLOW_ALL_KEY));
+        if (CollectionUtils.isNotEmpty(domains) && domains.contains(ALLOW_ALL_KEY)) {
+            domains = new ArrayList<>();
+            shouldAllowAllEgressToFqdns = true;
         }
 
         // Metadata
@@ -125,8 +128,15 @@ public class CiliumNetworkPolicyCreator {
         kubeDnsPorts.setPort(UDP_PORT);
         kubeDnsPorts.setProtocol(Protocol.ANY);
 
+        Dns dns = new Dns();
+        dns.setMatchPattern(UDP_DNS_PATTERN_ALL);
+
+        Rules rules = new Rules();
+        rules.setDns(List.of(dns));
+
         ToPorts kubeDnsToPorts = new ToPorts();
         kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
+        kubeDnsToPorts.setRules(rules);
 
         Egress egress = new Egress();
         egress.setToEndpoints(List.of(kubeDnsToEndpoints));
