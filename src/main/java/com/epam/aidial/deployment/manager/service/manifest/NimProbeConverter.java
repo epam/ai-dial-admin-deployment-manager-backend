@@ -2,6 +2,8 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.nvidia.apps.v1alpha1.nimservicespec.StartupProbe;
+import com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.HttpGet;
 import io.fabric8.kubernetes.api.model.Probe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +28,7 @@ public class NimProbeConverter {
      * @return NIM StartupProbe or null if probe is null
      */
     @Nullable
-    public com.nvidia.apps.v1alpha1.nimservicespec.StartupProbe toNimStartupProbe(
-            @Nullable ProbeProperties probeProperties) {
+    public StartupProbe toNimStartupProbe(@Nullable ProbeProperties probeProperties) {
         var probe = probeConverter.toProbe(probeProperties);
         return toNimStartupProbe(probe);
     }
@@ -39,12 +40,12 @@ public class NimProbeConverter {
      * @return NIM StartupProbe or null if probe is null
      */
     @Nullable
-    public com.nvidia.apps.v1alpha1.nimservicespec.StartupProbe toNimStartupProbe(@Nullable Probe probe) {
+    public StartupProbe toNimStartupProbe(@Nullable Probe probe) {
         if (probe == null) {
             log.debug("Probe is null, skipping NIM startup probe conversion");
             return null;
         }
-        var nimStartupProbe = new com.nvidia.apps.v1alpha1.nimservicespec.StartupProbe();
+        var nimStartupProbe = new StartupProbe();
         nimStartupProbe.setEnabled(true);
         var nimProbe = new com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.Probe();
         copyTimingToNimProbe(probe, nimProbe);
@@ -79,7 +80,7 @@ public class NimProbeConverter {
     private static void copyHandlerToNimProbe(Probe source,
             com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.Probe target) {
         if (source.getHttpGet() != null) {
-            var httpGet = new com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.HttpGet();
+            var httpGet = new HttpGet();
             httpGet.setPath(source.getHttpGet().getPath());
             httpGet.setPort(source.getHttpGet().getPort());
             target.setHttpGet(httpGet);

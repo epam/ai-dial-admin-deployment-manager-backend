@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.service.manifest;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import io.fabric8.kubernetes.api.model.Probe;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.HttpGet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
@@ -26,8 +28,7 @@ public class KserveProbeConverter {
      * @return KServe StartupProbe or null if probe is null
      */
     @Nullable
-    public io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe toKserveStartupProbe(
-            @Nullable ProbeProperties probeProperties) {
+    public StartupProbe toKserveStartupProbe(@Nullable ProbeProperties probeProperties) {
         var probe = probeConverter.toProbe(probeProperties);
         return toKserveStartupProbe(probe);
     }
@@ -39,20 +40,19 @@ public class KserveProbeConverter {
      * @return KServe StartupProbe or null if probe is null
      */
     @Nullable
-    public io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe toKserveStartupProbe(@Nullable Probe probe) {
+    public StartupProbe toKserveStartupProbe(@Nullable Probe probe) {
         if (probe == null) {
             log.debug("Probe is null, skipping KServe startup probe conversion");
             return null;
         }
-        var kserve = new io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe();
+        var kserve = new StartupProbe();
         copyTimingToKserve(probe, kserve);
         copyHandlerToKserve(probe, kserve);
         log.debug("Converted fabric8 Probe to KServe StartupProbe");
         return kserve;
     }
 
-    private static void copyTimingToKserve(Probe source,
-            io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe target) {
+    private static void copyTimingToKserve(Probe source, StartupProbe target) {
         if (source.getInitialDelaySeconds() != null) {
             target.setInitialDelaySeconds(source.getInitialDelaySeconds());
         }
@@ -73,10 +73,9 @@ public class KserveProbeConverter {
         }
     }
 
-    private static void copyHandlerToKserve(Probe source,
-            io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe target) {
+    private static void copyHandlerToKserve(Probe source, StartupProbe target) {
         if (source.getHttpGet() != null) {
-            var httpGet = new io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.HttpGet();
+            var httpGet = new HttpGet();
             httpGet.setPath(source.getHttpGet().getPath());
             httpGet.setPort(source.getHttpGet().getPort());
             target.setHttpGet(httpGet);
