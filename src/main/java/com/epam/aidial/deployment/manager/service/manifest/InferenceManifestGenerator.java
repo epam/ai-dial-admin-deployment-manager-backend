@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
@@ -31,8 +32,12 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
     private static final String MODEL_NAME_ARGUMENT_NAME = "--model_name";
 
-    public InferenceManifestGenerator(AppProperties appconfig) {
+    private final KserveProbeConverter kserveProbeConverter;
+
+    public InferenceManifestGenerator(AppProperties appconfig,
+                                     KserveProbeConverter kserveProbeConverter) {
         super(appconfig);
+        this.kserveProbeConverter = kserveProbeConverter;
     }
 
     public InferenceService serviceConfig(
@@ -45,7 +50,8 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             @Nullable Scaling scaling,
             @Nullable List<String> command,
             @Nullable List<String> args,
-            @Nullable Integer containerPort
+            @Nullable Integer containerPort,
+            @Nullable ProbeProperties probeProperties
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
@@ -97,7 +103,19 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             modelChain.data().setPorts(List.of(ports));
         }
 
+        applyStartupProbe(name, modelChain, probeProperties);
+
         return config.data();
+    }
+
+    private void applyStartupProbe(String name,
+                                   MappingChain<Model> modelChain,
+                                   @Nullable ProbeProperties deploymentProbeProperties) {
+        var probe = kserveProbeConverter.toKserveStartupProbe(deploymentProbeProperties);
+        if (probe != null) {
+            log.debug("Applying startup probe for Inference deployment '{}': {}", name, probe);
+            modelChain.data().setStartupProbe(probe);
+        }
     }
 
     private void setModelNameIfNotSet(String modelName, MappingChain<Model> modelChain) {

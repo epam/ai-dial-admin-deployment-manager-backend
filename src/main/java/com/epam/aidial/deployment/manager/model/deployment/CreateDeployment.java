@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.model.deployment;
 
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,6 +25,7 @@ public abstract class CreateDeployment {
     private Integer minScale;
     private Integer maxScale;
     private Resources resources;
+    private ProbeProperties probeProperties;
     private Integer containerPort;
     private String author;
     private List<String> allowedDomains;

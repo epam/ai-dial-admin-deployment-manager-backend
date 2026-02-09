@@ -39,7 +39,8 @@ import org.mapstruct.SubclassExhaustiveStrategy;
 import org.mapstruct.SubclassMapping;
 
 @Mapper(componentModel = "spring",
-        uses = {PersistenceEnvVarValueMapper.class, PersistenceTimestampMapper.class, PersistenceEnvVarDefinitionMapper.class},
+        uses = {PersistenceEnvVarValueMapper.class, PersistenceTimestampMapper.class, PersistenceEnvVarDefinitionMapper.class,
+                PersistenceProbePropertiesMapper.class},
         subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
 public abstract class PersistenceDeploymentMapper {
 
@@ -114,6 +115,7 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setEnvs(updatedEntity.getEnvs());
         existingEntity.setMetadata(updatedEntity.getMetadata());
         existingEntity.setResources(updatedEntity.getResources());
+        existingEntity.setProbeProperties(updatedEntity.getProbeProperties());
         existingEntity.setAuthor(updatedEntity.getAuthor());
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
 

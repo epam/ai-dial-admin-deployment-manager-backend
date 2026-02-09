@@ -117,7 +117,8 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 deployment.getMinScale(),
                 deployment.getMaxScale(),
                 deployment.getResources(),
-                containerPort);
+                containerPort,
+                deployment.getProbeProperties());
     }
 
     @Override

@@ -8,6 +8,8 @@ import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,7 +39,8 @@ class InferenceManifestGeneratorTest {
 
     @Mock
     private AppProperties appconfig;
-
+    @Mock
+    private KserveProbeConverter kserveProbeConverter;
     @InjectMocks
     private InferenceManifestGenerator manifestGenerator;
 
@@ -65,7 +68,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null
+                null, null, null, null, null
         );
 
         // Then
@@ -87,7 +90,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null
+                null, null, null, null, null
         );
 
         // Then
@@ -109,7 +112,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null
+                scaling, null, null, null, null
         );
 
         // Then
@@ -130,7 +133,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null
+                scaling, null, null, null, null
         );
 
         // Then
@@ -151,7 +154,7 @@ class InferenceManifestGeneratorTest {
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null
+                scaling, null, null, null, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
@@ -169,7 +172,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, containerPort
+                null, null, null, containerPort, null
         );
 
         // Then
@@ -190,7 +193,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, args, null
+                null, null, args, null, null
         );
 
         // Then
@@ -209,7 +212,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null
+                null, null, args, null, null
         );
 
         // Then
@@ -229,7 +232,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null
+                null, null, args, null, null
         );
 
         // Then
@@ -249,13 +252,41 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, command, Collections.emptyList(), null
+                null, command, Collections.emptyList(), null, null
         );
 
         // Then
         var model = generatedService.getSpec().getPredictor().getModel();
         assertThat(model.getCommand()).containsExactlyElementsOf(command);
         assertThat(model.getArgs()).isEmpty();
+    }
+
+    @Test
+    void testServiceConfig_withProbeProperties_setsStartupProbeOnModel() {
+        // Given: generator with real KserveProbeConverter so probe is built from properties
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));
+        var deploymentName = "probe-inference-app";
+        var storageUri = "s3://my-bucket/probe-model";
+        var httpGet = new HttpGetProbe("/health", 8080);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, probeProperties
+        );
+
+        // Then: predictor model has startup probe with expected path, port and timing
+        var model = generatedService.getSpec().getPredictor().getModel();
+        var startupProbe = model.getStartupProbe();
+        assertThat(startupProbe).isNotNull();
+        assertThat(startupProbe.getHttpGet()).isNotNull();
+        assertThat(startupProbe.getHttpGet().getPath()).isEqualTo("/health");
+        assertThat(startupProbe.getHttpGet().getPort().getIntVal()).isEqualTo(8080);
+        assertThat(startupProbe.getInitialDelaySeconds()).isEqualTo(5);
+        assertThat(startupProbe.getPeriodSeconds()).isEqualTo(10);
+        assertThat(startupProbe.getTimeoutSeconds()).isEqualTo(3);
+        assertThat(startupProbe.getFailureThreshold()).isEqualTo(2);
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
