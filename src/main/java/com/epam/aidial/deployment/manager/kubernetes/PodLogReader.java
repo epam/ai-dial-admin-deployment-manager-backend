@@ -8,6 +8,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
+import io.fabric8.kubernetes.client.dsl.TimeTailPrettyLoggable;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +28,7 @@ public class PodLogReader {
     private final Integer tailLogs;
     private final Integer sinceSeconds;
     private final Instant sinceTime;
+    private final boolean previous;
 
     public PodLogReader(PodLogReaderConfiguration configuration) {
         if (configuration.sinceSeconds() != null && configuration.sinceTime() != null) {
@@ -38,6 +41,7 @@ public class PodLogReader {
         this.tailLogs = assertGreaterThenZero(configuration.tailLogs(), "tailLogs");
         this.sinceSeconds = assertGreaterThenZero(configuration.sinceSeconds(), "sinceSeconds");
         this.sinceTime = configuration.sinceTime();
+        this.previous = configuration.previous();
     }
 
     private static Integer assertGreaterThenZero(Integer value, String name) {
@@ -58,15 +62,20 @@ public class PodLogReader {
     }
 
     private Loggable getLoggable(ContainerResource containerResource) {
-        TailPrettyLoggable loggable;
-        if (sinceTime != null) {
-            loggable = containerResource.sinceTime(sinceTime.toString());
-        } else if (sinceSeconds != null) {
-            loggable = containerResource.sinceSeconds(sinceSeconds);
-        } else {
-            loggable = containerResource;
-        }
+        var baseResource = previous
+                ? containerResource.terminated()
+                : containerResource;
+        var loggable = applySinceFilter(baseResource);
         return tailLogs != null ? loggable.tailingLines(tailLogs) : loggable;
+    }
+
+    private TailPrettyLoggable applySinceFilter(TimeTailPrettyLoggable resource) {
+        if (sinceTime != null) {
+            return resource.sinceTime(sinceTime.toString());
+        } else if (sinceSeconds != null) {
+            return resource.sinceSeconds(sinceSeconds);
+        }
+        return resource;
     }
 
     private void readOutputStream(InputStream logStream, Consumer<List<String>> logConsumer) throws IOException {
