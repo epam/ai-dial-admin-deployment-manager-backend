@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.web.dto.deployment;
 
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
 import com.epam.aidial.deployment.manager.web.validation.ValidScaleConfiguration;
@@ -58,6 +59,9 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     @ValidResources
     private ResourcesDto resources;
+    @Nullable
+    @Valid
+    private ProbePropertiesDto probeProperties;
     @Nullable
     @Min(1) @Max(65535)
     private Integer containerPort;
