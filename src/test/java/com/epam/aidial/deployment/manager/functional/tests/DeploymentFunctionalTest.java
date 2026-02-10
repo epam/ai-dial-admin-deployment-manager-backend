@@ -385,7 +385,51 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(newImageDefinitionId, updatedDeployment.getImageDefinitionId());
 
-        verify(resource, times(2)).update();
+        verify(resource, times(1)).update();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSuccessfullyUpdateCiliumNetworkPolicyIfRunningAndDomainsWereChanged() {
+        // Given
+        var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        var savedDeployment = deploymentService.createDeployment(createDeployment);
+
+        var mixedOperation = Mockito.mock(MixedOperation.class);
+        var resource = Mockito.mock(Resource.class);
+        var service = Mockito.mock(Service.class);
+        var metadata = Mockito.mock(ObjectMeta.class);
+        when(metadata.getAnnotations()).thenReturn(Map.of("serving.knative.dev/creator", "immutable-creator"));
+        when(service.getMetadata()).thenReturn(metadata);
+        when(resource.get()).thenReturn(service);
+        when(mixedOperation.inNamespace(any())).thenReturn(mixedOperation);
+        when(mixedOperation.withName(any())).thenReturn(resource);
+        when(mixedOperation.resource(any())).thenReturn(resource);
+        when(knativeClient.services()).thenReturn(mixedOperation);
+
+        when(kubernetesClient.resources(any(Class.class))).thenReturn(mixedOperation);
+
+        mockSecretMetaData(savedDeployment);
+
+        // When
+        savedDeployment.setStatus(DeploymentStatus.RUNNING);
+        deploymentRepository.update(savedDeployment.getId(), savedDeployment);
+
+        var allowedDomains = List.of("domain1.com", "domain2.com");
+
+        var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        updateRequest.setDisplayName("updated-deployment");
+        updateRequest.setAllowedDomains(allowedDomains);
+
+        var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
+
+        // Then
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
+        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
+        Assertions.assertEquals(allowedDomains, updatedDeployment.getAllowedDomains());
+
+        // should update only once because cilium network policy should be updated and deployment shouldn't
+        verify(resource, times(1)).update();
     }
 
     @Test
@@ -484,8 +528,8 @@ public abstract class DeploymentFunctionalTest {
         deploymentService.updateImageDefinitionForDeployments(newImageDefinitionId, deploymentIds);
 
         // Then
-        // should update only twice because cilium network policy & deployment1 is active, and deployment2 isn't
-        verify(resource, times(2)).update();
+        // should update only once because deployment1 is active, and deployment2 isn't
+        verify(resource, times(1)).update();
     }
 
     @Test

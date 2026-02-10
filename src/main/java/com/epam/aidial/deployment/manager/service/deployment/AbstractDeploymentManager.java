@@ -188,7 +188,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        updateCiliumNetworkPolicy(id, deployment.getAllowedDomains(), deployment.getContainerPort());
                         updateService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
@@ -621,6 +620,20 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("createCiliumNetworkPolicy. Created Cilium Network Policy: {}", ciliumNetworkPolicy);
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void updateCiliumNetworkPolicy(String id) {
+        var deployment = getDeployment(id);
+
+        try {
+            updateCiliumNetworkPolicy(id, deployment.getAllowedDomains(), deployment.getContainerPort());
+        } catch (Exception e) {
+            var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
+            log.warn(errorMessage, e);
+            throw new DeploymentException(errorMessage, e);
+        }
     }
 
     private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Integer containerPort) {
