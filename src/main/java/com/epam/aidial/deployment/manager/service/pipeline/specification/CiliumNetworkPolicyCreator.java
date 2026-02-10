@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.CiliumNetworkPolicySpec;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
+import io.cilium.v2.ciliumnetworkpolicyspec.Egress.ToEntities;
 import io.cilium.v2.ciliumnetworkpolicyspec.EndpointSelector;
 import io.cilium.v2.ciliumnetworkpolicyspec.Ingress;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToEndpoints;
@@ -76,7 +77,7 @@ public class CiliumNetworkPolicyCreator {
         spec.setEndpointSelector(endpointSelector);
         List<Egress> egressList = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(domains) || shouldAllowAllEgressToFqdns) {
-            egressList.add(createFqdnEgress(domains));
+            egressList.add(createExternalEgress(domains));
         }
         egressList.add(createKubeDnsEgress());
         spec.setEgress(egressList);
@@ -90,15 +91,28 @@ public class CiliumNetworkPolicyCreator {
         return policy;
     }
 
-    private Egress createFqdnEgress(List<String> domains) {
-        List<ToFQDNs> toFqdnsList = domains.stream()
-                .map(domain -> {
-                    ToFQDNs toFqdns = new ToFQDNs();
-                    toFqdns.setMatchName(domain);
-                    return toFqdns;
-                })
-                .toList();
+    private Egress createExternalEgress(List<String> domains) {
+        Egress egress = new Egress();
 
+        ToPorts tcpToPorts = createToPortsEgress();
+        egress.setToPorts(List.of(tcpToPorts));
+
+        if (CollectionUtils.isEmpty(domains)) {
+            egress.setToEntities(List.of(ToEntities.WORLD));
+        } else {
+            List<ToFQDNs> toFqdnsList = domains.stream()
+                    .map(domain -> {
+                        ToFQDNs toFqdns = new ToFQDNs();
+                        toFqdns.setMatchName(domain);
+                        return toFqdns;
+                    })
+                    .toList();
+            egress.setToFQDNs(toFqdnsList);
+        }
+        return egress;
+    }
+
+    private ToPorts createToPortsEgress() {
         Ports tcpPort443 = new Ports();
         tcpPort443.setPort(TCP_PORT_443);
         tcpPort443.setProtocol(Protocol.TCP);
@@ -111,10 +125,7 @@ public class CiliumNetworkPolicyCreator {
         ToPorts tcpToPorts = new ToPorts();
         tcpToPorts.setPorts(List.of(tcpPort443, tcpPort80));
 
-        Egress egress = new Egress();
-        egress.setToFQDNs(toFqdnsList);
-        egress.setToPorts(List.of(tcpToPorts));
-        return egress;
+        return tcpToPorts;
     }
 
     private Egress createKubeDnsEgress() {
