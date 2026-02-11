@@ -38,6 +38,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -95,6 +97,9 @@ class NimDeploymentManagerTest {
     private ContainerResource containerResource;
     @Mock
     private CiliumNetworkPolicy ciliumNetworkPolicy;
+
+    @Captor
+    private ArgumentCaptor<List<Integer>> ciliumPortsCaptor;
 
     private NimDeploymentManager nimDeploymentManager;
 
@@ -277,6 +282,44 @@ class NimDeploymentManagerTest {
         verify(disposableResourceManager).saveNimServiceResource(eq(DEPLOYMENT_ID), eq(NAMESPACE));
         verify(k8sNimClient).createService(eq(NAMESPACE), eq(serviceSpec));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+    }
+
+    @Test
+    void deploy_shouldPassContainerPortAndContainerGrpcPortToCiliumNetworkPolicyCreator() {
+        // Given
+        int containerPort = 8000;
+        int containerGrpcPort = 50052;
+
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        ((NimDeployment) deployment).setContainerGrpcPort(containerGrpcPort);
+        deployment.setContainerPort(containerPort);
+
+        NIMService serviceSpec = new NIMService();
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(nimManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                any(),
+                any(),
+                any(),
+                eq(IMAGE_NAME),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), ciliumPortsCaptor.capture()))
+                .thenReturn(ciliumNetworkPolicy);
+
+        // When
+        nimDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then
+        verify(ciliumNetworkPolicyCreator).create(eq(NAMESPACE), anyString(), anyString(), anyList(), any());
+        List<Integer> portsPassedToCilium = ciliumPortsCaptor.getValue();
+        assertThat(portsPassedToCilium).containsExactly(containerPort, containerGrpcPort);
     }
 
     @Test
