@@ -623,7 +623,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    @Transactional
     public void updateCiliumNetworkPolicy(String id) {
         var deployment = getDeployment(id);
 
