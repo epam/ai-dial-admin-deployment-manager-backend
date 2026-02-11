@@ -105,7 +105,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyCreateDeployment() {
+    public void shouldSuccessfullyCreateInterceptorDeployment() {
         // Given
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -121,6 +121,36 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
         Assertions.assertEquals(imageDefinitionName, deployment.getImageDefinitionName());
         Assertions.assertEquals(imageDefinitionVersion, deployment.getImageDefinitionVersion());
+        Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
+        Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
+        Assertions.assertEquals(createDeployment.getInitialScale(), deployment.getInitialScale());
+        Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
+        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
+        assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
+        Assertions.assertNotNull(deployment.getId());
+    }
+
+    @Test
+    public void shouldSuccessfullyCreateAdapterDeployment() {
+        // Given - adapter image definition
+        var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
+        var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
+        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+
+        var createDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
+        var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
+
+        // When
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var deployments = deploymentService.getAllDeployments();
+
+        // Then
+        Assertions.assertEquals(1, deployments.size());
+        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
+        Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
+        Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
+        Assertions.assertEquals(adapterImageDef.getName(), deployment.getImageDefinitionName());
+        Assertions.assertEquals(adapterImageDef.getVersion(), deployment.getImageDefinitionVersion());
         Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
         Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
         Assertions.assertEquals(createDeployment.getInitialScale(), deployment.getInitialScale());
@@ -680,7 +710,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyGetAllDeploymentsByType() {
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsMcp() {
         // Given
 
         // Create deployment-1 of MCP type
@@ -703,6 +733,29 @@ public abstract class DeploymentFunctionalTest {
         // Then
         Assertions.assertEquals(1, deployments.size());
         Assertions.assertEquals(deployment1.getId(), deployments.getFirst().getId());
+    }
+
+    @Test
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsAdapter() {
+        // Given
+        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        createMcpDeployment.setDisplayName("mcp-deployment");
+        deploymentService.createDeployment(createMcpDeployment);
+
+        var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
+        var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
+        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        var createAdapterDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
+        createAdapterDeployment.setDisplayName("adapter-deployment");
+        var adapterDeployment = deploymentService.createDeployment(createAdapterDeployment);
+
+        // When
+        var adapterDeployments = deploymentService.getAllDeploymentsByType(List.of(DeploymentTypeDto.ADAPTER)).stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, adapterDeployments.size());
+        Assertions.assertEquals(adapterDeployment.getId(), adapterDeployments.getFirst().getId());
+        Assertions.assertEquals("adapter-deployment", adapterDeployments.getFirst().getDisplayName());
     }
 
     @Test
