@@ -49,6 +49,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,6 +70,7 @@ class NimDeploymentManagerTest {
     private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
     private static final int STARTUP_TIMEOUT = 60;
+    private static final int DEFAULT_NIM_SERVICE_PORT = 8000;
     private static final String NAMESPACE = "test-namespace";
     private static final String SERVICE_NAME = "mcp-" + DEPLOYMENT_ID;
     private static final String CONTAINER_NAME = "test-container";
@@ -99,7 +101,7 @@ class NimDeploymentManagerTest {
     private CiliumNetworkPolicy ciliumNetworkPolicy;
 
     @Captor
-    private ArgumentCaptor<List<Integer>> ciliumPortsCaptor;
+    private ArgumentCaptor<Set<Integer>> ciliumPortsCaptor;
 
     private NimDeploymentManager nimDeploymentManager;
 
@@ -287,7 +289,7 @@ class NimDeploymentManagerTest {
     @Test
     void deploy_shouldPassContainerPortAndContainerGrpcPortToCiliumNetworkPolicyCreator() {
         // Given
-        int containerPort = 8000;
+        int containerPort = 8002;
         int containerGrpcPort = 50052;
 
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
@@ -318,8 +320,8 @@ class NimDeploymentManagerTest {
 
         // Then
         verify(ciliumNetworkPolicyCreator).create(eq(NAMESPACE), anyString(), anyString(), anyList(), any());
-        List<Integer> portsPassedToCilium = ciliumPortsCaptor.getValue();
-        assertThat(portsPassedToCilium).containsExactly(containerPort, containerGrpcPort);
+        Set<Integer> portsPassedToCilium = ciliumPortsCaptor.getValue();
+        assertThat(portsPassedToCilium).containsExactlyInAnyOrder(DEFAULT_NIM_SERVICE_PORT, containerPort, containerGrpcPort);
     }
 
     @Test

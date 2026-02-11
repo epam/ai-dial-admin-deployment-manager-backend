@@ -46,9 +46,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -603,7 +605,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return disposableResources;
     }
 
-    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, List<Integer> ports) {
+    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
         log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
@@ -636,7 +638,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
     }
 
-    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, List<Integer> ports) {
+    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
         log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
@@ -669,9 +671,11 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
     }
 
-    protected List<Integer> getCiliumIngressPorts(D deployment) {
-        var port = deployment.getContainerPort();
-        return port != null ? List.of(port) : null;
+    protected Set<Integer> getCiliumIngressPorts(D deployment) {
+        Set<Integer> ports = new HashSet<>();
+        Optional.ofNullable(deployment.getContainerPort()).ifPresent(ports::add);
+        Optional.ofNullable(defaultContainerPort).ifPresent(ports::add);
+        return ports;
     }
 
     private Map<String, String> transformEnvs(Map<String, EnvVarValue> envs) {

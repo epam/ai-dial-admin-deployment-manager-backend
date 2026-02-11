@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Getter
 @Component
@@ -54,7 +55,7 @@ public class CiliumNetworkPolicyCreator {
                                       @NotNull String matchLabelName,
                                       @NotNull String matchLabelValue,
                                       @NotNull List<String> allowedDomains,
-                                      @Nullable List<Integer> ports) {
+                                      @Nullable Set<Integer> ports) {
         List<String> domains = new ArrayList<>(allowedDomains);
 
         // Detect if all egress to FQDNs should be allowed
@@ -156,7 +157,7 @@ public class CiliumNetworkPolicyCreator {
         return egress;
     }
 
-    private List<Ingress> createIngress(@Nullable List<Integer> ports) {
+    private List<Ingress> createIngress(@Nullable Set<Integer> ports) {
         FromEndpoints fromEndpoints = new FromEndpoints();
         fromEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_NAMESPACE_LABEL_NAME, "istio-system", APP, "istio-ingressgateway"

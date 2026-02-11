@@ -25,9 +25,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -83,11 +82,10 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected List<Integer> getCiliumIngressPorts(NimDeployment deployment) {
-        var ports = Stream.of(deployment.getContainerPort(), deployment.getContainerGrpcPort())
-                .filter(Objects::nonNull)
-                .toList();
-        return ports.isEmpty() ? null : ports;
+    protected Set<Integer> getCiliumIngressPorts(NimDeployment deployment) {
+        var ports = super.getCiliumIngressPorts(deployment);
+        Optional.ofNullable(deployment.getContainerGrpcPort()).ifPresent(ports::add);
+        return ports;
     }
 
     @Override
