@@ -304,6 +304,124 @@ public abstract class ImageDefinitionFunctionalTest {
     }
 
     @Test
+    public void shouldSuccessfullyCreateAdapterImageDefinition() {
+        // Given
+        ImageDefinition imageDef = FunctionalTestHelper.createAdapterImageDefinition();
+
+        // When
+        service.createImageDefinition(imageDef);
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, imageDefs.size());
+
+        ImageDefinition actualImageDef = imageDefs.getFirst();
+        imageDef.setId(actualImageDef.getId());
+        imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
+        Assertions.assertEquals(imageDef, actualImageDef);
+    }
+
+    @Test
+    public void shouldSuccessfullyCreateAndGetAdapterImageDefinitionByType() {
+        // Given
+        ImageDefinition adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
+        ImageDefinition interceptorImageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+
+        // When
+        service.createImageDefinition(adapterImageDef);
+        service.createImageDefinition(interceptorImageDef);
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageTypeDto.ADAPTER).stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, imageDefs.size());
+
+        ImageDefinition actualImageDef = imageDefs.getFirst();
+        adapterImageDef.setId(actualImageDef.getId());
+        adapterImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
+        Assertions.assertEquals(adapterImageDef, actualImageDef);
+    }
+
+    @Test
+    public void shouldSuccessfullyCreateAndGetAdapterImageDefinitionsByNameAndType() {
+        // Given
+        ImageDefinition adapterImageDef1 = FunctionalTestHelper.createAdapterImageDefinition();
+        ImageDefinition adapterImageDef2 = FunctionalTestHelper.createAdapterImageDefinition();
+        ImageDefinition interceptorImageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+
+        String name = "test-adapter-1";
+        adapterImageDef1.setName(name);
+        adapterImageDef1.setVersion("1.0.0");
+        adapterImageDef2.setName(name);
+        adapterImageDef2.setVersion("2.0.0");
+
+        // When
+        service.createImageDefinition(interceptorImageDef);
+        service.createImageDefinition(adapterImageDef1);
+        service.createImageDefinition(adapterImageDef2);
+        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.ADAPTER).stream()
+                .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
+
+        // Then
+        Assertions.assertEquals(2, imageDefs.size());
+
+        ImageDefinition actualImageDef1 = imageDefs.get(adapterImageDef1.getVersion());
+        adapterImageDef1.setId(actualImageDef1.getId());
+        Assertions.assertEquals(adapterImageDef1, actualImageDef1);
+
+        ImageDefinition actualImageDef2 = imageDefs.get(adapterImageDef2.getVersion());
+        adapterImageDef2.setId(actualImageDef2.getId());
+        Assertions.assertEquals(adapterImageDef2, actualImageDef2);
+    }
+
+    @Test
+    public void shouldGetAdapterImageDefinitionViewsByType() {
+        // Given
+        var adapterImageDef1 = FunctionalTestHelper.createAdapterImageDefinition();
+        adapterImageDef1.setName("adapter-model");
+        adapterImageDef1.setVersion("1.0.0");
+
+        var adapterImageDef2 = FunctionalTestHelper.createAdapterImageDefinition();
+        adapterImageDef2.setName("adapter-model");
+        adapterImageDef2.setVersion("1.1.0");
+
+        var interceptorImageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        interceptorImageDef.setName("interceptor-model");
+        interceptorImageDef.setVersion("1.0.0");
+
+        // When
+        var createdAdapter1 = service.createImageDefinition(adapterImageDef1);
+        var createdAdapter2 = service.createImageDefinition(adapterImageDef2);
+        var createdInterceptor = service.createImageDefinition(interceptorImageDef);
+
+        service.updateBuildStatus(createdAdapter1.getId(), ImageStatus.BUILD_SUCCESSFUL);
+
+        var adapterViews = service.getImageDefinitionViewsByType(ImageTypeDto.ADAPTER).stream().toList();
+        var interceptorViews = service.getImageDefinitionViewsByType(ImageTypeDto.INTERCEPTOR).stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, adapterViews.size());
+        var adapterView = adapterViews.getFirst();
+        Assertions.assertEquals("adapter-model", adapterView.getName());
+        Assertions.assertEquals(2, adapterView.getAvailableVersions().size());
+        Assertions.assertEquals(createdAdapter1.getId(), adapterView.getSelectedId());
+
+        Assertions.assertEquals(1, interceptorViews.size());
+        var interceptorView = interceptorViews.getFirst();
+        Assertions.assertEquals("interceptor-model", interceptorView.getName());
+        Assertions.assertEquals(1, interceptorView.getAvailableVersions().size());
+        Assertions.assertEquals(createdInterceptor.getId(), interceptorView.getSelectedId());
+
+        List<UUID> adapterVersionIds = adapterViews.stream()
+                .flatMap(v -> v.getAvailableVersions().stream())
+                .map(ImageDefinitionViewElement::getId)
+                .toList();
+
+        Assertions.assertTrue(adapterVersionIds.contains(createdAdapter1.getId()));
+        Assertions.assertTrue(adapterVersionIds.contains(createdAdapter2.getId()));
+        Assertions.assertFalse(adapterVersionIds.contains(createdInterceptor.getId()));
+    }
+
+    @Test
     public void shouldSuccessfullyAddBuildLogsWithinLimit() {
         // Given
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
