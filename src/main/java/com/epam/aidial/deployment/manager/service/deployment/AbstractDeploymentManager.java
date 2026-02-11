@@ -669,7 +669,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
     }
 
-    protected List<Integer> getCiliumIngressPorts(Deployment deployment) {
+    protected List<Integer> getCiliumIngressPorts(D deployment) {
         var port = deployment.getContainerPort();
         return port != null ? List.of(port) : null;
     }

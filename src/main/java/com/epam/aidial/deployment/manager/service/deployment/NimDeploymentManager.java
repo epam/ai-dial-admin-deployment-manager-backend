@@ -83,14 +83,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected List<Integer> getCiliumIngressPorts(Deployment deployment) {
-        if (deployment instanceof NimDeployment nimDeployment) {
-            var ports = Stream.of(nimDeployment.getContainerPort(), nimDeployment.getContainerGrpcPort())
-                    .filter(Objects::nonNull)
-                    .toList();
-            return ports.isEmpty() ? null : ports;
-        }
-        return super.getCiliumIngressPorts(deployment);
+    protected List<Integer> getCiliumIngressPorts(NimDeployment deployment) {
+        var ports = Stream.of(deployment.getContainerPort(), deployment.getContainerGrpcPort())
+                .filter(Objects::nonNull)
+                .toList();
+        return ports.isEmpty() ? null : ports;
     }
 
     @Override
