@@ -13,6 +13,8 @@ public class DomainListValidator implements ConstraintValidator<ValidDomainList,
     );
 
     private static final String ALLOW_ALL_KEY = "*";
+    private static final int MIN_DOMAIN_LENGTH = 4;
+    private static final int MAX_DOMAIN_LENGTH = 253;
 
     @Override
     public boolean isValid(List<String> domains, ConstraintValidatorContext context) {
@@ -25,6 +27,9 @@ public class DomainListValidator implements ConstraintValidator<ValidDomainList,
             }
             if (ALLOW_ALL_KEY.equals(domain)) {
                 return true;
+            }
+            if (domain.length() < MIN_DOMAIN_LENGTH || domain.length() > MAX_DOMAIN_LENGTH) {
+                return false;
             }
             if (!DOMAIN_PATTERN.matcher(domain).matches()) {
                 return false;

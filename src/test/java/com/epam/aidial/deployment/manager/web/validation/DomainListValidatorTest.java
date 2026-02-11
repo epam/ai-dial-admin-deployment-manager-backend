@@ -104,4 +104,14 @@ class DomainListValidatorTest {
         assertFalse(domainValidator.isValid(Collections.singletonList(null), context));
         assertFalse(domainValidator.isValid(List.of(""), context));
     }
+
+    @Test
+    void domainsWithInvalidSize_shouldReturnFalse() {
+        assertFalse(domainValidator.isValid(List.of("a.b"), context));
+        assertFalse(domainValidator.isValid(List.of(
+                "example.example.example.example.example.example.example.example.example.example.example."
+                    + "example.example.example.example.example.example.example.example.example.example.example."
+                    + "example.example.example.example.example.example.example.example.example.example.example.example."),
+                context));
+    }
 }
