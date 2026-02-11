@@ -25,7 +25,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -78,6 +80,17 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             throw new IllegalArgumentException("Deployment type should be 'NIM' for NIM service deployment. Deployment: '%s'"
                     .formatted(deployment.getId()));
         });
+    }
+
+    @Override
+    protected List<Integer> getCiliumIngressPorts(Deployment deployment) {
+        if (deployment instanceof NimDeployment nimDeployment) {
+            var ports = Stream.of(nimDeployment.getContainerPort(), nimDeployment.getContainerGrpcPort())
+                    .filter(Objects::nonNull)
+                    .toList();
+            return ports.isEmpty() ? null : ports;
+        }
+        return super.getCiliumIngressPorts(deployment);
     }
 
     @Override

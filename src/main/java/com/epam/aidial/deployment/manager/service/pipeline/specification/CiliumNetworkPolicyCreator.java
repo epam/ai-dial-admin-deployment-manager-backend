@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Getter
 @Component
@@ -53,7 +54,7 @@ public class CiliumNetworkPolicyCreator {
                                       @NotNull String matchLabelName,
                                       @NotNull String matchLabelValue,
                                       @NotNull List<String> allowedDomains,
-                                      @Nullable Integer containerPort) {
+                                      @Nullable List<Integer> ports) {
         List<String> domains = new ArrayList<>(allowedDomains);
 
         // Detect if all egress to FQDNs should be allowed
@@ -81,7 +82,7 @@ public class CiliumNetworkPolicyCreator {
         }
         egressList.add(createKubeDnsEgress());
         spec.setEgress(egressList);
-        spec.setIngress(createIngress(containerPort));
+        spec.setIngress(createIngress(ports));
 
         // CiliumNetworkPolicy
         CiliumNetworkPolicy policy = new CiliumNetworkPolicy();
@@ -155,7 +156,7 @@ public class CiliumNetworkPolicyCreator {
         return egress;
     }
 
-    private List<Ingress> createIngress(@Nullable Integer containerPort) {
+    private List<Ingress> createIngress(@Nullable List<Integer> ports) {
         FromEndpoints fromEndpoints = new FromEndpoints();
         fromEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_NAMESPACE_LABEL_NAME, "istio-system", APP, "istio-ingressgateway"
@@ -182,21 +183,26 @@ public class CiliumNetworkPolicyCreator {
         port8022.setPort(INGRESS_PORT_8022);
         port8022.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
 
-        List<io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports> ports = new ArrayList<>();
-        ports.add(port8012);
-        ports.add(port8022);
+        List<io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports> ingressPorts = new ArrayList<>();
+        ingressPorts.add(port8012);
+        ingressPorts.add(port8022);
 
-        if (containerPort != null) {
-            io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports port =
-                    new io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports();
-            port.setPort(containerPort.toString());
-            port.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
-            ports.add(port);
+        if (CollectionUtils.isNotEmpty(ports)) {
+            ports.stream()
+                    .filter(Objects::nonNull)
+                    .map(port -> {
+                        io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports ingressPort =
+                                new io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports();
+                        ingressPort.setPort(port.toString());
+                        ingressPort.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
+                        return ingressPort;
+                    })
+                    .forEach(ingressPorts::add);
         }
 
         io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts ingressToPorts =
                 new io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts();
-        ingressToPorts.setPorts(ports);
+        ingressToPorts.setPorts(ingressPorts);
 
         Ingress fromEndpointsIngressRule = new Ingress();
         fromEndpointsIngressRule.setFromEndpoints(List.of(fromEndpoints, fromEndpointsActivator, fromEndpointsAutoscaler));
