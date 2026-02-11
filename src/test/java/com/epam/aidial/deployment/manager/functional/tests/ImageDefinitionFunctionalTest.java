@@ -355,19 +355,22 @@ public abstract class ImageDefinitionFunctionalTest {
         adapterImageDef2.setVersion("2.0.0");
 
         // When
+        service.createImageDefinition(interceptorImageDef);
         service.createImageDefinition(adapterImageDef1);
         service.createImageDefinition(adapterImageDef2);
-        service.createImageDefinition(interceptorImageDef);
         var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.ADAPTER).stream()
                 .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
         Assertions.assertEquals(2, imageDefs.size());
 
-        ImageDefinition actualImageDef = imageDefs.get(adapterImageDef2.getVersion());
-        adapterImageDef2.setId(actualImageDef.getId());
-        adapterImageDef2.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(adapterImageDef2, actualImageDef);
+        ImageDefinition actualImageDef1 = imageDefs.get(adapterImageDef1.getVersion());
+        adapterImageDef1.setId(actualImageDef1.getId());
+        Assertions.assertEquals(adapterImageDef1, actualImageDef1);
+
+        ImageDefinition actualImageDef2 = imageDefs.get(adapterImageDef2.getVersion());
+        adapterImageDef2.setId(actualImageDef2.getId());
+        Assertions.assertEquals(adapterImageDef2, actualImageDef2);
     }
 
     @Test

@@ -105,7 +105,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyCreateDeployment() {
+    public void shouldSuccessfullyCreateInterceptorDeployment() {
         // Given
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -710,7 +710,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyGetAllDeploymentsByType() {
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsMcp() {
         // Given
 
         // Create deployment-1 of MCP type
@@ -736,7 +736,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyGetAllDeploymentsByType_includesAdapter() {
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsAdapter() {
         // Given
         var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
         createMcpDeployment.setDisplayName("mcp-deployment");
