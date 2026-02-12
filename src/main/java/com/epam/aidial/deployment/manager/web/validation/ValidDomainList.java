@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Target({ ElementType.FIELD, ElementType.PARAMETER })
 @Retention(RetentionPolicy.RUNTIME)
 public @interface ValidDomainList {
-    String message() default "Invalid domain in the list. Domain should comply with RFC 1035.";
+    String message() default "Invalid domain in the list";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }
