@@ -613,6 +613,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
         var serviceNameLabel = getServiceNameLabel();
         var serviceName = getServiceName(groupId);
+        var cnpName = CiliumNetworkPolicyCreator.getPolicyName(serviceName);
         log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
 
         var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
@@ -622,6 +623,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("createCiliumNetworkPolicy. Created Cilium Network Policy: {}", ciliumNetworkPolicy);
+
+        disposableResourceManager.changeResourceLifecycleByGroupIdInSameTransaction(
+                groupId,
+                new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, cnpName),
+                ResourceLifecycleState.STABLE
+        );
     }
 
     @Override
