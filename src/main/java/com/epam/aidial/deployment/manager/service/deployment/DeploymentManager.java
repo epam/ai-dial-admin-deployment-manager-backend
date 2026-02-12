@@ -29,6 +29,8 @@ public interface DeploymentManager<S> {
 
     void rollingUpdate(String id);
 
+    void updateCiliumNetworkPolicy(String id);
+
     List<PodInfo> getActiveInstances(String id);
 
     List<PodInfo> getInstances(String id);
