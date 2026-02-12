@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.handler;
 
+import com.epam.aidial.deployment.manager.utils.TraceContextUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,14 @@ public class ErrorView {
     private String error;
     private String message;
 
+    /**
+     * W3C Trace Context traceparent value.
+     * Format: 00-{trace-id}-{span-id}-{trace-flags}
+     * Example: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+     * This enables distributed tracing correlation across services.
+     */
+    private String traceparent;
+
     public ErrorView(HttpServletRequest request, HttpStatus status, String errorMessage) {
 
         this.path = request.getServletPath();
@@ -22,6 +31,9 @@ public class ErrorView {
         this.status = status.value();
         this.error = status.getReasonPhrase();
         this.message = sanitizeMessage(errorMessage);
+
+        // Populate trace information from OpenTelemetry context
+        this.traceparent = TraceContextUtils.formatTraceParent();
     }
 
     /**
