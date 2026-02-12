@@ -188,6 +188,7 @@ public class FunctionalTestHelper {
                 .resources(createResources())
                 .author("test-author")
                 .metadata(new DeploymentMetadata(envs))
+                .containerPort(8080)
                 .allowedDomains(List.of("github.com", "epam.com"))
                 .build();
     }
