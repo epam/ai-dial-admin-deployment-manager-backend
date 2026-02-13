@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFuncti
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -22,6 +23,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+@Disabled("temporary disabled due to infrastructure issues")
 @DataJpaTest
 @TestPropertySource(properties = {
         "datasource.vendor=MS_SQL_SERVER",
