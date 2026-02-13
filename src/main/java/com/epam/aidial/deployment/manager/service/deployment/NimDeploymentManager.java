@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -78,6 +79,13 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             throw new IllegalArgumentException("Deployment type should be 'NIM' for NIM service deployment. Deployment: '%s'"
                     .formatted(deployment.getId()));
         });
+    }
+
+    @Override
+    protected Set<Integer> getCiliumIngressPorts(NimDeployment deployment) {
+        var ports = super.getCiliumIngressPorts(deployment);
+        Optional.ofNullable(deployment.getContainerGrpcPort()).ifPresent(ports::add);
+        return ports;
     }
 
     @Override
