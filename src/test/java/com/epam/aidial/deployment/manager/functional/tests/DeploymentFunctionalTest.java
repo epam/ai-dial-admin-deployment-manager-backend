@@ -45,6 +45,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -415,7 +417,58 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(newImageDefinitionId, updatedDeployment.getImageDefinitionId());
 
-        verify(resource, times(2)).update();
+        verify(resource, times(1)).update();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSuccessfullyUpdateCiliumNetworkPolicyIfRunningAndDomainsWereChanged() {
+        // Given
+        var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        var savedDeployment = deploymentService.createDeployment(createDeployment);
+
+        var knativeMixedOperation = Mockito.mock(MixedOperation.class);
+        var knativeServiceResource = Mockito.mock(Resource.class);
+        var service = Mockito.mock(Service.class);
+        var metadata = Mockito.mock(ObjectMeta.class);
+        when(metadata.getAnnotations()).thenReturn(Map.of("serving.knative.dev/creator", "immutable-creator"));
+        when(service.getMetadata()).thenReturn(metadata);
+        when(knativeServiceResource.get()).thenReturn(service);
+        when(knativeMixedOperation.inNamespace(any())).thenReturn(knativeMixedOperation);
+        when(knativeMixedOperation.withName(any())).thenReturn(knativeServiceResource);
+        when(knativeMixedOperation.resource(any())).thenReturn(knativeServiceResource);
+        when(knativeClient.services()).thenReturn(knativeMixedOperation);
+
+        var ciliumMixedOperation = Mockito.mock(MixedOperation.class);
+        var ciliumNetworkPolicyResource = Mockito.mock(Resource.class);
+        when(ciliumMixedOperation.inNamespace(any())).thenReturn(ciliumMixedOperation);
+        when(ciliumMixedOperation.resource(any())).thenReturn(ciliumNetworkPolicyResource);
+        when(kubernetesClient.resources(eq(CiliumNetworkPolicy.class))).thenReturn(ciliumMixedOperation);
+
+        mockSecretMetaData(savedDeployment);
+
+        // When
+        savedDeployment.setStatus(DeploymentStatus.RUNNING);
+        deploymentRepository.update(savedDeployment.getId(), savedDeployment);
+
+        var allowedDomains = List.of("domain1.com", "domain2.com");
+
+        var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        updateRequest.setDisplayName("updated-deployment");
+        updateRequest.setAllowedDomains(allowedDomains);
+
+        var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
+
+        // Then - deployment metadata was updated in DB
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
+        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
+        Assertions.assertEquals(allowedDomains, updatedDeployment.getAllowedDomains());
+
+        // Then - Cilium network policy was updated (domains change only triggers policy update)
+        verify(ciliumNetworkPolicyResource, times(1)).update();
+
+        // Then - Knative service was not updated
+        verify(knativeServiceResource, never()).update();
     }
 
     @Test
@@ -514,8 +567,8 @@ public abstract class DeploymentFunctionalTest {
         deploymentService.updateImageDefinitionForDeployments(newImageDefinitionId, deploymentIds);
 
         // Then
-        // should update only twice because cilium network policy & deployment1 is active, and deployment2 isn't
-        verify(resource, times(2)).update();
+        // should update only once because deployment1 is active, and deployment2 isn't
+        verify(resource, times(1)).update();
     }
 
     @Test

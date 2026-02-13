@@ -51,6 +51,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -306,7 +307,7 @@ class KnativeDeploymentManagerTest {
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(containerPort))).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
 
         // When
         Deployment result = knativeDeploymentManager.deploy(DEPLOYMENT_ID);
@@ -382,7 +383,7 @@ class KnativeDeploymentManagerTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(containerPort))).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
         doThrow(new RuntimeException("Test exception")).when(k8sClient).createCiliumNetworkPolicy(eq(NAMESPACE), any());
 
         // When
