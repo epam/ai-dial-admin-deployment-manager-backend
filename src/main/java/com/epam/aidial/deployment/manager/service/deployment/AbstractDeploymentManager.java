@@ -624,7 +624,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("createCiliumNetworkPolicy. Created Cilium Network Policy: {}", ciliumNetworkPolicy);
 
-        disposableResourceManager.changeResourceLifecycleByGroupIdInSameTransaction(
+        disposableResourceManager.changeResourceLifecycleByGroupId(
                 groupId,
                 new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, cnpName),
                 ResourceLifecycleState.STABLE
