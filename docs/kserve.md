@@ -52,12 +52,6 @@ Replace `your_namespace` with the desired namespace where you want to install KS
 
 For more detailed configuration and usage, refer to the [KServe Documentation](https://kserve.github.io/website/docs/admin-guide/kubernetes-deployment).
 
-
-
-Here's a README section that explains the application of necessary roles and role bindings for managing permissions within the Kubernetes cluster:
-
----
-
 # Role and RoleBinding Configuration for AI DIAL Admin
 
 This section describes the configuration of necessary roles and role bindings to manage permissions for the AI DIAL Admin components within the Kubernetes cluster. These configurations ensure that the appropriate access controls are in place for managing inference services and related resources.
@@ -135,10 +129,10 @@ To apply these configurations to your Kubernetes cluster, follow these steps:
 
 2. **Apply the Manifests**: Use the `kubectl` command-line tool to apply the manifests to your cluster. Run the following commands in your terminal:
 
-   ```bash
-   kubectl apply -f role.yaml
-   kubectl apply -f rolebinding.yaml
-   ```
+```bash
+kubectl apply -f role.yaml
+kubectl apply -f rolebinding.yaml
+```
 
 # Using Hugging Face Token
 
@@ -148,44 +142,44 @@ To deploy models from private Hugging Face repositories, follow these steps:
 
 2. **Create a Kubernetes secret** with your Hugging Face access token in the namespace where your models will be deployed:
 
-   ```bash
-   kubectl create secret generic hf-secret \
-     --from-literal=HF_TOKEN=<your_hf_token_here> \
-     -n <model-namespace>
-   ```
+```bash
+kubectl create secret generic hf-secret \
+ --from-literal=HF_TOKEN=<your_hf_token_here> \
+ -n <model-namespace>
+```
 
 3. **Create a custom `ClusterStorageContainer`** that references the secret:
 
-   ```yaml
-   apiVersion: "serving.kserve.io/v1alpha1"
-   kind: ClusterStorageContainer
-   metadata:
-     name: hf-hub
-   spec:
-     container:
-       image: kserve/storage-initializer:v0.16.0
-       name: storage-initializer
-       env:
-         - name: HF_TOKEN
-           valueFrom:
-             secretKeyRef:
-               name: hf-secret
-               key: HF_TOKEN
-               optional: false
-       resources:
-         limits:
-           cpu: "1"
-           memory: 1Gi
-         requests:
-           cpu: 100m
-           memory: 100Mi
-       securityContext:
-         allowPrivilegeEscalation: false
-         capabilities:
-           drop:
-           - ALL
-         privileged: false
-         runAsNonRoot: true
-       supportedUriFormats:
-         - prefix: hf://
-   ```
+```yaml
+apiVersion: "serving.kserve.io/v1alpha1"
+kind: ClusterStorageContainer
+metadata:
+ name: hf-hub
+spec:
+ container:
+   image: kserve/storage-initializer:v0.16.0
+   name: storage-initializer
+   env:
+     - name: HF_TOKEN
+       valueFrom:
+         secretKeyRef:
+           name: hf-secret
+           key: HF_TOKEN
+           optional: false
+   resources:
+     limits:
+       cpu: "1"
+       memory: 1Gi
+     requests:
+       cpu: 100m
+       memory: 100Mi
+   securityContext:
+     allowPrivilegeEscalation: false
+     capabilities:
+       drop:
+       - ALL
+     privileged: false
+     runAsNonRoot: true
+ supportedUriFormats:
+   - prefix: hf://
+```
