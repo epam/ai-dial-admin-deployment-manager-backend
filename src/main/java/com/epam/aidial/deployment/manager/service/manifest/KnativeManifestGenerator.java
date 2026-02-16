@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.KnativeMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.ListMapper;
@@ -19,6 +20,7 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
@@ -39,8 +41,12 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
     @Value("${app.secrets-volume-mount-path}")
     private String secretsVolumeMountPath;
 
-    public KnativeManifestGenerator(AppProperties appconfig) {
+    private final ProbeConverter probeConverter;
+
+    public KnativeManifestGenerator(AppProperties appconfig,
+                                    ProbeConverter probeConverter) {
         super(appconfig);
+        this.probeConverter = probeConverter;
     }
 
     public Service serviceConfig(
@@ -53,7 +59,8 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer minScale,
             @Nullable Integer maxScale,
             Resources resources,
-            @Nullable Integer containerPort
+            @Nullable Integer containerPort,
+            @Nullable ProbeProperties probeProperties
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneKnativeServiceConfig,
@@ -100,7 +107,19 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             portsList.add(port);
         }
 
+        applyStartupProbe(name, containerChain, probeProperties);
+
         return config.data();
+    }
+
+    private void applyStartupProbe(String name,
+                                   MappingChain<Container> containerChain,
+                                   @Nullable ProbeProperties deploymentProbeProperties) {
+        Probe probe = probeConverter.toProbe(deploymentProbeProperties);
+        if (probe != null) {
+            log.debug("Applying startup probe for Knative deployment '{}': {}", name, probe);
+            containerChain.data().setStartupProbe(probe);
+        }
     }
 
     private void addSecretVolumesAndMountsAndApplySensitiveFileEnv(

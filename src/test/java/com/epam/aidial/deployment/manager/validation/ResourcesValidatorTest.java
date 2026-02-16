@@ -79,8 +79,8 @@ class ResourcesValidatorTest {
     @Test
     void testLimitEqualToRequest() {
         var dto = mock(ResourcesDto.class);
-        when(dto.limits()).thenReturn(Map.of(CPU, "2", MEMORY, "4"));
-        when(dto.requests()).thenReturn(Map.of(CPU, "2", MEMORY, "4"));
+        when(dto.limits()).thenReturn(Map.of(CPU, "0.5", MEMORY, "4", NVIDIA_GPU, "0"));
+        when(dto.requests()).thenReturn(Map.of(CPU, "0.5", MEMORY, "4", NVIDIA_GPU, "0"));
         assertTrue(validator.isValid(dto, context));
     }
 
@@ -119,6 +119,17 @@ class ResourcesValidatorTest {
         assertFalse(validator.isValid(dto, context));
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must be greater than 0"));
+    }
+
+    @Test
+    void testGpuValuesMustBeGreaterThanOrEqualToZero() {
+        var dto = mock(ResourcesDto.class);
+        when(dto.limits()).thenReturn(Map.of(NVIDIA_GPU, "0"));
+        when(dto.requests()).thenReturn(Map.of(NVIDIA_GPU, "-1"));
+
+        assertFalse(validator.isValid(dto, context));
+        verify(context).disableDefaultConstraintViolation();
+        verify(context).buildConstraintViolationWithTemplate(contains("must be greater than or equal to 0"));
     }
 
     @Test

@@ -145,7 +145,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 #### NIM (NVIDIA Inference Microservices) Configuration
 | Property                                  | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                        |
 |-------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|--------------------------------------------------------------------|
-| `app.nim.enabled`                         | `K8S_NIM_ENABLED`                                 | `true`        | No                                                | -            | Enable or disable NIM deployment support                           |
+| `app.nim.enabled`                         | `K8S_NIM_ENABLED`                                 | `false`       | No                                                | -            | Enable or disable NIM deployment support                           |
 | `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments                           |
 | `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour)                    |
 | `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments |
@@ -154,7 +154,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 #### KServe Configuration
 | Property                                     | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                                                                     |
 |----------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|-----------------------------------------------------------------------------------------------------------------|
-| `app.kserve.enabled`                         | `K8S_KSERVE_ENABLED`                              | `true`        | No                                                | -            | Enable or disable KServe deployment support                                                                     |
+| `app.kserve.enabled`                         | `K8S_KSERVE_ENABLED`                              | `false`       | No                                                | -            | Enable or disable KServe deployment support                                                                     |
 | `app.kserve.deploy.namespace`                | `K8S_KSERVE_DEPLOYMENT_NAMESPACE`                 | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for KServe deployments (max 14 chars due to https://github.com/kserve/kserve/issues/4807). |
 | `app.kserve.deploy.startup-timeout`          | `K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`       | `3600`        | No                                                | -            | Seconds to wait for a KServe service to become ready.                                                           |
 | `app.kserve.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for KServe deployments                                           |
@@ -370,6 +370,61 @@ ai-dial-admin-backend/secrets-utils/generate_h2_secrets.sh can help to generate 
 | otel.traces.exporter                | OTEL_TRACES_EXPORTER        | otlp                            | No       | -         | Exporter for distributed traces                   |
 | otel.metrics.exporter               | OTEL_METRICS_EXPORTER       | otlp                            | No       | -         | Exporter for application metrics                  |
 | otel.resource.attributes            | OTEL_RESOURCE_ATTRIBUTES    |                                 | No       | -         | Key-value pairs to be used as resource attributes |
+
+### Distributed Tracing
+
+The application uses OpenTelemetry for distributed tracing and automatically includes trace IDs in HTTP response headers and error responses. This enables request correlation across services and makes debugging easier using tools like Kibana or browser developer tools.
+
+#### Response Headers
+
+All HTTP responses include the following header (when OpenTelemetry trace context is available):
+
+- **`traceparent`**: W3C Trace Context standard header for interoperability. Format: `00-{trace-id}-{span-id}-{trace-flags}` (e.g., `00-5bf82f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`)
+
+#### Response Body Structure
+
+**Success Responses:**
+
+Success responses are returned as-is without wrapping. Trace IDs are available in `traceparent` response headers only.
+
+**Error Responses:**
+
+Error responses include trace information directly in the error object:
+
+```json
+{
+  "path": "/api/v1/deployments",
+  "method": "GET",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Deployment not found",
+  "traceparent": "00-5bf82f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+}
+```
+
+#### Client Integration - Passing Trace Context
+
+To maintain OpenTelemetry trace context when making requests to this service, clients should:
+
+**Use `traceparent` header**: Send the W3C Trace Context header to propagate trace context:
+```
+traceparent: 00-{trace-id}-{span-id}-{trace-flags}
+```
+Example: `traceparent: 00-5bf82f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`
+
+The service will automatically extract and propagate the trace context. If no trace context is provided, the service will generate a new trace.
+
+**Frontend/Client Examples:**
+
+- **JavaScript/TypeScript**: Use OpenTelemetry JavaScript SDK to automatically inject `traceparent` header
+- **Manual**: Extract trace ID from previous response headers and include in subsequent requests
+- **Browser Developer Tools**: Inspect Network tab to see trace IDs in response headers
+
+#### Trace ID Generation
+
+- Trace IDs are extracted exclusively from OpenTelemetry span context
+- If OpenTelemetry is disabled (`otel.sdk.disabled=true`) or trace context is unavailable, headers may not be set
+- The service relies solely on OpenTelemetry for trace ID generation - no custom correlation ID logic
 
 ## Required Kubernetes RBAC
 

@@ -19,6 +19,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
@@ -168,6 +169,22 @@ public class FunctionalTestHelper {
                 .build();
     }
 
+    public static CreateDeployment createAdapterDeploymentRequest(UUID imageDefinitionId) {
+        return CreateAdapterDeployment.builder()
+                .id("adapter-test-deployment-1")
+                .imageDefinitionId(imageDefinitionId)
+                .displayName("test-adapter-deployment")
+                .description("Test adapter deployment description")
+                .initialScale(1)
+                .minScale(0)
+                .maxScale(5)
+                .resources(createResources())
+                .author("test-author")
+                .metadata(createMetadata())
+                .allowedDomains(List.of())
+                .build();
+    }
+
     public static CreateDeployment createRealInterceptorDeploymentRequest(String name, List<EnvVarDefinition> envs) {
         return CreateInterceptorDeployment.builder()
                 .id(name)
@@ -179,6 +196,7 @@ public class FunctionalTestHelper {
                 .resources(createResources())
                 .author("test-author")
                 .metadata(new DeploymentMetadata(envs))
+                .containerPort(8080)
                 .allowedDomains(List.of("github.com", "epam.com"))
                 .build();
     }

@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,6 +31,7 @@ public abstract class Deployment {
     private Integer minScale;
     private Integer maxScale;
     private Resources resources;
+    private ProbeProperties probeProperties;
     private DeploymentStatus status;
     private String url;
     private Integer containerPort;

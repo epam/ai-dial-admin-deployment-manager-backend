@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSource;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -68,6 +69,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -213,8 +215,9 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         Assertions.assertEquals(expectedService, service);
 
         var ciliumNetworkPolicy = cnpCaptor.getValue();
+        var expectedPorts = Set.of(deployment.getContainerPort());
         var expectedCiliumNetworkPolicy = ciliumNetworkPolicyCreator.create("default", "serving.knative.dev/service",
-                serviceName, deployment.getAllowedDomains());
+                serviceName, deployment.getAllowedDomains(), expectedPorts);
         Assertions.assertEquals(Serialization.asYaml(expectedCiliumNetworkPolicy), Serialization.asYaml(ciliumNetworkPolicy));
 
         Assertions.assertNotNull(deployedDeployment);
@@ -362,7 +365,10 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         container.setImagePullPolicy("Always");
         container.setEnv(Arrays.asList(envDialUrl, envSensVar));
         container.setResources(resources);
-        container.setPorts(List.of());
+
+        var port = new ContainerPort();
+        port.setContainerPort(8080);
+        container.setPorts(List.of(port));
 
         // RevisionSpec
         var revisionSpec = new RevisionSpec();

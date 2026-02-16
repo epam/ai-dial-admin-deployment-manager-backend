@@ -161,12 +161,14 @@ public class DeploymentController {
             @PathVariable(value = "podId") String podId,
             @RequestParam(value = "sinceTime", required = false) Instant sinceTime,
             @RequestParam(value = "sinceSeconds", required = false) Integer sinceSeconds,
-            @RequestParam(value = "tail", required = false) Integer tailLogs
+            @RequestParam(value = "tail", required = false) Integer tailLogs,
+            @RequestParam(value = "previous", required = false, defaultValue = "false") boolean previous
     ) {
         var logReadConfig = PodLogReaderConfiguration.builder()
                 .sinceTime(sinceTime)
                 .sinceSeconds(sinceSeconds)
                 .tailLogs(tailLogs)
+                .previous(previous)
                 .build();
         return deploymentLogsService.streamLogs(id, podId, logReadConfig);
     }

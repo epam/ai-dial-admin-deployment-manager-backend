@@ -17,6 +17,8 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeploy
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentLogsService;
@@ -31,6 +33,7 @@ import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -71,6 +74,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         JsonMapperConfiguration.class,
         DeploymentDtoMapperImpl.class,
+        ProbePropertiesDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
         McpEndpointPathResolver.class
 })
@@ -475,6 +479,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         deployment.setCommand(List.of("python", "script.py", "--arg", "value"));
         deployment.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
         deployment.setScaling(scaling);
+        deployment.setProbeProperties(inferenceProbeProperties());
 
         when(deploymentService.createDeployment(any())).thenReturn(deployment);
 
@@ -490,6 +495,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "script.py", "--arg", "value"));
         assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config.json", "--log-level", "DEBUG"));
         assertThat(createDeployment.getScaling()).isEqualTo(scaling);
+        assertThat(createDeployment.getProbeProperties()).isEqualTo(inferenceProbeProperties());
     }
 
     @Test
@@ -576,6 +582,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         deployment.setCommand(List.of("python", "script.py", "--arg", "value"));
         deployment.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
         deployment.setScaling(scaling);
+        deployment.setProbeProperties(inferenceProbeProperties());
 
         when(deploymentService.getDeployment("test-inference-deployment")).thenReturn(Optional.of(deployment));
 
@@ -669,6 +676,17 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         deployment.setAllowedDomains(new ArrayList<>());
         deployment.setResources(new Resources(Map.of(), Map.of()));
         return deployment;
+    }
+
+    private static ProbeProperties inferenceProbeProperties() {
+        return new ProbeProperties(
+                true,
+                5,
+                10,
+                3,
+                2,
+                new HttpGetProbe("/health", 8080)
+        );
     }
 
 }

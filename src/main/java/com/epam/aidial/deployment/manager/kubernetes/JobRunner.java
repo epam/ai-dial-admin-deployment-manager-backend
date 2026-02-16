@@ -134,7 +134,7 @@ public class JobRunner {
         log.trace("Combined allowed domains (job-specific + global): {}", allAllowedDomains);
 
         var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, JOB_NAME_LABEL,
-                K8sNamingUtils.generateName(jobId), allAllowedDomains);
+                K8sNamingUtils.generateName(jobId), allAllowedDomains, null);
         disposableResourceManager.saveK8sResources(List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
         var createdCiliumNetworkPolicy = client.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.debug("Created CiliumNetworkPolicy '{}'. jobId: '{}'", K8sNamingUtils.extractName(createdCiliumNetworkPolicy), jobId);
