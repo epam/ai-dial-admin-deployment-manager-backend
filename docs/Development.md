@@ -92,7 +92,7 @@ docker-compose down
 
 ### Core Components
 
-**Pipeline-Based Image Building**: The application uses a multi-stage pipeline pattern for building container images with Kaniko or Buildkit in Kubernetes jobs. Key pipeline steps include base image building, image analysis, and wrapper image creation. For STDIO MCP servers, the system creates wrapper images by inserting an HTTP-to-STDIO proxy executable into user-provided base images. The proxy executable is pre-built separately (using PyInstaller for standalone executables) and the system detects Linux distributions (Alpine vs Debian) to select the appropriate proxy executable.
+**Pipeline-Based Image Building**: The application uses a multi-stage pipeline pattern for building container images with Buildkit in Kubernetes jobs. Key pipeline steps include base image building, image analysis, and wrapper image creation. For STDIO MCP servers, the system creates wrapper images by inserting an HTTP-to-STDIO proxy executable into user-provided base images. The proxy executable is pre-built separately (using PyInstaller for standalone executables) and the system detects Linux distributions (Alpine vs Debian) to select the appropriate proxy executable.
 
 **Disposable Resource Management**: Critical pattern for tracking and cleaning up Kubernetes resources. Resources have lifecycle states (TEMPORARY, STABLE, TO_CLEANUP) and are automatically cleaned up using scheduled jobs with ShedLock for distributed coordination. All Kubernetes resources are tracked by group ID for comprehensive cleanup.
 

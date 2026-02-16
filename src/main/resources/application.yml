@@ -76,7 +76,6 @@ app:
         debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN}
   build-namespace: ${K8S_BUILD_NAMESPACE:default}
   git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:2.52.0}
-  builder-image: gcr.io/kaniko-project/executor:v1.24.0
   builder-root-image: moby/buildkit:v0.27.1
   builder-rootless-image: moby/buildkit:v0.27.1-rootless
   analyser-image: anchore/syft:v1.40.0
@@ -208,14 +207,6 @@ app:
     volumeMounts:
       - name: workspace-volume
         mountPath: /workspace
-  builder-container-config:
-    name: builder-container
-    image: ${app.builder-image}
-    volumeMounts:
-      - name: workspace-volume
-        mountPath: /workspace
-      - name: build-volume
-        mountPath: /image-build
   builder-root-container-config:
     name: builder-container
     image: ${app.builder-root-image}

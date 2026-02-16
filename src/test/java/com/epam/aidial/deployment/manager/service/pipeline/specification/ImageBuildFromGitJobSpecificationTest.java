@@ -48,7 +48,6 @@ class ImageBuildFromGitJobSpecificationTest {
     private static final String DOCKER_CONFIG_PATH = "/kaniko/.docker/config.json";
     private static final String GIT_URL = "https://github.com/test/repo.git";
     private static final String GIT_BRANCH = "main";
-    private static final String FULL_IMAGE_NAME = "test-build-id:1.0.0";
     private static final String BUILDER_CONTAINER_NAME = "builder-container";
     private static final String PUSH_CONTAINER_NAME = "push-container";
 
@@ -71,7 +70,7 @@ class ImageBuildFromGitJobSpecificationTest {
                 .branchName(GIT_BRANCH)
                 .build();
 
-        jobSpecification = createJobSpecification(gitDockerfileImageSource, ImageBuilder.KANIKO);
+        jobSpecification = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS);
     }
 
     private ImageBuildFromGitJobSpecification createJobSpecification(
@@ -145,7 +144,7 @@ class ImageBuildFromGitJobSpecificationTest {
     void getJob_shouldReturnJobWithCorrectConfiguration() {
         // Given
         prepareConfiguration();
-        when(appConfig.getBuilderContainerConfig())
+        when(appConfig.getBuilderRootlessContainerConfig())
                 .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
 
         String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
@@ -173,9 +172,7 @@ class ImageBuildFromGitJobSpecificationTest {
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
         assertNotNull(args);
-        assertTrue(args.stream().anyMatch(arg -> arg.startsWith("--destination=") && arg.contains(FULL_IMAGE_NAME)));
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("--context=/workspace")));
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("--no-push")));
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace")));
     }
 
     @Test
@@ -239,20 +236,21 @@ class ImageBuildFromGitJobSpecificationTest {
                 .build();
 
         prepareConfiguration();
-        when(appConfig.getBuilderContainerConfig())
+        when(appConfig.getBuilderRootlessContainerConfig())
                 .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
 
         String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
         when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
 
         // When
-        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.KANIKO).getJob();
+        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS).getJob();
 
         // Then
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
 
-        assertThat(args).contains("--context=/workspace/src/app");
+        assertThat(args).contains("context=/workspace");
+        assertThat(args).contains("dockerfile=/workspace/src/app");
     }
 
     @Test
@@ -261,14 +259,14 @@ class ImageBuildFromGitJobSpecificationTest {
         prepareConfiguration();
         when(registryService.getAuthScheme()).thenReturn(DockerAuthScheme.BASIC);
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJobWithVolumes());
-        when(appConfig.getBuilderContainerConfig())
+        when(appConfig.getBuilderRootlessContainerConfig())
                 .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
 
         String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
         when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
 
         // When
-        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.KANIKO).getJob();
+        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS).getJob();
 
         // Then
         assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
@@ -364,6 +362,5 @@ class ImageBuildFromGitJobSpecificationTest {
         when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
         when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
         when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
-
     }
 }

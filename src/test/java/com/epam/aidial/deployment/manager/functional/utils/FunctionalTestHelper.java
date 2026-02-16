@@ -42,7 +42,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .author("test-author")
                 .allowedDomains(List.of())
-                .imageBuilder(ImageBuilder.KANIKO)
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -89,7 +89,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .transportType(McpTransportType.LOCAL)
                 .allowedDomains(new ArrayList<>())
-                .imageBuilder(ImageBuilder.KANIKO)
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -106,7 +106,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .transportType(McpTransportType.REMOTE)
                 .allowedDomains(new ArrayList<>())
-                .imageBuilder(ImageBuilder.KANIKO)
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -123,7 +123,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .transportType(McpTransportType.LOCAL)
                 .allowedDomains(new ArrayList<>())
-                .imageBuilder(ImageBuilder.KANIKO)
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -138,7 +138,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .author("test-author")
                 .allowedDomains(List.of())
-                .imageBuilder(ImageBuilder.KANIKO)
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 

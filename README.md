@@ -44,7 +44,7 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 ## Features
 
 - **MCP Deployment Management**: Complete lifecycle management for Model Context Protocol servers
-- **Container Image Building**: Automated image building with Kaniko and Buildkit in Kubernetes jobs
+- **Container Image Building**: Automated image building with [BuildKit](https://github.com/moby/buildkit) in Kubernetes jobs, supporting both root and rootless containers.
 - **Image Definition Management**: Support for multiple image definition types (MCP, DIAL Interceptor) with versioning
 - **Knative-Based Deployments**: Serverless container deployments with auto-scaling and automatic HTTPS endpoints
 - **Real-Time Status Updates**: Server-Sent Events (SSE) for real-time build status and deployment monitoring

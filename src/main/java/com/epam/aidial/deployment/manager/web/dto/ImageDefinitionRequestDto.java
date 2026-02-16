@@ -54,5 +54,5 @@ public abstract class ImageDefinitionRequestDto {
     @ValidDomainList
     private List<String> allowedDomains = new ArrayList<>();
     @Nullable
-    private ImageBuilderDto imageBuilder = ImageBuilderDto.KANIKO;
+    private ImageBuilderDto imageBuilder = ImageBuilderDto.BUILDKIT_ROOTLESS;
 }
