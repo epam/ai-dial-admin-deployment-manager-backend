@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
 @Slf4j
 @LogExecution
 @RestController
@@ -35,14 +36,14 @@ public class McpRegistryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) @Min(1) @Max(1000) Integer limit,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String updated_since,
+            @RequestParam(required = false) String updatedSince,
             @RequestParam(required = false) String version
     ) {
         var request = ServersRequest.builder()
                 .cursor(cursor)
                 .limit(limit)
                 .search(search)
-                .updatedSince(updated_since)
+                .updatedSince(updatedSince)
                 .version(version)
                 .build();
         try {
