@@ -355,8 +355,8 @@ public class DeploymentService {
                     !Objects.equals(exNim.getContainerGrpcPort(), upNim.getContainerGrpcPort());
 
             case InferenceDeployment exInf when updated instanceof InferenceDeployment upInf ->
-                    !Objects.equals(exInf.getArgs(), upInf.getArgs()) ||
-                            !Objects.equals(exInf.getCommand(), upInf.getCommand());
+                    !Objects.equals(exInf.getArgs(), upInf.getArgs())
+                            || !Objects.equals(exInf.getCommand(), upInf.getCommand());
 
             default -> false;
         };
