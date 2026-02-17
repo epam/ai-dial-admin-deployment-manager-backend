@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
-import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -39,12 +38,12 @@ public class ImageDefinitionService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageType type) {
         return imageDefinitionRepository.getAllImageDefinitionsByType(type);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(ImageTypeDto type) {
+    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(ImageType type) {
         return imageDefinitionRepository.getAllImageDefinitionViewsByType(type);
     }
 
@@ -54,7 +53,7 @@ public class ImageDefinitionService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageType type) {
         return imageDefinitionRepository.getAllImageDefinitionsByNameAndType(name, type);
     }
 

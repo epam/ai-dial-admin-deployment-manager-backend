@@ -12,7 +12,6 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
-import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,14 +43,14 @@ public class ImageDefinitionRepository {
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageType type) {
         var entityClazz = detectEntityClazz(type);
         return imageDefinitionJpaRepository.findAllByType(entityClazz).stream()
                 .map(mapper::toImageDefinition)
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageType type) {
         var entityClazz = detectEntityClazz(type);
         return imageDefinitionJpaRepository.findAllByNameAndType(name, entityClazz).stream()
                 .map(mapper::toImageDefinition)
@@ -151,19 +150,16 @@ public class ImageDefinitionRepository {
         return viewMapper.toViews(imageDefinitions);
     }
 
-    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(ImageTypeDto type) {
+    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(ImageType type) {
         var entityClazz = detectEntityClazz(type);
         var imageDefinitions = imageDefinitionJpaRepository.findAllByType(entityClazz);
         return viewMapper.toViews(imageDefinitions);
     }
 
-    // TODO: refactor methods that use ImageTypeDto to use ImageType
-    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageTypeDto typeDto) {
-        ImageType type = typeDto != null ? ImageType.valueOf(typeDto.name()) : null;
-        return detectEntityClazz(type);
-    }
-
     private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Image type must not be null");
+        }
         return switch (type) {
             case MCP -> McpImageDefinitionEntity.class;
             case ADAPTER -> AdapterImageDefinitionEntity.class;
