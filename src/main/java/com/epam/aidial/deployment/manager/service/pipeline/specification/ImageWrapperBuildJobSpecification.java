@@ -76,7 +76,6 @@ public class ImageWrapperBuildJobSpecification extends ImageBuildAndPushJobSpeci
         var configMapName = K8sNamingUtils.generateName(DOCKERFILE, buildId);
         var entrypoint = extractEntrypoint(dockerImageSource);
         var dockerConfigMap = createDockerfileConfigmap(configMapName, dockerImageSource.getImageUri(), entrypoint);
-
         return List.of(dockerConfigMap);
     }
 
@@ -94,6 +93,7 @@ public class ImageWrapperBuildJobSpecification extends ImageBuildAndPushJobSpeci
         configureBuilderContainerArgs(builderContainer);
         configureBuilderContainerVolume(podSpec, builderContainer);
         configurePushContainer(podSpec);
+        configureRegistryAuth(podSpec, builderContainer);
         return config.data();
     }
 

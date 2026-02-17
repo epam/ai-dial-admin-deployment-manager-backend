@@ -99,7 +99,7 @@ public abstract class ImageBuildAndPushJobSpecification implements JobSpecificat
                 .add(new EnvVarBuilder().withName(TARGET_IMAGE_ENV_VAR_NAME).withValue(targetImage).build());
     }
 
-    private void configureRegistryAuth(MappingChain<PodSpec> podSpec, MappingChain<Container> container) {
+    protected void configureRegistryAuth(MappingChain<PodSpec> podSpec, MappingChain<Container> container) {
         if (registryService.getAuthScheme() == DockerAuthScheme.BASIC) {
             var secretName = K8sNamingUtils.generateName(REGISTRY, buildId);
             podSpec.getList(Mappers.POD_VOLUMES_FIELD, Mappers.VOLUME_NAME)

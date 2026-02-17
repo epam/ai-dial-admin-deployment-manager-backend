@@ -533,7 +533,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         secretVolumeMount.setSubPath("config.json");
         secretVolumeMount.setAdditionalProperties(new HashMap<>());
 
-        buildContainer.setVolumeMounts(Arrays.asList(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount));
+        buildContainer.setVolumeMounts(Arrays.asList(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount, secretVolumeMount));
         pushContainer.setVolumeMounts(Arrays.asList(imageBuildVolumeMount, secretVolumeMount));
 
         // Dockerfile ConfigMap volume
