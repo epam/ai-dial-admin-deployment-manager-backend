@@ -515,11 +515,15 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         var pod = getServicePod(namespace, serviceName, podName);
         if (pod == null) {
+            log.info("Pod '{}' not found for deployment '{}'. Service='{}', Namespace='{}'",
+                    podName, id, serviceName, namespace);
             throw new EntityNotFoundException("Pod is not found");
         }
 
         var containerName = getContainerName(pod);
         if (containerName == null) {
+            log.info("Container name could not be resolved for pod '{}', deployment '{}'. Service='{}', Namespace='{}'",
+                    podName, id, serviceName, namespace);
             throw new EntityNotFoundException("Container is not found");
         }
 
