@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
 import io.fabric8.kubernetes.api.model.Probe;
 import org.junit.jupiter.api.Test;
 
@@ -60,5 +61,32 @@ class ProbeConverterTest {
 
         assertThat(probe).isNotNull();
         assertThat(probe.getHttpGet().getPort().getIntVal()).isEqualTo(8080);
+    }
+
+    @Test
+    void tcpSocket_convertsToProbeWithTcpSocketAndTiming() {
+        var tcpSocket = new TcpSocketProbe(9090);
+        var properties = new ProbeProperties(true, 5, 10, 3, 2, tcpSocket);
+
+        Probe probe = probeConverter.toProbe(properties);
+
+        assertThat(probe).isNotNull();
+        assertThat(probe.getInitialDelaySeconds()).isEqualTo(5);
+        assertThat(probe.getPeriodSeconds()).isEqualTo(10);
+        assertThat(probe.getTimeoutSeconds()).isEqualTo(3);
+        assertThat(probe.getFailureThreshold()).isEqualTo(2);
+        assertThat(probe.getTcpSocket()).isNotNull();
+        assertThat(probe.getTcpSocket().getPort().getIntVal()).isEqualTo(9090);
+    }
+
+    @Test
+    void tcpSocketWithPortOnly_usesIntOrStringPort() {
+        var tcpSocket = new TcpSocketProbe(6379);
+        var properties = new ProbeProperties(true, null, null, null, null, tcpSocket);
+
+        Probe probe = probeConverter.toProbe(properties);
+
+        assertThat(probe).isNotNull();
+        assertThat(probe.getTcpSocket().getPort().getIntVal()).isEqualTo(6379);
     }
 }

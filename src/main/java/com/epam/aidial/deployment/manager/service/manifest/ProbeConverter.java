@@ -4,9 +4,11 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeHandler;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
 import io.fabric8.kubernetes.api.model.HTTPGetAction;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
+import io.fabric8.kubernetes.api.model.TCPSocketAction;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
@@ -53,6 +55,12 @@ public class ProbeConverter {
                     .httpPath(h.getPath())
                     .build();
         }
+        if (handler instanceof TcpSocketProbe tcp) {
+            return HandlerParams.builder()
+                    .handlerType("tcpSocket")
+                    .tcpPort(new IntOrString(tcp.getPort()))
+                    .build();
+        }
         return HandlerParams.builder().handlerType("unknown").build();
     }
 
@@ -62,17 +70,25 @@ public class ProbeConverter {
             @Nullable Integer timeoutSeconds,
             @Nullable Integer failureThreshold,
             HandlerParams params) {
-        if (params.httpPath() == null || params.httpPort() == null) {
-            log.warn("Probe must have httpGet handler with path and port. Probe not built.");
-            return null;
+        if (params.tcpPort() != null) {
+            var probe = new Probe();
+            setTimingOnProbe(probe, initialDelaySeconds, periodSeconds, timeoutSeconds, failureThreshold);
+            var tcpSocket = new TCPSocketAction();
+            tcpSocket.setPort(params.tcpPort());
+            probe.setTcpSocket(tcpSocket);
+            return probe;
         }
-        var probe = new Probe();
-        setTimingOnProbe(probe, initialDelaySeconds, periodSeconds, timeoutSeconds, failureThreshold);
-        var httpGet = new HTTPGetAction();
-        httpGet.setPath(params.httpPath());
-        httpGet.setPort(params.httpPort());
-        probe.setHttpGet(httpGet);
-        return probe;
+        if (params.httpPath() != null && params.httpPort() != null) {
+            var probe = new Probe();
+            setTimingOnProbe(probe, initialDelaySeconds, periodSeconds, timeoutSeconds, failureThreshold);
+            var httpGet = new HTTPGetAction();
+            httpGet.setPath(params.httpPath());
+            httpGet.setPort(params.httpPort());
+            probe.setHttpGet(httpGet);
+            return probe;
+        }
+        log.warn("Probe must have httpGet (path and port) or tcpSocket (port) handler. Probe not built.");
+        return null;
     }
 
     /**
@@ -108,6 +124,7 @@ public class ProbeConverter {
     private record HandlerParams(
             String handlerType,
             @Nullable IntOrString httpPort,
-            @Nullable String httpPath
+            @Nullable String httpPath,
+            @Nullable IntOrString tcpPort
     ) { }
 }

@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -174,7 +175,9 @@ class McpServiceTest {
         Mockito.doThrow(new TestException("Test exception")).when(mcpSyncClient).initialize();
 
         // When/Then
-        assertThrows(TestException.class, () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
+        var exception = assertThrows(McpClientException.class, () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
+
+        assertThat(exception).hasMessageContaining("Failed to connect to MCP server");
 
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verify(mcpClientFactory).create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE);
