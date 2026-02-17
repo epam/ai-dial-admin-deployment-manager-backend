@@ -18,8 +18,6 @@ import io.fabric8.kubernetes.api.model.PodStatus;
 public abstract class AbstractModelDeploymentManager<D extends Deployment, S extends HasMetadata>
         extends AbstractDeploymentManager<D, S> {
 
-    protected static final String SERVICE_NAME_LABEL = "app.kubernetes.io/name";
-
     protected AbstractModelDeploymentManager(K8sClient k8sClient,
                                              DisposableResourceManager disposableResourceManager,
                                              ManifestGenerator manifestGenerator,
@@ -46,11 +44,6 @@ public abstract class AbstractModelDeploymentManager<D extends Deployment, S ext
                 .map(Container::getName)
                 .orElseThrow(() -> new IllegalStateException(
                         "Container not found for pod " + pod.getMetadata().getName()));
-    }
-
-    @Override
-    protected String getServiceNameLabel() {
-        return SERVICE_NAME_LABEL;
     }
 
 }

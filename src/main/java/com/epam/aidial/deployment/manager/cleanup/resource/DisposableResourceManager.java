@@ -100,6 +100,15 @@ public class DisposableResourceManager {
         changeResourceLifecycleInternal(groupId, resourceReference, state);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void changeResourceLifecycleByGroupId(
+            String groupId,
+            ResourceReference resourceReference,
+            ResourceLifecycleState state
+    ) {
+        changeResourceLifecycleInternal(groupId, resourceReference, state);
+    }
+
     private List<DisposableResource> changeResourceLifecycleInternal(
             String groupId,
             ResourceReference resourceReference,
@@ -172,7 +181,7 @@ public class DisposableResourceManager {
         resourceRepository.save(imageResource);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void deleteAll(List<DisposableResource> resources) {
         resourceRepository.deleteAll(resources);
     }

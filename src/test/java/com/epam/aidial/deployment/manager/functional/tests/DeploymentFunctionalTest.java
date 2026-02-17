@@ -45,6 +45,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -105,7 +107,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyCreateDeployment() {
+    public void shouldSuccessfullyCreateInterceptorDeployment() {
         // Given
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -121,6 +123,36 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
         Assertions.assertEquals(imageDefinitionName, deployment.getImageDefinitionName());
         Assertions.assertEquals(imageDefinitionVersion, deployment.getImageDefinitionVersion());
+        Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
+        Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
+        Assertions.assertEquals(createDeployment.getInitialScale(), deployment.getInitialScale());
+        Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
+        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
+        assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
+        Assertions.assertNotNull(deployment.getId());
+    }
+
+    @Test
+    public void shouldSuccessfullyCreateAdapterDeployment() {
+        // Given - adapter image definition
+        var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
+        var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
+        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+
+        var createDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
+        var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
+
+        // When
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var deployments = deploymentService.getAllDeployments();
+
+        // Then
+        Assertions.assertEquals(1, deployments.size());
+        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
+        Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
+        Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
+        Assertions.assertEquals(adapterImageDef.getName(), deployment.getImageDefinitionName());
+        Assertions.assertEquals(adapterImageDef.getVersion(), deployment.getImageDefinitionVersion());
         Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
         Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
         Assertions.assertEquals(createDeployment.getInitialScale(), deployment.getInitialScale());
@@ -385,7 +417,58 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(newImageDefinitionId, updatedDeployment.getImageDefinitionId());
 
-        verify(resource, times(2)).update();
+        verify(resource, times(1)).update();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSuccessfullyUpdateCiliumNetworkPolicyIfRunningAndDomainsWereChanged() {
+        // Given
+        var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        var savedDeployment = deploymentService.createDeployment(createDeployment);
+
+        var knativeMixedOperation = Mockito.mock(MixedOperation.class);
+        var knativeServiceResource = Mockito.mock(Resource.class);
+        var service = Mockito.mock(Service.class);
+        var metadata = Mockito.mock(ObjectMeta.class);
+        when(metadata.getAnnotations()).thenReturn(Map.of("serving.knative.dev/creator", "immutable-creator"));
+        when(service.getMetadata()).thenReturn(metadata);
+        when(knativeServiceResource.get()).thenReturn(service);
+        when(knativeMixedOperation.inNamespace(any())).thenReturn(knativeMixedOperation);
+        when(knativeMixedOperation.withName(any())).thenReturn(knativeServiceResource);
+        when(knativeMixedOperation.resource(any())).thenReturn(knativeServiceResource);
+        when(knativeClient.services()).thenReturn(knativeMixedOperation);
+
+        var ciliumMixedOperation = Mockito.mock(MixedOperation.class);
+        var ciliumNetworkPolicyResource = Mockito.mock(Resource.class);
+        when(ciliumMixedOperation.inNamespace(any())).thenReturn(ciliumMixedOperation);
+        when(ciliumMixedOperation.resource(any())).thenReturn(ciliumNetworkPolicyResource);
+        when(kubernetesClient.resources(eq(CiliumNetworkPolicy.class))).thenReturn(ciliumMixedOperation);
+
+        mockSecretMetaData(savedDeployment);
+
+        // When
+        savedDeployment.setStatus(DeploymentStatus.RUNNING);
+        deploymentRepository.update(savedDeployment.getId(), savedDeployment);
+
+        var allowedDomains = List.of("domain1.com", "domain2.com");
+
+        var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        updateRequest.setDisplayName("updated-deployment");
+        updateRequest.setAllowedDomains(allowedDomains);
+
+        var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
+
+        // Then - deployment metadata was updated in DB
+        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
+        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
+        Assertions.assertEquals(allowedDomains, updatedDeployment.getAllowedDomains());
+
+        // Then - Cilium network policy was updated (domains change only triggers policy update)
+        verify(ciliumNetworkPolicyResource, times(1)).update();
+
+        // Then - Knative service was not updated
+        verify(knativeServiceResource, never()).update();
     }
 
     @Test
@@ -484,8 +567,8 @@ public abstract class DeploymentFunctionalTest {
         deploymentService.updateImageDefinitionForDeployments(newImageDefinitionId, deploymentIds);
 
         // Then
-        // should update only twice because cilium network policy & deployment1 is active, and deployment2 isn't
-        verify(resource, times(2)).update();
+        // should update only once because deployment1 is active, and deployment2 isn't
+        verify(resource, times(1)).update();
     }
 
     @Test
@@ -680,7 +763,7 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldSuccessfullyGetAllDeploymentsByType() {
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsMcp() {
         // Given
 
         // Create deployment-1 of MCP type
@@ -703,6 +786,29 @@ public abstract class DeploymentFunctionalTest {
         // Then
         Assertions.assertEquals(1, deployments.size());
         Assertions.assertEquals(deployment1.getId(), deployments.getFirst().getId());
+    }
+
+    @Test
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsAdapter() {
+        // Given
+        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        createMcpDeployment.setDisplayName("mcp-deployment");
+        deploymentService.createDeployment(createMcpDeployment);
+
+        var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
+        var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
+        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        var createAdapterDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
+        createAdapterDeployment.setDisplayName("adapter-deployment");
+        var adapterDeployment = deploymentService.createDeployment(createAdapterDeployment);
+
+        // When
+        var adapterDeployments = deploymentService.getAllDeploymentsByType(List.of(DeploymentTypeDto.ADAPTER)).stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, adapterDeployments.size());
+        Assertions.assertEquals(adapterDeployment.getId(), adapterDeployments.getFirst().getId());
+        Assertions.assertEquals("adapter-deployment", adapterDeployments.getFirst().getDisplayName());
     }
 
     @Test

@@ -2,9 +2,14 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,7 +39,8 @@ class InferenceManifestGeneratorTest {
 
     @Mock
     private AppProperties appconfig;
-
+    @Mock
+    private KserveProbeConverter kserveProbeConverter;
     @InjectMocks
     private InferenceManifestGenerator manifestGenerator;
 
@@ -97,21 +104,60 @@ class InferenceManifestGeneratorTest {
         // Given
         var deploymentName = "scaling-inference-app";
         var storageUri = "s3://my-bucket/scaling-model";
-        var minScale = 1;
-        var maxScale = 5;
 
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
+        var scaling = new Scaling(1, 5, 600, scalingStrategy);
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                minScale, maxScale, null, null, null
+                scaling, null, null, null, null
         );
 
         // Then
         var jsonOutput = serialize(generatedService);
         var expected = ResourceUtils.readResource("/manifest/inference_service_with_scaling.json");
         JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    @Test
+    void testServiceConfig_withOverriddenScaling_onlyRequiredParam() throws JsonProcessingException, JSONException {
+        // Given
+        var deploymentName = "scale-zero-delay-app";
+        var storageUri = "s3://my-bucket/model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
+        var scaling = new Scaling(1, 5, null, scalingStrategy);
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                scaling, null, null, null, null
+        );
+
+        // Then
+        var jsonOutput = serialize(generatedService);
+        var expected = ResourceUtils.readResource("/manifest/inference_service_with_scaling_only_required_params.json");
+        JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    @Test
+    void testServiceConfig_withInvalidScalingStrategy() {
+        // Given
+        var deploymentName = "invalid-strategy-app";
+        var storageUri = "s3://my-bucket/model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scalingStrategy = new ScalingStrategy(ScalingStrategyType.HARDWARE_USAGE, 10);
+        var scaling = new Scaling(1, 5, null, scalingStrategy);
+
+        // When/Then
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                scaling, null, null, null, null
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
     }
 
     @Test
@@ -126,7 +172,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, containerPort
+                null, null, null, containerPort, null
         );
 
         // Then
@@ -147,7 +193,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, args, null
+                null, null, args, null, null
         );
 
         // Then
@@ -166,7 +212,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, args, null
+                null, null, args, null, null
         );
 
         // Then
@@ -186,7 +232,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, args, null
+                null, null, args, null, null
         );
 
         // Then
@@ -206,13 +252,41 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, command, Collections.emptyList(), null
+                null, command, Collections.emptyList(), null, null
         );
 
         // Then
         var model = generatedService.getSpec().getPredictor().getModel();
         assertThat(model.getCommand()).containsExactlyElementsOf(command);
         assertThat(model.getArgs()).isEmpty();
+    }
+
+    @Test
+    void testServiceConfig_withProbeProperties_setsStartupProbeOnModel() {
+        // Given: generator with real KserveProbeConverter so probe is built from properties
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));
+        var deploymentName = "probe-inference-app";
+        var storageUri = "s3://my-bucket/probe-model";
+        var httpGet = new HttpGetProbe("/health", 8080);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, probeProperties
+        );
+
+        // Then: predictor model has startup probe with expected path, port and timing
+        var model = generatedService.getSpec().getPredictor().getModel();
+        var startupProbe = model.getStartupProbe();
+        assertThat(startupProbe).isNotNull();
+        assertThat(startupProbe.getHttpGet()).isNotNull();
+        assertThat(startupProbe.getHttpGet().getPath()).isEqualTo("/health");
+        assertThat(startupProbe.getHttpGet().getPort().getIntVal()).isEqualTo(8080);
+        assertThat(startupProbe.getInitialDelaySeconds()).isEqualTo(5);
+        assertThat(startupProbe.getPeriodSeconds()).isEqualTo(10);
+        assertThat(startupProbe.getTimeoutSeconds()).isEqualTo(3);
+        assertThat(startupProbe.getFailureThreshold()).isEqualTo(2);
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

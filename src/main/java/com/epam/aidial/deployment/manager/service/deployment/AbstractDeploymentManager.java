@@ -46,9 +46,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -108,7 +110,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        createCiliumNetworkPolicy(id, deployment.getAllowedDomains());
+                        createCiliumNetworkPolicy(id, deployment.getAllowedDomains(), getCiliumIngressPorts(deployment));
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
@@ -188,7 +190,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        updateCiliumNetworkPolicy(id, deployment.getAllowedDomains());
                         updateService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
@@ -604,27 +605,48 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return disposableResources;
     }
 
-    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains) {
-        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}", groupId, allowedDomains);
+    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
+        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
             return;
         }
         var serviceNameLabel = getServiceNameLabel();
         var serviceName = getServiceName(groupId);
+        var cnpName = CiliumNetworkPolicyCreator.getPolicyName(serviceName);
         log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains);
+        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
 
         disposableResourceManager.saveK8sResources(List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
         log.trace("createCiliumNetworkPolicy. Saved Cilium Network Policy as disposable resource for groupId='{}' in namespace='{}'", groupId, namespace);
 
         k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("createCiliumNetworkPolicy. Created Cilium Network Policy: {}", ciliumNetworkPolicy);
+
+        disposableResourceManager.changeResourceLifecycleByGroupId(
+                groupId,
+                new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, cnpName),
+                ResourceLifecycleState.STABLE
+        );
     }
 
-    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains) {
-        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}", groupId, allowedDomains);
+    @Override
+    @Transactional
+    public void updateCiliumNetworkPolicy(String id) {
+        var deployment = getDeployment(id);
+
+        try {
+            updateCiliumNetworkPolicy(id, deployment.getAllowedDomains(), getCiliumIngressPorts(deployment));
+        } catch (Exception e) {
+            var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
+            log.warn(errorMessage, e);
+            throw new DeploymentException(errorMessage, e);
+        }
+    }
+
+    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
+        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
             return;
@@ -633,7 +655,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var serviceName = getServiceName(groupId);
         log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains);
+        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
 
         k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
@@ -654,6 +676,13 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 log.debug("{}. Cilium Network Policies are disabled", message);
             }
         }
+    }
+
+    protected Set<Integer> getCiliumIngressPorts(D deployment) {
+        Set<Integer> ports = new HashSet<>();
+        Optional.ofNullable(deployment.getContainerPort()).ifPresent(ports::add);
+        Optional.ofNullable(defaultContainerPort).ifPresent(ports::add);
+        return ports;
     }
 
     private Map<String, String> transformEnvs(Map<String, EnvVarValue> envs) {

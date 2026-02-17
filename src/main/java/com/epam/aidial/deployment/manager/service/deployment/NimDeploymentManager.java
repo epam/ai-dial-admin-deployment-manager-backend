@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -33,6 +34,7 @@ import java.util.Optional;
 @LogExecution
 public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDeployment, NIMService> {
 
+    private static final String SERVICE_NAME_LABEL = "app.kubernetes.io/name";
     private static final int DEFAULT_NIM_SERVICE_PORT = 8000;
 
     private final NimManifestGenerator nimManifestGenerator;
@@ -80,6 +82,13 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
+    protected Set<Integer> getCiliumIngressPorts(NimDeployment deployment) {
+        var ports = super.getCiliumIngressPorts(deployment);
+        Optional.ofNullable(deployment.getContainerGrpcPort()).ifPresent(ports::add);
+        return ports;
+    }
+
+    @Override
     protected NIMService prepareServiceSpec(NimDeployment deployment) {
         if (!(deployment.getSource() instanceof NimDeploymentNgcRegistrySource(String imageRef))) {
             throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: '%s'"
@@ -99,7 +108,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 deployment.getResources(),
                 imageRef,
                 containerPort,
-                containerGrpcPort);
+                containerGrpcPort,
+                deployment.getProbeProperties());
     }
 
     @Override
@@ -191,6 +201,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         }
         return url;
+    }
+
+    @Override
+    protected String getServiceNameLabel() {
+        return SERVICE_NAME_LABEL;
     }
 
 }

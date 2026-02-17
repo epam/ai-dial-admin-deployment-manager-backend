@@ -51,6 +51,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -287,6 +288,7 @@ class KnativeDeploymentManagerTest {
         serviceSpec.setMetadata(new ObjectMeta());
         serviceSpec.getMetadata().setName(SERVICE_NAME);
         Integer containerPort = 8080;
+        deployment.setContainerPort(containerPort);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
@@ -301,10 +303,11 @@ class KnativeDeploymentManagerTest {
                 eq(deployment.getMinScale()),
                 eq(deployment.getMaxScale()),
                 eq(deployment.getResources()),
-                eq(containerPort)
+                eq(containerPort),
+                any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
 
         // When
         Deployment result = knativeDeploymentManager.deploy(DEPLOYMENT_ID);
@@ -370,15 +373,17 @@ class KnativeDeploymentManagerTest {
         Service serviceSpec = new Service();
         serviceSpec.setMetadata(new ObjectMeta());
         serviceSpec.getMetadata().setName(SERVICE_NAME);
+        Integer containerPort = 8080;
+        deployment.setContainerPort(containerPort);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
-        when(containerPortResolver.resolveContainerPort(any(), any())).thenReturn(8080);
+        when(containerPortResolver.resolveContainerPort(any(), any())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
         doThrow(new RuntimeException("Test exception")).when(k8sClient).createCiliumNetworkPolicy(eq(NAMESPACE), any());
 
         // When

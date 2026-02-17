@@ -173,6 +173,11 @@ public class DeploymentService {
 
         var updatedDeployment = deploymentRepository.update(id, deployment);
 
+        boolean isApplicableForCiliumNetworkPolicyUpdate = isApplicableForCiliumNetworkPolicyUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment);
+        if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForCiliumNetworkPolicyUpdate) {
+            deploymentManager.updateCiliumNetworkPolicy(id);
+        }
+
         boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
         if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForRollingUpdate) {
             deploymentManager.rollingUpdate(id);
@@ -209,6 +214,7 @@ public class DeploymentService {
                 .orElseThrow(() -> new EntityNotFoundException("Etalon deployment not found by id: '%s'".formatted(etalonDeploymentId)));
 
         var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentId, cloneDeploymentDisplayName);
+        createDeployment.setAuthor(securityClaimsExtractor.getEmail());
 
         return createDeployment(createDeployment);
     }
@@ -354,8 +360,12 @@ public class DeploymentService {
                 || !Objects.equals(existing.getMinScale(), updated.getMinScale())
                 || !Objects.equals(existing.getMaxScale(), updated.getMaxScale())
                 || !Objects.equals(existing.getResources(), updated.getResources())
-                || !CollectionUtils.isEqualCollection(existing.getAllowedDomains(), updated.getAllowedDomains())
                 || isGrpcUpdated;
+    }
+
+    private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {
+        return !CollectionUtils.isEqualCollection(existing.getAllowedDomains(), updated.getAllowedDomains())
+                || !Objects.equals(existing.getContainerPort(), updated.getContainerPort());
     }
 
 }

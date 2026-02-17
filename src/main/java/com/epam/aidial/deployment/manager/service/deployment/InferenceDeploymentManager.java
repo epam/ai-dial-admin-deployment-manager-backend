@@ -18,7 +18,7 @@ import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumN
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
-import io.kserve.serving.v1beta1.InferenceServiceStatus;
+import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +34,7 @@ import java.util.Optional;
 @LogExecution
 public class InferenceDeploymentManager extends AbstractModelDeploymentManager<InferenceDeployment, InferenceService> {
 
+    private static final String SERVICE_NAME_LABEL = "serving.kserve.io/inferenceservice";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
@@ -96,11 +97,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
-                deployment.getMinScale(),
-                deployment.getMaxScale(),
+                deployment.getScaling(),
                 deployment.getCommand(),
                 deployment.getArgs(),
-                containerPort);
+                containerPort,
+                deployment.getProbeProperties());
     }
 
     @Override
@@ -205,13 +206,30 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             return null;
         }
 
+        var components = status.getComponents();
+        if (components == null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. components is undefined", serviceName);
+            return null;
+        }
+
+        var predictor = components.get("predictor");
+        if (predictor == null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. predictor is undefined", serviceName);
+            return null;
+        }
+
         return useClusterInternalUrl
-                ? getClusterInternalUrl(status, serviceName)
-                : getStatusUrl(status, serviceName);
+                ? getClusterInternalUrl(predictor, serviceName)
+                : getStatusUrl(predictor, serviceName);
     }
 
-    private String getClusterInternalUrl(InferenceServiceStatus status, String serviceName) {
-        var address = status.getAddress();
+    @Override
+    protected String getServiceNameLabel() {
+        return SERVICE_NAME_LABEL;
+    }
+
+    private String getClusterInternalUrl(Components predictor, String serviceName) {
+        var address = predictor.getAddress();
         if (address == null) {
             log.debug("resolveServiceUrl. serviceName: '{}'. address is undefined", serviceName);
             return null;
@@ -221,9 +239,10 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return url;
     }
 
-    private String getStatusUrl(InferenceServiceStatus status, String serviceName) {
-        var url = status.getUrl();
-        log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
+    private String getStatusUrl(Components predictor, String serviceName) {
+        var url = predictor.getUrl();
+        log.info("resolveServiceUrl. serviceName: '{}'. Using cluster external URL: {}", serviceName, url);
         return url;
     }
+
 }

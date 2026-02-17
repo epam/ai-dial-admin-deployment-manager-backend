@@ -5,6 +5,8 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +36,8 @@ class KnativeManifestGeneratorTest {
             .enable(SerializationFeature.INDENT_OUTPUT);
     @Mock
     private AppProperties appconfig;
+    @Mock
+    private ProbeConverter probeConverter;
     @InjectMocks
     private KnativeManifestGenerator manifestGenerator;
 
@@ -62,7 +66,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, simpleEnvs, sensitiveEnvs, Collections.emptyList(), imageName,
-                null, null, null, resources, null
+                null, null, null, resources, null, null
         );
 
         // Then
@@ -80,7 +84,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                0, 0, 10, new Resources(), null
+                0, 0, 10, new Resources(), null, null
         );
 
         // Then
@@ -102,7 +106,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, resources, null
+                null, null, null, resources, null, null
         );
 
         // Then
@@ -121,14 +125,14 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), containerPort
+                null, null, null, new Resources(), containerPort, null
         );
 
         // Then
         assertThat(generatedService.getSpec().getTemplate().getSpec().getContainers())
                 .hasSize(1);
 
-        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().get(0);
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
         assertThat(container.getPorts())
                 .hasSize(1)
                 .first()
@@ -144,12 +148,40 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), null
+                null, null, null, new Resources(), null, null
         );
 
         // Then
-        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().get(0);
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
         assertThat(container.getPorts()).isNullOrEmpty();
+    }
+
+    @Test
+    void testServiceConfig_withProbeProperties_setsStartupProbeOnContainer() {
+        // Given: generator with real ProbeConverter so probe is built from properties
+        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter());
+        var deploymentName = "probe-app";
+        var imageName = "my-registry/probe-image:v1";
+        var httpGet = new HttpGetProbe("/ready", 9090);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, null, null, new Resources(), null, probeProperties
+        );
+
+        // Then: container has startup probe with expected path, port and timing
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
+        var startupProbe = container.getStartupProbe();
+        assertThat(startupProbe).isNotNull();
+        assertThat(startupProbe.getHttpGet()).isNotNull();
+        assertThat(startupProbe.getHttpGet().getPath()).isEqualTo("/ready");
+        assertThat(startupProbe.getHttpGet().getPort().getIntVal()).isEqualTo(9090);
+        assertThat(startupProbe.getInitialDelaySeconds()).isEqualTo(5);
+        assertThat(startupProbe.getPeriodSeconds()).isEqualTo(10);
+        assertThat(startupProbe.getTimeoutSeconds()).isEqualTo(3);
+        assertThat(startupProbe.getFailureThreshold()).isEqualTo(2);
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

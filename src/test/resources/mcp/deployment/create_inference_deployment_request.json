@@ -19,5 +19,17 @@
   "args": "--config config.json --log-level DEBUG",
   "metadata": {
     "envs": []
+  },
+  "probeProperties": {
+    "enabled": true,
+    "initialDelaySeconds": 5,
+    "periodSeconds": 10,
+    "timeoutSeconds": 3,
+    "failureThreshold": 2,
+    "probe": {
+      "$type": "httpGet",
+      "path": "/health",
+      "port": 8080
+    }
   }
 }

@@ -2,8 +2,10 @@ package com.epam.aidial.deployment.manager.web.security;
 
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class JwtAuthenticationConverterFactory {
 
@@ -27,7 +29,9 @@ public class JwtAuthenticationConverterFactory {
 
     private JwtAuthenticationConverter create(JwtProvidersProperties.ProviderConfig config) {
         var grantedAuthoritiesConverter = new MultiPathGrantedAuthoritiesConverter();
-        var authoritiesPaths = config.getRoleClaims().stream()
+        var authoritiesPaths = Optional.ofNullable(config.getRoleClaims())
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(String::trim)
                 .toList();
         grantedAuthoritiesConverter.setAuthoritiesPaths(authoritiesPaths);

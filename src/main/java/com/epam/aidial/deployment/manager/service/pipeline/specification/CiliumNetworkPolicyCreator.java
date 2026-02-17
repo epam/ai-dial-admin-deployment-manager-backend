@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.CiliumNetworkPolicySpec;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
+import io.cilium.v2.ciliumnetworkpolicyspec.Egress.ToEntities;
 import io.cilium.v2.ciliumnetworkpolicyspec.EndpointSelector;
 import io.cilium.v2.ciliumnetworkpolicyspec.Ingress;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToEndpoints;
@@ -18,12 +19,16 @@ import io.cilium.v2.ciliumnetworkpolicyspec.ingress.FromEndpoints;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 @Getter
 @Component
@@ -35,16 +40,31 @@ public class CiliumNetworkPolicyCreator {
     private static final String UDP_PORT = "53";
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
+    private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
     private static final String KUBE_DNS_NAMESPACE_LABEL_VALUE = "kube-system";
+    private static final String ALLOW_ALL_KEY = "*";
     private static final String APP = "app";
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
 
-    public CiliumNetworkPolicy create(String namespace, String matchLabelName, String matchLabelValue, List<String> allowedDomains) {
+    public CiliumNetworkPolicy create(@NotNull String namespace,
+                                      @NotNull String matchLabelName,
+                                      @NotNull String matchLabelValue,
+                                      @NotNull List<String> allowedDomains,
+                                      @Nullable Set<Integer> ports) {
+        List<String> domains = new ArrayList<>(allowedDomains);
+
+        // Detect if all egress to FQDNs should be allowed
+        boolean shouldAllowAllEgressToFqdns = false;
+        if (CollectionUtils.isNotEmpty(domains) && domains.contains(ALLOW_ALL_KEY)) {
+            domains = new ArrayList<>();
+            shouldAllowAllEgressToFqdns = true;
+        }
+
         // Metadata
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(getPolicyName(matchLabelValue));
@@ -58,12 +78,12 @@ public class CiliumNetworkPolicyCreator {
         CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
         spec.setEndpointSelector(endpointSelector);
         List<Egress> egressList = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(allowedDomains)) {
-            egressList.add(createFqdnEgress(allowedDomains));
+        if (CollectionUtils.isNotEmpty(domains) || shouldAllowAllEgressToFqdns) {
+            egressList.add(createExternalEgress(domains));
         }
-        egressList.add(createKubeDnsEgress(allowedDomains));
+        egressList.add(createKubeDnsEgress());
         spec.setEgress(egressList);
-        spec.setIngress(createIngress());
+        spec.setIngress(createIngress(ports));
 
         // CiliumNetworkPolicy
         CiliumNetworkPolicy policy = new CiliumNetworkPolicy();
@@ -73,15 +93,28 @@ public class CiliumNetworkPolicyCreator {
         return policy;
     }
 
-    private Egress createFqdnEgress(List<String> allowedDomains) {
-        List<ToFQDNs> toFqdnsList = allowedDomains.stream()
-                .map(domain -> {
-                    ToFQDNs toFqdns = new ToFQDNs();
-                    toFqdns.setMatchName(domain);
-                    return toFqdns;
-                })
-                .toList();
+    private Egress createExternalEgress(List<String> domains) {
+        Egress egress = new Egress();
 
+        ToPorts tcpToPorts = createToPortsEgress();
+        egress.setToPorts(List.of(tcpToPorts));
+
+        if (CollectionUtils.isEmpty(domains)) {
+            egress.setToEntities(List.of(ToEntities.WORLD));
+        } else {
+            List<ToFQDNs> toFqdnsList = domains.stream()
+                    .map(domain -> {
+                        ToFQDNs toFqdns = new ToFQDNs();
+                        toFqdns.setMatchName(domain);
+                        return toFqdns;
+                    })
+                    .toList();
+            egress.setToFQDNs(toFqdnsList);
+        }
+        return egress;
+    }
+
+    private ToPorts createToPortsEgress() {
         Ports tcpPort443 = new Ports();
         tcpPort443.setPort(TCP_PORT_443);
         tcpPort443.setProtocol(Protocol.TCP);
@@ -94,13 +127,10 @@ public class CiliumNetworkPolicyCreator {
         ToPorts tcpToPorts = new ToPorts();
         tcpToPorts.setPorts(List.of(tcpPort443, tcpPort80));
 
-        Egress egress = new Egress();
-        egress.setToFQDNs(toFqdnsList);
-        egress.setToPorts(List.of(tcpToPorts));
-        return egress;
+        return tcpToPorts;
     }
 
-    private Egress createKubeDnsEgress(List<String> allowedDomains) {
+    private Egress createKubeDnsEgress() {
         ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
         kubeDnsToEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
@@ -111,16 +141,11 @@ public class CiliumNetworkPolicyCreator {
         kubeDnsPorts.setPort(UDP_PORT);
         kubeDnsPorts.setProtocol(Protocol.ANY);
 
-        List<Dns> dnsList = allowedDomains.stream()
-                .map(domain -> {
-                    Dns dns = new Dns();
-                    dns.setMatchName(domain);
-                    return dns;
-                })
-                .toList();
+        Dns dns = new Dns();
+        dns.setMatchPattern(UDP_DNS_PATTERN_ALL);
 
         Rules rules = new Rules();
-        rules.setDns(dnsList);
+        rules.setDns(List.of(dns));
 
         ToPorts kubeDnsToPorts = new ToPorts();
         kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
@@ -132,7 +157,7 @@ public class CiliumNetworkPolicyCreator {
         return egress;
     }
 
-    private List<Ingress> createIngress() {
+    private List<Ingress> createIngress(@Nullable Set<Integer> ports) {
         FromEndpoints fromEndpoints = new FromEndpoints();
         fromEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_NAMESPACE_LABEL_NAME, "istio-system", APP, "istio-ingressgateway"
@@ -159,9 +184,26 @@ public class CiliumNetworkPolicyCreator {
         port8022.setPort(INGRESS_PORT_8022);
         port8022.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
 
+        List<io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports> ingressPorts = new ArrayList<>();
+        ingressPorts.add(port8012);
+        ingressPorts.add(port8022);
+
+        if (CollectionUtils.isNotEmpty(ports)) {
+            ports.stream()
+                    .filter(Objects::nonNull)
+                    .map(port -> {
+                        io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports ingressPort =
+                                new io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports();
+                        ingressPort.setPort(port.toString());
+                        ingressPort.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
+                        return ingressPort;
+                    })
+                    .forEach(ingressPorts::add);
+        }
+
         io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts ingressToPorts =
                 new io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts();
-        ingressToPorts.setPorts(List.of(port8012, port8022));
+        ingressToPorts.setPorts(ingressPorts);
 
         Ingress fromEndpointsIngressRule = new Ingress();
         fromEndpointsIngressRule.setFromEndpoints(List.of(fromEndpoints, fromEndpointsActivator, fromEndpointsAutoscaler));

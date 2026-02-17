@@ -89,7 +89,7 @@ class JobRunnerTest {
         List<String> allowedDomains = new ArrayList<>(ALLOWED_DOMAINS);
         allowedDomains.addAll(GLOBAL_ALLOWED_DOMAINS);
 
-        ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(NAMESPACE, LABEL_NAME, LABEL_VALUE, allowedDomains);
+        ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(NAMESPACE, LABEL_NAME, LABEL_VALUE, allowedDomains, null);
     }
 
     @Test
@@ -168,7 +168,7 @@ class JobRunnerTest {
 
         when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(GLOBAL_ALLOWED_DOMAINS);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(null))).thenReturn(ciliumNetworkPolicy);
 
         // Setup K8s client responses
         when(k8sClient.createSecret(eq(NAMESPACE), any(Secret.class))).thenReturn(secrets.get(0), secrets.get(1));
@@ -212,7 +212,7 @@ class JobRunnerTest {
 
         when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(GLOBAL_ALLOWED_DOMAINS);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(null))).thenReturn(ciliumNetworkPolicy);
 
         // Setup K8s client responses
         when(k8sClient.createSecret(eq(NAMESPACE), any(Secret.class))).thenReturn(secrets.get(0));

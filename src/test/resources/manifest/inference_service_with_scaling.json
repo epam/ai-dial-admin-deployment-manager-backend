@@ -2,6 +2,10 @@
   "apiVersion": "serving.kserve.io/v1beta1",
   "kind": "InferenceService",
   "metadata": {
+    "annotations": {
+      "autoscaling.knative.dev/scale-to-zero-pod-retention-period": "600s",
+      "autoscaling.knative.dev/initial-scale": "1"
+    },
     "name": "dm-scaling-inference-app"
   },
   "spec": {
@@ -22,7 +26,9 @@
           "requests": {}
         },
         "storageUri": "s3://my-bucket/scaling-model"
-      }
+      },
+      "scaleMetric": "concurrency",
+      "scaleTarget": 10
     }
   }
 }
