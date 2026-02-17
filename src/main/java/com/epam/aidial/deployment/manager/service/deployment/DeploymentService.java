@@ -19,6 +19,7 @@ import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
@@ -348,19 +349,27 @@ public class DeploymentService {
     }
 
     private static boolean isApplicableForRollingUpdate(Deployment existing, Deployment updated, boolean envsAreChanged) {
-        boolean isGrpcUpdated = false;
-        if (existing instanceof NimDeployment existingNim
-                && updated instanceof NimDeployment updatedNim) {
-            isGrpcUpdated = !Objects.equals(existingNim.getContainerGrpcPort(), updatedNim.getContainerGrpcPort());
-        }
+        // 1. Check specialized deployment types using pattern matching
+        boolean specializedUpdate = switch (existing) {
+            case NimDeployment exNim when updated instanceof NimDeployment upNim ->
+                    !Objects.equals(exNim.getContainerGrpcPort(), upNim.getContainerGrpcPort());
+
+            case InferenceDeployment exInf when updated instanceof InferenceDeployment upInf ->
+                    !Objects.equals(exInf.getArgs(), upInf.getArgs()) ||
+                            !Objects.equals(exInf.getCommand(), upInf.getCommand());
+
+            default -> false;
+        };
+
+        // 2. Check general deployment fields (and env changes)
         return envsAreChanged
+                || specializedUpdate
                 || !Objects.equals(existing.getImageDefinitionId(), updated.getImageDefinitionId())
                 || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
                 || !Objects.equals(existing.getInitialScale(), updated.getInitialScale())
                 || !Objects.equals(existing.getMinScale(), updated.getMinScale())
                 || !Objects.equals(existing.getMaxScale(), updated.getMaxScale())
-                || !Objects.equals(existing.getResources(), updated.getResources())
-                || isGrpcUpdated;
+                || !Objects.equals(existing.getResources(), updated.getResources());
     }
 
     private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {
