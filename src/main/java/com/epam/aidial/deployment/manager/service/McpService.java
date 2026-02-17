@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
@@ -41,6 +42,9 @@ public class McpService {
         try (var mcpClient = mcpClientFactory.create(deployment.getUrl(), endpointPath, deployment.getTransport())) {
             mcpClient.initialize();
             return function.apply(mcpClient, nextCursor);
+        } catch (Exception e) {
+            throw new McpClientException(("Failed to connect to MCP server. Make sure transport '%s' and path '%s' are correct."
+                    + " Deployment id: %s").formatted(deployment.getTransport(), deployment.getMcpEndpointPath(), deploymentId), e);
         }
     }
 

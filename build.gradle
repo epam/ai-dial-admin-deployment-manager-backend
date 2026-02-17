@@ -15,7 +15,7 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '3.5.3'
+    id 'org.springframework.boot' version '3.5.10'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
