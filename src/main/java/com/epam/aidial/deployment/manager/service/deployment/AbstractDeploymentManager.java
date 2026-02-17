@@ -510,21 +510,91 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public ContainerResource getContainerResource(String id, String podName) {
+    public ContainerResource getContainerResourceForLogs(String id, String podName, boolean previous) {
         var serviceName = getServiceName(id);
 
         var pod = getServicePod(namespace, serviceName, podName);
         if (pod == null) {
-            log.warn("Pod '{}' not found for deployment '{}'", podName, serviceName);
-            return null;
+            throw new EntityNotFoundException("Pod is not found");
         }
 
         var containerName = getContainerName(pod);
         if (containerName == null) {
-            throw new EntityNotFoundException("Container name could not be resolved for pod %s".formatted(podName));
+            throw new EntityNotFoundException("Container is not found");
         }
 
+        assertContainerLoggable(pod, podName, containerName, previous);
         return k8sClient.getPodResource(namespace, podName).inContainer(containerName);
+    }
+
+    private void assertContainerLoggable(Pod pod, String podName, String containerName, boolean previous) {
+        var containerStatus = findContainerStatus(pod, podName, containerName);
+
+        if (previous) {
+            assertPreviousLogsAvailable(containerStatus, podName, containerName);
+        } else {
+            assertContainerRunning(containerStatus, podName, containerName);
+        }
+    }
+
+    private ContainerStatus findContainerStatus(Pod pod, String podName, String containerName) {
+        var podStatus = pod.getStatus();
+        var phase = (podStatus != null) ? podStatus.getPhase() : null;
+        var containerStatuses = (podStatus != null) ? podStatus.getContainerStatuses() : null;
+
+        if (containerStatuses == null || containerStatuses.isEmpty()) {
+            log.info("Container '{}' in pod '{}' has no status yet. Pod phase={}", containerName, podName, phase);
+            throw new IllegalArgumentException("Container is not ready for log streaming");
+        }
+
+        return containerStatuses.stream()
+                .filter(s -> containerName.equals(s.getName()))
+                .findFirst()
+                .orElseThrow(() -> {
+                    log.info("Container '{}' not found in pod '{}'. Pod phase={}", containerName, podName, phase);
+                    return new IllegalArgumentException("Container is not found");
+                });
+    }
+
+    private void assertPreviousLogsAvailable(ContainerStatus containerStatus, String podName, String containerName) {
+        var lastState = containerStatus.getLastState();
+        var currentState = containerStatus.getState();
+        var hasTerminatedState = (lastState != null && lastState.getTerminated() != null)
+                || (currentState != null && currentState.getTerminated() != null);
+
+        if (!hasTerminatedState) {
+            log.info("Container '{}' in pod '{}' has no terminated state. {}", containerName, podName,
+                    describeContainerState(containerStatus));
+            throw new IllegalArgumentException("Previous logs are not available for container");
+        }
+    }
+
+    private void assertContainerRunning(ContainerStatus containerStatus, String podName, String containerName) {
+        var state = containerStatus.getState();
+        if (state != null && state.getRunning() != null) {
+            return;
+        }
+
+        log.info("Container '{}' in pod '{}' is not running. {}", containerName, podName,
+                describeContainerState(containerStatus));
+        throw new IllegalArgumentException("Container is not running");
+    }
+
+    private static String describeContainerState(ContainerStatus containerStatus) {
+        var state = containerStatus.getState();
+        if (state == null) {
+            return "State=Unknown";
+        }
+        if (state.getWaiting() != null) {
+            var w = state.getWaiting();
+            return "State=Waiting Reason=%s Message=%s".formatted(w.getReason(), w.getMessage());
+        }
+        if (state.getTerminated() != null) {
+            var t = state.getTerminated();
+            return "State=Terminated Reason=%s ExitCode=%s Message=%s"
+                    .formatted(t.getReason(), t.getExitCode(), t.getMessage());
+        }
+        return "State=Unknown";
     }
 
     @Override

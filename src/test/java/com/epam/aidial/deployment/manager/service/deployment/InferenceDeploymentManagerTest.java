@@ -249,16 +249,18 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnContainerResourceForPod() {
+    void getContainerResourceForLogs_shouldReturnContainerResourceForRunningPod() {
         // Given
         Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -268,19 +270,18 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnNullWhenPodNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(null);
 
-        // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
-
-        // Then
-        assertThat(result).isNull();
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Pod is not found");
     }
 
     @Test
-    void getContainerResource_shouldThrowExceptionWhenContainerNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenContainerNotFound() {
         // Given
         Pod pod = new Pod();
         pod.setMetadata(new ObjectMeta());
@@ -290,7 +291,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container not found for pod");
     }

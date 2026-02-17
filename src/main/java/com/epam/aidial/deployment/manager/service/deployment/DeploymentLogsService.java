@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderFactory;
 import com.epam.aidial.deployment.manager.service.SafeAutoCloseable;
@@ -33,17 +32,19 @@ public class DeploymentLogsService {
                                  String podName,
                                  PodLogReaderConfiguration cfg) {
 
-        var containerResource = deploymentManagerProvider.provide(id)
-                .getContainerResource(id, podName);
+        try {
+            var containerResource = deploymentManagerProvider.provide(id)
+                    .getContainerResourceForLogs(id, podName, cfg.previous());
 
-        if (containerResource == null) {
-            throw new EntityNotFoundException("Pod not found. Deployment=%s Pod=%s".formatted(id, podName));
+            return sseEmitterFactory.createEmitter(
+                    id,
+                    "Deployment-" + podName,
+                    emitter -> startPodStreaming(id, containerResource, cfg, emitter));
+
+        } catch (Exception e) {
+            log.info("Log streaming rejected for deployment '{}', pod '{}': {}", id, podName, e);
+            return sseEmitterFactory.createErrorEmitter(id, "Deployment-" + podName, e.getMessage());
         }
-
-        return sseEmitterFactory.createEmitter(
-                id,
-                "Deployment-" + podName,
-                emitter -> startPodStreaming(id, containerResource, cfg, emitter));
     }
 
     private SafeAutoCloseable startPodStreaming(String id,
