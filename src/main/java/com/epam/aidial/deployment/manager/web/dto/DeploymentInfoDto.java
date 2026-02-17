@@ -8,9 +8,10 @@ import java.util.UUID;
 
 public record DeploymentInfoDto(
         @NotNull String name,
-        @NotNull UUID imageDefinitionId,
-        @NotNull String imageDefinitionName,
-        @NotNull String imageDefinitionVersion,
+        @Nullable UUID imageDefinitionId,
+        @Nullable ImageTypeDto imageDefinitionType,
+        @Nullable String imageDefinitionName,
+        @Nullable String imageDefinitionVersion,
         @NotNull DeploymentTypeDto type,
         @NotNull String displayName,
         @Nullable String description,

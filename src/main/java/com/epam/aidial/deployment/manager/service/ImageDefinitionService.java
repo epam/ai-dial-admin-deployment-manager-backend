@@ -9,6 +9,7 @@ import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +66,11 @@ public class ImageDefinitionService {
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinition(UUID id) {
         return imageDefinitionRepository.getImageDefinitionById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ImageDefinition> getImageDefinitionByTypeAndNameAndVersion(ImageType type, String name, String version) {
+        return imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(type, name, version);
     }
 
     @Transactional

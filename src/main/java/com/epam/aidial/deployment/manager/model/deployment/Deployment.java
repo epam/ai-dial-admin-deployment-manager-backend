@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.model.deployment;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import lombok.AllArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public abstract class Deployment {
     private String id;
     private UUID imageDefinitionId;
+    private ImageType imageDefinitionType;
     private String imageDefinitionName;
     private String imageDefinitionVersion;
     private String displayName;

@@ -11,6 +11,7 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +67,13 @@ public class ImageDefinitionRepository {
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinitionById(UUID id) {
         return imageDefinitionJpaRepository.findById(id)
+                .map(mapper::toImageDefinition);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ImageDefinition> getImageDefinitionByTypeAndNameAndVersion(ImageType type, String name, String version) {
+        var entityClazz = detectEntityClazz(type);
+        return imageDefinitionJpaRepository.findByNameAndTypeAndVersion(name, entityClazz, version)
                 .map(mapper::toImageDefinition);
     }
 
@@ -149,7 +157,13 @@ public class ImageDefinitionRepository {
         return viewMapper.toViews(imageDefinitions);
     }
 
-    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageTypeDto type) {
+    // TODO: refactor methods that use ImageTypeDto to use ImageType
+    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageTypeDto typeDto) {
+        ImageType type = typeDto != null ? ImageType.valueOf(typeDto.name()) : null;
+        return detectEntityClazz(type);
+    }
+
+    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageType type) {
         return switch (type) {
             case MCP -> McpImageDefinitionEntity.class;
             case ADAPTER -> AdapterImageDefinitionEntity.class;
