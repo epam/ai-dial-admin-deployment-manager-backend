@@ -31,7 +31,7 @@ public class ImageWrapperBuildJobSpecification extends ImageBuildAndPushJobSpeci
     private static final String WRAPPER_DOCKERFILE_TEMPLATE = "/build/mcp_wrapper.Dockerfile";
     private static final String DOCKERFILE = "dockerfile";
     private static final List<String> BUILDER_ARGS = List.of(
-            "--local", "context=/sources",
+            "--local", "context=/templates",
             "--local", "dockerfile=/templates"
     );
 

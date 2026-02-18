@@ -409,7 +409,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
                 "--output",
                 "type=docker,dest=/image-build/image-tarball.tar",
                 "--local",
-                "context=/sources",
+                "context=/templates",
                 "--local",
                 "dockerfile=/templates"
         ));

@@ -176,7 +176,7 @@ class ImageWrapperBuildJobSpecificationTest {
         List<String> buildArgs = buildContainer.getArgs();
         assertNotNull(buildArgs);
         assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates")));
-        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/sources")));
+        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates")));
         Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
         List<EnvVar> pushEnvVars = pushContainer.getEnv();
         assertNotNull(pushEnvVars);
@@ -209,7 +209,7 @@ class ImageWrapperBuildJobSpecificationTest {
         List<String> buildArgs = buildContainer.getArgs();
         assertNotNull(buildArgs);
         assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates")));
-        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/sources")));
+        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates")));
         Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
         List<EnvVar> pushEnvVars = pushContainer.getEnv();
         assertNotNull(pushEnvVars);
