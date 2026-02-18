@@ -24,11 +24,14 @@ import io.fabric8.knative.serving.v1.RevisionTemplateSpec;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.knative.serving.v1.ServiceList;
 import io.fabric8.knative.serving.v1.ServiceSpec;
+import io.fabric8.kubernetes.api.model.AppArmorProfileBuilder;
+import io.fabric8.kubernetes.api.model.CapabilitiesBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSource;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -36,10 +39,12 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.SeccompProfileBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretKeySelector;
 import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.SecretVolumeSource;
+import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.batch.v1.JobSpec;
@@ -392,23 +397,118 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
     }
 
     private static JobSpec createWrapperJobSpec(String uuid) {
-        // Container
-        var container = new Container();
-        container.setName("builder-container");
-        container.setImage("gcr.io/kaniko-project/executor:v1.24.0");
-        container.setArgs(Arrays.asList(
-                "--destination=test-docker-registry/app-wrapper-" + uuid + ":1.0.0",
-                "--context=/sources",
-                "--dockerfile=/templates/Dockerfile"
+        // Build Container
+        var buildContainer = new Container();
+        buildContainer.setName("builder-container");
+        buildContainer.setImage("moby/buildkit:v0.27.1-rootless");
+
+        buildContainer.setArgs(Arrays.asList(
+                "build",
+                "--frontend",
+                "dockerfile.v0",
+                "--output",
+                "type=docker,dest=/image-build/image-tarball.tar",
+                "--local",
+                "context=/sources",
+                "--local",
+                "dockerfile=/templates"
         ));
 
-        container.setCommand(Collections.emptyList());
-        container.setEnv(Collections.emptyList());
-        container.setEnvFrom(Collections.emptyList());
-        container.setPorts(Collections.emptyList());
-        container.setResizePolicy(Collections.emptyList());
-        container.setVolumeDevices(Collections.emptyList());
-        container.setAdditionalProperties(new HashMap<>());
+        buildContainer.setCommand(Collections.singletonList("buildctl-daemonless.sh"));
+        buildContainer.setEnv(Collections.singletonList(
+                new EnvVarBuilder()
+                        .withName("BUILDKITD_FLAGS")
+                        .withValue("--oci-worker-no-process-sandbox")
+                        .build()
+        ));
+        buildContainer.setEnvFrom(Collections.emptyList());
+        buildContainer.setPorts(Collections.emptyList());
+        buildContainer.setResizePolicy(Collections.emptyList());
+        buildContainer.setVolumeDevices(Collections.emptyList());
+        buildContainer.setAdditionalProperties(new HashMap<>());
+        buildContainer.setSecurityContext(
+                new SecurityContextBuilder()
+                        .withRunAsUser(1000L)
+                        .withRunAsGroup(1000L)
+                        .withAppArmorProfile(new AppArmorProfileBuilder().withType("Unconfined").build())
+                        .build()
+        );
+
+        // Push Container
+        var pushContainer = new Container();
+        pushContainer.setName("push-container");
+        pushContainer.setImage("quay.io/skopeo/stable:v1.21.0");
+        String arg = """
+            RETRY=0
+            echo "[push-container] Waiting for image tarball to be created and stable..."
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              if [ -f "$TAR_PATH" ]; then
+                SIZE1=$(stat -c%s "$TAR_PATH")
+                sleep ${SLEEP_INTERVAL_IN_SECONDS}
+                SIZE2=$(stat -c%s "$TAR_PATH")
+                if [ "$SIZE1" -eq "$SIZE2" ] && [ "$SIZE1" -gt 0 ]; then
+                  echo "[push-container] Image tarball found and stable. Starting push with Skopeo..."
+                  skopeo copy docker-archive:${TAR_PATH} docker://${TARGET_IMAGE} --authfile ${AUTH_FILE_PATH}
+                  if [ $? -eq 0 ]; then
+                    echo "[push-container] Image push completed successfully."
+                    exit 0
+                  else
+                    echo "[push-container] ERROR: Image push failed."
+                    exit 1
+                  fi
+                else
+                  echo "[push-container] Tarball exists but is still being written. Waiting..."
+                fi
+              else
+                echo "[push-container] Image tarball not found yet. Sleeping... ($RETRY/$MAX_RETRIES)"
+              fi
+              sleep ${SLEEP_INTERVAL_IN_SECONDS}
+              RETRY=$((RETRY+1))
+            done
+            echo "[push-container] ERROR: Image tarball not found or not stable after $MAX_RETRIES attempts. Exiting."
+            exit 1""";
+        pushContainer.setArgs(Collections.singletonList(arg));
+
+        pushContainer.setCommand(Arrays.asList("/bin/sh", "-c"));
+        pushContainer.setEnv(Arrays.asList(
+                new EnvVarBuilder()
+                        .withName("MAX_RETRIES")
+                        .withValue("120")
+                        .build(),
+                new EnvVarBuilder()
+                        .withName("AUTH_FILE_PATH")
+                        .withValue("/kaniko/.docker/config.json")
+                        .build(),
+                new EnvVarBuilder()
+                        .withName("SLEEP_INTERVAL_IN_SECONDS")
+                        .withValue("2")
+                        .build(),
+                new EnvVarBuilder()
+                        .withName("TAR_PATH")
+                        .withValue("/image-build/image-tarball.tar")
+                        .build(),
+                new EnvVarBuilder()
+                        .withName("TARGET_IMAGE")
+                        .withValue("test-docker-registry/app-wrapper-" + uuid + ":1.0.0")
+                        .build()
+        ));
+        pushContainer.setEnvFrom(Collections.emptyList());
+        pushContainer.setPorts(Collections.emptyList());
+        pushContainer.setResizePolicy(Collections.emptyList());
+        pushContainer.setVolumeDevices(Collections.emptyList());
+        pushContainer.setAdditionalProperties(new HashMap<>());
+        pushContainer.setSecurityContext(
+                new SecurityContextBuilder()
+                        .withCapabilities(new CapabilitiesBuilder().withDrop("ALL").build())
+                        .withPrivileged(false)
+                        .withRunAsUser(1000L)
+                        .withRunAsGroup(1000L)
+                        .withRunAsNonRoot(true)
+                        .withReadOnlyRootFilesystem(true)
+                        .withAllowPrivilegeEscalation(false)
+                        .withSeccompProfile(new SeccompProfileBuilder().withType("RuntimeDefault").build())
+                        .build()
+        );
 
         // VolumeMounts
         var workspaceVolumeMount = new VolumeMount();
@@ -433,7 +533,8 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         secretVolumeMount.setSubPath("config.json");
         secretVolumeMount.setAdditionalProperties(new HashMap<>());
 
-        container.setVolumeMounts(Arrays.asList(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount, secretVolumeMount));
+        buildContainer.setVolumeMounts(Arrays.asList(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount, secretVolumeMount));
+        pushContainer.setVolumeMounts(Arrays.asList(imageBuildVolumeMount, secretVolumeMount));
 
         // Dockerfile ConfigMap volume
         var configMapVolumeSource = new ConfigMapVolumeSource();
@@ -468,7 +569,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // PodSpec
         var podSpec = new PodSpec();
         podSpec.setAutomountServiceAccountToken(false);
-        podSpec.setContainers(Collections.singletonList(container));
+        podSpec.setContainers(Arrays.asList(buildContainer, pushContainer));
         podSpec.setEphemeralContainers(Collections.emptyList());
         podSpec.setHostAliases(Collections.emptyList());
         podSpec.setImagePullSecrets(Collections.emptyList());

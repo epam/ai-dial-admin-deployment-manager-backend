@@ -42,7 +42,11 @@ public class WrapperImageBuildStep {
         disposableResourceManager.saveContainerRegistryResource(wrapperImageName, imageDefinition.getId(), ResourceLifecycleState.STABLE);
 
         var isJobSuccessful = jobRunner.run(
-                imageWrapperBuildJobSpecificationFactory.create(wrapperImageJobName, wrapperImageName, dockerImageSource, distryInfo),
+                imageWrapperBuildJobSpecificationFactory.create(wrapperImageJobName,
+                        wrapperImageName,
+                        dockerImageSource,
+                        distryInfo,
+                        imageDefinition.getImageBuilder()),
                 (NewLogJobCallback) logs -> imageDefinitionService.addBuildLogs(imageDefinition.getId(), logs),
                 imageBuildTimeoutSec,
                 imageDefinition.getId(),
