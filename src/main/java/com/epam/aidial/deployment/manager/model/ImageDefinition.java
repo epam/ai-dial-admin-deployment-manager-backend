@@ -43,4 +43,5 @@ public abstract class ImageDefinition {
     private String author;
 
     private List<String> allowedDomains;
+    private ImageBuilder imageBuilder;
 }

@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarMountType;
 import com.epam.aidial.deployment.manager.model.FileEnvVarValue;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
@@ -42,6 +43,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .author("test-author")
                 .allowedDomains(List.of())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -56,6 +58,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .author("test-author")
                 .allowedDomains(List.of())
+                .imageBuilder(ImageBuilder.BUILDKIT)
                 .build();
     }
 
@@ -69,6 +72,7 @@ public class FunctionalTestHelper {
                 .source(source)
                 .topics(getTopics())
                 .allowedDomains(new ArrayList<>())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -86,6 +90,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .transportType(McpTransportType.LOCAL)
                 .allowedDomains(new ArrayList<>())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -102,6 +107,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .transportType(McpTransportType.REMOTE)
                 .allowedDomains(new ArrayList<>())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -118,6 +124,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .transportType(McpTransportType.LOCAL)
                 .allowedDomains(new ArrayList<>())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
@@ -132,6 +139,7 @@ public class FunctionalTestHelper {
                 .topics(getTopics())
                 .author("test-author")
                 .allowedDomains(List.of())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
                 .build();
     }
 
