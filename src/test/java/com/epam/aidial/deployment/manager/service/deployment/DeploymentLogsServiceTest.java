@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
-
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReader;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;

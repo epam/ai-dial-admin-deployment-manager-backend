@@ -547,7 +547,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var phase = (podStatus != null) ? podStatus.getPhase() : null;
         var containerStatuses = (podStatus != null) ? podStatus.getContainerStatuses() : null;
 
-        if (containerStatuses == null || containerStatuses.isEmpty()) {
+        if (CollectionUtils.isEmpty(containerStatuses)) {
             log.info("Container '{}' in pod '{}' has no status yet. Deployment='{}', Pod phase={}",
                     containerName, podName, deploymentId, phase);
             throw new IllegalArgumentException("Container is not ready for log streaming for deployment '%s'".formatted(deploymentId));
@@ -559,7 +559,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .orElseThrow(() -> {
                     log.info("Container '{}' not found in pod '{}'. Deployment='{}', Pod phase={}",
                             containerName, podName, deploymentId, phase);
-                    return new IllegalArgumentException("Container is not found for deployment '%s'".formatted(deploymentId));
+                    return new EntityNotFoundException("Container is not found for deployment '%s'".formatted(deploymentId));
                 });
     }
 
