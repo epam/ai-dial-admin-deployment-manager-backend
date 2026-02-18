@@ -28,6 +28,7 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 - [Configuration](#configuration)
 - [Getting Started](#getting-started)
 - [Deploying NVIDIA NIM Models](#deploying-nvidia-nim-models)
+- [MCP Registry Module](#mcp-registry-module)
 - [Security](#security)
 - [Contributing](#contributing)
 - [License](#license)
@@ -124,6 +125,33 @@ NVIDIA NIM (NVIDIA Inference Microservices) is a technology that provides optimi
 The DIAL Deployment Manager Backend supports deploying NIM models through Kubernetes Custom Resource Definitions (CRDs), allowing you to manage NIM-based inference services alongside other deployment types.
 
 **Legal Notice:** NIM models and the NIM operator are available only with an NVIDIA Enterprise License Key for production use. For evaluation, development, and production deployment of NIM models, you must obtain the appropriate NVIDIA enterprise license and configure the necessary authentication credentials (NGC secrets). Please refer to the [NVIDIA NIM documentation](https://www.nvidia.com/en-us/ai-data-science/products/nim-microservices/) for licensing information, setup instructions, and the latest requirements.
+
+## MCP Registry Module
+
+The MCP Registry module acts as a **proxy** for the [official MCP Registry API](https://modelcontextprotocol.io) (registry.modelcontextprotocol.io). It exposes REST endpoints in the same style as the rest of the Deployment Manager (e.g. Hugging Face integration), so the admin panel can discover and use MCP servers from the registry without calling the upstream API directly.
+
+**Capabilities:**
+- **Client** – HTTP client that calls the external MCP Registry (list servers, list versions, get version). Uses the project’s shared OkHttp and JSON configuration.
+- **Caching** – Responses for list-servers and get-version are cached (Caffeine) with a configurable duration to reduce upstream calls.
+- **Models** – POJOs aligned with the MCP Registry OpenAPI schema: `ServersRequest`, `ServerListResponse`, `ServerResponse`, `ServerDetail`, `ServerListMetadata`, `Repository`, `Icon`, `KeyValueInput`, `LocalTransport`, `RemoteTransport`, `Package`, etc.
+- **REST API** – Controller under `/api/v1/mcp-registry/servers`:
+  - **GET** (query params): list servers (cursor, limit, search, updated_since, version).
+  - **GET** `/{namespace}/{name}/versions`: list all versions of a server (path uses two segments so a slash in the server name does not cause 400).
+  - **GET** `/{namespace}/{name}/versions/{version}`: get a specific server version.
+  - **POST** `/list`: list servers with all parameters in the request body (`ServersRequest`).
+  - **POST** `/versions`: list versions or get one version with body (`ServerVersionsRequest`). If `version` is set, returns that version in a `ServerListResponse`; otherwise returns the list of versions. Request body uses `serverName` (e.g. `ai.com.mcp/petstore`) and optional `version`.
+- **Tests** – Controller tests (`McpRegistryControllerTest`) and client tests (`McpRegistryClientTest`), plus JSON fixtures under `src/test/resources/mcp-registry/`.
+- **HTTP examples** – `docs/rest-collection/mcp-registry.http` for manual calls.
+
+**Configuration** (overridable via environment):
+
+```yaml
+app:
+  mcp-registry:
+    base-url: https://registry.modelcontextprotocol.io
+```
+
+- `MCP_REGISTRY_BASE_URL` – upstream registry base URL.
 
 ## Documentation
 

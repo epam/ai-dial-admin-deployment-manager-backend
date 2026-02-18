@@ -2,18 +2,23 @@ package com.epam.aidial.deployment.manager.mcpregistry.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClientException;
+import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListMetadata;
 import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListResponse;
 import com.epam.aidial.deployment.manager.mcpregistry.model.ServerResponse;
 import com.epam.aidial.deployment.manager.mcpregistry.model.ServersRequest;
 import com.epam.aidial.deployment.manager.mcpregistry.service.McpRegistryService;
 import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerVersionsRequest;
+import com.epam.aidial.deployment.manager.web.handler.ErrorView;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MimeTypeUtils;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +26,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @LogExecution
@@ -32,9 +40,9 @@ public class McpRegistryController {
     private final McpRegistryService mcpRegistryService;
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ServerListResponse> getServers(
+    public ServerListResponse getServers(
             @RequestParam(required = false) String cursor,
-            @RequestParam(required = false) @Min(1) @Max(1000) Integer limit,
+            @RequestParam(required = false, defaultValue = "100") @Min(1) @Max(1000) Integer limit,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String updatedSince,
             @RequestParam(required = false) String version
@@ -46,12 +54,7 @@ public class McpRegistryController {
                 .updatedSince(updatedSince)
                 .version(version)
                 .build();
-        try {
-            return ResponseEntity.ok(mcpRegistryService.getServers(request));
-        } catch (McpRegistryClientException e) {
-            log.warn("Upstream error: {}", e.getMessage());
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        return mcpRegistryService.getServers(request);
     }
 
     /**
@@ -59,17 +62,12 @@ public class McpRegistryController {
      * name does not cause 400 (encoded slash is often rejected by servlet containers).
      */
     @GetMapping(value = "/{namespace}/{name}/versions", produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ServerListResponse> getServerVersions(
+    public ServerListResponse getServerVersions(
             @PathVariable String namespace,
             @PathVariable String name
     ) {
         var serverName = namespace + "/" + name;
-        try {
-            return ResponseEntity.ok(mcpRegistryService.getServerVersions(serverName));
-        } catch (McpRegistryClientException e) {
-            log.warn("Upstream error: {}", e.getMessage());
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        return mcpRegistryService.getServerVersions(serverName);
     }
 
     /**
@@ -77,48 +75,46 @@ public class McpRegistryController {
      * name does not cause 400 (encoded slash is often rejected by servlet containers).
      */
     @GetMapping(value = "/{namespace}/{name}/versions/{version}", produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ServerResponse> getServerVersion(
+    public ServerResponse getServerVersion(
             @PathVariable String namespace,
             @PathVariable String name,
             @PathVariable String version
     ) {
         var serverName = namespace + "/" + name;
-        try {
-            return ResponseEntity.ok(mcpRegistryService.getServerVersion(serverName, version));
-        } catch (McpRegistryClientException e) {
-            log.warn("Upstream error: {}", e.getMessage());
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+        return mcpRegistryService.getServerVersion(serverName, version);
     }
 
     /**
      * List servers with all parameters in the request body.
      */
     @PostMapping(value = "/list", produces = MimeTypeUtils.APPLICATION_JSON_VALUE, consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ServerListResponse> postListServers(@RequestBody @Valid ServersRequest request) {
-        try {
-            return ResponseEntity.ok(mcpRegistryService.getServers(request));
-        } catch (McpRegistryClientException e) {
-            log.warn("Upstream error: {}", e.getMessage());
-            return ResponseEntity.status(e.getStatusCode()).build();
-        }
+    public ServerListResponse postListServers(@RequestBody @Valid ServersRequest request) {
+        return mcpRegistryService.getServers(request);
     }
 
     /**
      * List all versions of a server or get a specific version. If {@code version} is present and non-blank,
-     * returns that version; otherwise returns the list of all versions. Server name is in the request body.
+     * returns a {@link ServerListResponse} containing that single version; otherwise returns the list of all
+     * versions. Server name is in the request body.
      */
     @PostMapping(value = "/versions", produces = MimeTypeUtils.APPLICATION_JSON_VALUE, consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> postServerVersions(@RequestBody @Valid ServerVersionsRequest request) {
+    public ServerListResponse postServerVersions(@RequestBody @Valid ServerVersionsRequest request) {
         var serverName = request.getServerName();
-        try {
-            if (request.getVersion() != null && !request.getVersion().isBlank()) {
-                return ResponseEntity.ok(mcpRegistryService.getServerVersion(serverName, request.getVersion()));
-            }
-            return ResponseEntity.ok(mcpRegistryService.getServerVersions(serverName));
-        } catch (McpRegistryClientException e) {
-            log.warn("Upstream error: {}", e.getMessage());
-            return ResponseEntity.status(e.getStatusCode()).build();
+        if (request.getVersion() != null && !request.getVersion().isBlank()) {
+            var one = mcpRegistryService.getServerVersion(serverName, request.getVersion());
+            return ServerListResponse.builder()
+                .servers(List.of(one))
+                .metadata(ServerListMetadata.builder().count(1).build())
+                .build();
         }
+        return mcpRegistryService.getServerVersions(serverName);
     }
+
+    @ExceptionHandler(McpRegistryClientException.class)
+    public ResponseEntity<ErrorView> handleDeploymentError(HttpServletRequest req, McpRegistryClientException ex) {
+        log.debug("Upstream error: ", ex);
+        var status = Optional.ofNullable(HttpStatus.resolve(ex.getStatusCode())).orElse(HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.status(ex.getStatusCode()).body(new ErrorView(req, status, ex.getMessage()));
+    }
+
 }
