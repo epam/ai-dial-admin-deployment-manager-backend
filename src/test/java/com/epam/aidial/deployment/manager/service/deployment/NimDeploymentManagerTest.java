@@ -232,7 +232,7 @@ class NimDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Pod is not found");
+                .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test

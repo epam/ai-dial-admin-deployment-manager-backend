@@ -277,7 +277,7 @@ class InferenceDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Pod is not found");
+                .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
@@ -307,7 +307,7 @@ class InferenceDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Container is not ready for log streaming");
+                .hasMessage("Container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
@@ -321,7 +321,7 @@ class InferenceDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Container is not found");
+                .hasMessage("Container is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
@@ -334,7 +334,7 @@ class InferenceDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Container is not running");
+                .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
@@ -349,7 +349,7 @@ class InferenceDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Container is not running");
+                .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
@@ -364,7 +364,7 @@ class InferenceDeploymentManagerTest {
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Previous logs are not available for container");
+                .hasMessage("Previous logs are not available for container in deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test

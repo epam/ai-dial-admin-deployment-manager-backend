@@ -517,71 +517,76 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         if (pod == null) {
             log.info("Pod '{}' not found for deployment '{}'. Service='{}', Namespace='{}'",
                     podName, id, serviceName, namespace);
-            throw new EntityNotFoundException("Pod is not found");
+            throw new EntityNotFoundException("Pod is not found for deployment '%s'".formatted(id));
         }
 
         var containerName = getContainerName(pod);
         if (containerName == null) {
             log.info("Container name could not be resolved for pod '{}', deployment '{}'. Service='{}', Namespace='{}'",
                     podName, id, serviceName, namespace);
-            throw new EntityNotFoundException("Container is not found");
+            throw new EntityNotFoundException("Container is not found for deployment '%s'".formatted(id));
         }
 
-        assertContainerLoggable(pod, podName, containerName, previous);
+        assertContainerLoggable(id, pod, podName, containerName, previous);
         return k8sClient.getPodResource(namespace, podName).inContainer(containerName);
     }
 
-    private void assertContainerLoggable(Pod pod, String podName, String containerName, boolean previous) {
-        var containerStatus = findContainerStatus(pod, podName, containerName);
+    private void assertContainerLoggable(String deploymentId, Pod pod, String podName, String containerName,
+                                         boolean previous) {
+        var containerStatus = findContainerStatus(deploymentId, pod, podName, containerName);
 
         if (previous) {
-            assertPreviousLogsAvailable(containerStatus, podName, containerName);
+            assertPreviousLogsAvailable(deploymentId, containerStatus, podName, containerName);
         } else {
-            assertContainerRunning(containerStatus, podName, containerName);
+            assertContainerRunning(deploymentId, containerStatus, podName, containerName);
         }
     }
 
-    private ContainerStatus findContainerStatus(Pod pod, String podName, String containerName) {
+    private ContainerStatus findContainerStatus(String deploymentId, Pod pod, String podName, String containerName) {
         var podStatus = pod.getStatus();
         var phase = (podStatus != null) ? podStatus.getPhase() : null;
         var containerStatuses = (podStatus != null) ? podStatus.getContainerStatuses() : null;
 
         if (containerStatuses == null || containerStatuses.isEmpty()) {
-            log.info("Container '{}' in pod '{}' has no status yet. Pod phase={}", containerName, podName, phase);
-            throw new IllegalArgumentException("Container is not ready for log streaming");
+            log.info("Container '{}' in pod '{}' has no status yet. Deployment='{}', Pod phase={}",
+                    containerName, podName, deploymentId, phase);
+            throw new IllegalArgumentException("Container is not ready for log streaming for deployment '%s'".formatted(deploymentId));
         }
 
         return containerStatuses.stream()
                 .filter(s -> containerName.equals(s.getName()))
                 .findFirst()
                 .orElseThrow(() -> {
-                    log.info("Container '{}' not found in pod '{}'. Pod phase={}", containerName, podName, phase);
-                    return new IllegalArgumentException("Container is not found");
+                    log.info("Container '{}' not found in pod '{}'. Deployment='{}', Pod phase={}",
+                            containerName, podName, deploymentId, phase);
+                    return new IllegalArgumentException("Container is not found for deployment '%s'".formatted(deploymentId));
                 });
     }
 
-    private void assertPreviousLogsAvailable(ContainerStatus containerStatus, String podName, String containerName) {
+    private void assertPreviousLogsAvailable(String deploymentId, ContainerStatus containerStatus, String podName,
+                                             String containerName) {
         var lastState = containerStatus.getLastState();
         var currentState = containerStatus.getState();
         var hasTerminatedState = (lastState != null && lastState.getTerminated() != null)
                 || (currentState != null && currentState.getTerminated() != null);
 
         if (!hasTerminatedState) {
-            log.info("Container '{}' in pod '{}' has no terminated state. {}", containerName, podName,
-                    describeContainerState(containerStatus));
-            throw new IllegalArgumentException("Previous logs are not available for container");
+            log.info("Container '{}' in pod '{}' has no terminated state. Deployment='{}', {}",
+                    containerName, podName, deploymentId, describeContainerState(containerStatus));
+            throw new IllegalArgumentException("Previous logs are not available for container in deployment '%s'".formatted(deploymentId));
         }
     }
 
-    private void assertContainerRunning(ContainerStatus containerStatus, String podName, String containerName) {
+    private void assertContainerRunning(String deploymentId, ContainerStatus containerStatus, String podName,
+                                        String containerName) {
         var state = containerStatus.getState();
         if (state != null && state.getRunning() != null) {
             return;
         }
 
-        log.info("Container '{}' in pod '{}' is not running. {}", containerName, podName,
-                describeContainerState(containerStatus));
-        throw new IllegalArgumentException("Container is not running");
+        log.info("Container '{}' in pod '{}' is not running. Deployment='{}', {}",
+                containerName, podName, deploymentId, describeContainerState(containerStatus));
+        throw new IllegalArgumentException("Container is not running for deployment '%s'".formatted(deploymentId));
     }
 
     private static String describeContainerState(ContainerStatus containerStatus) {
