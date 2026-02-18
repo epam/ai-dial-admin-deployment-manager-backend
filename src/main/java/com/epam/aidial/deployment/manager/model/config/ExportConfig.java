@@ -38,7 +38,7 @@ public class ExportConfig {
     private Map<String, InterceptorImageDefinition> interceptorImageDefinitions = new LinkedHashMap<>();
 
     @Builder.Default
-    private List<String> globalDomainWhitelist = new ArrayList<>();
+    private List<String> globalImageBuildDomainWhitelist = new ArrayList<>();
 
     @Builder.Default
     private Map<String, McpDeployment> mcpDeployments = new LinkedHashMap<>();

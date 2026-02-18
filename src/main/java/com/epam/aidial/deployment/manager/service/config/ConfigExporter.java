@@ -17,6 +17,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import lombok.RequiredArgsConstructor;
@@ -45,13 +46,19 @@ public class ConfigExporter {
     private final ImageDefinitionService imageDefinitionService;
     private final DeploymentService deploymentService;
     private final ExportSanitizer exportSanitizer;
+    private final GlobalDomainWhitelistService globalDomainWhitelistService;
 
     public ExportConfig getConfig(SelectedItemsExportRequest request) {
         ExportConfig config = ExportConfig.builder().build();
+        boolean addSecrets = request.isAddSecrets();
+
+        if (request.isAddGlobalImageBuildDomainWhitelist()) {
+            addGlobalImageBuildDomainWhitelist(config);
+        }
         if (CollectionUtils.isEmpty(request.getComponents())) {
             return config;
         }
-        boolean addSecrets = request.isAddSecrets();
+
         for (ExportConfigComponent component : request.getComponents()) {
             ExportConfigComponentType type = component.getType();
             String name = component.getName();
@@ -66,7 +73,16 @@ public class ConfigExporter {
                 default -> throw new IllegalArgumentException("Unsupported export component type: " + type);
             }
         }
+
         return config;
+    }
+
+    private void addGlobalImageBuildDomainWhitelist(ExportConfig config) {
+        try {
+            config.getGlobalImageBuildDomainWhitelist().addAll(globalDomainWhitelistService.getDomainWhitelist());
+        } catch (Exception e) {
+            log.warn("Could not load global image build domain whitelist for export: {}", e.getMessage());
+        }
     }
 
     private void addImageDefinition(ExportConfig config, Optional<ImageDefinition> maybeImageDef) {

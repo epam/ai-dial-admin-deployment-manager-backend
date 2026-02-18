@@ -9,4 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public abstract class ExportRequest {
     private boolean addSecrets;
+    private boolean addGlobalImageBuildDomainWhitelist;
 }

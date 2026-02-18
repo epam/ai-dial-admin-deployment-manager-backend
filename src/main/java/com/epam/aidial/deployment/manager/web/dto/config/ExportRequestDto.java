@@ -14,4 +14,5 @@ import lombok.Data;
 })
 public abstract class ExportRequestDto {
     private boolean addSecrets;
+    private boolean addGlobalImageBuildDomainWhitelist;
 }

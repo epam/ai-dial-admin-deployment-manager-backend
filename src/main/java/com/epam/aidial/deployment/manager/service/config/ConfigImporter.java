@@ -30,6 +30,6 @@ public class ConfigImporter {
         log.debug("Importing config; resolutionPolicy={}", resolutionPolicy);
         imageDefinitionImporter.importImageDefinitions(config, resolutionPolicy);
         deploymentImporter.importDeployments(config, resolutionPolicy);
-        globalDomainWhitelistImporter.importGlobalDomainWhitelist(config.getGlobalDomainWhitelist(), resolutionPolicy);
+        globalDomainWhitelistImporter.importGlobalDomainWhitelist(config.getGlobalImageBuildDomainWhitelist(), resolutionPolicy);
     }
 }
