@@ -33,7 +33,6 @@ app:
 
   mcp-registry:
     base-url: ${MCP_REGISTRY_BASE_URL:https://registry.modelcontextprotocol.io}
-    cache-duration: ${MCP_REGISTRY_CACHE_DURATION:15m}
 
   kubernetes:
     connect-type: ${K8S_CONNECT_TYPE:CONFIG_FILE}

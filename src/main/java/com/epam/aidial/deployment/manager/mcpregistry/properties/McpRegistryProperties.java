@@ -15,9 +15,5 @@ public class McpRegistryProperties {
     /**
      * Base URL of the MCP Registry API (e.g. https://registry.modelcontextprotocol.io).
      */
-    private String baseUrl = "https://registry.modelcontextprotocol.io";
-    /**
-     * Cache duration for list servers and get server version responses.
-     */
-    private Duration cacheDuration = Duration.ofMinutes(15);
+    private String baseUrl;
 }

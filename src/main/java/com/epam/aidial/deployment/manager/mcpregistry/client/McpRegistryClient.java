@@ -72,13 +72,13 @@ public class McpRegistryClient {
     /**
      * Get all versions of a specific MCP server.
      *
-     * @param serverName URL-encoded server name (e.g. ai.com.mcp%2Fpetstore)
+     * @param serverName server name (e.g. ai.com.mcp/petstore); may be raw or already URL-encoded
      * @return list of server entries (one per version)
      */
     public ServerListResponse getServerVersions(String serverName) {
         log.debug("Retrieving MCP registry server versions. ServerName: {}. Base URL: {}.",
                 serverName, properties.getBaseUrl());
-        var url = properties.getBaseUrl() + SERVERS_ENDPOINT + "/" + encodePathSegment(serverName) + "/versions";
+        var url = properties.getBaseUrl() + SERVERS_ENDPOINT + "/" + encodePathSegmentIfNeeded(serverName) + "/versions";
 
         try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
             if (!response.isSuccessful()) {
@@ -106,15 +106,15 @@ public class McpRegistryClient {
     /**
      * Get a specific version of an MCP server. Use "latest" for the latest version.
      *
-     * @param serverName server name (e.g. ai.com.mcp/petstore); will be URL-encoded
-     * @param version    version string (e.g. 1.0.0 or latest)
+     * @param serverName server name (e.g. ai.com.mcp/petstore); may be raw or already URL-encoded
+     * @param version    version string (e.g. 1.0.0 or latest); may be raw or already URL-encoded
      * @return server detail and optional registry metadata
      */
     public ServerResponse getServerVersion(String serverName, String version) {
         log.debug("Retrieving MCP registry server version. ServerName: {}. Version: {}. Base URL: {}.",
                 serverName, version, properties.getBaseUrl());
-        var url = properties.getBaseUrl() + SERVERS_ENDPOINT + "/" + encodePathSegment(serverName)
-                + "/versions/" + encodePathSegment(version);
+        var url = properties.getBaseUrl() + SERVERS_ENDPOINT + "/" + encodePathSegmentIfNeeded(serverName)
+                + "/versions/" + encodePathSegmentIfNeeded(version);
 
         try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
             if (!response.isSuccessful()) {
@@ -159,7 +159,17 @@ public class McpRegistryClient {
         return urlBuilder.build().toString();
     }
 
-    private static String encodePathSegment(String segment) {
+    /**
+     * Encodes a path segment for use in the URL. If the segment appears already encoded
+     * (contains percent-encoded slash {@code %2F}), returns it as-is to avoid double-encoding.
+     */
+    private static String encodePathSegmentIfNeeded(String segment) {
+        if (segment == null) {
+            return "";
+        }
+        if (segment.contains("%2F") || segment.contains("%2f")) {
+            return segment;
+        }
         return URLEncoder.encode(segment, StandardCharsets.UTF_8).replace("+", "%20");
     }
 }
