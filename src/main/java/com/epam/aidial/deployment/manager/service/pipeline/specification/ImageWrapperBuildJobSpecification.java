@@ -34,6 +34,8 @@ public class ImageWrapperBuildJobSpecification extends ImageBuildAndPushJobSpeci
             "--local", "context=/templates",
             "--local", "dockerfile=/templates"
     );
+    private static final String DOCKER_CONFIG_ENV_VAR_NAME = "DOCKER_CONFIG";
+    private static final String DOCKER_CONFIG_ENV_VAR_VALUE = "/kaniko/.docker";
 
     private final DockerRegistryClient registryClient;
     private final DockerImageSource dockerImageSource;
@@ -92,6 +94,7 @@ public class ImageWrapperBuildJobSpecification extends ImageBuildAndPushJobSpeci
         var builderContainer = getBuilderContainer(podSpec);
         configureBuilderContainerArgs(builderContainer);
         configureBuilderContainerVolume(podSpec, builderContainer);
+        addEnvVar(builderContainer, DOCKER_CONFIG_ENV_VAR_NAME, DOCKER_CONFIG_ENV_VAR_VALUE);
         configurePushContainer(podSpec);
         configureRegistryAuth(podSpec, builderContainer);
         return config.data();

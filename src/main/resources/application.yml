@@ -233,8 +233,6 @@ app:
     env:
       - name: BUILDKITD_FLAGS
         value: "--oci-worker-no-process-sandbox"
-      - name: DOCKER_CONFIG
-        value: "/kaniko/.docker"
     args:
       - build
       - --frontend
