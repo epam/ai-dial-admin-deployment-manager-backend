@@ -86,10 +86,16 @@ public class ImageDefinitionService {
 
     @Transactional
     public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition) {
+        return updateImageDefinition(id, updatedImageDefinition, false);
+    }
+
+    @Transactional
+    public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition, boolean fromImport) {
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 
-        if (existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL || existing.getBuildStatus() == ImageStatus.BUILDING) {
+        // Allowing update of built images on import
+        if ((!fromImport && existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) || existing.getBuildStatus() == ImageStatus.BUILDING) {
             throw new IllegalArgumentException("Cannot update image definition with status %s. It is read-only."
                     .formatted(existing.getBuildStatus()));
         }
