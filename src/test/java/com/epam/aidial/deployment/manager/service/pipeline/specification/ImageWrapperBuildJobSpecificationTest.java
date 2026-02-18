@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.docker.DockerRegistryClient;
 import com.epam.aidial.deployment.manager.model.DistroInfo;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.model.ImageEntrypoint;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -13,6 +14,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
@@ -33,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
@@ -50,6 +53,8 @@ class ImageWrapperBuildJobSpecificationTest {
     private static final String MCP_PROXY_DEBIAN_IMAGE_URI = "registry.example.com/mcp-proxy-debian:latest";
     private static final String DISTRO_ID = "alpine";
     private static final String DISTRO_VERSION = "1.0";
+    private static final String BUILDER_CONTAINER_NAME = "builder-container";
+    private static final String PUSH_CONTAINER_NAME = "push-container";
 
     @Mock
     private DockerRegistryClient registryClient;
@@ -71,7 +76,11 @@ class ImageWrapperBuildJobSpecificationTest {
 
         distroInfo = new DistroInfo(DISTRO_ID, DISTRO_VERSION);
 
-        jobSpecification = new ImageWrapperBuildJobSpecification(
+        jobSpecification = createJobSpecification(ImageBuilder.BUILDKIT_ROOTLESS);
+    }
+
+    private ImageWrapperBuildJobSpecification createJobSpecification(ImageBuilder imageBuilder) {
+        return new ImageWrapperBuildJobSpecification(
                 registryClient,
                 registryService,
                 manifestGenerator,
@@ -83,7 +92,8 @@ class ImageWrapperBuildJobSpecificationTest {
                 dockerImageSource,
                 distroInfo,
                 MCP_PROXY_ALPINE_IMAGE_URI,
-                MCP_PROXY_DEBIAN_IMAGE_URI
+                MCP_PROXY_DEBIAN_IMAGE_URI,
+                imageBuilder
         );
     }
 
@@ -120,7 +130,7 @@ class ImageWrapperBuildJobSpecificationTest {
         // Then
         assertNotNull(configMaps);
         assertEquals(1, configMaps.size());
-        assertEquals(expectedConfigMap.getMetadata().getName(), configMaps.get(0).getMetadata().getName());
+        assertEquals(expectedConfigMap.getMetadata().getName(), configMaps.getFirst().getMetadata().getName());
     }
 
     @Test
@@ -136,7 +146,7 @@ class ImageWrapperBuildJobSpecificationTest {
         // Then
         assertNotNull(secrets);
         assertEquals(1, secrets.size());
-        assertEquals(mockSecret, secrets.get(0));
+        assertEquals(mockSecret, secrets.getFirst());
 
         verify(manifestGenerator).dialRegistryAuthSecretConfig(expectedSecretName);
     }
@@ -145,7 +155,10 @@ class ImageWrapperBuildJobSpecificationTest {
     void getJob_shouldReturnJobWithCorrectConfiguration() {
         // Given
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
-        when(appConfig.getBuilderContainerConfig()).thenReturn(new ContainerBuilder().withName("builder").build());
+        when(appConfig.getBuilderRootlessContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
+        when(appConfig.getPushContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build());
 
         // When
         Job job = jobSpecification.getJob();
@@ -157,63 +170,92 @@ class ImageWrapperBuildJobSpecificationTest {
         assertNotNull(job.getSpec().getTemplate());
         assertNotNull(job.getSpec().getTemplate().getSpec());
         assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(1, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertEquals(2, job.getSpec().getTemplate().getSpec().getContainers().size());
 
-        Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        List<String> args = container.getArgs();
-        assertNotNull(args);
-        assertTrue(args.contains("--destination=" + SOURCE_IMAGE_URI));
-        assertTrue(args.contains("--context=/sources"));
-        assertTrue(args.contains("--dockerfile=/templates/Dockerfile"));
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
+        List<String> buildArgs = buildContainer.getArgs();
+        assertNotNull(buildArgs);
+        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates")));
+        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates")));
+        Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
+        List<EnvVar> pushEnvVars = pushContainer.getEnv();
+        assertNotNull(pushEnvVars);
+        assertTrue(pushEnvVars.stream()
+                .anyMatch(envVar -> envVar.getName().equals("TARGET_IMAGE") && envVar.getValue().equals(SOURCE_IMAGE_URI)));
+    }
+
+    @Test
+    void getJob_shouldReturnJobWithCorrectConfigurationForRoot() {
+        // Given
+        when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
+        when(appConfig.getBuilderRootContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
+        when(appConfig.getPushContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build());
+
+        // When
+        Job job = createJobSpecification(ImageBuilder.BUILDKIT).getJob();
+
+        // Then
+        assertNotNull(job);
+        assertNotNull(job.getMetadata());
+        assertNotNull(job.getSpec());
+        assertNotNull(job.getSpec().getTemplate());
+        assertNotNull(job.getSpec().getTemplate().getSpec());
+        assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
+        assertEquals(2, job.getSpec().getTemplate().getSpec().getContainers().size());
+
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
+        List<String> buildArgs = buildContainer.getArgs();
+        assertNotNull(buildArgs);
+        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates")));
+        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates")));
+        Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
+        List<EnvVar> pushEnvVars = pushContainer.getEnv();
+        assertNotNull(pushEnvVars);
+        assertTrue(pushEnvVars.stream()
+                .anyMatch(envVar -> envVar.getName().equals("TARGET_IMAGE") && envVar.getValue().equals(SOURCE_IMAGE_URI)));
     }
 
     @Test
     void getJob_shouldConfigureSecretVolumeWhenBasicAuthIsUsed() {
         // Given
         when(registryService.getAuthScheme()).thenReturn(DockerAuthScheme.BASIC);
-
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJobWithVolumes());
-        when(appConfig.getBuilderContainerConfig()).thenReturn(new ContainerBuilder().withName("builder").build());
-
-        jobSpecification = new ImageWrapperBuildJobSpecification(
-                registryClient,
-                registryService,
-                manifestGenerator,
-                appConfig,
-                NAMESPACE,
-                DOCKER_CONFIG_PATH,
-                BUILD_ID,
-                IMAGE_NAME,
-                dockerImageSource,
-                distroInfo,
-                MCP_PROXY_ALPINE_IMAGE_URI,
-                MCP_PROXY_DEBIAN_IMAGE_URI
-        );
+        when(appConfig.getBuilderRootlessContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
+        when(appConfig.getPushContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build());
 
         // When
         Job job = jobSpecification.getJob();
 
         // Then
         assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
-        assertTrue(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0);
+        assertFalse(job.getSpec().getTemplate().getSpec().getVolumes().isEmpty());
 
-        Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        assertNotNull(container.getVolumeMounts());
-        assertTrue(container.getVolumeMounts().stream()
+        Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
+        assertNotNull(pushContainer.getVolumeMounts());
+        assertTrue(pushContainer.getVolumeMounts().stream()
                 .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
 
-        assertTrue(container.getVolumeMounts().stream()
+        assertTrue(pushContainer.getVolumeMounts().stream()
                 .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
     }
 
     private Job createDefaultJob() {
         Container builderContainer = new ContainerBuilder()
-                .withName("builder")
+                .withName(BUILDER_CONTAINER_NAME)
+                .withArgs(new ArrayList<>())
+                .build();
+
+        Container pushContainer = new ContainerBuilder()
+                .withName(PUSH_CONTAINER_NAME)
                 .withArgs(new ArrayList<>())
                 .build();
 
         PodSpec podSpec = new PodSpecBuilder()
-                .withContainers(builderContainer)
+                .withContainers(builderContainer, pushContainer)
                 .build();
 
         PodTemplateSpec podTemplate = new PodTemplateSpecBuilder()
@@ -231,12 +273,17 @@ class ImageWrapperBuildJobSpecificationTest {
 
     private Job createDefaultJobWithVolumes() {
         Container builderContainer = new ContainerBuilder()
-                .withName("builder")
+                .withName(BUILDER_CONTAINER_NAME)
+                .withArgs(new ArrayList<>())
+                .build();
+
+        Container pushContainer = new ContainerBuilder()
+                .withName(PUSH_CONTAINER_NAME)
                 .withArgs(new ArrayList<>())
                 .build();
 
         PodSpec podSpec = new PodSpecBuilder()
-                .withContainers(builderContainer)
+                .withContainers(builderContainer, pushContainer)
                 .withVolumes(new ArrayList<>())
                 .build();
 
@@ -270,4 +317,10 @@ class ImageWrapperBuildJobSpecificationTest {
                 .withData(configData)
                 .build();
     }
+
+    private Container getContainerByName(Job job, String containerName) {
+        return job.getSpec().getTemplate().getSpec().getContainers().stream()
+                .filter(container -> containerName.equals(container.getName())).findFirst().get();
+    }
+
 }

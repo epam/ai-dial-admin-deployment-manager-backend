@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36" version="29.2.4">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.2.7">
   <diagram name="DIAL Infrastructure" id="dial-infrastructure">
-    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+    <mxGraphModel dx="1270" dy="758" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -34,7 +34,7 @@
         <mxCell id="ns-build" parent="k8s-cluster" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Namespace: K8S_BUILD_NAMESPACE (DIAL deployments Image Building)" vertex="1">
           <mxGeometry height="140" width="590" x="200" y="50" as="geometry" />
         </mxCell>
-        <mxCell id="kaniko" parent="ns-build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" value="Container Image Builder (Kaniko)" vertex="1">
+        <mxCell id="buildkit" parent="ns-build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" value="Container Image Builder (Buildkit)" vertex="1">
           <mxGeometry height="60" width="140" x="180" y="50" as="geometry" />
         </mxCell>
         <mxCell id="ns-knative" parent="k8s-cluster" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="Namespace: K8S_KNATIVE_DEPLOYMENT_NAMESPACE (DIAL Deployments Workloads)" vertex="1">
@@ -118,14 +118,14 @@
             <mxPoint x="380" y="530" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel-vcs-kaniko" edge="1" parent="1" source="vcs" style="endArrow=classic;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;exitX=0.513;exitY=0.963;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;exitPerimeter=0;" target="kaniko" value="Source Code">
+        <mxCell id="rel-vcs-buildkit" edge="1" parent="1" source="vcs" style="endArrow=classic;html=1;entryX=1;entryY=0.25;entryDx=0;entryDy=0;exitX=0.513;exitY=0.963;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;exitPerimeter=0;" target="buildkit" value="Source Code">
           <mxGeometry height="50" relative="1" width="50" x="0.3774" y="-5" as="geometry">
             <mxPoint as="offset" />
             <mxPoint x="570" y="130" as="sourcePoint" />
             <mxPoint x="530" y="250" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel-net-kaniko" edge="1" parent="1" source="internet" style="endArrow=classic;html=1;exitX=0.07;exitY=0.4;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;" target="kaniko" value="Dependencies&#xa;(PyPI/Maven/etc.)">
+        <mxCell id="rel-net-buildkit" edge="1" parent="1" source="internet" style="endArrow=classic;html=1;exitX=0.07;exitY=0.4;exitDx=0;exitDy=0;strokeWidth=2;strokeColor=#9673a6;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;" target="buildkit" value="Dependencies&#xa;(PyPI/Maven/etc.)">
           <mxGeometry height="50" relative="1" width="50" x="0.212" y="12" as="geometry">
             <mxPoint as="offset" />
             <Array as="points" />
@@ -133,7 +133,7 @@
             <mxPoint x="910" y="300" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel-kaniko-registry" edge="1" parent="1" style="endArrow=classic;html=1;entryX=0;entryY=0;entryDx=0;entryDy=52.5;strokeWidth=2;strokeColor=#9673a6;entryPerimeter=0;" target="registry" value="Push Built Image">
+        <mxCell id="rel-buildkit-registry" edge="1" parent="1" style="endArrow=classic;html=1;entryX=0;entryY=0;entryDx=0;entryDy=52.5;strokeWidth=2;strokeColor=#9673a6;entryPerimeter=0;" target="registry" value="Push Built Image">
           <mxGeometry height="50" relative="1" width="50" x="-0.0866" y="-2" as="geometry">
             <mxPoint as="offset" />
             <mxPoint x="982" y="340" as="sourcePoint" />
