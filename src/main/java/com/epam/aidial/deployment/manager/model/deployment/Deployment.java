@@ -6,6 +6,8 @@ import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,6 +21,14 @@ import java.util.UUID;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "$type")
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = McpDeployment.class, name = "mcp"),
+        @JsonSubTypes.Type(value = AdapterDeployment.class, name = "adapter"),
+        @JsonSubTypes.Type(value = InterceptorDeployment.class, name = "interceptor"),
+        @JsonSubTypes.Type(value = NimDeployment.class, name = "nim"),
+        @JsonSubTypes.Type(value = InferenceDeployment.class, name = "inference")
+})
 public abstract class Deployment {
     private String id;
     private UUID imageDefinitionId;

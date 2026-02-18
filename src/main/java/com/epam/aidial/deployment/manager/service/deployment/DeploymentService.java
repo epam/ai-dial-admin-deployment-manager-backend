@@ -192,9 +192,11 @@ public class DeploymentService {
     }
 
     public Deployment deploy(String id) {
+        var deployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+        requireImageBuiltForDeployment(deployment);
         var deploymentManager = deploymentManagerProvider.provide(id);
-        var deployment = deploymentManager.deploy(id);
-        return deploymentManager.resolveSecrets(deployment);
+        var deployed = deploymentManager.deploy(id);
+        return deploymentManager.resolveSecrets(deployed);
     }
 
     public Deployment undeploy(String id) {
@@ -348,6 +350,13 @@ public class DeploymentService {
                     .formatted(id));
         }
         return imageDefinition;
+    }
+
+    private void requireImageBuiltForDeployment(Deployment deployment) {
+        if (deployment.getImageDefinitionId() == null) {
+            return;
+        }
+        loadImageDefinitionOrThrow(deployment.getImageDefinitionId());
     }
 
     private static List<SimpleEnvVar> toSimpleEnvs(Map<String, EnvVarValue> envs) {

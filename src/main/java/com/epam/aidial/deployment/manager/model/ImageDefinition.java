@@ -1,5 +1,7 @@
 package com.epam.aidial.deployment.manager.model;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -14,6 +16,12 @@ import java.util.UUID;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "$type")
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = McpImageDefinition.class, name = "mcp"),
+        @JsonSubTypes.Type(value = AdapterImageDefinition.class, name = "adapter"),
+        @JsonSubTypes.Type(value = InterceptorImageDefinition.class, name = "interceptor")
+})
 public abstract class ImageDefinition {
     private UUID id;
     private String name;

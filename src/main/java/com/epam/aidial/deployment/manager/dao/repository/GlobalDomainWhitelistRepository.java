@@ -26,6 +26,22 @@ public class GlobalDomainWhitelistRepository {
         return updatedWhitelist.getAllowedDomains();
     }
 
+    public void setAllowedDomainsOrCreate(List<String> allowedDomains) {
+        var entities = jpaRepository.findAll();
+        DomainWhitelistEntity whitelist;
+        if (CollectionUtils.isEmpty(entities)) {
+            whitelist = new DomainWhitelistEntity();
+            whitelist.setAllowedDomains(allowedDomains);
+        } else {
+            if (entities.size() > 1) {
+                throw new IllegalStateException("More than 1 global domain whitelist found");
+            }
+            whitelist = entities.getFirst();
+            whitelist.setAllowedDomains(allowedDomains);
+        }
+        jpaRepository.saveAndFlush(whitelist);
+    }
+
     private DomainWhitelistEntity getGlobalDomainWhitelist() {
         var entities = jpaRepository.findAll();
         if (CollectionUtils.isEmpty(entities)) {
@@ -34,6 +50,6 @@ public class GlobalDomainWhitelistRepository {
         if (entities.size() > 1) {
             throw new IllegalStateException("More than 1 global domain whitelist found");
         }
-        return entities.get(0);
+        return entities.getFirst();
     }
 }
