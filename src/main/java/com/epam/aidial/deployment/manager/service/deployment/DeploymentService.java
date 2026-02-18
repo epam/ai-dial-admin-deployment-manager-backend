@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupServ
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
@@ -347,8 +348,7 @@ public class DeploymentService {
         var imageDefinition = imageDefinitionService.getImageDefinition(id)
                 .orElseThrow(notFound("ImageDefinition", id));
         if (imageDefinition.getBuildStatus() != ImageStatus.BUILD_SUCCESSFUL) {
-            throw new IllegalStateException("Unable to perform requested operation: image '%s' is not built"
-                    .formatted(id));
+            throw new DeploymentException("Unable to perform requested operation: image '%s' is not built".formatted(id));
         }
         return imageDefinition;
     }
