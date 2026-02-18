@@ -64,7 +64,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -265,7 +264,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         var container = new Container();
         container.setName("builder-container");
         container.setImage("quay.io/skopeo/stable:v1.21.0");
-        container.setArgs(Arrays.asList(
+        container.setArgs(List.of(
                 "copy",
                 "docker://workflow-test-repo.azurecr.io/interceptor-sample-image:latest",
                 "docker://test-docker-registry/app-copy-" + uuid + ":1.0.0",
@@ -363,7 +362,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         container.setName("app-container");
         container.setImage(image);
         container.setImagePullPolicy("Always");
-        container.setEnv(Arrays.asList(envDialUrl, envSensVar));
+        container.setEnv(List.of(envDialUrl, envSensVar));
         container.setResources(resources);
 
         var port = new ContainerPort();
@@ -402,7 +401,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         buildContainer.setName("builder-container");
         buildContainer.setImage("moby/buildkit:v0.27.1-rootless");
 
-        buildContainer.setArgs(Arrays.asList(
+        buildContainer.setArgs(List.of(
                 "build",
                 "--frontend",
                 "dockerfile.v0",
@@ -415,7 +414,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         ));
 
         buildContainer.setCommand(Collections.singletonList("buildctl-daemonless.sh"));
-        buildContainer.setEnv(Arrays.asList(
+        buildContainer.setEnv(List.of(
                 new EnvVarBuilder()
                         .withName("BUILDKITD_FLAGS")
                         .withValue("--oci-worker-no-process-sandbox")
@@ -473,8 +472,8 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
             exit 1""";
         pushContainer.setArgs(Collections.singletonList(arg));
 
-        pushContainer.setCommand(Arrays.asList("/bin/sh", "-c"));
-        pushContainer.setEnv(Arrays.asList(
+        pushContainer.setCommand(List.of("/bin/sh", "-c"));
+        pushContainer.setEnv(List.of(
                 new EnvVarBuilder()
                         .withName("MAX_RETRIES")
                         .withValue("120")
@@ -537,8 +536,8 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         secretVolumeMount.setSubPath("config.json");
         secretVolumeMount.setAdditionalProperties(new HashMap<>());
 
-        buildContainer.setVolumeMounts(Arrays.asList(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount, secretVolumeMount));
-        pushContainer.setVolumeMounts(Arrays.asList(imageBuildVolumeMount, secretVolumeMount));
+        buildContainer.setVolumeMounts(List.of(workspaceVolumeMount, imageBuildVolumeMount, dockerfileVolumeMount, secretVolumeMount));
+        pushContainer.setVolumeMounts(List.of(imageBuildVolumeMount, secretVolumeMount));
 
         // Dockerfile ConfigMap volume
         var configMapVolumeSource = new ConfigMapVolumeSource();
@@ -573,7 +572,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // PodSpec
         var podSpec = new PodSpec();
         podSpec.setAutomountServiceAccountToken(false);
-        podSpec.setContainers(Arrays.asList(buildContainer, pushContainer));
+        podSpec.setContainers(List.of(buildContainer, pushContainer));
         podSpec.setEphemeralContainers(Collections.emptyList());
         podSpec.setHostAliases(Collections.emptyList());
         podSpec.setImagePullSecrets(Collections.emptyList());
@@ -586,7 +585,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         podSpec.setSchedulingGates(Collections.emptyList());
         podSpec.setTolerations(Collections.emptyList());
         podSpec.setTopologySpreadConstraints(Collections.emptyList());
-        podSpec.setVolumes(Arrays.asList(workspaceVolume, imageBuildVolume, dockerfileVolume, secretVolume));
+        podSpec.setVolumes(List.of(workspaceVolume, imageBuildVolume, dockerfileVolume, secretVolume));
         podSpec.setAdditionalProperties(new HashMap<>());
 
         // PodTemplateSpec

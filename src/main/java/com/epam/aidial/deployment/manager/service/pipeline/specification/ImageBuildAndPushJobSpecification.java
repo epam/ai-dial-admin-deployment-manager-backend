@@ -95,8 +95,13 @@ public abstract class ImageBuildAndPushJobSpecification implements JobSpecificat
     }
 
     private void configurePushContainerEnvVars(MappingChain<Container> container) {
+        addEnvVar(container, TARGET_IMAGE_ENV_VAR_NAME, targetImage);
+    }
+
+    protected void addEnvVar(MappingChain<Container> container, String name, String value) {
         container.get(Mappers.CONTAINER_ENV_FIELD).data()
-                .add(new EnvVarBuilder().withName(TARGET_IMAGE_ENV_VAR_NAME).withValue(targetImage).build());
+                .add(new EnvVarBuilder().withName(name).withValue(value).build());
+
     }
 
     protected void configureRegistryAuth(MappingChain<PodSpec> podSpec, MappingChain<Container> container) {
