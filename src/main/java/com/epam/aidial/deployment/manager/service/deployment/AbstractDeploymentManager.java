@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecyc
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -550,7 +551,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         if (CollectionUtils.isEmpty(containerStatuses)) {
             log.info("Container '{}' in pod '{}' has no status yet. Deployment='{}', Pod phase={}",
                     containerName, podName, deploymentId, phase);
-            throw new IllegalArgumentException("Container is not ready for log streaming for deployment '%s'".formatted(deploymentId));
+            throw new ValidationException("Container is not ready for log streaming for deployment '%s'".formatted(deploymentId));
         }
 
         return containerStatuses.stream()
@@ -573,7 +574,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         if (!hasTerminatedState) {
             log.info("Container '{}' in pod '{}' has no terminated state. Deployment='{}', {}",
                     containerName, podName, deploymentId, describeContainerState(containerStatus));
-            throw new IllegalArgumentException("Previous logs are not available for container in deployment '%s'".formatted(deploymentId));
+            throw new ValidationException("Previous logs are not available for container in deployment '%s'".formatted(deploymentId));
         }
     }
 
@@ -586,7 +587,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         log.info("Container '{}' in pod '{}' is not running. Deployment='{}', {}",
                 containerName, podName, deploymentId, describeContainerState(containerStatus));
-        throw new IllegalArgumentException("Container is not running for deployment '%s'".formatted(deploymentId));
+        throw new ValidationException("Container is not running for deployment '%s'".formatted(deploymentId));
     }
 
     private static String describeContainerState(ContainerStatus containerStatus) {

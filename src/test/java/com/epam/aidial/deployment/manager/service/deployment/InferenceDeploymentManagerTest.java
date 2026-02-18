@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
@@ -306,7 +307,7 @@ class InferenceDeploymentManagerTest {
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessage("Container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
@@ -320,7 +321,7 @@ class InferenceDeploymentManagerTest {
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Container is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
@@ -333,7 +334,7 @@ class InferenceDeploymentManagerTest {
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
@@ -348,7 +349,7 @@ class InferenceDeploymentManagerTest {
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
@@ -363,7 +364,7 @@ class InferenceDeploymentManagerTest {
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessage("Previous logs are not available for container in deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 

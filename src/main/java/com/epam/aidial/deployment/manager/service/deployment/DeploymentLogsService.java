@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderFactory;
 import com.epam.aidial.deployment.manager.service.SafeAutoCloseable;
@@ -41,9 +42,12 @@ public class DeploymentLogsService {
                     "Deployment-" + podName,
                     emitter -> startPodStreaming(id, containerResource, cfg, emitter));
 
-        } catch (Exception e) {
-            log.info("Log streaming rejected for deployment '{}', pod '{}': {}", id, podName, e);
+        } catch (ValidationException e) {
+            log.info("Log streaming rejected for deployment '{}', pod '{}': {}", id, podName, e.getMessage());
             return sseEmitterFactory.createErrorEmitter(id, "Deployment-" + podName, e.getMessage());
+        } catch (Exception e) {
+            log.warn("Log streaming failed for deployment '{}', pod '{}'", id, podName, e);
+            return sseEmitterFactory.createErrorEmitter(id, "Deployment-" + podName, "Unknown error occurred");
         }
     }
 
