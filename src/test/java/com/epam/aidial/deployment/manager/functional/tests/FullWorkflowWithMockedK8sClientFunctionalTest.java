@@ -415,10 +415,14 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         ));
 
         buildContainer.setCommand(Collections.singletonList("buildctl-daemonless.sh"));
-        buildContainer.setEnv(Collections.singletonList(
+        buildContainer.setEnv(Arrays.asList(
                 new EnvVarBuilder()
                         .withName("BUILDKITD_FLAGS")
                         .withValue("--oci-worker-no-process-sandbox")
+                        .build(),
+                new EnvVarBuilder()
+                        .withName("DOCKER_CONFIG")
+                        .withValue("/kaniko/.docker")
                         .build()
         ));
         buildContainer.setEnvFrom(Collections.emptyList());
