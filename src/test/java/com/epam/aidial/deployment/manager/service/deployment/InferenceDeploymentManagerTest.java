@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
@@ -249,16 +250,18 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnContainerResourceForPod() {
+    void getContainerResourceForLogs_shouldReturnContainerResourceForRunningPod() {
         // Given
         Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -268,19 +271,18 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnNullWhenPodNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(null);
 
-        // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
-
-        // Then
-        assertThat(result).isNull();
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
-    void getContainerResource_shouldThrowExceptionWhenContainerNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenContainerNotFound() {
         // Given
         Pod pod = new Pod();
         pod.setMetadata(new ObjectMeta());
@@ -290,9 +292,99 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container not found for pod");
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerStatusIsEmpty() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().setContainerStatuses(Collections.emptyList());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerStatusNotFoundByName() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst().setName("other-container");
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Container is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerIsNotRunning() {
+        // Given
+        Pod pod = createPod(POD_NAME, false); // waiting state
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerIsTerminated() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewTerminated().endTerminated().build());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenPreviousLogsNotAvailable() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Previous logs are not available for container in deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldReturnContainerResourceForPreviousLogs() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        var containerStatus = pod.getStatus().getContainerStatuses().getFirst();
+        containerStatus.setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+        containerStatus.setLastState(new ContainerStateBuilder().withNewTerminated().endTerminated().build());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
+
+        // When
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true);
+
+        // Then
+        assertThat(result).isEqualTo(containerResource);
     }
 
     @Test

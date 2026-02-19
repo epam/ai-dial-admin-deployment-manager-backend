@@ -204,16 +204,18 @@ class NimDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnContainerResourceForPod() {
+    void getContainerResourceForLogs_shouldReturnContainerResourceForRunningPod() {
         // Given
         Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = nimDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
+        ContainerResource result = nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -223,19 +225,18 @@ class NimDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnNullWhenPodNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
-        // When
-        ContainerResource result = nimDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
-
-        // Then
-        assertThat(result).isNull();
+        // When / Then
+        assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
-    void getContainerResource_shouldThrowExceptionWhenContainerNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenContainerNotFound() {
         // Given
         Pod pod = new Pod(); // Pod with no containers
         pod.setMetadata(new ObjectMeta());
@@ -245,7 +246,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
-        assertThatThrownBy(() -> nimDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME))
+        assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container not found for pod");
     }
@@ -625,6 +626,7 @@ class NimDeploymentManagerTest {
 
         var status = new PodStatus();
         var containerStatus = new ContainerStatus();
+        containerStatus.setName(CONTAINER_NAME);
 
         if (ready) {
             containerStatus.setState(new ContainerStateBuilder().build()); // No waiting state means ready
