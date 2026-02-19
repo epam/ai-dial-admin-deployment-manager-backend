@@ -5,10 +5,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -58,6 +60,24 @@ public class SseEmitterFactory {
         heartbeatRef.set(startHeartbeat(businessId, humanReadableId, emitter));
         streamingRef.set(startStreaming.apply(emitter));
 
+        return emitter;
+    }
+
+    /**
+     * Creates an emitter that immediately sends an error event and completes.
+     * Used when pre-flight validation fails before streaming can begin.
+     */
+    public SseEmitter createErrorEmitter(String businessId, String humanReadableId, String errorMessage) {
+        var emitter = new SseEmitter();
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("error")
+                    .data(Map.of("message", errorMessage), MediaType.APPLICATION_JSON));
+            emitter.complete();
+        } catch (Exception e) {
+            log.warn("Failed to send error event. {}: {}", humanReadableId, businessId, e);
+            emitter.completeWithError(e);
+        }
         return emitter;
     }
 

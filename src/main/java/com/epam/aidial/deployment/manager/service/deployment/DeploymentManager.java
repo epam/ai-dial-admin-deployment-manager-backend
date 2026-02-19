@@ -37,7 +37,15 @@ public interface DeploymentManager<S> {
 
     NonNamespaceOperation<Event, EventList, Resource<Event>> getAllEventsBase();
 
-    ContainerResource getContainerResource(String id, String podName);
+    /**
+     * Resolves a container resource for log streaming and performs a pre-flight validation:
+     * - when {@code previous == false}: container must be in {@code Running} state
+     * - when {@code previous == true}: container must have a previous terminated instance available
+     *
+     * <p>This avoids opening a log stream that immediately yields a Kubernetes {@code Status} error
+     * (e.g. when the container is still {@code PodInitializing}).</p>
+     */
+    ContainerResource getContainerResourceForLogs(String id, String podName, boolean previous);
 
     List<SensitiveEnvVar> provisionSecrets(String deploymentId, EnvPartition envPartition);
 
