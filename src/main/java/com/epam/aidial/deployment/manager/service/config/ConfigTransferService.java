@@ -17,6 +17,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -40,20 +41,27 @@ public class ConfigTransferService {
         if (!(request instanceof SelectedItemsExportRequest customExportRequest)) {
             throw new IllegalArgumentException("Unsupported export request type: " + request.getClass());
         }
+
+        int componentsSize = customExportRequest.getComponents() != null ? customExportRequest.getComponents().size() : 0;
+        log.info("Exporting config (components={})", componentsSize);
         ExportConfig config = configExporter.getConfig(customExportRequest);
 
         return outputStream -> {
             try (var zos = new ZipOutputStream(outputStream)) {
                 zos.putNextEntry(new ZipEntry(properties.getFileName()));
-                zos.write(exportJsonMapper.writeValueAsString(config).getBytes());
+                zos.write(exportJsonMapper.writeValueAsString(config).getBytes(StandardCharsets.UTF_8));
                 zos.closeEntry();
+                log.info("Export config stream written successfully");
             } catch (IOException e) {
+                log.warn("Export config stream failed: {}", e.getMessage(), e);
                 throw new RuntimeException(e);
             }
         };
     }
 
     public void importConfig(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy) {
+        String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
+        log.info("Importing config from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);
         try (var zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipFile.getBytes()))) {
             ZipEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
@@ -65,12 +73,13 @@ public class ConfigTransferService {
                 }
                 zipInputStream.closeEntry();
             }
-        } catch (IOException ioException) {
-            if (ioException.getMessage().startsWith("Stream closed")) {
-                log.debug("Stream is already closed");
-            }
+            log.info("Config import completed successfully");
         } catch (Exception ex) {
-            log.debug("Config file {} import failed", zipFile.getOriginalFilename(), ex);
+            if (ex instanceof IOException && ex.getMessage() != null && ex.getMessage().startsWith("Stream closed")) {
+                log.debug("Stream is already closed");
+                return;
+            }
+            log.warn("Config import failed: {}", ex.getMessage(), ex);
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
     }

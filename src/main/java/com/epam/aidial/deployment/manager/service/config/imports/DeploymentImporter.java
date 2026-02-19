@@ -10,7 +10,6 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
@@ -23,7 +22,6 @@ public class DeploymentImporter {
     private final DeploymentService deploymentService;
     private final DeploymentMapper deploymentMapper;
 
-    @Transactional
     public void importDeployments(ExportConfig config, ConflictResolutionPolicy policy) {
         importMap(config.getMcpDeployments(), policy);
         importMap(config.getAdapterDeployments(), policy);

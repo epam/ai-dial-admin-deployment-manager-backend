@@ -27,9 +27,26 @@ public class ConfigImporter {
 
     @Transactional
     public void importConfig(ExportConfig config, ConflictResolutionPolicy resolutionPolicy) {
-        log.debug("Importing config; resolutionPolicy={}", resolutionPolicy);
+        int imageDefCount = countImageDefinitions(config);
+        int deploymentCount = countDeployments(config);
+        log.info("Config import started: {} image definitions, {} deployments (resolutionPolicy={})",
+                imageDefCount, deploymentCount, resolutionPolicy);
         imageDefinitionImporter.importImageDefinitions(config, resolutionPolicy);
         deploymentImporter.importDeployments(config, resolutionPolicy);
         globalDomainWhitelistImporter.importGlobalDomainWhitelist(config.getGlobalImageBuildDomainWhitelist(), resolutionPolicy);
+    }
+
+    private static int countImageDefinitions(ExportConfig config) {
+        return config.getMcpImageDefinitions().size()
+                + config.getAdapterImageDefinitions().size()
+                + config.getInterceptorImageDefinitions().size();
+    }
+
+    private static int countDeployments(ExportConfig config) {
+        return config.getMcpDeployments().size()
+                + config.getAdapterDeployments().size()
+                + config.getInterceptorDeployments().size()
+                + config.getNimDeployments().size()
+                + config.getInferenceDeployments().size();
     }
 }
