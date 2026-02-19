@@ -1,39 +1,37 @@
 package com.epam.aidial.deployment.manager.mcpregistry.client;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServersRequest;
 import com.epam.aidial.deployment.manager.mcpregistry.properties.McpRegistryProperties;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Component
 @LogExecution
+@RequiredArgsConstructor
 public class McpRegistryClient {
 
-    private static final String SERVERS_ENDPOINT = "/v0.1/servers";
+    private static final String SERVERS_ENDPOINT_PATH = "/v0.1/servers";
 
     private final OkHttpClient httpClient;
     private final JsonMapper jsonMapper;
     private final McpRegistryProperties properties;
-
-    public McpRegistryClient(OkHttpClient httpClient, JsonMapper jsonMapper, McpRegistryProperties properties) {
-        this.httpClient = httpClient;
-        this.jsonMapper = jsonMapper;
-        this.properties = properties;
-    }
 
     /**
      * Get a page of MCP servers from the registry.
@@ -41,21 +39,15 @@ public class McpRegistryClient {
      * @param request request parameters (cursor, limit, search, updatedSince, version)
      * @return paginated response with servers and metadata
      */
-    public ServerListResponse getServers(ServersRequest request) {
+    public ServerListResponseDto getServers(ServersRequestDto request) {
         log.debug("Retrieving MCP registry servers. Request: {}. Base URL: {}.",
                 request, properties.getBaseUrl());
         var url = buildServersUrl(request);
+        var requestObj = new Request.Builder().url(url).get().build();
 
-        try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
-            if (!response.isSuccessful()) {
-                throw new McpRegistryClientException("Unexpected response code: " + response.code(), response.code());
-            }
-            var body = response.body();
-            if (body == null) {
-                throw new McpRegistryClientException("Response does not have response body. Response code: "
-                        + response.code(), response.code());
-            }
-            var result = jsonMapper.readValue(body.string(), new TypeReference<ServerListResponse>() {
+        try (var response = httpClient.newCall(requestObj).execute()) {
+            var bodyString = getResponseBody(response);
+            var result = jsonMapper.readValue(bodyString, new TypeReference<ServerListResponseDto>() {
             });
             log.debug("MCP registry servers were retrieved. Count: {}. Base URL: {}.",
                     result.getServers() != null ? result.getServers().size() : 0, properties.getBaseUrl());
@@ -75,21 +67,14 @@ public class McpRegistryClient {
      * @param serverName server name (e.g. ai.com.mcp/petstore); may be raw or already URL-encoded
      * @return list of server entries (one per version)
      */
-    public ServerListResponse getServerVersions(String serverName) {
+    public ServerListResponseDto getServerVersions(String serverName) {
         log.debug("Retrieving MCP registry server versions. ServerName: {}. Base URL: {}.",
                 serverName, properties.getBaseUrl());
-        var url = properties.getBaseUrl() + SERVERS_ENDPOINT + "/" + encodePathSegmentIfNeeded(serverName) + "/versions";
+        var url = "%s%s/%s/versions".formatted(properties.getBaseUrl(), SERVERS_ENDPOINT_PATH, encodePathSegmentIfNeeded(serverName));
 
         try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
-            if (!response.isSuccessful()) {
-                throw new McpRegistryClientException("Unexpected response code: " + response.code(), response.code());
-            }
-            var body = response.body();
-            if (body == null) {
-                throw new McpRegistryClientException("Response does not have response body. Response code: "
-                        + response.code(), response.code());
-            }
-            var result = jsonMapper.readValue(body.string(), new TypeReference<ServerListResponse>() {
+            var bodyString = getResponseBody(response);
+            var result = jsonMapper.readValue(bodyString, new TypeReference<ServerListResponseDto>() {
             });
             log.debug("MCP registry server versions were retrieved. ServerName: {}. Base URL: {}.",
                     serverName, properties.getBaseUrl());
@@ -110,22 +95,16 @@ public class McpRegistryClient {
      * @param version    version string (e.g. 1.0.0 or latest); may be raw or already URL-encoded
      * @return server detail and optional registry metadata
      */
-    public ServerResponse getServerVersion(String serverName, String version) {
+    public ServerResponseDto getServerVersion(String serverName, String version) {
         log.debug("Retrieving MCP registry server version. ServerName: {}. Version: {}. Base URL: {}.",
                 serverName, version, properties.getBaseUrl());
-        var url = properties.getBaseUrl() + SERVERS_ENDPOINT + "/" + encodePathSegmentIfNeeded(serverName)
-                + "/versions/" + encodePathSegmentIfNeeded(version);
+        var url = "%s%s/%s/versions/%s".formatted(properties.getBaseUrl(), SERVERS_ENDPOINT_PATH,
+                encodePathSegmentIfNeeded(serverName), encodePathSegmentIfNeeded(version)
+        );
 
         try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
-            if (!response.isSuccessful()) {
-                throw new McpRegistryClientException("Unexpected response code: " + response.code(), response.code());
-            }
-            var body = response.body();
-            if (body == null) {
-                throw new McpRegistryClientException("Response does not have response body. Response code: "
-                        + response.code(), response.code());
-            }
-            var result = jsonMapper.readValue(body.string(), new TypeReference<ServerResponse>() {
+            var bodyString = getResponseBody(response);
+            var result = jsonMapper.readValue(bodyString, new TypeReference<ServerResponseDto>() {
             });
             log.debug("MCP registry server version was retrieved. ServerName: {}. Version: {}. Base URL: {}.",
                     serverName, version, properties.getBaseUrl());
@@ -139,8 +118,8 @@ public class McpRegistryClient {
         }
     }
 
-    private String buildServersUrl(ServersRequest request) {
-        var urlBuilder = HttpUrl.parse(properties.getBaseUrl() + SERVERS_ENDPOINT).newBuilder();
+    private String buildServersUrl(ServersRequestDto request) {
+        var urlBuilder = HttpUrl.parse(properties.getBaseUrl() + SERVERS_ENDPOINT_PATH).newBuilder();
         if (StringUtils.isNotBlank(request.getCursor())) {
             urlBuilder.addQueryParameter("cursor", request.getCursor());
         }
@@ -157,6 +136,22 @@ public class McpRegistryClient {
             urlBuilder.addQueryParameter("version", request.getVersion());
         }
         return urlBuilder.build().toString();
+    }
+
+    /**
+     * Validates the response and returns the body string. Throws {@link McpRegistryClientException} if the
+     * response is not successful or has no body.
+     */
+    private static String getResponseBody(Response response) throws IOException {
+        if (!response.isSuccessful()) {
+            throw new McpRegistryClientException("Unexpected response code: " + response.code(), response.code());
+        }
+        var body = response.body();
+        if (body == null) {
+            throw new McpRegistryClientException("Response does not have response body. Response code: "
+                    + response.code(), response.code());
+        }
+        return body.string();
     }
 
     /**

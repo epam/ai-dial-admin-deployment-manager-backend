@@ -20,9 +20,9 @@ import java.util.List;
 public class Package {
 
     /**
-     * Registry type: "npm", "pypi", "oci", "nuget", "mcpb".
+     * Registry type: npm, pypi, oci, nuget, mcpb.
      */
-    private String registryType;
+    private PackageRegistryType registryType;
 
     /**
      * Base URL of the package registry.

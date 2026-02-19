@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.mcpregistry.model;
+package com.epam.aidial.deployment.manager.mcpregistry.web.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ServersRequest {
+public class ServersRequestDto {
 
     /**
      * Pagination cursor for retrieving next set of results.

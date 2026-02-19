@@ -2,9 +2,9 @@ package com.epam.aidial.deployment.manager.mcpregistry.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClient;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServersRequest;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class McpRegistryService {
      * @param request request parameters (cursor, limit, search, updatedSince, version)
      * @return paginated response with servers and metadata
      */
-    public ServerListResponse getServers(ServersRequest request) {
+    public ServerListResponseDto getServers(ServersRequestDto request) {
         return mcpRegistryClient.getServers(request);
     }
 
@@ -33,7 +33,7 @@ public class McpRegistryService {
      * @param serverName server name (e.g. ai.com.mcp/petstore); encoded when calling upstream
      * @return list of server entries (one per version)
      */
-    public ServerListResponse getServerVersions(String serverName) {
+    public ServerListResponseDto getServerVersions(String serverName) {
         return mcpRegistryClient.getServerVersions(serverName);
     }
 
@@ -44,7 +44,7 @@ public class McpRegistryService {
      * @param version    version string (e.g. 1.0.0 or latest)
      * @return server detail and optional registry metadata
      */
-    public ServerResponse getServerVersion(String serverName, String version) {
+    public ServerResponseDto getServerVersion(String serverName, String version) {
         return mcpRegistryClient.getServerVersion(serverName, version);
     }
 }

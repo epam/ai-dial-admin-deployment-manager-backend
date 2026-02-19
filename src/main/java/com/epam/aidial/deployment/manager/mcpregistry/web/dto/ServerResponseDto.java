@@ -1,5 +1,6 @@
-package com.epam.aidial.deployment.manager.mcpregistry.model;
+package com.epam.aidial.deployment.manager.mcpregistry.web.dto;
 
+import com.epam.aidial.deployment.manager.mcpregistry.model.ServerDetail;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -15,7 +16,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ServerResponse {
+public class ServerResponseDto {
 
     /**
      * Server detail (name, description, version, packages, etc.).

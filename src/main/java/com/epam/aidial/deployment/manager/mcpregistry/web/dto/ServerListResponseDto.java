@@ -1,5 +1,6 @@
-package com.epam.aidial.deployment.manager.mcpregistry.model;
+package com.epam.aidial.deployment.manager.mcpregistry.web.dto;
 
+import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListMetadata;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,12 +15,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ServerListResponse {
+public class ServerListResponseDto {
 
     /**
      * List of MCP server entries (each with server detail and optional _meta).
      */
-    private List<ServerResponse> servers;
+    private List<ServerResponseDto> servers;
 
     /**
      * Pagination and count metadata.

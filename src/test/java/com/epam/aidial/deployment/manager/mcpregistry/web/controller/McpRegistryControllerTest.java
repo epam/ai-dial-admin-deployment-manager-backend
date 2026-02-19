@@ -4,10 +4,10 @@ import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClientException;
 import com.epam.aidial.deployment.manager.mcpregistry.model.ServerDetail;
 import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListMetadata;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServersRequest;
 import com.epam.aidial.deployment.manager.mcpregistry.service.McpRegistryService;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.none.AbstractControllerNoneSecureTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,7 +36,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(JsonMapperConfiguration.class)
 class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
 
-    /** Server name (namespace/name). Path uses two segments so slash does not cause 400. */
     private static final String SERVER_NAME = "ai.com.mcp/petstore";
     private static final String NAMESPACE = "ai.com.mcp";
     private static final String NAME = "petstore";
@@ -50,7 +49,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void getServers_shouldReturnServers_whenRequestIsSuccessful() throws Exception {
         var serviceResponseJson = ResourceUtils.readResource("/mcp-registry/servers_page.json");
-        var serviceResponse = objectMapper.readValue(serviceResponseJson, ServerListResponse.class);
+        var serviceResponse = objectMapper.readValue(serviceResponseJson, ServerListResponseDto.class);
 
         when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
 
@@ -60,7 +59,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().json(serviceResponseJson, JsonCompareMode.LENIENT));
 
-        var captor = forClass(ServersRequest.class);
+        var captor = forClass(ServersRequestDto.class);
         verify(mcpRegistryService).getServers(captor.capture());
         var capturedRequest = captor.getValue();
         assertThat(capturedRequest.getSearch()).isEqualTo("everything");
@@ -78,8 +77,8 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void getServerVersions_shouldReturnVersions_whenRequestIsSuccessful() throws Exception {
-        var serviceResponse = ServerListResponse.builder()
-                .servers(List.of(ServerResponse.builder()
+        var serviceResponse = ServerListResponseDto.builder()
+                .servers(List.of(ServerResponseDto.builder()
                         .server(ServerDetail.builder()
                                 .name(SERVER_NAME)
                                 .version("1.0.0")
@@ -108,7 +107,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void getServerVersion_shouldReturnServer_whenRequestIsSuccessful() throws Exception {
         var version = "1.0.0";
-        var serviceResponse = ServerResponse.builder()
+        var serviceResponse = ServerResponseDto.builder()
                 .server(ServerDetail.builder()
                         .name(SERVER_NAME)
                         .description("MCP server that exposes all tools")
@@ -136,8 +135,8 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void postServerVersions_shouldListVersions_whenVersionOmitted() throws Exception {
-        var serviceResponse = ServerListResponse.builder()
-                .servers(List.of(ServerResponse.builder()
+        var serviceResponse = ServerListResponseDto.builder()
+                .servers(List.of(ServerResponseDto.builder()
                         .server(ServerDetail.builder()
                                 .name(SERVER_NAME)
                                 .version("1.0.0")
@@ -159,7 +158,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void postServerVersions_shouldGetVersion_whenVersionPresent() throws Exception {
         var version = "1.0.0";
-        var serviceResponse = ServerResponse.builder()
+        var serviceResponse = ServerResponseDto.builder()
                 .server(ServerDetail.builder()
                         .name(SERVER_NAME)
                         .version(version)
