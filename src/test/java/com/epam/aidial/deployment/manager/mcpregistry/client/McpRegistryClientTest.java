@@ -1,12 +1,9 @@
 package com.epam.aidial.deployment.manager.mcpregistry.client;
 
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerDetail;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServersRequest;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.mcpregistry.properties.McpRegistryProperties;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
+import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -21,12 +18,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,8 +33,6 @@ class McpRegistryClientTest {
     @Mock
     private OkHttpClient httpClient;
     @Mock
-    private JsonMapper jsonMapper;
-    @Mock
     private McpRegistryProperties properties;
     @Mock
     private Call call;
@@ -49,30 +42,32 @@ class McpRegistryClientTest {
     @BeforeEach
     void setUp() {
         when(properties.getBaseUrl()).thenReturn("https://registry.modelcontextprotocol.io");
-        client = new McpRegistryClient(httpClient, jsonMapper, properties);
+        client = new McpRegistryClient(httpClient, JsonMapperConfiguration.createJsonMapper(), properties);
     }
 
     @Test
     void getServers_shouldReturnServers_whenRequestIsSuccessful() throws IOException {
-        var request = ServersRequest.builder().search("filesystem").limit(10).build();
-        var responseBodyString = "{\"servers\":[],\"metadata\":{\"count\":0}}";
-        var serverListResponse = ServerListResponse.builder()
-                .servers(List.of())
-                .build();
+        var request = ServersRequestDto.builder().search("filesystem").limit(10).build();
+        var responseBodyString = ResourceUtils.readResource("/mcp-registry/servers_page.json");
 
         mockSuccessfulResponse(responseBodyString);
-        when(jsonMapper.readValue(eq(responseBodyString), any(TypeReference.class))).thenReturn(serverListResponse);
 
         var result = client.getServers(request);
 
         assertThat(result).isNotNull();
-        assertThat(result.getServers()).isEmpty();
+        assertThat(result.getServers()).hasSize(1);
+        assertThat(result.getMetadata()).isNotNull();
+        assertThat(result.getMetadata().getCount()).isEqualTo(1);
+        assertThat(result.getMetadata().getNextCursor()).isEqualTo("ai.com.mcp%2Fpetstore:1.0.0");
+        assertThat(result.getServers().get(0).getServer().getName()).isEqualTo(SERVER_NAME);
+        assertThat(result.getServers().get(0).getServer().getVersion()).isEqualTo("1.0.0");
+        assertThat(result.getServers().get(0).getServer().getTitle()).isEqualTo("Petstore");
         verify(httpClient).newCall(any(Request.class));
     }
 
     @Test
     void getServers_shouldThrowException_whenResponseIsNotSuccessful() throws IOException {
-        var request = ServersRequest.builder().build();
+        var request = ServersRequestDto.builder().build();
         mockFailedResponse(500);
 
         assertThatThrownBy(() -> client.getServers(request))
@@ -83,16 +78,9 @@ class McpRegistryClientTest {
     @Test
     void getServerVersion_shouldReturnServer_whenRequestIsSuccessful() throws IOException {
         var version = "1.0.0";
-        var responseBodyString = "{\"server\":{\"name\":\"ai.com.mcp/petstore\",\"version\":\"1.0.0\"}}";
-        var serverResponse = ServerResponse.builder()
-                .server(ServerDetail.builder()
-                        .name(SERVER_NAME)
-                        .version("1.0.0")
-                        .build())
-                .build();
+        var responseBodyString = ResourceUtils.readResource("/mcp-registry/server_version.json");
 
         mockSuccessfulResponse(responseBodyString);
-        when(jsonMapper.readValue(eq(responseBodyString), any(TypeReference.class))).thenReturn(serverResponse);
 
         var result = client.getServerVersion(SERVER_NAME, version);
 
@@ -100,6 +88,9 @@ class McpRegistryClientTest {
         assertThat(result.getServer()).isNotNull();
         assertThat(result.getServer().getName()).isEqualTo(SERVER_NAME);
         assertThat(result.getServer().getVersion()).isEqualTo("1.0.0");
+        assertThat(result.getServer().getTitle()).isEqualTo("Petstore");
+        assertThat(result.getServer().getDescription()).isEqualTo("MCP server that exposes all tools, resources and prompts");
+        assertThat(result.getMeta()).isNotNull();
         verify(httpClient).newCall(any(Request.class));
     }
 
@@ -114,16 +105,18 @@ class McpRegistryClientTest {
 
     @Test
     void getServerVersions_shouldReturnList_whenRequestIsSuccessful() throws IOException {
-        var responseBodyString = "{\"servers\":[],\"metadata\":{\"count\":0}}";
-        var serverListResponse = ServerListResponse.builder().servers(List.of()).build();
+        var responseBodyString = ResourceUtils.readResource("/mcp-registry/servers_page.json");
 
         mockSuccessfulResponse(responseBodyString);
-        when(jsonMapper.readValue(eq(responseBodyString), any(TypeReference.class))).thenReturn(serverListResponse);
 
         var result = client.getServerVersions(SERVER_NAME);
 
         assertThat(result).isNotNull();
-        assertThat(result.getServers()).isEmpty();
+        assertThat(result.getServers()).hasSize(1);
+        assertThat(result.getMetadata()).isNotNull();
+        assertThat(result.getMetadata().getCount()).isEqualTo(1);
+        assertThat(result.getServers().get(0).getServer().getName()).isEqualTo(SERVER_NAME);
+        assertThat(result.getServers().get(0).getServer().getVersion()).isEqualTo("1.0.0");
         verify(httpClient).newCall(any(Request.class));
     }
 

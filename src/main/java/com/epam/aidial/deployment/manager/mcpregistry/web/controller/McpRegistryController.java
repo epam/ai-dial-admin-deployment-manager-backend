@@ -3,11 +3,11 @@ package com.epam.aidial.deployment.manager.mcpregistry.web.controller;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClientException;
 import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListMetadata;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerResponse;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServersRequest;
 import com.epam.aidial.deployment.manager.mcpregistry.service.McpRegistryService;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerVersionsRequest;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerVersionsRequestDto;
+import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
 import com.epam.aidial.deployment.manager.web.handler.ErrorView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -15,6 +15,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MimeTypeUtils;
@@ -40,14 +41,14 @@ public class McpRegistryController {
     private final McpRegistryService mcpRegistryService;
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ServerListResponse getServers(
+    public ServerListResponseDto getServers(
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false, defaultValue = "100") @Min(1) @Max(1000) Integer limit,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String updatedSince,
             @RequestParam(required = false) String version
     ) {
-        var request = ServersRequest.builder()
+        var request = ServersRequestDto.builder()
                 .cursor(cursor)
                 .limit(limit)
                 .search(search)
@@ -58,11 +59,10 @@ public class McpRegistryController {
     }
 
     /**
-     * List all versions of a server. Server name is passed as namespace/name so that a slash in the
-     * name does not cause 400 (encoded slash is often rejected by servlet containers).
+     * List all versions of a server.
      */
     @GetMapping(value = "/{namespace}/{name}/versions", produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ServerListResponse getServerVersions(
+    public ServerListResponseDto getServerVersions(
             @PathVariable String namespace,
             @PathVariable String name
     ) {
@@ -75,7 +75,7 @@ public class McpRegistryController {
      * name does not cause 400 (encoded slash is often rejected by servlet containers).
      */
     @GetMapping(value = "/{namespace}/{name}/versions/{version}", produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ServerResponse getServerVersion(
+    public ServerResponseDto getServerVersion(
             @PathVariable String namespace,
             @PathVariable String name,
             @PathVariable String version
@@ -88,21 +88,21 @@ public class McpRegistryController {
      * List servers with all parameters in the request body.
      */
     @PostMapping(value = "/list", produces = MimeTypeUtils.APPLICATION_JSON_VALUE, consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ServerListResponse postListServers(@RequestBody @Valid ServersRequest request) {
+    public ServerListResponseDto postListServers(@RequestBody @Valid ServersRequestDto request) {
         return mcpRegistryService.getServers(request);
     }
 
     /**
      * List all versions of a server or get a specific version. If {@code version} is present and non-blank,
-     * returns a {@link ServerListResponse} containing that single version; otherwise returns the list of all
+     * returns a {@link ServerListResponseDto} containing that single version; otherwise returns the list of all
      * versions. Server name is in the request body.
      */
     @PostMapping(value = "/versions", produces = MimeTypeUtils.APPLICATION_JSON_VALUE, consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ServerListResponse postServerVersions(@RequestBody @Valid ServerVersionsRequest request) {
+    public ServerListResponseDto postServerVersions(@RequestBody @Valid ServerVersionsRequestDto request) {
         var serverName = request.getServerName();
-        if (request.getVersion() != null && !request.getVersion().isBlank()) {
+        if (StringUtils.isNotBlank(request.getVersion())) {
             var one = mcpRegistryService.getServerVersion(serverName, request.getVersion());
-            return ServerListResponse.builder()
+            return ServerListResponseDto.builder()
                 .servers(List.of(one))
                 .metadata(ServerListMetadata.builder().count(1).build())
                 .build();

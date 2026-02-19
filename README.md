@@ -128,7 +128,7 @@ The DIAL Deployment Manager Backend supports deploying NIM models through Kubern
 
 ## MCP Registry Module
 
-The MCP Registry module acts as a **proxy** for the [official MCP Registry API](https://modelcontextprotocol.io) (registry.modelcontextprotocol.io). It exposes REST endpoints in the same style as the rest of the Deployment Manager (e.g. Hugging Face integration), so the admin panel can discover and use MCP servers from the registry without calling the upstream API directly.
+The MCP Registry module acts as a **proxy** for the [official MCP Registry API](https://modelcontextprotocol.io) (registry.modelcontextprotocol.io).
 
 **Capabilities:**
 - **Client** – HTTP client that calls the external MCP Registry (list servers, list versions, get version). Uses the project’s shared OkHttp and JSON configuration.
@@ -141,7 +141,6 @@ The MCP Registry module acts as a **proxy** for the [official MCP Registry API](
   - **POST** `/list`: list servers with all parameters in the request body (`ServersRequest`).
   - **POST** `/versions`: list versions or get one version with body (`ServerVersionsRequest`). If `version` is set, returns that version in a `ServerListResponse`; otherwise returns the list of versions. Request body uses `serverName` (e.g. `ai.com.mcp/petstore`) and optional `version`.
 - **Tests** – Controller tests (`McpRegistryControllerTest`) and client tests (`McpRegistryClientTest`), plus JSON fixtures under `src/test/resources/mcp-registry/`.
-- **HTTP examples** – `docs/rest-collection/mcp-registry.http` for manual calls.
 
 **Configuration** (overridable via environment):
 

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ServerVersionsRequest {
+public class ServerVersionsRequestDto {
 
     /**
      * Full server name (e.g. ai.com.mcp/petstore).

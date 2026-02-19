@@ -20,9 +20,9 @@ import java.util.List;
 public class LocalTransport {
 
     /**
-     * Transport type: "stdio", "streamable-http", or "sse".
+     * Transport type: stdio, streamable-http, or sse.
      */
-    private String type;
+    private LocalTransportType type;
 
     /**
      * URL for streamable-http or sse transports.
