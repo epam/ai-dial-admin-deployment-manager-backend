@@ -5,7 +5,11 @@
       "name": "mcp-exp",
       "description": "MCP for export/import test",
       "version": "1.0.0",
-      "source": {"$type": "docker", "imageUri": "test-registry/mcp-exp:1.0", "entrypoint":[]},
+      "source": {
+        "$type": "docker",
+        "imageUri": "test-registry/mcp-exp:1.0",
+        "entrypoint": []
+      },
       "imageBuilder": "buildkit",
       "license": "MIT",
       "topics": ["topic1"],
@@ -17,7 +21,11 @@
       "name": "mcp-exp",
       "description": "MCP for export/import test v2",
       "version": "2.0.0",
-      "source": {"$type": "git", "url": "https://github.com/test/mcp-exp.git", "branchName": "main"},
+      "source": {
+        "$type": "git",
+        "url": "https://github.com/test/mcp-exp.git",
+        "branchName": "main"
+      },
       "imageBuilder": "buildkit_rootless",
       "license": "MIT",
       "topics": ["topic2"],
@@ -31,7 +39,11 @@
       "name": "adapter-exp",
       "description": "Adapter for export/import test",
       "version": "1.0.0",
-      "source": {"$type": "docker", "imageUri": "test-registry/adapter-exp:1.0", "entrypoint":[]},
+      "source": {
+        "$type": "docker",
+        "imageUri": "test-registry/adapter-exp:1.0",
+        "entrypoint": []
+      },
       "imageBuilder": "buildkit",
       "license": "",
       "topics": [],
@@ -44,7 +56,11 @@
       "name": "interceptor-exp",
       "description": "Interceptor for export/import test",
       "version": "1.0.0",
-      "source": {"$type": "docker", "imageUri": "test-registry/interceptor-exp:1.0", "entrypoint":[]},
+      "source": {
+        "$type": "docker",
+        "imageUri": "test-registry/interceptor-exp:1.0",
+        "entrypoint": []
+      },
       "imageBuilder": "buildkit",
       "license": "",
       "topics": [],
@@ -63,15 +79,32 @@
       "description": "MCP deployment for import test",
       "metadata": {
         "envs": [
-          {"name": "TEST_ENV_A", "value": {"$type": "simple", "value": "test-val-a"}, "mountType": "content", "description": ""},
-          {"name": "TEST_SECRET_B", "value": {"$type": "simple", "value": "secret-val-b"}, "mountType": "secure_content", "description": ""}
+          {
+            "name": "TEST_ENV_A",
+            "value": {"$type": "simple", "value": "test-val-a"},
+            "mountType": "content",
+            "description": ""
+          },
+          {
+            "name": "TEST_SECRET_B",
+            "value": {"$type": "simple", "value": "secret-val-b"},
+            "mountType": "secure_content",
+            "description": ""
+          }
         ]
       },
       "initialScale": 1,
       "minScale": 0,
       "maxScale": 5,
       "resources": {"limits": {}, "requests": {}},
-      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8080}},
+      "probeProperties": {
+        "enabled": true,
+        "initialDelaySeconds": 5,
+        "periodSeconds": 10,
+        "timeoutSeconds": 3,
+        "failureThreshold": 2,
+        "probe": {"$type": "tcpSocket", "port": 8080}
+      },
       "containerPort": 8080,
       "allowedDomains": [],
       "transport": "sse",
@@ -87,7 +120,16 @@
       "imageDefinitionVersion": "1.0.0",
       "displayName": "Adapter deployment export test",
       "description": "Adapter deployment for import test",
-      "metadata": {"envs": [{"name": "ADAPTER_URL", "value": {"$type": "simple", "value": "http://adapter-test-url"}, "mountType": "content", "description": ""}]},
+      "metadata": {
+        "envs": [
+          {
+            "name": "ADAPTER_URL",
+            "value": {"$type": "simple", "value": "http://adapter-test-url"},
+            "mountType": "content",
+            "description": ""
+          }
+        ]
+      },
       "initialScale": 1,
       "minScale": 0,
       "maxScale": 5,
@@ -105,12 +147,28 @@
       "imageDefinitionVersion": "1.0.0",
       "displayName": "Interceptor deployment export test",
       "description": "Interceptor deployment for import test",
-      "metadata": {"envs": [{"name": "INTERCEPTOR_URL", "value": {"$type": "simple", "value": "http://interceptor-test-url"}, "mountType": "content", "description": ""}]},
+      "metadata": {
+        "envs": [
+          {
+            "name": "INTERCEPTOR_URL",
+            "value": {"$type": "simple", "value": "http://interceptor-test-url"},
+            "mountType": "content",
+            "description": ""
+          }
+        ]
+      },
       "initialScale": 1,
       "minScale": 0,
       "maxScale": 5,
       "resources": {"limits": {}, "requests": {}},
-      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8080}},
+      "probeProperties": {
+        "enabled": true,
+        "initialDelaySeconds": 5,
+        "periodSeconds": 10,
+        "timeoutSeconds": 3,
+        "failureThreshold": 2,
+        "probe": {"$type": "tcpSocket", "port": 8080}
+      },
       "containerPort": 8080,
       "allowedDomains": ["test-domain-2.com"]
     }
@@ -126,7 +184,14 @@
       "minScale": 0,
       "maxScale": 2,
       "resources": {"limits": {}, "requests": {}},
-      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8000}},
+      "probeProperties": {
+        "enabled": true,
+        "initialDelaySeconds": 5,
+        "periodSeconds": 10,
+        "timeoutSeconds": 3,
+        "failureThreshold": 2,
+        "probe": {"$type": "tcpSocket", "port": 8000}
+      },
       "containerPort": 8000,
       "allowedDomains": [],
       "source": {"$type": "ngc_registry", "imageRef": "nvcr.io/nim/test-model:latest"},
@@ -145,10 +210,21 @@
       "minScale": 0,
       "maxScale": 3,
       "resources": {"limits": {}, "requests": {}},
-      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "httpGet", "path": "/health", "port": 8080}},
+      "probeProperties": {
+        "enabled": true,
+        "initialDelaySeconds": 5,
+        "periodSeconds": 10,
+        "timeoutSeconds": 3,
+        "failureThreshold": 2,
+        "probe": {"$type": "httpGet", "path": "/health", "port": 8080}
+      },
       "containerPort": 8080,
       "allowedDomains": [],
-      "source": {"$type": "huggingface", "modelName": "test-org/export-test-model", "storageUri": "hf://test-org/export-test-model"}
+      "source": {
+        "$type": "huggingface",
+        "modelName": "test-org/export-test-model",
+        "storageUri": "hf://test-org/export-test-model"
+      }
     }
   }
 }
