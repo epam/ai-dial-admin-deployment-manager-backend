@@ -51,9 +51,6 @@ public class McpRegistryController {
         return mcpRegistryService.getServers(request);
     }
 
-    /**
-     * List all versions of a server.
-     */
     @GetMapping(value = "/{namespace}/{name}/versions", produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ServerListResponseDto getServerVersions(
             @PathVariable String namespace,
@@ -63,10 +60,6 @@ public class McpRegistryController {
         return mcpRegistryService.getServerVersions(serverName);
     }
 
-    /**
-     * Get a specific server version. Server name is passed as namespace/name so that a slash in the
-     * name does not cause 400 (encoded slash is often rejected by servlet containers).
-     */
     @GetMapping(value = "/{namespace}/{name}/versions/{version}", produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ServerResponseDto getServerVersion(
             @PathVariable String namespace,
@@ -77,19 +70,11 @@ public class McpRegistryController {
         return mcpRegistryService.getServerVersion(serverName, version);
     }
 
-    /**
-     * List servers with all parameters in the request body.
-     */
     @PostMapping(value = "/list", produces = MimeTypeUtils.APPLICATION_JSON_VALUE, consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ServerListResponseDto postListServers(@RequestBody @Valid ServersRequestDto request) {
         return mcpRegistryService.getServers(request);
     }
 
-    /**
-     * List all versions of a server or get a specific version. If {@code version} is present and non-blank,
-     * returns a {@link ServerListResponseDto} containing that single version; otherwise returns the list of all
-     * versions. Server name is in the request body.
-     */
     @PostMapping(value = "/versions", produces = MimeTypeUtils.APPLICATION_JSON_VALUE, consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ServerListResponseDto postServerVersions(@RequestBody @Valid ServerVersionsRequestDto request) {
         var serverName = request.getServerName();

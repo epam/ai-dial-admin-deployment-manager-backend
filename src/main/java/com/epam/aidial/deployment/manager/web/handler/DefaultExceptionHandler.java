@@ -32,7 +32,7 @@ import java.util.Optional;
 public class DefaultExceptionHandler {
 
     @ExceptionHandler(DeploymentException.class)
-    public ErrorView handleMcpRegistryClientException(HttpServletRequest req, DeploymentException ex) {
+    public ErrorView handleDeploymentException(HttpServletRequest req, DeploymentException ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
