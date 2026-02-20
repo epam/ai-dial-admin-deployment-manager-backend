@@ -126,18 +126,6 @@ The DIAL Deployment Manager Backend supports deploying NIM models through Kubern
 
 **Legal Notice:** NIM models and the NIM operator are available only with an NVIDIA Enterprise License Key for production use. For evaluation, development, and production deployment of NIM models, you must obtain the appropriate NVIDIA enterprise license and configure the necessary authentication credentials (NGC secrets). Please refer to the [NVIDIA NIM documentation](https://www.nvidia.com/en-us/ai-data-science/products/nim-microservices/) for licensing information, setup instructions, and the latest requirements.
 
-## MCP Registry Module
-
-The MCP Registry module acts as a **proxy** for the [official MCP Registry API](https://modelcontextprotocol.io) (registry.modelcontextprotocol.io).
-
-**Capabilities:**
-- **REST API** – Controller under `/api/v1/mcp-registry/servers`:
-  - **GET** (query params): list servers (cursor, limit, search, updated_since, version).
-  - **GET** `/{namespace}/{name}/versions`: list all versions of a server (path uses two segments so a slash in the server name does not cause 400).
-  - **GET** `/{namespace}/{name}/versions/{version}`: get a specific server version.
-  - **POST** `/list`: list servers with all parameters in the request body (`ServersRequest`).
-  - **POST** `/versions`: list versions or get one version with body (`ServerVersionsRequest`). If `version` is set, returns that version in a `ServerListResponse`; otherwise returns the list of versions. Request body uses `serverName` (e.g. `ai.com.mcp/petstore`) and optional `version`.
-
 ## Documentation
 
 For detailed developer documentation, including REST API endpoints, development commands, architecture details, and configuration guides, see the [Development Guide](docs/Development.md).
