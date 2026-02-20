@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.exception.DatabaseException;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
+import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -23,15 +24,24 @@ import org.springframework.web.context.request.async.AsyncRequestNotUsableExcept
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Optional;
+
 @RestControllerAdvice
 @Slf4j
 @LogExecution
 public class DefaultExceptionHandler {
 
     @ExceptionHandler(DeploymentException.class)
-    public ErrorView handleDeploymentError(HttpServletRequest req, DeploymentException ex) {
+    public ErrorView handleMcpRegistryClientException(HttpServletRequest req, DeploymentException ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+    }
+
+    @ExceptionHandler(McpRegistryClientException.class)
+    public ResponseEntity<ErrorView> handleMcpRegistryClientException(HttpServletRequest req, McpRegistryClientException ex) {
+        log.debug("Upstream error: ", ex);
+        var status = Optional.ofNullable(HttpStatus.resolve(ex.getStatusCode())).orElse(HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.status(ex.getStatusCode()).body(new ErrorView(req, status, ex.getMessage()));
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)

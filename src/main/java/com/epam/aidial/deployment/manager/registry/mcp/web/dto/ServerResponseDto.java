@@ -1,6 +1,6 @@
-package com.epam.aidial.deployment.manager.mcpregistry.web.dto;
+package com.epam.aidial.deployment.manager.registry.mcp.web.dto;
 
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerDetail;
+import com.epam.aidial.deployment.manager.registry.mcp.model.ServerDetail;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

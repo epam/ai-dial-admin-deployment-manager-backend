@@ -208,6 +208,12 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim-service-config.spec.storage.pvc.size` | - | `20Gi` | No | - | Default Persistent volume claim size |
 | `app.nim-service-config.spec.resources.limits.[nvidia.com/gpu]` | - | `1` | No | - | Default GPU resource limit |
 
+### MCP Registry Configuration
+
+| Property                    | Environment Variable     | Default Value                              | Required | Applied when | Description                                           |
+|-----------------------------|--------------------------|--------------------------------------------|----------|--------------|--------------------------------------------------------|
+| `app.mcp-registry.base-url` | `MCP_REGISTRY_BASE_URL`  | `https://registry.modelcontextprotocol.io` | No       | -            | Base URL of the MCP Registry API (used by the proxy). |
+
 ### Hugging Face Configuration
 | Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |
 |----------------------------------|----------------------------------|--------------------------|----------|--------------|--------------------------------------------|

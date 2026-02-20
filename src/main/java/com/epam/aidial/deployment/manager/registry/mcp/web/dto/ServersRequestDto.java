@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.mcpregistry.web.dto;
+package com.epam.aidial.deployment.manager.registry.mcp.web.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

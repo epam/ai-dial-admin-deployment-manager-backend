@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.mcpregistry.web.dto;
+package com.epam.aidial.deployment.manager.registry.mcp.web.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;

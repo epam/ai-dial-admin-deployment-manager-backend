@@ -1,25 +1,19 @@
-package com.epam.aidial.deployment.manager.mcpregistry.web.controller;
+package com.epam.aidial.deployment.manager.registry.mcp.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClientException;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListMetadata;
-import com.epam.aidial.deployment.manager.mcpregistry.service.McpRegistryService;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerVersionsRequestDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
-import com.epam.aidial.deployment.manager.web.handler.ErrorView;
-import jakarta.servlet.http.HttpServletRequest;
+import com.epam.aidial.deployment.manager.registry.mcp.model.ServerListMetadata;
+import com.epam.aidial.deployment.manager.registry.mcp.service.McpRegistryService;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerVersionsRequestDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.MimeTypeUtils;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @LogExecution
@@ -109,12 +102,4 @@ public class McpRegistryController {
         }
         return mcpRegistryService.getServerVersions(serverName);
     }
-
-    @ExceptionHandler(McpRegistryClientException.class)
-    public ResponseEntity<ErrorView> handleDeploymentError(HttpServletRequest req, McpRegistryClientException ex) {
-        log.debug("Upstream error: ", ex);
-        var status = Optional.ofNullable(HttpStatus.resolve(ex.getStatusCode())).orElse(HttpStatus.INTERNAL_SERVER_ERROR);
-        return ResponseEntity.status(ex.getStatusCode()).body(new ErrorView(req, status, ex.getMessage()));
-    }
-
 }

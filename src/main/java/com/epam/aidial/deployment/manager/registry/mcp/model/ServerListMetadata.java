@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.mcpregistry.model;
+package com.epam.aidial.deployment.manager.registry.mcp.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;

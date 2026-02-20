@@ -1,13 +1,14 @@
 package com.epam.aidial.deployment.manager.mcpregistry.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
-import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClientException;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerDetail;
-import com.epam.aidial.deployment.manager.mcpregistry.model.ServerListMetadata;
-import com.epam.aidial.deployment.manager.mcpregistry.service.McpRegistryService;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
+import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
+import com.epam.aidial.deployment.manager.registry.mcp.model.ServerDetail;
+import com.epam.aidial.deployment.manager.registry.mcp.model.ServerListMetadata;
+import com.epam.aidial.deployment.manager.registry.mcp.service.McpRegistryService;
+import com.epam.aidial.deployment.manager.registry.mcp.web.controller.McpRegistryController;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.none.AbstractControllerNoneSecureTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
