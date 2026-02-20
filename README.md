@@ -131,26 +131,12 @@ The DIAL Deployment Manager Backend supports deploying NIM models through Kubern
 The MCP Registry module acts as a **proxy** for the [official MCP Registry API](https://modelcontextprotocol.io) (registry.modelcontextprotocol.io).
 
 **Capabilities:**
-- **Client** – HTTP client that calls the external MCP Registry (list servers, list versions, get version). Uses the project’s shared OkHttp and JSON configuration.
-- **Caching** – Responses for list-servers and get-version are cached (Caffeine) with a configurable duration to reduce upstream calls.
-- **Models** – POJOs aligned with the MCP Registry OpenAPI schema: `ServersRequest`, `ServerListResponse`, `ServerResponse`, `ServerDetail`, `ServerListMetadata`, `Repository`, `Icon`, `KeyValueInput`, `LocalTransport`, `RemoteTransport`, `Package`, etc.
 - **REST API** – Controller under `/api/v1/mcp-registry/servers`:
   - **GET** (query params): list servers (cursor, limit, search, updated_since, version).
   - **GET** `/{namespace}/{name}/versions`: list all versions of a server (path uses two segments so a slash in the server name does not cause 400).
   - **GET** `/{namespace}/{name}/versions/{version}`: get a specific server version.
   - **POST** `/list`: list servers with all parameters in the request body (`ServersRequest`).
   - **POST** `/versions`: list versions or get one version with body (`ServerVersionsRequest`). If `version` is set, returns that version in a `ServerListResponse`; otherwise returns the list of versions. Request body uses `serverName` (e.g. `ai.com.mcp/petstore`) and optional `version`.
-- **Tests** – Controller tests (`McpRegistryControllerTest`) and client tests (`McpRegistryClientTest`), plus JSON fixtures under `src/test/resources/mcp-registry/`.
-
-**Configuration** (overridable via environment):
-
-```yaml
-app:
-  mcp-registry:
-    base-url: https://registry.modelcontextprotocol.io
-```
-
-- `MCP_REGISTRY_BASE_URL` – upstream registry base URL.
 
 ## Documentation
 
