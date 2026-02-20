@@ -1,0 +1,154 @@
+{
+  "mcpImageDefinitions": {
+    "mcp-exp(1.0.0)": {
+      "$type": "mcp",
+      "name": "mcp-exp",
+      "description": "MCP for export/import test",
+      "version": "1.0.0",
+      "source": {"$type": "docker", "imageUri": "test-registry/mcp-exp:1.0", "entrypoint":[]},
+      "imageBuilder": "buildkit",
+      "license": "MIT",
+      "topics": ["topic1"],
+      "allowedDomains": [],
+      "transportType": "remote"
+    },
+    "mcp-exp(2.0.0)": {
+      "$type": "mcp",
+      "name": "mcp-exp",
+      "description": "MCP for export/import test v2",
+      "version": "2.0.0",
+      "source": {"$type": "git", "url": "https://github.com/test/mcp-exp.git", "branchName": "main"},
+      "imageBuilder": "buildkit_rootless",
+      "license": "MIT",
+      "topics": ["topic2"],
+      "allowedDomains": [],
+      "transportType": "local"
+    }
+  },
+  "adapterImageDefinitions": {
+    "adapter-exp(1.0.0)": {
+      "$type": "adapter",
+      "name": "adapter-exp",
+      "description": "Adapter for export/import test",
+      "version": "1.0.0",
+      "source": {"$type": "docker", "imageUri": "test-registry/adapter-exp:1.0", "entrypoint":[]},
+      "imageBuilder": "buildkit",
+      "license": "",
+      "topics": [],
+      "allowedDomains": ["*"]
+    }
+  },
+  "interceptorImageDefinitions": {
+    "interceptor-exp(1.0.0)": {
+      "$type": "interceptor",
+      "name": "interceptor-exp",
+      "description": "Interceptor for export/import test",
+      "version": "1.0.0",
+      "source": {"$type": "docker", "imageUri": "test-registry/interceptor-exp:1.0", "entrypoint":[]},
+      "imageBuilder": "buildkit",
+      "license": "",
+      "topics": [],
+      "allowedDomains": ["test-domain-1.com"]
+    }
+  },
+  "globalImageBuildDomainWhitelist": ["test-export-a.com", "test-export-b.com"],
+  "mcpDeployments": {
+    "mcp-dep-exp": {
+      "$type": "mcp",
+      "id": "mcp-dep-exp",
+      "imageDefinitionType": "mcp",
+      "imageDefinitionName": "mcp-exp",
+      "imageDefinitionVersion": "1.0.0",
+      "displayName": "MCP deployment export test",
+      "description": "MCP deployment for import test",
+      "metadata": {
+        "envs": [
+          {"name": "TEST_ENV_A", "value": {"$type": "simple", "value": "test-val-a"}, "mountType": "content", "description": ""},
+          {"name": "TEST_SECRET_B", "value": {"$type": "simple", "value": "secret-val-b"}, "mountType": "secure_content", "description": ""}
+        ]
+      },
+      "initialScale": 1,
+      "minScale": 0,
+      "maxScale": 5,
+      "resources": {"limits": {}, "requests": {}},
+      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8080}},
+      "containerPort": 8080,
+      "allowedDomains": [],
+      "transport": "sse",
+      "mcpEndpointPath": "some-path"
+    }
+  },
+  "adapterDeployments": {
+    "adapter-dep-exp": {
+      "$type": "adapter",
+      "id": "adapter-dep-exp",
+      "imageDefinitionType": "adapter",
+      "imageDefinitionName": "adapter-exp",
+      "imageDefinitionVersion": "1.0.0",
+      "displayName": "Adapter deployment export test",
+      "description": "Adapter deployment for import test",
+      "metadata": {"envs": [{"name": "ADAPTER_URL", "value": {"$type": "simple", "value": "http://adapter-test-url"}, "mountType": "content", "description": ""}]},
+      "initialScale": 1,
+      "minScale": 0,
+      "maxScale": 5,
+      "resources": {"limits": {}, "requests": {}},
+      "containerPort": 5000,
+      "allowedDomains": []
+    }
+  },
+  "interceptorDeployments": {
+    "interceptor-dep-exp": {
+      "$type": "interceptor",
+      "id": "interceptor-dep-exp",
+      "imageDefinitionType": "interceptor",
+      "imageDefinitionName": "interceptor-exp",
+      "imageDefinitionVersion": "1.0.0",
+      "displayName": "Interceptor deployment export test",
+      "description": "Interceptor deployment for import test",
+      "metadata": {"envs": [{"name": "INTERCEPTOR_URL", "value": {"$type": "simple", "value": "http://interceptor-test-url"}, "mountType": "content", "description": ""}]},
+      "initialScale": 1,
+      "minScale": 0,
+      "maxScale": 5,
+      "resources": {"limits": {}, "requests": {}},
+      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8080}},
+      "containerPort": 8080,
+      "allowedDomains": []
+    }
+  },
+  "nimDeployments": {
+    "nim-dep-exp": {
+      "$type": "nim",
+      "id": "nim-dep-exp",
+      "displayName": "NIM deployment export test",
+      "description": "NIM deployment for import test",
+      "metadata": {"envs": []},
+      "initialScale": 1,
+      "minScale": 0,
+      "maxScale": 2,
+      "resources": {"limits": {}, "requests": {}},
+      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8000}},
+      "containerPort": 8000,
+      "allowedDomains": [],
+      "source": {"$type": "ngc_registry", "imageRef": "nvcr.io/nim/test-model:latest"},
+      "containerGrpcPort": 50051
+    }
+  },
+  "inferenceDeployments": {
+    "inference-dep-exp": {
+      "$type": "inference",
+      "id": "inference-dep-exp",
+      "displayName": "Inference deployment export test",
+      "description": "Inference deployment for import test",
+      "modelFormat": "huggingface",
+      "metadata": {"envs": []},
+      "initialScale": 1,
+      "minScale": 0,
+      "maxScale": 3,
+      "resources": {"limits": {}, "requests": {}},
+      "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "httpGet", "path": "/health", "port": 8080}},
+      "containerPort": 8080,
+      "allowedDomains": [],
+      "source": {"$type": "huggingface", "modelName": "test-org/export-test-model", "storageUri": "hf://test-org/export-test-model"}
+    }
+  }
+}
