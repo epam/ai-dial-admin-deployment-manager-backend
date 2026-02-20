@@ -2,36 +2,27 @@ package com.epam.aidial.deployment.manager.functional.tests;
 
 import com.epam.aidial.deployment.manager.configuration.ConfigExportProperties;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
+import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
+import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
-import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
-import com.epam.aidial.deployment.manager.model.ImageBuilder;
-import com.epam.aidial.deployment.manager.model.McpTransportType;
-import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarMountType;
-import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageSource;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
+import com.epam.aidial.deployment.manager.model.McpTransport;
+import com.epam.aidial.deployment.manager.model.McpTransportType;
+import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
-import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
-import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
-import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponent;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
-import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
-import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
-import com.epam.aidial.deployment.manager.service.config.ConfigExportImportTestHelper;
-import com.epam.aidial.deployment.manager.service.config.ConfigExporter;
-import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
-import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
@@ -41,10 +32,19 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
-import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
+import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
+import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
+import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
+import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
+import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.config.ConfigExportImportTestHelper;
+import com.epam.aidial.deployment.manager.service.config.ConfigExporter;
+import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
@@ -68,14 +68,14 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.zip.ZipInputStream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import java.util.List;
-import java.util.UUID;
-import java.util.zip.ZipInputStream;
 
 public abstract class ConfigExportImportFunctionalTest {
 
@@ -497,7 +497,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 Assertions.assertEquals(expInf.getModelFormat(), actInf.getModelFormat(), "modelFormat");
                 assertInferenceSourceEquals(expInf.getSource(), actInf.getSource());
             }
-            default -> {}
+            default -> { }
         }
     }
 
