@@ -102,8 +102,9 @@ public class McpRegistryClient {
         var url = "%s%s/%s/versions/%s".formatted(properties.getBaseUrl(), SERVERS_ENDPOINT_PATH,
                 encodePathSegmentIfNeeded(serverName), encodePathSegmentIfNeeded(version)
         );
+        final Request requestObj = new Request.Builder().url(url).get().build();
 
-        try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
+        try (var response = httpClient.newCall(requestObj).execute()) {
             var bodyString = getResponseBody(response);
             var result = jsonMapper.readValue(bodyString, new TypeReference<ServerResponseDto>() {
             });
