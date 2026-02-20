@@ -28,7 +28,6 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 - [Configuration](#configuration)
 - [Getting Started](#getting-started)
 - [Deploying NVIDIA NIM Models](#deploying-nvidia-nim-models)
-- [MCP Registry Module](#mcp-registry-module)
 - [Security](#security)
 - [Contributing](#contributing)
 - [License](#license)
