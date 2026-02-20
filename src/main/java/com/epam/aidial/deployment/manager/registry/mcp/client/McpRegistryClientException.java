@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.mcpregistry.client;
+package com.epam.aidial.deployment.manager.registry.mcp.client;
 
 import lombok.Getter;
 

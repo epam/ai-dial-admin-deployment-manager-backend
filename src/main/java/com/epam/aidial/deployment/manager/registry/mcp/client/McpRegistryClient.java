@@ -1,10 +1,10 @@
-package com.epam.aidial.deployment.manager.mcpregistry.client;
+package com.epam.aidial.deployment.manager.registry.mcp.client;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.mcpregistry.properties.McpRegistryProperties;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
+import com.epam.aidial.deployment.manager.registry.mcp.properties.McpRegistryProperties;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
@@ -71,8 +71,9 @@ public class McpRegistryClient {
         log.debug("Retrieving MCP registry server versions. ServerName: {}. Base URL: {}.",
                 serverName, properties.getBaseUrl());
         var url = "%s%s/%s/versions".formatted(properties.getBaseUrl(), SERVERS_ENDPOINT_PATH, encodePathSegmentIfNeeded(serverName));
+        final Request requestObj = new Request.Builder().url(url).get().build();
 
-        try (var response = httpClient.newCall(new Request.Builder().url(url).get().build()).execute()) {
+        try (var response = httpClient.newCall(requestObj).execute()) {
             var bodyString = getResponseBody(response);
             var result = jsonMapper.readValue(bodyString, new TypeReference<ServerListResponseDto>() {
             });

@@ -1,8 +1,10 @@
 package com.epam.aidial.deployment.manager.mcpregistry.client;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
-import com.epam.aidial.deployment.manager.mcpregistry.properties.McpRegistryProperties;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
+import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClient;
+import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
+import com.epam.aidial.deployment.manager.registry.mcp.properties.McpRegistryProperties;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import okhttp3.Call;
 import okhttp3.MediaType;

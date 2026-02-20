@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.mcpregistry.properties;
+package com.epam.aidial.deployment.manager.registry.mcp.properties;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,10 +1,10 @@
-package com.epam.aidial.deployment.manager.mcpregistry.service;
+package com.epam.aidial.deployment.manager.registry.mcp.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.mcpregistry.client.McpRegistryClient;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerListResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServerResponseDto;
-import com.epam.aidial.deployment.manager.mcpregistry.web.dto.ServersRequestDto;
+import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClient;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerListResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerResponseDto;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
