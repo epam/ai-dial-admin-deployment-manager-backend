@@ -93,7 +93,7 @@
       "maxScale": 5,
       "resources": {"limits": {}, "requests": {}},
       "containerPort": 5000,
-      "allowedDomains": []
+      "allowedDomains": ["*"]
     }
   },
   "interceptorDeployments": {
@@ -112,7 +112,7 @@
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {"enabled": true, "initialDelaySeconds": 5, "periodSeconds": 10, "timeoutSeconds": 3, "failureThreshold": 2, "probe": {"$type": "tcpSocket", "port": 8080}},
       "containerPort": 8080,
-      "allowedDomains": []
+      "allowedDomains": ["test-domain-2.com"]
     }
   },
   "nimDeployments": {

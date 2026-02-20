@@ -32,16 +32,19 @@ import com.epam.aidial.deployment.manager.service.config.ConfigExportImportTestH
 import com.epam.aidial.deployment.manager.service.config.ConfigExporter;
 import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
 import com.epam.aidial.deployment.manager.model.McpTransport;
-import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
+import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
@@ -92,9 +95,6 @@ public abstract class ConfigExportImportFunctionalTest {
     private static final String TEST_SECRET_B_VALUE = "secret-val-b";
 
     private static final Resources EMPTY_RESOURCES = new Resources(Map.of(), Map.of());
-    private static final ProbeProperties PROBE_TCP_8080 = new ProbeProperties(true, 5, 10, 3, 2, new TcpSocketProbe(8080));
-    private static final ProbeProperties NIM_PROBE = new ProbeProperties(true, 5, 10, 3, 2, new TcpSocketProbe(8000));
-    private static final ProbeProperties INFERENCE_PROBE = new ProbeProperties(true, 5, 10, 3, 2, new HttpGetProbe("/health", 8080));
 
     @Autowired
     private ConfigExportProperties configExportProperties;
@@ -117,6 +117,8 @@ public abstract class ConfigExportImportFunctionalTest {
     private KubernetesClient kubernetesClient;
     @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
+    @Autowired
+    private DeploymentMapper deploymentMapper;
 
     private final AtomicReference<String> lastSecretName = new AtomicReference<>();
 
@@ -223,36 +225,71 @@ public abstract class ConfigExportImportFunctionalTest {
         var adapterCreated = imageDefinitionService.createImageDefinition(imageDefs.get(2));
         var interceptorCreated = imageDefinitionService.createImageDefinition(imageDefs.get(3));
 
-        var mcpDep = FunctionalTestHelper.createMcpDeploymentRequest(mcpCreated.getId());
-        mcpDep.setId(MCP_DEP_ID);
-        mcpDep.setDisplayName("MCP deployment export test");
-        mcpDep.setDescription("MCP deployment for import test");
-        mcpDep.setContainerPort(8080);
-        mcpDep.setProbeProperties(PROBE_TCP_8080);
-        mcpDep.setResources(EMPTY_RESOURCES);
-        mcpDep.setMetadata(mcpDeploymentMetadata());
+        for (CreateDeployment create : buildExportDeployments()) {
+            deploymentService.createDeployment(create);
+        }
 
-        var adapterDep = FunctionalTestHelper.createAdapterDeploymentRequest(adapterCreated.getId());
-        adapterDep.setId(ADAPTER_DEP_ID);
-        adapterDep.setDisplayName("Adapter deployment export test");
-        adapterDep.setDescription("Adapter deployment for import test");
-        adapterDep.setContainerPort(5000);
-        adapterDep.setResources(EMPTY_RESOURCES);
-        adapterDep.setMetadata(adapterDeploymentMetadata());
+        globalDomainWhitelistService.setDomainWhitelistOrCreate(EXPORT_WHITELIST);
 
-        var interceptorDep = FunctionalTestHelper.createInterceptorDeploymentRequest(interceptorCreated.getId());
-        interceptorDep.setId(INTERCEPTOR_DEP_ID);
-        interceptorDep.setDisplayName("Interceptor deployment export test");
-        interceptorDep.setDescription("Interceptor deployment for import test");
-        interceptorDep.setContainerPort(8080);
-        interceptorDep.setProbeProperties(PROBE_TCP_8080);
-        interceptorDep.setResources(EMPTY_RESOURCES);
-        interceptorDep.setMetadata(interceptorDeploymentMetadata());
+        return new ExportTestData(mcpCreated.getId(), mcp2Created.getId(), adapterCreated.getId(), interceptorCreated.getId());
+    }
 
-        deploymentService.createDeployment(mcpDep);
-        deploymentService.createDeployment(adapterDep);
-        deploymentService.createDeployment(interceptorDep);
+    private static List<CreateDeployment> buildExportDeployments() {
+        var probeTcp8080 = new ProbeProperties(true, 5, 10, 3, 2, new TcpSocketProbe(8080));
 
+        var mcpDep = CreateMcpDeployment.builder()
+                .id(MCP_DEP_ID)
+                .imageDefinitionType(ImageType.MCP)
+                .imageDefinitionName(MCP_IMAGE_NAME)
+                .imageDefinitionVersion(VERSION)
+                .displayName("MCP deployment export test")
+                .description("MCP deployment for import test")
+                .metadata(mcpDeploymentMetadata())
+                .initialScale(1)
+                .minScale(0)
+                .maxScale(5)
+                .resources(EMPTY_RESOURCES)
+                .probeProperties(probeTcp8080)
+                .containerPort(8080)
+                .allowedDomains(List.of())
+                .transport(McpTransport.SSE)
+                .mcpEndpointPath("some-path")
+                .build();
+
+        var adapterDep = CreateAdapterDeployment.builder()
+                .id(ADAPTER_DEP_ID)
+                .imageDefinitionType(ImageType.ADAPTER)
+                .imageDefinitionName(ADAPTER_IMAGE_NAME)
+                .imageDefinitionVersion(VERSION)
+                .displayName("Adapter deployment export test")
+                .description("Adapter deployment for import test")
+                .metadata(adapterDeploymentMetadata())
+                .initialScale(1)
+                .minScale(0)
+                .maxScale(5)
+                .resources(EMPTY_RESOURCES)
+                .containerPort(5000)
+                .allowedDomains(List.of("*"))
+                .build();
+
+        var interceptorDep = CreateInterceptorDeployment.builder()
+                .id(INTERCEPTOR_DEP_ID)
+                .imageDefinitionType(ImageType.INTERCEPTOR)
+                .imageDefinitionName(INTERCEPTOR_IMAGE_NAME)
+                .imageDefinitionVersion(VERSION)
+                .displayName("Interceptor deployment export test")
+                .description("Interceptor deployment for import test")
+                .metadata(interceptorDeploymentMetadata())
+                .initialScale(1)
+                .minScale(0)
+                .maxScale(5)
+                .resources(EMPTY_RESOURCES)
+                .probeProperties(probeTcp8080)
+                .containerPort(8080)
+                .allowedDomains(List.of("test-domain-2.com"))
+                .build();
+
+        var nimProbe = new ProbeProperties(true, 5, 10, 3, 2, new TcpSocketProbe(8000));
         var nimDep = CreateNimDeployment.builder()
                 .id(NIM_DEP_ID)
                 .displayName("NIM deployment export test")
@@ -262,14 +299,14 @@ public abstract class ConfigExportImportFunctionalTest {
                 .minScale(0)
                 .maxScale(2)
                 .resources(EMPTY_RESOURCES)
-                .probeProperties(NIM_PROBE)
+                .probeProperties(nimProbe)
                 .containerPort(8000)
                 .allowedDomains(List.of())
                 .source(new NimDeploymentNgcRegistrySource("nvcr.io/nim/test-model:latest"))
                 .containerGrpcPort(50051)
                 .build();
-        deploymentService.createDeployment(nimDep);
 
+        var inferenceProbe = new ProbeProperties(true, 5, 10, 3, 2, new HttpGetProbe("/health", 8080));
         var inferenceDep = CreateInferenceDeployment.builder()
                 .id(INFERENCE_DEP_ID)
                 .displayName("Inference deployment export test")
@@ -280,16 +317,13 @@ public abstract class ConfigExportImportFunctionalTest {
                 .minScale(0)
                 .maxScale(3)
                 .resources(EMPTY_RESOURCES)
-                .probeProperties(INFERENCE_PROBE)
+                .probeProperties(inferenceProbe)
                 .containerPort(8080)
                 .allowedDomains(List.of())
                 .source(new InferenceDeploymentHuggingFaceSource("test-org/export-test-model"))
                 .build();
-        deploymentService.createDeployment(inferenceDep);
 
-        globalDomainWhitelistService.setDomainWhitelistOrCreate(EXPORT_WHITELIST);
-
-        return new ExportTestData(mcpCreated.getId(), mcp2Created.getId(), adapterCreated.getId(), interceptorCreated.getId());
+        return List.of(mcpDep, adapterDep, interceptorDep, nimDep, inferenceDep);
     }
 
     private static List<ImageDefinition> buildExportImageDefinitions() {
@@ -359,90 +393,10 @@ public abstract class ConfigExportImportFunctionalTest {
         return request;
     }
 
-    /** Builds expected deployments with the same data as in createExportTestData (for import validation). */
-    private static List<Deployment> buildExpectedDeployments() {
-        var mcpDep = McpDeployment.builder()
-                .id(MCP_DEP_ID)
-                .imageDefinitionName(MCP_IMAGE_NAME)
-                .imageDefinitionVersion(VERSION)
-                .displayName("MCP deployment export test")
-                .description("MCP deployment for import test")
-                .metadata(mcpDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
-                .resources(EMPTY_RESOURCES)
-                .probeProperties(PROBE_TCP_8080)
-                .containerPort(8080)
-                .allowedDomains(List.of())
-                .transport(McpTransport.SSE)
-                .mcpEndpointPath("some-path")
-                .build();
-
-        var adapterDep = AdapterDeployment.builder()
-                .id(ADAPTER_DEP_ID)
-                .imageDefinitionName(ADAPTER_IMAGE_NAME)
-                .imageDefinitionVersion(VERSION)
-                .displayName("Adapter deployment export test")
-                .description("Adapter deployment for import test")
-                .metadata(adapterDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
-                .resources(EMPTY_RESOURCES)
-                .containerPort(5000)
-                .allowedDomains(List.of())
-                .build();
-
-        var interceptorDep = InterceptorDeployment.builder()
-                .id(INTERCEPTOR_DEP_ID)
-                .imageDefinitionName(INTERCEPTOR_IMAGE_NAME)
-                .imageDefinitionVersion(VERSION)
-                .displayName("Interceptor deployment export test")
-                .description("Interceptor deployment for import test")
-                .metadata(interceptorDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
-                .resources(EMPTY_RESOURCES)
-                .probeProperties(PROBE_TCP_8080)
-                .containerPort(8080)
-                .allowedDomains(List.of())
-                .build();
-
-        var nimDep = NimDeployment.builder()
-                .id(NIM_DEP_ID)
-                .displayName("NIM deployment export test")
-                .description("NIM deployment for import test")
-                .metadata(new DeploymentMetadata(List.of()))
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(2)
-                .resources(EMPTY_RESOURCES)
-                .probeProperties(NIM_PROBE)
-                .containerPort(8000)
-                .allowedDomains(List.of())
-                .source(new NimDeploymentNgcRegistrySource("nvcr.io/nim/test-model:latest"))
-                .containerGrpcPort(50051)
-                .build();
-
-        var inferenceDep = InferenceDeployment.builder()
-                .id(INFERENCE_DEP_ID)
-                .displayName("Inference deployment export test")
-                .description("Inference deployment for import test")
-                .modelFormat("huggingface")
-                .metadata(new DeploymentMetadata(List.of()))
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(3)
-                .resources(EMPTY_RESOURCES)
-                .probeProperties(INFERENCE_PROBE)
-                .containerPort(8080)
-                .allowedDomains(List.of())
-                .source(new InferenceDeploymentHuggingFaceSource("test-org/export-test-model"))
-                .build();
-
-        return List.of(mcpDep, adapterDep, interceptorDep, nimDep, inferenceDep);
+    private List<Deployment> buildExpectedDeployments() {
+        return buildExportDeployments().stream()
+                .map(deploymentMapper::toDeployment)
+                .toList();
     }
 
     private static ImageType imageTypeOf(ImageDefinition def) {
@@ -494,8 +448,10 @@ public abstract class ConfigExportImportFunctionalTest {
         if (expected == null && actual == null) {
             return;
         }
+
         Assertions.assertNotNull(expected, "expected source");
         Assertions.assertNotNull(actual, "actual source");
+
         if (expected instanceof DockerImageSource expDocker && actual instanceof DockerImageSource actDocker) {
             Assertions.assertEquals(expDocker.getImageUri(), actDocker.getImageUri(), "source.imageUri");
             Assertions.assertEquals(expDocker.getEntrypoint(), actDocker.getEntrypoint(), "source.entrypoint");
@@ -541,8 +497,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 Assertions.assertEquals(expInf.getModelFormat(), actInf.getModelFormat(), "modelFormat");
                 assertInferenceSourceEquals(expInf.getSource(), actInf.getSource());
             }
-            default -> {
-            }
+            default -> {}
         }
     }
 
@@ -550,6 +505,7 @@ public abstract class ConfigExportImportFunctionalTest {
         if (expected == null && actual == null) {
             return;
         }
+
         Assertions.assertNotNull(expected, "expected probeProperties");
         Assertions.assertNotNull(actual, "actual probeProperties");
         Assertions.assertEquals(expected.isEnabled(), actual.isEnabled(), "probeProperties.enabled");
@@ -557,6 +513,7 @@ public abstract class ConfigExportImportFunctionalTest {
         Assertions.assertEquals(expected.getPeriodSeconds(), actual.getPeriodSeconds(), "probeProperties.periodSeconds");
         Assertions.assertEquals(expected.getTimeoutSeconds(), actual.getTimeoutSeconds(), "probeProperties.timeoutSeconds");
         Assertions.assertEquals(expected.getFailureThreshold(), actual.getFailureThreshold(), "probeProperties.failureThreshold");
+
         if (expected.getProbe() instanceof TcpSocketProbe expTcp && actual.getProbe() instanceof TcpSocketProbe actTcp) {
             Assertions.assertEquals(expTcp.getPort(), actTcp.getPort(), "probe.port");
         } else if (expected.getProbe() instanceof HttpGetProbe expHttp && actual.getProbe() instanceof HttpGetProbe actHttp) {
@@ -571,9 +528,11 @@ public abstract class ConfigExportImportFunctionalTest {
         if (expected == null && actual == null) {
             return;
         }
+
         Assertions.assertNotNull(expected, "expected metadata.envs");
         Assertions.assertNotNull(actual, "actual metadata.envs");
         Assertions.assertEquals(expected.size(), actual.size(), "metadata.envs.size");
+
         for (int i = 0; i < expected.size(); i++) {
             var exp = expected.get(i);
             var act = actual.get(i);
