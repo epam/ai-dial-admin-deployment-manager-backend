@@ -211,7 +211,8 @@ class ConfigExporterTest {
         when(deploymentService.getDeployment(interceptorDepId, true)).thenReturn(Optional.of(interceptorDeployment));
         when(deploymentService.getDeployment(nimDepId, true)).thenReturn(Optional.of(nimDeployment));
         when(deploymentService.getDeployment(inferenceDepId, true)).thenReturn(Optional.of(inferenceDeployment));
-        when(exportSanitizer.sanitizeDeploymentForExport(any(Deployment.class), eq(true))).thenAnswer(inv -> inv.getArgument(0));
+        when(exportSanitizer.sanitizeDeploymentForExport(any(Deployment.class), eq(true)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
         ExportConfig config = configExporter.getConfig(request);
@@ -294,7 +295,8 @@ class ConfigExporterTest {
         request.setComponents(List.of(new ExportConfigComponent(DEPLOYMENT_ID, ExportConfigComponentType.MCP_DEPLOYMENT)));
 
         when(deploymentService.getDeployment(DEPLOYMENT_ID, false)).thenReturn(Optional.of(deployment));
-        when(exportSanitizer.sanitizeDeploymentForExport(any(), any(Boolean.class))).thenAnswer(i -> i.getArgument(0));
+        when(exportSanitizer.sanitizeDeploymentForExport(any(), any(Boolean.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(ImageType.MCP, MCP_NAME, IMAGE_VERSION))
                 .thenReturn(Optional.of(imageDef));
 

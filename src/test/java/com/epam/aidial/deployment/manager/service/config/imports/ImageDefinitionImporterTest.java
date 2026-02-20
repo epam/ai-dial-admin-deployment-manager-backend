@@ -79,7 +79,7 @@ class ImageDefinitionImporterTest {
     }
 
     @Test
-    void importImageDefinitions_exists_FAIL_IF_EXISTS_throws() {
+    void importImageDefinitions_exists_failIfExists_throws() {
         McpImageDefinition imported = McpImageDefinition.builder()
                 .name(NAME)
                 .version(VERSION)
@@ -108,7 +108,7 @@ class ImageDefinitionImporterTest {
     }
 
     @Test
-    void importImageDefinitions_exists_SKIP_IF_EXISTS_doesNotUpdate() {
+    void importImageDefinitions_exists_skipIfExists_doesNotUpdate() {
         McpImageDefinition imported = McpImageDefinition.builder()
                 .name(NAME)
                 .version(VERSION)
@@ -133,7 +133,7 @@ class ImageDefinitionImporterTest {
     }
 
     @Test
-    void importImageDefinitions_exists_OVERWRITE_updatesWithMerge() {
+    void importImageDefinitions_exists_overwrite_updatesWithMerge() {
         McpImageDefinition imported = McpImageDefinition.builder()
                 .name(NAME)
                 .version(VERSION)

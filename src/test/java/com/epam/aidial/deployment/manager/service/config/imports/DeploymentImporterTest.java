@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.config.imports;
 
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
+import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
@@ -9,7 +10,6 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import org.junit.jupiter.api.Test;
@@ -66,7 +66,7 @@ class DeploymentImporterTest {
     }
 
     @Test
-    void importDeployments_exists_FAIL_IF_EXISTS_throws() {
+    void importDeployments_exists_failIfExists_throws() {
         McpDeployment imported = McpDeployment.builder()
                 .id(DEPLOYMENT_ID)
                 .transport(McpTransport.SSE)
@@ -86,7 +86,7 @@ class DeploymentImporterTest {
     }
 
     @Test
-    void importDeployments_exists_SKIP_IF_EXISTS_doesNotUpdate() {
+    void importDeployments_exists_skipIfExists_doesNotUpdate() {
         McpDeployment imported = McpDeployment.builder()
                 .id(DEPLOYMENT_ID)
                 .transport(McpTransport.SSE)
@@ -103,7 +103,7 @@ class DeploymentImporterTest {
     }
 
     @Test
-    void importDeployments_exists_OVERWRITE_updatesDeployment() {
+    void importDeployments_exists_overwrite_updatesDeployment() {
         McpDeployment imported = McpDeployment.builder()
                 .id(DEPLOYMENT_ID)
                 .transport(McpTransport.HTTP_STREAMING)

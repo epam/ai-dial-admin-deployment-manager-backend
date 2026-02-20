@@ -64,7 +64,7 @@ class GlobalDomainWhitelistImporterTest {
     }
 
     @Test
-    void importGlobalDomainWhitelist_different_FAIL_IF_EXISTS_throws() {
+    void importGlobalDomainWhitelist_different_failIfExists_throws() {
         List<String> whitelist = List.of("b.com");
         when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(List.of("a.com"));
 
@@ -76,7 +76,7 @@ class GlobalDomainWhitelistImporterTest {
     }
 
     @Test
-    void importGlobalDomainWhitelist_different_SKIP_IF_EXISTS_doesNotSet() {
+    void importGlobalDomainWhitelist_different_skipIfExists_doesNotSet() {
         List<String> whitelist = List.of("b.com");
         when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(List.of("a.com"));
 
@@ -86,7 +86,7 @@ class GlobalDomainWhitelistImporterTest {
     }
 
     @Test
-    void importGlobalDomainWhitelist_different_OVERWRITE_setsWhitelist() {
+    void importGlobalDomainWhitelist_different_overwrite_setsWhitelist() {
         List<String> whitelist = List.of("b.com", "c.com");
         when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(List.of("a.com"));
 
