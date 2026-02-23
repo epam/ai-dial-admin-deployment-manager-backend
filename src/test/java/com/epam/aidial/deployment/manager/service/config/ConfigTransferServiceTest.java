@@ -105,7 +105,7 @@ class ConfigTransferServiceTest {
         body.writeTo(baos);
         byte[] zipBytes = baos.toByteArray();
 
-        try (ZipInputStream zis = new ZipInputStream(new java.io.ByteArrayInputStream(zipBytes))) {
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
             zis.getNextEntry();
             byte[] content = zis.readAllBytes();
             String asString = new String(content, StandardCharsets.UTF_8);

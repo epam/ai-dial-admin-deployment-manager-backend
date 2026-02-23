@@ -71,7 +71,9 @@ public class ConfigTransferService {
                 } else {
                     log.info("Ignoring file {} in zip archive during import", entry.getName());
                 }
-                zipInputStream.closeEntry();
+                if (zipInputStream.available() != 0) {
+                    zipInputStream.closeEntry();
+                }
             }
             log.info("Config import completed successfully");
         } catch (Exception ex) {
