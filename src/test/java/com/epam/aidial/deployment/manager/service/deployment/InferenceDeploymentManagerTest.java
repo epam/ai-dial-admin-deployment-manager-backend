@@ -41,6 +41,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -50,8 +51,10 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -654,12 +657,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && SERVICE_URL.equals(updatedDeployment.getUrl())
-        ));
+        verify(deploymentRepository).conditionalUpdate(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
     }
 
     @Test
@@ -698,12 +704,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && INTERNAL_SERVICE_URL.equals(updatedDeployment.getUrl())
-        ));
+        verify(deploymentRepository).conditionalUpdate(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(INTERNAL_SERVICE_URL)));
     }
 
     @Test
@@ -775,12 +784,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && updatedDeployment.getUrl() == null
-        ));
+        verify(deploymentRepository).conditionalUpdate(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(null)));
     }
 
     @Test
@@ -803,12 +815,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && "".equals(updatedDeployment.getUrl())
-        ));
+        verify(deploymentRepository).conditionalUpdate(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning("")));
     }
 
     @Test
@@ -831,6 +846,14 @@ class InferenceDeploymentManagerTest {
         // Then
         assertThat(result).isTrue();
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
+    }
+
+    private ArgumentMatcher<Consumer<Deployment>> mutatorExpectingUrlAndRunning(String expectedUrl) {
+        return mutator -> {
+            Deployment d = createDeployment(DeploymentStatus.PENDING);
+            mutator.accept(d);
+            return d.getStatus() == DeploymentStatus.RUNNING && Objects.equals(expectedUrl, d.getUrl());
+        };
     }
 
     private Deployment createDeployment(DeploymentStatus status) {
