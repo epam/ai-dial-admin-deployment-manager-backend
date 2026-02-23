@@ -128,6 +128,7 @@ public class DeploymentRepository {
         return mapper.toDomain(savedEntity);
     }
 
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public boolean conditionalUpdate(String id, Predicate<Deployment> condition, Consumer<Deployment> mutator) {
         var existingEntity = findDeploymentById(id);
         var domainObject = mapper.toDomain(existingEntity);
