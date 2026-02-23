@@ -662,7 +662,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).conditionalUpdate(
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
                 eq(DEPLOYMENT_ID),
                 any(),
                 argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
@@ -709,7 +709,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).conditionalUpdate(
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
                 eq(DEPLOYMENT_ID),
                 any(),
                 argThat(mutatorExpectingUrlAndRunning(INTERNAL_SERVICE_URL)));
@@ -789,7 +789,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).conditionalUpdate(
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
                 eq(DEPLOYMENT_ID),
                 any(),
                 argThat(mutatorExpectingUrlAndRunning(null)));
@@ -820,7 +820,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).conditionalUpdate(
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
                 eq(DEPLOYMENT_ID),
                 any(),
                 argThat(mutatorExpectingUrlAndRunning("")));

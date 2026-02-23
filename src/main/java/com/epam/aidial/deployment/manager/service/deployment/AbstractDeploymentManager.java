@@ -658,7 +658,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         D deployment = getDeployment(deploymentId);
         try {
             performHealthChecks(deployment, serviceUrl);
-            deploymentRepository.conditionalUpdate(deploymentId,
+            deploymentRepository.conditionalUpdateInNewTransaction(
+                    deploymentId,
                     Objects::nonNull,
                     d -> {
                         d.setUrl(serviceUrl);
@@ -666,7 +667,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     });
             log.info("{}: deployment '{}' marked RUNNING in DB after successful readiness check", initiator, deploymentId);
         } catch (Exception e) {
-            deploymentRepository.updateStatus(deploymentId, DeploymentStatus.CRASHED);
+            deploymentRepository.updateStatusInNewTransaction(deploymentId, DeploymentStatus.CRASHED);
             log.warn("{}: error during readiness check for deployment '{}'", initiator, deploymentId, e);
         }
     }
