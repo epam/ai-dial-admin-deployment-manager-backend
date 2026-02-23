@@ -21,6 +21,7 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +40,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
     private final NimManifestGenerator nimManifestGenerator;
     private final K8sNimClient k8sNimClient;
-    private final boolean useClusterInternalUrl;
+    private final NimDeployProperties nimDeployProperties;
 
     public NimDeploymentManager(
             K8sClient k8sClient,
@@ -57,7 +58,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 nimDeployProperties.getStartupTimeout(), DEFAULT_NIM_SERVICE_PORT);
         this.nimManifestGenerator = nimManifestGenerator;
         this.k8sNimClient = k8sNimClient;
-        this.useClusterInternalUrl = nimDeployProperties.isUseClusterInternalUrl();
+        this.nimDeployProperties = nimDeployProperties;
     }
 
     @Override
@@ -109,7 +110,9 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 imageRef,
                 containerPort,
                 containerGrpcPort,
-                deployment.getProbeProperties());
+                deployment.getProbeProperties(),
+                nimDeployProperties.isUseClusterInternalUrl(),
+                nimDeployProperties.getClusterHost());
     }
 
     @Override
@@ -193,7 +196,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         }
 
         String url;
-        if (useClusterInternalUrl) {
+        if (nimDeployProperties.isUseClusterInternalUrl()) {
             url = model.getClusterEndpoint();
             log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
         } else {

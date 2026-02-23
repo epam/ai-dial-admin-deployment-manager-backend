@@ -13,4 +13,5 @@ public class NimDeployProperties {
     private int startupTimeout;
     private long informerResyncInterval;
     private boolean useClusterInternalUrl;
+    private String clusterHost;
 }

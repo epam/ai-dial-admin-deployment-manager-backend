@@ -95,6 +95,7 @@ app:
       startup-timeout: ${K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
       informer-resync-interval: ${K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
       use-cluster-internal-url: ${K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
+      cluster-host: ${K8S_NIM_CLUSTER_HOST:}
   kserve:
     enabled: ${K8S_KSERVE_ENABLED:false}
     deploy:

@@ -69,7 +69,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected final String namespace;
     protected final int startupTimeoutSec;
-    protected final Integer defaultContainerPort;
+    protected final int defaultContainerPort;
 
     protected AbstractDeploymentManager(K8sClient k8sClient,
                                         DisposableResourceManager disposableResourceManager,
@@ -79,7 +79,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
                                         String namespace,
                                         int startupTimeoutSec,
-                                        Integer defaultContainerPort) {
+                                        int defaultContainerPort) {
         this.k8sClient = k8sClient;
         this.manifestGenerator = manifestGenerator;
         this.deploymentRepository = deploymentRepository;
@@ -659,7 +659,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .toList();
     }
 
-    protected Integer resolveContainerPort(Supplier<Integer> portSupplier) {
+    protected int resolveContainerPort(Supplier<Integer> portSupplier) {
         return containerPortResolver.resolveContainerPort(portSupplier, defaultContainerPort);
     }
 
