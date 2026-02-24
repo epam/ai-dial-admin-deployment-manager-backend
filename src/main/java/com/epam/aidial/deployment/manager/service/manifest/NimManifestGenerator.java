@@ -85,10 +85,9 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyResourceMap(resourceRequestsChain.data(), resources.getRequests(), IntOrString::new);
 
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
+        applyExposeService(exposeChain, containerPort, containerGrpcPort);
         if (useExternalUrl) {
             applyExposeIngress(exposeChain, nimServiceName, clusterHost, containerPort);
-        } else {
-            applyExposeService(exposeChain, containerPort, containerGrpcPort);
         }
 
         applyStartupProbe(name, specChain, probeProperties);
