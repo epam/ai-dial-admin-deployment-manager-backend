@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -145,6 +146,11 @@ public class DeploymentRepository {
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.REPEATABLE_READ)
+    public boolean conditionalUpdateInNewTransaction(String id, Predicate<Deployment> condition, Consumer<Deployment> mutator) {
+        return conditionalUpdate(id, condition, mutator);
+    }
+
     public void deleteById(String id) {
         deploymentJpaRepository.deleteById(id);
         log.debug("Deployment '{}' deleted successfully", id);
@@ -161,6 +167,11 @@ public class DeploymentRepository {
     public void updateStatus(String id, DeploymentStatus status) {
         deploymentJpaRepository.updateStatus(id, PersistenceDeploymentStatus.valueOf(status.name()));
         log.debug("Status updated for deployment '{}' to: {}", id, status);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateStatusInNewTransaction(String id, DeploymentStatus status) {
+        updateStatus(id, status);
     }
 
     private void updateEntityFromDomain(DeploymentEntity entity, Deployment domain) {
