@@ -12,6 +12,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nvidia.apps.v1alpha1.NIMService;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,21 @@ class NimManifestGeneratorTest {
         var baseService = objectMapper.readValue(baseServiceJson, NIMService.class);
 
         when(appconfig.cloneNimServiceConfig()).thenReturn(baseService);
+    }
+
+    private void stubNimServiceExposeConfig() {
+        var ingress = new Ingress();
+        ingress.setEnabled(true);
+        ingress.setAnnotations(Map.of(
+                "nginx.ingress.kubernetes.io/proxy-body-size", "0",
+                "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
+                "cert-manager.io/cluster-issuer", "letsencrypt-production",
+                "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
+        ));
+        var ingressSpec = new Spec();
+        ingressSpec.setIngressClassName("nginx");
+        ingress.setSpec(ingressSpec);
+        when(appconfig.getNimServiceExposeConfig()).thenReturn(ingress);
     }
 
     @Test
@@ -140,7 +157,9 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withExternalUrlAndClusterHost_setsExposeIngress() throws JsonProcessingException {
+    void testServiceConfig_withExternalUrlAndClusterHost_setsExposeIngress() {
+        stubNimServiceExposeConfig();
+
         // Given: external URL with cluster host
         var deploymentName = "external-nim-app";
         var imageName = "nvcr.io/nim/my-model:1.0";
@@ -175,7 +194,9 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withExternalUrl_setsHardcodedIngressAnnotations() throws JsonProcessingException {
+    void testServiceConfig_withExternalUrl_setsIngressAnnotationsFromConfig() {
+        stubNimServiceExposeConfig();
+
         // Given: external URL with cluster host
         var deploymentName = "annotated-nim-app";
         var imageName = "nvcr.io/nim/my-model:1.0";
@@ -188,7 +209,7 @@ class NimManifestGeneratorTest {
                 8000, null, null, true, clusterHost
         );
 
-        // Then: expose.ingress has hardcoded annotations (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
+        // Then: expose.ingress has annotations from nim-service-expose-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
         var ingress = generatedService.getSpec().getExpose().getIngress();
         assertThat(ingress).isNotNull();
         assertThat(ingress.getAnnotations())

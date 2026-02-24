@@ -14,10 +14,9 @@ import com.networknt.schema.utils.StringUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import com.nvidia.apps.v1alpha1.NIMServiceSpec;
 import com.nvidia.apps.v1alpha1.nimservicespec.Env;
+import com.nvidia.apps.v1alpha1.nimservicespec.Expose;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.ValueFrom;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.valuefrom.SecretKeyRef;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.Rules;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.Tls;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.Http;
@@ -32,19 +31,11 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
 @LogExecution
 public class NimManifestGenerator extends DeployableManifestGenerator {
-
-    private static final Map<String, String> INGRESS_ANNOTATIONS = Map.of(
-            "nginx.ingress.kubernetes.io/proxy-body-size", "0",
-            "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
-            "cert-manager.io/cluster-issuer", "letsencrypt-production",
-            "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
-    );
 
     private final NimProbeConverter nimProbeConverter;
 
@@ -94,17 +85,10 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyResourceMap(resourceRequestsChain.data(), resources.getRequests(), IntOrString::new);
 
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
-        var serviceChain = exposeChain.get(NimMappers.EXPOSE_SERVICE_FIELD);
-        var service = serviceChain.data();
-
-        service.setPort(containerPort);
-        if (containerGrpcPort != null) {
-            service.setGrpcPort(containerGrpcPort);
-        }
-
         if (useExternalUrl) {
-            var expose = exposeChain.data();
-            expose.setIngress(buildIngress(nimServiceName, clusterHost, containerPort));
+            applyExposeIngress(exposeChain, nimServiceName, clusterHost, containerPort);
+        } else {
+            applyExposeService(exposeChain, containerPort, containerGrpcPort);
         }
 
         applyStartupProbe(name, specChain, probeProperties);
@@ -112,16 +96,24 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         return config.data();
     }
 
-    private Ingress buildIngress(String nimServiceName, String clusterHost, int httpPort) {
-        var ingress = new Ingress();
-        ingress.setEnabled(true);
-        ingress.setAnnotations(INGRESS_ANNOTATIONS);
-        var spec = new Spec();
-        spec.setIngressClassName("nginx");
-        spec.setTls(List.of(buildTls(nimServiceName, clusterHost)));
-        spec.setRules(List.of(buildRule(nimServiceName, clusterHost, httpPort)));
-        ingress.setSpec(spec);
-        return ingress;
+    private void applyExposeService(MappingChain<Expose> exposeChain, int httpPort, @Nullable Integer containerGrpcPort) {
+        var serviceChain = exposeChain.get(NimMappers.EXPOSE_SERVICE_FIELD);
+        var service = serviceChain.data();
+        service.setPort(httpPort);
+        if (containerGrpcPort != null) {
+            service.setGrpcPort(containerGrpcPort);
+        }
+    }
+
+    private void applyExposeIngress(MappingChain<Expose> exposeChain, String nimServiceName, String clusterHost, int httpPort) {
+        var ingressChain = new MappingChain<>(appConfig.getNimServiceExposeConfig());
+        var ingressSpecChain = ingressChain.get(NimMappers.INGRESS_SPEC_FIELD);
+        var ingressSpec = ingressSpecChain.data();
+
+        ingressSpec.setTls(List.of(buildTls(nimServiceName, clusterHost)));
+        ingressSpec.setRules(List.of(buildRule(nimServiceName, clusterHost, httpPort)));
+
+        exposeChain.data().setIngress(ingressChain.data());
     }
 
     private Tls buildTls(String nimServiceName, String clusterHost) {

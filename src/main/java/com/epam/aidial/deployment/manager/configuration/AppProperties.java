@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.configuration;
 
 import com.nvidia.apps.v1alpha1.NIMService;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.knative.serving.v1.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.Container;
@@ -41,6 +42,7 @@ public class AppProperties {
     private Container knativeServiceContainerConfig;
 
     private NIMService nimServiceConfig;
+    private Ingress nimServiceExposeConfig;
 
     private InferenceService inferenceServiceConfig;
     private Container inferenceServiceContainerConfig;

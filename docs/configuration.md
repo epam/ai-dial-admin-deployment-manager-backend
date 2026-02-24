@@ -210,6 +210,28 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim-service-config.spec.storage.pvc.size` | - | `20Gi` | No | - | Default Persistent volume claim size |
 | `app.nim-service-config.spec.resources.limits.[nvidia.com/gpu]` | - | `1` | No | - | Default GPU resource limit |
 
+#### NIM Service Ingress Configuration
+
+Applied when `app.nim.deploy.use-cluster-internal-url` is `false`. This block defines the Ingress template used to expose NIM services externally. The generated Ingress host is `<NimServiceName>.<ClusterHost>`.
+
+| Property | Default Value | Required | Description |
+|----------|---------------|----------|-------------|
+| `app.nim-service-expose-config.enabled` | `true` | No | Enable Ingress for externally exposed NIM services |
+| `app.nim-service-expose-config.annotations` | *(see below)* | No | Annotations applied to the NIM Ingress resource |
+| `app.nim-service-expose-config.spec.ingressClassName` | `nginx` | No | Ingress class name |
+
+Default annotations:
+
+| Annotation | Default Value | Purpose |
+|------------|---------------|---------|
+| `nginx.ingress.kubernetes.io/proxy-body-size` | `"0"` | Unlimited request body size (needed for large prompts/images) |
+| `nginx.ingress.kubernetes.io/proxy-read-timeout` | `"600"` | 10-minute read timeout (LLMs can take time to stream responses) |
+| `cert-manager.io/cluster-issuer` | `"letsencrypt-production"` | Cert-manager cluster issuer for automatic TLS certificates |
+| `nginx.ingress.kubernetes.io/force-ssl-redirect` | `"true"` | Force HTTPS redirect |
+
+TLS and routing rules are generated automatically from `app.nim.deploy.cluster-host` and the NIM service name. Each NIM service gets a TLS secret named `<NimServiceName>-tls-secret`.
+
+
 ### Hugging Face Configuration
 | Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |
 |----------------------------------|----------------------------------|--------------------------|----------|--------------|--------------------------------------------|
