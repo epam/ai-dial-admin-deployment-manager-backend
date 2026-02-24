@@ -27,7 +27,7 @@ public interface DeploymentManager<S> {
 
     Deployment undeploy(String id);
 
-    void rollingUpdate(String id);
+    Deployment rollingUpdate(String id);
 
     void updateCiliumNetworkPolicy(String id);
 

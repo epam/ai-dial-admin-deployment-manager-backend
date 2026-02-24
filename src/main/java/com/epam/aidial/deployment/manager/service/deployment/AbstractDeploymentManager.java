@@ -176,12 +176,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void rollingUpdate(String id) {
+    public Deployment rollingUpdate(String id) {
         var deployment = getDeployment(id);
 
         if (deployment.getStatus() != DeploymentStatus.RUNNING) {
             log.info("Deployment '{}' is not running; skipping rolling update", id);
-            return;
+            return deployment;
         }
 
         try {
@@ -200,6 +200,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     }
                 }
             });
+
+            deployment.setStatus(DeploymentStatus.PENDING);
+            return deployment;
 
         } catch (Exception e) {
             var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
