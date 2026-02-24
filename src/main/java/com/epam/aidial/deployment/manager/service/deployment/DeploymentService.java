@@ -182,6 +182,7 @@ public class DeploymentService {
         boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
         if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForRollingUpdate) {
             deploymentManager.rollingUpdate(id);
+            updatedDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
         } else if (updatedDeployment.getStatus() == DeploymentStatus.CRASHED) {
             updatedDeployment = deploymentManager.undeploy(id);
         }
