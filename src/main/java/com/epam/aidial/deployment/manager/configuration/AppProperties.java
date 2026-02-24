@@ -42,7 +42,7 @@ public class AppProperties {
     private Container knativeServiceContainerConfig;
 
     private NIMService nimServiceConfig;
-    private Ingress nimServiceExposeConfig;
+    private Ingress nimServiceExposeIngressConfig;
 
     private InferenceService inferenceServiceConfig;
     private Container inferenceServiceContainerConfig;

@@ -188,7 +188,7 @@ app:
         service:
           type: ClusterIP
           port: 8000
-  nim-service-expose-config:
+  nim-service-expose-ingress-config:
     enabled: true
     annotations:
       # Allow large payloads (often needed for large prompts/images)

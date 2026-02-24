@@ -106,7 +106,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     }
 
     private void applyExposeIngress(MappingChain<Expose> exposeChain, String nimServiceName, String clusterHost, int httpPort) {
-        var ingressChain = new MappingChain<>(appConfig.getNimServiceExposeConfig());
+        var ingressChain = new MappingChain<>(appConfig.getNimServiceExposeIngressConfig());
         var ingressSpecChain = ingressChain.get(NimMappers.INGRESS_SPEC_FIELD);
         var ingressSpec = ingressSpecChain.data();
 

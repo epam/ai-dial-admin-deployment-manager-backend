@@ -216,9 +216,9 @@ Applied when `app.nim.deploy.use-cluster-internal-url` is `false`. This block de
 
 | Property | Default Value | Required | Description |
 |----------|---------------|----------|-------------|
-| `app.nim-service-expose-config.enabled` | `true` | No | Enable Ingress for externally exposed NIM services |
-| `app.nim-service-expose-config.annotations` | *(see below)* | No | Annotations applied to the NIM Ingress resource |
-| `app.nim-service-expose-config.spec.ingressClassName` | `nginx` | No | Ingress class name |
+| `app.nim-service-expose-ingress-config.enabled` | `true` | No | Enable Ingress for externally exposed NIM services |
+| `app.nim-service-expose-ingress-config.annotations` | *(see below)* | No | Annotations applied to the NIM Ingress resource |
+| `app.nim-service-expose-ingress-config.spec.ingressClassName` | `nginx` | No | Ingress class name |
 
 Default annotations:
 
