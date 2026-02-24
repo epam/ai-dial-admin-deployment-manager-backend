@@ -32,11 +32,19 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
 @LogExecution
 public class NimManifestGenerator extends DeployableManifestGenerator {
+
+    private static final Map<String, String> INGRESS_ANNOTATIONS = Map.of(
+            "nginx.ingress.kubernetes.io/proxy-body-size", "0",
+            "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
+            "cert-manager.io/cluster-issuer", "letsencrypt-production",
+            "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
+    );
 
     private final NimProbeConverter nimProbeConverter;
 
@@ -107,6 +115,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     private Ingress buildIngress(String nimServiceName, String clusterHost, int httpPort) {
         var ingress = new Ingress();
         ingress.setEnabled(true);
+        ingress.setAnnotations(INGRESS_ANNOTATIONS);
         var spec = new Spec();
         spec.setIngressClassName("nginx");
         spec.setTls(List.of(buildTls(nimServiceName, clusterHost)));

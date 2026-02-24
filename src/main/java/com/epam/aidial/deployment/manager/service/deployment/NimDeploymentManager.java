@@ -21,7 +21,6 @@ import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -102,6 +101,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         var containerPort = resolveContainerPort(deployment::getContainerPort);
         var containerGrpcPort = deployment.getContainerGrpcPort();
 
+        var useExternalUrl = !nimDeployProperties.isUseClusterInternalUrl();
+
         return nimManifestGenerator.serviceConfig(
                 deployment.getId(),
                 userDefinedSimpleEnvs,
@@ -111,7 +112,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 containerPort,
                 containerGrpcPort,
                 deployment.getProbeProperties(),
-                nimDeployProperties.isUseClusterInternalUrl(),
+                useExternalUrl,
                 nimDeployProperties.getClusterHost());
     }
 

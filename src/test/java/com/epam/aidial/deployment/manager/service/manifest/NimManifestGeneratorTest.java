@@ -175,6 +175,30 @@ class NimManifestGeneratorTest {
     }
 
     @Test
+    void testServiceConfig_withExternalUrl_setsHardcodedIngressAnnotations() throws JsonProcessingException {
+        // Given: external URL with cluster host
+        var deploymentName = "annotated-nim-app";
+        var imageName = "nvcr.io/nim/my-model:1.0";
+        var clusterHost = "ext.example.com";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, true, clusterHost
+        );
+
+        // Then: expose.ingress has hardcoded annotations (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
+        var ingress = generatedService.getSpec().getExpose().getIngress();
+        assertThat(ingress).isNotNull();
+        assertThat(ingress.getAnnotations())
+                .containsEntry("nginx.ingress.kubernetes.io/proxy-body-size", "0")
+                .containsEntry("nginx.ingress.kubernetes.io/proxy-read-timeout", "600")
+                .containsEntry("cert-manager.io/cluster-issuer", "letsencrypt-production")
+                .containsEntry("nginx.ingress.kubernetes.io/force-ssl-redirect", "true");
+    }
+
+    @Test
     void testServiceConfig_withUseExternalUrlFalse_doesNotSetExposeIngress() throws JsonProcessingException {
         // Given: internal URL only
         var deploymentName = "internal-nim-app";
