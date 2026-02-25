@@ -110,7 +110,7 @@ public abstract class ImageDefinitionFunctionalTest {
         CreateDeployment createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefId);
         Deployment deployment = deploymentService.createDeployment(createDeployment);
 
-        service.deleteImageDefinitionAsync(imageDefId);
+        service.deleteImageDefinitionSync(imageDefId);
         imageDefs = service.getAllImageDefinitions().stream().toList();
         boolean isImageDefPresent = service.getImageDefinition(imageDefId).isPresent();
         boolean isDeploymentPresent = deploymentService.getDeployment(deployment.getId()).isPresent();

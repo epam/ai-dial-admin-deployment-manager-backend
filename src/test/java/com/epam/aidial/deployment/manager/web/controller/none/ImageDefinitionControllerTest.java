@@ -296,7 +296,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         mockMvc.perform(delete("/api/v1/images/definitions/" + imageId))
                 .andExpect(status().isNoContent());
 
-        verify(imageDefinitionService).deleteImageDefinitionAsync(eq(imageId));
+        verify(imageDefinitionService).deleteImageDefinitionSync(eq(imageId));
     }
 
     @Test
@@ -304,7 +304,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var imageId = UUID.randomUUID();
         var errorMessage = "You cannot delete image, cause there is deployments referencing it.";
-        doThrow(new ImageInUseException(errorMessage)).when(imageDefinitionService).deleteImageDefinitionAsync(eq(imageId));
+        doThrow(new ImageInUseException(errorMessage)).when(imageDefinitionService).deleteImageDefinitionSync(eq(imageId));
 
         // When/Then
         mockMvc.perform(delete("/api/v1/images/definitions/" + imageId))
@@ -312,6 +312,6 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(jsonPath("$.message").value(errorMessage))
                 .andExpect(jsonPath("$.error").value("Conflict"));
 
-        verify(imageDefinitionService).deleteImageDefinitionAsync(eq(imageId));
+        verify(imageDefinitionService).deleteImageDefinitionSync(eq(imageId));
     }
 }
