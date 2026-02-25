@@ -192,12 +192,12 @@ app:
     enabled: true
     annotations:
       # Allow large payloads (often needed for large prompts/images)
-      nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      "[nginx.ingress.kubernetes.io/proxy-body-size]": "0"
       # Increase timeout (LLMs can take time to stream responses)
-      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      "[nginx.ingress.kubernetes.io/proxy-read-timeout]": "600"
       # Cert-manager for SSL
-      cert-manager.io/cluster-issuer: "letsencrypt-production"
-      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      "[cert-manager.io/cluster-issuer]": "letsencrypt-production"
+      "[nginx.ingress.kubernetes.io/force-ssl-redirect]": "true"
     spec:
       ingressClassName: nginx
   builder-job-config:
