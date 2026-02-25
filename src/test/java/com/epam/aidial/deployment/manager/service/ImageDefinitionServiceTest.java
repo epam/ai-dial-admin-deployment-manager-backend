@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -53,17 +55,18 @@ class ImageDefinitionServiceTest {
                 createImageDefinition(UUID.randomUUID(), "echo-mcp-0"),
                 createImageDefinition(UUID.randomUUID(), "echo-mcp-1")
         );
-        doReturn(expectedImageDefinitions).when(imageDefinitionRepository).getAllImageDefinitions();
+        var expectedPage = new PageImpl<>(expectedImageDefinitions);
+        doReturn(expectedPage).when(imageDefinitionRepository).getAllImageDefinitions(Pageable.unpaged());
 
         // When
-        var actualImageDefinitions = imageDefinitionService.getAllImageDefinitions();
+        var actualPage = imageDefinitionService.getAllImageDefinitions(Pageable.unpaged());
 
         // Then
-        assertThat(actualImageDefinitions)
+        assertThat(actualPage)
                 .isNotNull()
-                .hasSize(2)
-                .isEqualTo(expectedImageDefinitions);
-        verify(imageDefinitionRepository).getAllImageDefinitions();
+                .hasSize(2);
+        assertThat(actualPage.getContent()).isEqualTo(expectedImageDefinitions);
+        verify(imageDefinitionRepository).getAllImageDefinitions(Pageable.unpaged());
     }
 
     @Test

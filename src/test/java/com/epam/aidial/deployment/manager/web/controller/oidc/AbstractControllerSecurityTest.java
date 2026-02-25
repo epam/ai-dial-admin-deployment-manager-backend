@@ -158,8 +158,15 @@ public abstract class AbstractControllerSecurityTest {
 
     protected ResultActions performGet(final String url,
                                        final String jwtToken,
+                                       final boolean includePaginationParams,
                                        final Object... uriVariables) throws Exception {
-        return mockMvc.perform(get(url, uriVariables)
-                .header("Authorization", "Bearer " + jwtToken));
+        var request = get(url, uriVariables);
+        if (includePaginationParams) {
+            request
+                    .param("page", "0")
+                    .param("size", "10");
+        }
+        request.header("Authorization", "Bearer " + jwtToken);
+        return mockMvc.perform(request);
     }
 }

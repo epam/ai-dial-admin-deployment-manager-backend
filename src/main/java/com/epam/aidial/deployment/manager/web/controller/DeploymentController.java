@@ -55,6 +55,7 @@ public class DeploymentController {
     private final DeploymentLogsService deploymentLogsService;
     private final DeploymentDtoMapper dtoMapper;
 
+    // TODO [VPA]: add pagination
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public List<DeploymentInfoDto> getAllDeployments(
             @RequestParam(value = "imageDefinitionId", required = false) UUID imageDefinitionId,

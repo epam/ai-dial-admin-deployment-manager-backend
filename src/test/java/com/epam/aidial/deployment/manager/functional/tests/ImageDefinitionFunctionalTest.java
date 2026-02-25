@@ -22,6 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.UUID;
@@ -56,7 +60,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // When
         service.createImageDefinition(imageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then
         Assertions.assertEquals(1, imageDefs.size());
@@ -99,7 +103,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // When 1
         service.createImageDefinition(imageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then 1
         Assertions.assertEquals(1, imageDefs.size());
@@ -111,7 +115,7 @@ public abstract class ImageDefinitionFunctionalTest {
         Deployment deployment = deploymentService.createDeployment(createDeployment);
 
         service.deleteImageDefinitionAsync(imageDefId);
-        imageDefs = service.getAllImageDefinitions().stream().toList();
+        imageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
         boolean isImageDefPresent = service.getImageDefinition(imageDefId).isPresent();
         boolean isDeploymentPresent = deploymentService.getDeployment(deployment.getId()).isPresent();
 
@@ -128,7 +132,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // When 1
         service.createImageDefinition(imageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then 1
         Assertions.assertEquals(1, imageDefs.size());
@@ -140,7 +144,7 @@ public abstract class ImageDefinitionFunctionalTest {
         imageDef.setAuthor("updated-author");
 
         service.updateImageDefinition(imageDef.getId(), imageDef);
-        imageDefs = service.getAllImageDefinitions().stream().toList();
+        imageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then 2
         Assertions.assertEquals(imageDef, imageDefs.getFirst());
@@ -183,7 +187,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // When - Create
         service.createImageDefinition(imageDef);
-        var createdImageDefs = List.copyOf(service.getAllImageDefinitions());
+        var createdImageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then - After Create
         Assertions.assertEquals(1, createdImageDefs.size());
@@ -202,7 +206,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // When - Update
         Thread.sleep(1); // to be sure that created_at not equals to updated_at
         service.updateImageDefinition(createdImageDef.getId(), createdImageDef);
-        var updatedImageDefs = List.copyOf(service.getAllImageDefinitions());
+        var updatedImageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then - After Update
         Assertions.assertEquals(1, updatedImageDefs.size());
@@ -221,7 +225,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // When
         service.createImageDefinition(mcpImageDef);
         service.createImageDefinition(interceptorImageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageTypeDto.MCP).stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageTypeDto.MCP, Pageable.unpaged()).getContent();
 
         // Then
         Assertions.assertEquals(1, imageDefs.size());
@@ -292,7 +296,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // When
         service.createImageDefinition(imageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitions(Pageable.unpaged()).getContent();
 
         // Then
         Assertions.assertEquals(1, imageDefs.size());
@@ -482,7 +486,8 @@ public abstract class ImageDefinitionFunctionalTest {
         service.updateBuildStatus(created1.getId(), ImageStatus.BUILD_SUCCESSFUL);
 
         // When
-        var views = service.getImageDefinitionViews().stream().toList();
+        var pageRequest = PageRequest.of(0, 5);
+        var views = service.getImageDefinitionViews(pageRequest).getContent();
 
         // Then
         Assertions.assertEquals(2, views.size());
@@ -502,6 +507,52 @@ public abstract class ImageDefinitionFunctionalTest {
 
         Assertions.assertEquals(2, anotherModelView.getAvailableVersions().size());
         Assertions.assertEquals(created4.getId(), anotherModelView.getSelectedId());
+    }
+
+    @Test
+    public void shouldVerifyPaginationWorksWithRealWorldScenario() {
+        // Given - create 3 image definitions
+        for (int i = 0; i < 3; i++) {
+            var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+            imageDef.setName("paginated-model-" + i);
+            imageDef.setVersion("1.0." + i);
+            service.createImageDefinition(imageDef);
+        }
+
+        // When - request first page with 2 items
+        int pageSize = 2;
+        PageRequest firstPageRequest = PageRequest.of(0, pageSize, Sort.by(Sort.Direction.ASC, "name"));
+        Page<ImageDefinition> firstPage = service.getAllImageDefinitions(firstPageRequest);
+
+        // Then - verify first page
+        Assertions.assertEquals(pageSize, firstPage.getContent().size());
+        Assertions.assertEquals(3, firstPage.getTotalElements());
+        Assertions.assertEquals(2, firstPage.getTotalPages()); // 3 items with 2 per page = 2 pages
+        Assertions.assertTrue(firstPage.isFirst());
+        Assertions.assertFalse(firstPage.isLast());
+
+        // When - request second page
+        PageRequest secondPageRequest = PageRequest.of(1, pageSize, Sort.by(Sort.Direction.ASC, "name"));
+        Page<ImageDefinition> secondPage = service.getAllImageDefinitions(secondPageRequest);
+
+        // Then - verify second page
+        Assertions.assertEquals(1, secondPage.getContent().size()); // Second page has remaining 1 item
+        Assertions.assertEquals(3, secondPage.getTotalElements());
+        Assertions.assertFalse(secondPage.isFirst());
+        Assertions.assertTrue(secondPage.isLast());
+
+        // Verify pages have different content
+        List<String> firstPageNames = firstPage.getContent().stream()
+                .map(ImageDefinition::getName)
+                .toList();
+        List<String> secondPageNames = secondPage.getContent().stream()
+                .map(ImageDefinition::getName)
+                .toList();
+
+        // Check that each page has unique items
+        secondPageNames.forEach(name ->
+                Assertions.assertFalse(firstPageNames.contains(name))
+        );
     }
 
     @Test
@@ -527,8 +578,9 @@ public abstract class ImageDefinitionFunctionalTest {
         service.updateBuildStatus(createdMcp1.getId(), ImageStatus.BUILD_SUCCESSFUL);
 
         // When
-        var mcpViews = service.getImageDefinitionViewsByType(ImageTypeDto.MCP).stream().toList();
-        var interceptorViews = service.getImageDefinitionViewsByType(ImageTypeDto.INTERCEPTOR).stream().toList();
+        var pageRequest = PageRequest.of(0, 5);
+        var mcpViews = service.getImageDefinitionViewsByType(ImageTypeDto.MCP, pageRequest).getContent();
+        var interceptorViews = service.getImageDefinitionViewsByType(ImageTypeDto.INTERCEPTOR, pageRequest).getContent();
 
         // Then
         Assertions.assertEquals(1, mcpViews.size());
