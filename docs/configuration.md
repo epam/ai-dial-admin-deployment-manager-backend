@@ -149,7 +149,8 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments                           |
 | `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour)                    |
 | `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments |
-| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for NIM services.              |
+| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | When `true`, NIM services use cluster-internal URL only. When `false`, external URL via Ingress is used; `K8S_NIM_CLUSTER_HOST` must be set. |
+| `app.nim.deploy.cluster-host`             | `K8S_NIM_CLUSTER_HOST`                            | -             | Yes when using external NIM URL                   | NIM deploy   | Cluster host for external NIM URL. Ingress host is `<NimServiceName>.<ClusterHost>` (e.g. `mcp-my-id.example.com`). Required when `use-cluster-internal-url` is `false`. |
 
 #### KServe Configuration
 | Property                                     | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                                                                     |
@@ -208,6 +209,28 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim-service-config.spec.replicas` | - | `1` | No | - | Number of NIM service replicas |
 | `app.nim-service-config.spec.storage.pvc.size` | - | `20Gi` | No | - | Default Persistent volume claim size |
 | `app.nim-service-config.spec.resources.limits.[nvidia.com/gpu]` | - | `1` | No | - | Default GPU resource limit |
+
+#### NIM Service Ingress Configuration
+
+Applied when `app.nim.deploy.use-cluster-internal-url` is `false`. This block defines the Ingress template used to expose NIM services externally. The generated Ingress host is `<NimServiceName>.<ClusterHost>`.
+
+| Property | Default Value | Required | Description |
+|----------|---------------|----------|-------------|
+| `app.nim-service-expose-ingress-config.enabled` | `true` | No | Enable Ingress for externally exposed NIM services |
+| `app.nim-service-expose-ingress-config.annotations` | *(see below)* | No | Annotations applied to the NIM Ingress resource |
+| `app.nim-service-expose-ingress-config.spec.ingressClassName` | `nginx` | No | Ingress class name |
+
+Default annotations:
+
+| Annotation | Default Value | Purpose |
+|------------|---------------|---------|
+| `nginx.ingress.kubernetes.io/proxy-body-size` | `"0"` | Unlimited request body size (needed for large prompts/images) |
+| `nginx.ingress.kubernetes.io/proxy-read-timeout` | `"600"` | 10-minute read timeout (LLMs can take time to stream responses) |
+| `cert-manager.io/cluster-issuer` | `"letsencrypt-production"` | Cert-manager cluster issuer for automatic TLS certificates |
+| `nginx.ingress.kubernetes.io/force-ssl-redirect` | `"true"` | Force HTTPS redirect |
+
+TLS and routing rules are generated automatically from `app.nim.deploy.cluster-host` and the NIM service name. Each NIM service gets a TLS secret named `<NimServiceName>-tls-secret`.
+
 
 ### Hugging Face Configuration
 | Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |

@@ -6,7 +6,9 @@ import com.nvidia.apps.v1alpha1.nimservicespec.Env;
 import com.nvidia.apps.v1alpha1.nimservicespec.Expose;
 import com.nvidia.apps.v1alpha1.nimservicespec.Image;
 import com.nvidia.apps.v1alpha1.nimservicespec.Resources;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.Service;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import lombok.experimental.UtilityClass;
@@ -68,5 +70,10 @@ public class NimMappers {
             Service::new,
             Expose::getService,
             Expose::setService);
+
+    public static final FieldMapper<Ingress, Spec> INGRESS_SPEC_FIELD = new FieldMapper<>(
+            Spec::new,
+            Ingress::getSpec,
+            Ingress::setSpec);
 
 }
