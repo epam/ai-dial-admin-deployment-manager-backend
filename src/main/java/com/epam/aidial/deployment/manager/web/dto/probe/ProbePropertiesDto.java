@@ -23,7 +23,7 @@ public class ProbePropertiesDto {
      * Number of seconds after the container has started before the probe is initiated.
      */
     @Nullable
-    @Min(1) @Max(6000)
+    @Min(0) @Max(6000)
     private Integer initialDelaySeconds;
     /**
      * How often (in seconds) to perform the probe.

@@ -416,6 +416,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(newImageDefinitionId, updatedDeployment.getImageDefinitionId());
+        Assertions.assertEquals(DeploymentStatus.PENDING, updatedDeployment.getStatus());
 
         verify(resource, times(1)).update();
     }
