@@ -5,6 +5,15 @@
     },
     "com.epam.aidial.deployment.manager.service.deployment.AbstractDeploymentManager": {
       "defaultLevel": "DEBUG"
+    },
+    "io.modelcontextprotocol.client.LifecycleInitializer": {
+      "defaultLevel": "OFF"
+    },
+    "io.modelcontextprotocol.client.transport.HttpClientSseClientTransport": {
+      "defaultLevel": "OFF"
+    },
+    "reactor.core.publisher.Operators": {
+      "defaultLevel": "OFF"
     }
   }
 }
