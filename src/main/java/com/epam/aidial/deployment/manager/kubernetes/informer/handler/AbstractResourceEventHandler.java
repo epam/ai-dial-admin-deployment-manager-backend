@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.ExecutorService;
 
@@ -30,19 +29,16 @@ public abstract class AbstractResourceEventHandler<T extends HasMetadata> implem
     protected final ExecutorService executorService;
 
     @Override
-    @Transactional
     public void onAdd(T resource) {
         processEvent(resource, EVENT_ADDED, false);
     }
 
     @Override
-    @Transactional
     public void onUpdate(T oldResource, T newResource) {
         processEvent(newResource, EVENT_MODIFIED, false);
     }
 
     @Override
-    @Transactional
     public void onDelete(T resource, boolean deletedFinalStateUnknown) {
         processEvent(resource, EVENT_DELETED, true);
     }
