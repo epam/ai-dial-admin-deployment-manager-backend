@@ -366,10 +366,12 @@ config:
   rest:
     security:
       mode: ${CONFIG_REST_SECURITY_MODE:none}
-      email-claim: ${SECURITY_EMAIL_CLAIM:unique_name}
+      require-email: ${SECURITY_REQUIRE_EMAIL:false}
       disable-swagger-authorization: ${DISABLE_SWAGGER_AUTHORIZATION:false}
       default:
         allowedRoles: ConfigAdmin,admin
+        email-claim: ${CLAIMS_EMAIL_KEY:unique_name}
+        principal-claim: ${SECURITY_USER_CLAIM:oid}
 
 azure:
   auth:
