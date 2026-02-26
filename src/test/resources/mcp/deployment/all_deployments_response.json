@@ -1,5 +1,6 @@
 [
   {
+    "$type": "mcp",
     "name": "decade00-0000-4000-a000-000000000000",
     "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
     "imageDefinitionName": "test-image",
@@ -17,10 +18,10 @@
     "status": "running",
     "url": "http://example.com/deployment1/mcp",
     "createdAt": 1745996228431,
-    "updatedAt": 1745996228431,
-    "type": "mcp"
+    "updatedAt": 1745996228431
   },
   {
+    "$type": "mcp",
     "name": "decade00-0000-4000-a000-000000000001",
     "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
     "imageDefinitionName": "test-image-1",
@@ -37,7 +38,6 @@
     },
     "status": "not_deployed",
     "createdAt": 1745996228431,
-    "updatedAt": 1745996228431,
-    "type": "mcp"
+    "updatedAt": 1745996228431
   }
 ]

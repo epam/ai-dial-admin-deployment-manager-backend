@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 @LogExecution
 public class ContainerPortResolver {
 
-    public Integer resolveContainerPort(Supplier<Integer> portSupplier, Integer defaultPort) {
+    public int resolveContainerPort(Supplier<Integer> portSupplier, int defaultPort) {
         var port = portSupplier.get();
         if (port != null) {
             return port;

@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecyc
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -49,6 +50,7 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -68,7 +70,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected final String namespace;
     protected final int startupTimeoutSec;
-    protected final Integer defaultContainerPort;
+    protected final int defaultContainerPort;
 
     protected AbstractDeploymentManager(K8sClient k8sClient,
                                         DisposableResourceManager disposableResourceManager,
@@ -78,7 +80,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
                                         String namespace,
                                         int startupTimeoutSec,
-                                        Integer defaultContainerPort) {
+                                        int defaultContainerPort) {
         this.k8sClient = k8sClient;
         this.manifestGenerator = manifestGenerator;
         this.deploymentRepository = deploymentRepository;
@@ -174,12 +176,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void rollingUpdate(String id) {
+    public Deployment rollingUpdate(String id) {
         var deployment = getDeployment(id);
 
         if (deployment.getStatus() != DeploymentStatus.RUNNING) {
             log.info("Deployment '{}' is not running; skipping rolling update", id);
-            return;
+            return deployment;
         }
 
         try {
@@ -198,6 +200,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     }
                 }
             });
+
+            deployment.setStatus(DeploymentStatus.PENDING);
+            return deployment;
 
         } catch (Exception e) {
             var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
@@ -264,7 +269,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 return true;
             }
 
-            // If K8s status is RUNNING, extract URL and perform health checks
+            // If K8s status is RUNNING, extract URL and schedule health check after commit
             if (status == DeploymentStatus.RUNNING) {
                 // No need to look for deployments stuck in 'stopping' state because if stopping fails/hangs,
                 //   state will be changed to 'stopped' and the cleaner will pick it up on the next scheduled run
@@ -275,21 +280,17 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
                 var serviceName = getServiceName(deploymentId);
 
-                log.info("{}: deployment '{}' appears RUNNING in K8s (service '{}'), triggering readiness check to set URL",
+                log.info("{}: deployment '{}' appears RUNNING in K8s (service '{}'), scheduling readiness check after commit to set URL",
                         initiator, deploymentId, serviceName);
-                try {
-                    var serviceUrl = resolveServiceUrl(service, deployment);
-                    performHealthChecks(deployment, serviceUrl);
-                    deployment.setUrl(serviceUrl);
-                    deployment.setStatus(DeploymentStatus.RUNNING);
-                    deploymentRepository.update(deploymentId, deployment);
-                    log.info("{}: deployment '{}' marked RUNNING in DB after successful readiness check", initiator, deploymentId);
-                    return true;
-                } catch (Exception e) {
-                    deploymentRepository.updateStatus(deploymentId, DeploymentStatus.CRASHED);
-                    log.warn("{}: error during readiness check for deployment '{}'", initiator, deploymentId, e);
-                    return false;
-                }
+                var serviceUrl = resolveServiceUrl(service, deployment);
+
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        completeReconcileWithHealthCheck(deploymentId, serviceUrl, initiator);
+                    }
+                });
+                return true;
             }
 
             // For other statuses, just update the status
@@ -510,21 +511,100 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public ContainerResource getContainerResource(String id, String podName) {
+    public ContainerResource getContainerResourceForLogs(String id, String podName, boolean previous) {
         var serviceName = getServiceName(id);
 
         var pod = getServicePod(namespace, serviceName, podName);
         if (pod == null) {
-            log.warn("Pod '{}' not found for deployment '{}'", podName, serviceName);
-            return null;
+            log.info("Pod '{}' not found for deployment '{}'. Service='{}', Namespace='{}'",
+                    podName, id, serviceName, namespace);
+            throw new EntityNotFoundException("Pod is not found for deployment '%s'".formatted(id));
         }
 
         var containerName = getContainerName(pod);
         if (containerName == null) {
-            throw new EntityNotFoundException("Container name could not be resolved for pod %s".formatted(podName));
+            log.info("Container name could not be resolved for pod '{}', deployment '{}'. Service='{}', Namespace='{}'",
+                    podName, id, serviceName, namespace);
+            throw new EntityNotFoundException("Container is not found for deployment '%s'".formatted(id));
         }
 
+        assertContainerLoggable(id, pod, podName, containerName, previous);
         return k8sClient.getPodResource(namespace, podName).inContainer(containerName);
+    }
+
+    private void assertContainerLoggable(String deploymentId, Pod pod, String podName, String containerName,
+                                         boolean previous) {
+        var containerStatus = findContainerStatus(deploymentId, pod, podName, containerName);
+
+        if (previous) {
+            assertPreviousLogsAvailable(deploymentId, containerStatus, podName, containerName);
+        } else {
+            assertContainerRunning(deploymentId, containerStatus, podName, containerName);
+        }
+    }
+
+    private ContainerStatus findContainerStatus(String deploymentId, Pod pod, String podName, String containerName) {
+        var podStatus = pod.getStatus();
+        var phase = (podStatus != null) ? podStatus.getPhase() : null;
+        var containerStatuses = (podStatus != null) ? podStatus.getContainerStatuses() : null;
+
+        if (CollectionUtils.isEmpty(containerStatuses)) {
+            log.info("Container '{}' in pod '{}' has no status yet. Deployment='{}', Pod phase={}",
+                    containerName, podName, deploymentId, phase);
+            throw new ValidationException("Container is not ready for log streaming for deployment '%s'".formatted(deploymentId));
+        }
+
+        return containerStatuses.stream()
+                .filter(s -> containerName.equals(s.getName()))
+                .findFirst()
+                .orElseThrow(() -> {
+                    log.info("Container '{}' not found in pod '{}'. Deployment='{}', Pod phase={}",
+                            containerName, podName, deploymentId, phase);
+                    return new EntityNotFoundException("Container is not found for deployment '%s'".formatted(deploymentId));
+                });
+    }
+
+    private void assertPreviousLogsAvailable(String deploymentId, ContainerStatus containerStatus, String podName,
+                                             String containerName) {
+        var lastState = containerStatus.getLastState();
+        var currentState = containerStatus.getState();
+        var hasTerminatedState = (lastState != null && lastState.getTerminated() != null)
+                || (currentState != null && currentState.getTerminated() != null);
+
+        if (!hasTerminatedState) {
+            log.info("Container '{}' in pod '{}' has no terminated state. Deployment='{}', {}",
+                    containerName, podName, deploymentId, describeContainerState(containerStatus));
+            throw new ValidationException("Previous logs are not available for container in deployment '%s'".formatted(deploymentId));
+        }
+    }
+
+    private void assertContainerRunning(String deploymentId, ContainerStatus containerStatus, String podName,
+                                        String containerName) {
+        var state = containerStatus.getState();
+        if (state != null && state.getRunning() != null) {
+            return;
+        }
+
+        log.info("Container '{}' in pod '{}' is not running. Deployment='{}', {}",
+                containerName, podName, deploymentId, describeContainerState(containerStatus));
+        throw new ValidationException("Container is not running for deployment '%s'".formatted(deploymentId));
+    }
+
+    private static String describeContainerState(ContainerStatus containerStatus) {
+        var state = containerStatus.getState();
+        if (state == null) {
+            return "State=Unknown";
+        }
+        if (state.getWaiting() != null) {
+            var w = state.getWaiting();
+            return "State=Waiting Reason=%s Message=%s".formatted(w.getReason(), w.getMessage());
+        }
+        if (state.getTerminated() != null) {
+            var t = state.getTerminated();
+            return "State=Terminated Reason=%s ExitCode=%s Message=%s"
+                    .formatted(t.getReason(), t.getExitCode(), t.getMessage());
+        }
+        return "State=Unknown";
     }
 
     @Override
@@ -572,6 +652,29 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         // Default implementation does nothing
     }
 
+    /**
+     * Runs after transaction commit: loads deployment and performs health checks (no transaction),
+     * then updates to RUNNING or CRASHED in a short write transaction (managed by repository class).
+     * This avoids holding a DB connection for the duration of health checks.
+     */
+    private void completeReconcileWithHealthCheck(String deploymentId, String serviceUrl, String initiator) {
+        D deployment = getDeployment(deploymentId);
+        try {
+            performHealthChecks(deployment, serviceUrl);
+            deploymentRepository.conditionalUpdateInNewTransaction(
+                    deploymentId,
+                    Objects::nonNull,
+                    d -> {
+                        d.setUrl(serviceUrl);
+                        d.setStatus(DeploymentStatus.RUNNING);
+                    });
+            log.info("{}: deployment '{}' marked RUNNING in DB after successful readiness check", initiator, deploymentId);
+        } catch (Exception e) {
+            deploymentRepository.updateStatusInNewTransaction(deploymentId, DeploymentStatus.CRASHED);
+            log.warn("{}: error during readiness check for deployment '{}'", initiator, deploymentId, e);
+        }
+    }
+
     protected static <T extends EnvVar> List<T> filterEnvsByExactType(Deployment deployment, Class<T> type) {
         return deployment.getEnvs().stream()
                 .filter(env -> type == env.getClass())
@@ -579,7 +682,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .toList();
     }
 
-    protected Integer resolveContainerPort(Supplier<Integer> portSupplier) {
+    protected int resolveContainerPort(Supplier<Integer> portSupplier) {
         return containerPortResolver.resolveContainerPort(portSupplier, defaultContainerPort);
     }
 

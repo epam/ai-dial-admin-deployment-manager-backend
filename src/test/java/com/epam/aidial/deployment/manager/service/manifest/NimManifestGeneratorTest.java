@@ -12,6 +12,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nvidia.apps.v1alpha1.NIMService;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,21 @@ class NimManifestGeneratorTest {
         when(appconfig.cloneNimServiceConfig()).thenReturn(baseService);
     }
 
+    private void stubNimServiceExposeIngressConfig() {
+        var ingress = new Ingress();
+        ingress.setEnabled(true);
+        ingress.setAnnotations(Map.of(
+                "nginx.ingress.kubernetes.io/proxy-body-size", "0",
+                "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
+                "cert-manager.io/cluster-issuer", "letsencrypt-production",
+                "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
+        ));
+        var ingressSpec = new Spec();
+        ingressSpec.setIngressClassName("nginx");
+        ingress.setSpec(ingressSpec);
+        when(appconfig.getNimServiceExposeIngressConfig()).thenReturn(ingress);
+    }
+
     @Test
     void testServiceConfig_withOverriddenEnvs() throws JsonProcessingException, JSONException {
         // Given
@@ -61,7 +78,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, null, null, null
+                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null
         );
 
         // Then
@@ -82,7 +99,8 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, null, null, null
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
+                false, null
         );
 
         // Then
@@ -104,7 +122,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
-                customGrpcPort, null
+                customGrpcPort, null, false, null
         );
 
         // Then
@@ -126,7 +144,8 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, null, null, null
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
+                false, null
         );
 
         // Then
@@ -135,6 +154,88 @@ class NimManifestGeneratorTest {
         // Verify the default port from template is preserved (8000)
         var service = objectMapper.readValue(jsonOutput, NIMService.class);
         assertThat(service.getSpec().getExpose().getService().getPort()).isEqualTo(8000);
+    }
+
+    @Test
+    void testServiceConfig_withExternalUrlAndClusterHost_setsExposeIngress() {
+        stubNimServiceExposeIngressConfig();
+
+        // Given: external URL with cluster host
+        var deploymentName = "external-nim-app";
+        var imageName = "nvcr.io/nim/my-model:1.0";
+        var clusterHost = "ext-aks.example.com";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var httpPort = 8000;
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                httpPort, null, null, true, clusterHost
+        );
+
+        // Then: expose.ingress is set with host, tls secret, backend
+        var expose = generatedService.getSpec().getExpose();
+        assertThat(expose).isNotNull();
+        var ingress = expose.getIngress();
+        assertThat(ingress).isNotNull();
+        assertThat(ingress.getEnabled()).isTrue();
+        var spec = ingress.getSpec();
+        assertThat(spec).isNotNull();
+        var nimServiceName = "mcp-" + deploymentName;
+        assertThat(spec.getIngressClassName()).isEqualTo("nginx");
+        assertThat(spec.getTls()).hasSize(1);
+        assertThat(spec.getTls().get(0).getHosts()).containsExactly(nimServiceName + "." + clusterHost);
+        assertThat(spec.getTls().get(0).getSecretName()).isEqualTo(nimServiceName + "-tls-secret");
+        assertThat(spec.getRules()).hasSize(1);
+        assertThat(spec.getRules().get(0).getHost()).isEqualTo(nimServiceName + "." + clusterHost);
+        var backendService = spec.getRules().get(0).getHttp().getPaths().get(0).getBackend().getService();
+        assertThat(backendService.getName()).isEqualTo(nimServiceName);
+        assertThat(backendService.getPort().getNumber()).isEqualTo(httpPort);
+    }
+
+    @Test
+    void testServiceConfig_withExternalUrl_setsIngressAnnotationsFromConfig() {
+        stubNimServiceExposeIngressConfig();
+
+        // Given: external URL with cluster host
+        var deploymentName = "annotated-nim-app";
+        var imageName = "nvcr.io/nim/my-model:1.0";
+        var clusterHost = "ext.example.com";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, true, clusterHost
+        );
+
+        // Then: expose.ingress has annotations from nim-service-expose-ingress-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
+        var ingress = generatedService.getSpec().getExpose().getIngress();
+        assertThat(ingress).isNotNull();
+        assertThat(ingress.getAnnotations())
+                .containsEntry("nginx.ingress.kubernetes.io/proxy-body-size", "0")
+                .containsEntry("nginx.ingress.kubernetes.io/proxy-read-timeout", "600")
+                .containsEntry("cert-manager.io/cluster-issuer", "letsencrypt-production")
+                .containsEntry("nginx.ingress.kubernetes.io/force-ssl-redirect", "true");
+    }
+
+    @Test
+    void testServiceConfig_withUseExternalUrlFalse_doesNotSetExposeIngress() throws JsonProcessingException {
+        // Given: internal URL only
+        var deploymentName = "internal-nim-app";
+        var imageName = "nvcr.io/nim/my-model:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, false, null
+        );
+
+        // Then: expose.ingress is not set
+        var expose = generatedService.getSpec().getExpose();
+        assertThat(expose).isNotNull();
+        assertThat(expose.getIngress()).isNull();
     }
 
     @Test
@@ -149,7 +250,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                null, null, probeProperties
+                8000, null, probeProperties, false, null
         );
 
         // Then: spec has startup probe with expected enabled, path, port and timing

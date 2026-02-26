@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
+import com.epam.aidial.deployment.manager.exception.McpClientException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,13 @@ import java.util.Optional;
 public class DefaultExceptionHandler {
 
     @ExceptionHandler(DeploymentException.class)
-    public ErrorView handleDeploymentException(HttpServletRequest req, DeploymentException ex) {
+    public ErrorView handleDeploymentError(HttpServletRequest req, DeploymentException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+    }
+
+    @ExceptionHandler(McpClientException.class)
+    public ErrorView handleMcpClientError(HttpServletRequest req, McpClientException ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
