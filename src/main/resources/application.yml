@@ -85,7 +85,7 @@ app:
     enabled: ${K8S_KNATIVE_ENABLED:true}
     deploy:
       namespace: ${K8S_KNATIVE_DEPLOYMENT_NAMESPACE:default}
-      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:300}
+      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:60}
       undeploy-timeout: ${K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC:300}
       informer-resync-interval: ${K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
   nim:
