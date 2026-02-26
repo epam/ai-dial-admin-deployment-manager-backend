@@ -135,6 +135,10 @@ app:
         enabled: ${DEPLOYMENT_RECONCILE_ON_STARTUP_ENABLED:true}
         batch-size: ${DEPLOYMENT_RECONCILE_ON_STARTUP_BATCH_SIZE:50}
         concurrency: ${DEPLOYMENT_RECONCILE_ON_STARTUP_CONCURRENCY:2}
+      executor:
+        thread-pool-size: ${DEPLOYMENT_RECONCILE_EXECUTOR_THREAD_POOL_SIZE:5}
+        queue-capacity: ${DEPLOYMENT_RECONCILE_EXECUTOR_QUEUE_CAPACITY:100}
+        thread-name-prefix: ${DEPLOYMENT_RECONCILE_EXECUTOR_THREAD_NAME_PREFIX:k8s-reconciliation-pool}
   knative-service-config:
     apiVersion: serving.knative.dev/v1
     kind: Service
