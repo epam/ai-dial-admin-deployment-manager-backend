@@ -137,4 +137,8 @@ public class ImageDefinitionService {
         componentCleanupService.deleteAsync(ComponentRemoval.of(String.valueOf(id), ComponentType.IMAGE_DEFINITION));
     }
 
+    public void deleteImageDefinitionSync(UUID id) {
+        componentCleanupService.deleteSync(ComponentRemoval.of(String.valueOf(id), ComponentType.IMAGE_DEFINITION));
+    }
+
 }

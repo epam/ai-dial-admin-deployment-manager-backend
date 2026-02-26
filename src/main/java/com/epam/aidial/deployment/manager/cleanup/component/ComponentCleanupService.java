@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
 @LogExecution
 public class ComponentCleanupService {
 
+    private static final ThreadLocal<Integer> SYNC_DELETION_DEPTH = ThreadLocal.withInitial(() -> 0);
+
     private final Map<ComponentType, CleanupStrategy> cleanupStrategies;
     @Qualifier("component-cleaner")
     private final ExecutorService executorService;
@@ -33,6 +35,14 @@ public class ComponentCleanupService {
         this.componentRemovalRepository = componentRemovalRepository;
     }
 
+    /**
+     * Returns true if the current thread is performing a synchronous deletion,
+     * so that strategies (e.g. ImageDefinitionCleanupStrategy) can delete child components synchronously.
+     */
+    public boolean isSyncDeletion() {
+        return SYNC_DELETION_DEPTH.get() > 0;
+    }
+
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void deleteAsync(ComponentRemoval componentRemoval) {
         componentRemovalRepository.save(componentRemoval);
@@ -42,6 +52,25 @@ public class ComponentCleanupService {
             delete(componentRemoval);
             componentRemovalRepository.delete(componentRemoval.getId(), componentRemoval.getType());
         });
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void deleteSync(ComponentRemoval componentRemoval) {
+        componentRemovalRepository.save(componentRemoval);
+        getStrategy(componentRemoval.getType()).prepareForDeletion(componentRemoval.getId());
+
+        SYNC_DELETION_DEPTH.set(SYNC_DELETION_DEPTH.get() + 1);
+        try {
+            delete(componentRemoval);
+            componentRemovalRepository.delete(componentRemoval.getId(), componentRemoval.getType());
+        } finally {
+            int depth = SYNC_DELETION_DEPTH.get() - 1;
+            if (depth == 0) {
+                SYNC_DELETION_DEPTH.remove();
+            } else {
+                SYNC_DELETION_DEPTH.set(depth);
+            }
+        }
     }
 
     void deleteAllPersisted() {

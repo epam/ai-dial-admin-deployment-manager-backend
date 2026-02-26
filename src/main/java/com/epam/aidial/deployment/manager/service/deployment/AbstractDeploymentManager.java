@@ -51,6 +51,7 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -70,7 +71,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected final String namespace;
     protected final int startupTimeoutSec;
-    protected final Integer defaultContainerPort;
+    protected final int defaultContainerPort;
 
     protected AbstractDeploymentManager(K8sClient k8sClient,
                                         DisposableResourceManager disposableResourceManager,
@@ -80,7 +81,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
                                         String namespace,
                                         int startupTimeoutSec,
-                                        Integer defaultContainerPort) {
+                                        int defaultContainerPort) {
         this.k8sClient = k8sClient;
         this.manifestGenerator = manifestGenerator;
         this.deploymentRepository = deploymentRepository;
@@ -176,12 +177,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     @Override
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void rollingUpdate(String id) {
+    public Deployment rollingUpdate(String id) {
         var deployment = getDeployment(id);
 
         if (deployment.getStatus() != DeploymentStatus.RUNNING) {
             log.info("Deployment '{}' is not running; skipping rolling update", id);
-            return;
+            return deployment;
         }
 
         try {
@@ -200,6 +201,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     }
                 }
             });
+
+            deployment.setStatus(DeploymentStatus.PENDING);
+            return deployment;
 
         } catch (Exception e) {
             var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
@@ -266,7 +270,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 return true;
             }
 
-            // If K8s status is RUNNING, extract URL and perform health checks
+            // If K8s status is RUNNING, extract URL and schedule health check after commit
             if (status == DeploymentStatus.RUNNING) {
                 // No need to look for deployments stuck in 'stopping' state because if stopping fails/hangs,
                 //   state will be changed to 'stopped' and the cleaner will pick it up on the next scheduled run
@@ -277,21 +281,17 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
                 var serviceName = getServiceName(deploymentId);
 
-                log.info("{}: deployment '{}' appears RUNNING in K8s (service '{}'), triggering readiness check to set URL",
+                log.info("{}: deployment '{}' appears RUNNING in K8s (service '{}'), scheduling readiness check after commit to set URL",
                         initiator, deploymentId, serviceName);
-                try {
-                    var serviceUrl = resolveServiceUrl(service, deployment);
-                    performHealthChecks(deployment, serviceUrl);
-                    deployment.setUrl(serviceUrl);
-                    deployment.setStatus(DeploymentStatus.RUNNING);
-                    deploymentRepository.update(deploymentId, deployment);
-                    log.info("{}: deployment '{}' marked RUNNING in DB after successful readiness check", initiator, deploymentId);
-                    return true;
-                } catch (Exception e) {
-                    deploymentRepository.updateStatus(deploymentId, DeploymentStatus.CRASHED);
-                    log.warn("{}: error during readiness check for deployment '{}'", initiator, deploymentId, e);
-                    return false;
-                }
+                var serviceUrl = resolveServiceUrl(service, deployment);
+
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        completeReconcileWithHealthCheck(deploymentId, serviceUrl, initiator);
+                    }
+                });
+                return true;
             }
 
             // For other statuses, just update the status
@@ -653,6 +653,29 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         // Default implementation does nothing
     }
 
+    /**
+     * Runs after transaction commit: loads deployment and performs health checks (no transaction),
+     * then updates to RUNNING or CRASHED in a short write transaction (managed by repository class).
+     * This avoids holding a DB connection for the duration of health checks.
+     */
+    private void completeReconcileWithHealthCheck(String deploymentId, String serviceUrl, String initiator) {
+        D deployment = getDeployment(deploymentId);
+        try {
+            performHealthChecks(deployment, serviceUrl);
+            deploymentRepository.conditionalUpdateInNewTransaction(
+                    deploymentId,
+                    Objects::nonNull,
+                    d -> {
+                        d.setUrl(serviceUrl);
+                        d.setStatus(DeploymentStatus.RUNNING);
+                    });
+            log.info("{}: deployment '{}' marked RUNNING in DB after successful readiness check", initiator, deploymentId);
+        } catch (Exception e) {
+            deploymentRepository.updateStatusInNewTransaction(deploymentId, DeploymentStatus.CRASHED);
+            log.warn("{}: error during readiness check for deployment '{}'", initiator, deploymentId, e);
+        }
+    }
+
     protected static <T extends EnvVar> List<T> filterEnvsByExactType(Deployment deployment, Class<T> type) {
         return deployment.getEnvs().stream()
                 .filter(env -> type == env.getClass())
@@ -660,7 +683,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .toList();
     }
 
-    protected Integer resolveContainerPort(Supplier<Integer> portSupplier) {
+    protected int resolveContainerPort(Supplier<Integer> portSupplier) {
         return containerPortResolver.resolveContainerPort(portSupplier, defaultContainerPort);
     }
 

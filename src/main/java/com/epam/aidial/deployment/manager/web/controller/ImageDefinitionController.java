@@ -113,7 +113,7 @@ public class ImageDefinitionController {
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteImageDefinition(@PathVariable UUID id) {
-        imageDefinitionService.deleteImageDefinitionAsync(id);
+        imageDefinitionService.deleteImageDefinitionSync(id);
     }
 
     private static ImageType toImageType(ImageTypeDto dto) {

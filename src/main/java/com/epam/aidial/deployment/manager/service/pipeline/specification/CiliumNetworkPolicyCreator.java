@@ -56,15 +56,6 @@ public class CiliumNetworkPolicyCreator {
                                       @NotNull String matchLabelValue,
                                       @NotNull List<String> allowedDomains,
                                       @Nullable Set<Integer> ports) {
-        List<String> domains = new ArrayList<>(allowedDomains);
-
-        // Detect if all egress to FQDNs should be allowed
-        boolean shouldAllowAllEgressToFqdns = false;
-        if (CollectionUtils.isNotEmpty(domains) && domains.contains(ALLOW_ALL_KEY)) {
-            domains = new ArrayList<>();
-            shouldAllowAllEgressToFqdns = true;
-        }
-
         // Metadata
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(getPolicyName(matchLabelValue));
@@ -77,12 +68,9 @@ public class CiliumNetworkPolicyCreator {
         // CiliumNetworkPolicySpec
         CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
         spec.setEndpointSelector(endpointSelector);
-        List<Egress> egressList = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(domains) || shouldAllowAllEgressToFqdns) {
-            egressList.add(createExternalEgress(domains));
+        if (CollectionUtils.isNotEmpty(allowedDomains)) {
+            spec.setEgress(toEgressList(allowedDomains));
         }
-        egressList.add(createKubeDnsEgress());
-        spec.setEgress(egressList);
         spec.setIngress(createIngress(ports));
 
         // CiliumNetworkPolicy
@@ -93,13 +81,17 @@ public class CiliumNetworkPolicyCreator {
         return policy;
     }
 
+    private List<Egress> toEgressList(List<String> domains) {
+        return List.of(createExternalEgress(domains), createKubeDnsEgress(domains));
+    }
+
     private Egress createExternalEgress(List<String> domains) {
         Egress egress = new Egress();
 
         ToPorts tcpToPorts = createToPortsEgress();
         egress.setToPorts(List.of(tcpToPorts));
 
-        if (CollectionUtils.isEmpty(domains)) {
+        if (allowAllEgress(domains)) {
             egress.setToEntities(List.of(ToEntities.WORLD));
         } else {
             List<ToFQDNs> toFqdnsList = domains.stream()
@@ -130,7 +122,11 @@ public class CiliumNetworkPolicyCreator {
         return tcpToPorts;
     }
 
-    private Egress createKubeDnsEgress() {
+    private boolean allowAllEgress(List<String> domains) {
+        return domains.contains(ALLOW_ALL_KEY);
+    }
+
+    private Egress createKubeDnsEgress(List<String> domains) {
         ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
         kubeDnsToEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
@@ -140,12 +136,8 @@ public class CiliumNetworkPolicyCreator {
         Ports kubeDnsPorts = new Ports();
         kubeDnsPorts.setPort(UDP_PORT);
         kubeDnsPorts.setProtocol(Protocol.ANY);
-
-        Dns dns = new Dns();
-        dns.setMatchPattern(UDP_DNS_PATTERN_ALL);
-
         Rules rules = new Rules();
-        rules.setDns(List.of(dns));
+        rules.setDns(toDnsList(domains));
 
         ToPorts kubeDnsToPorts = new ToPorts();
         kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
@@ -155,6 +147,21 @@ public class CiliumNetworkPolicyCreator {
         egress.setToEndpoints(List.of(kubeDnsToEndpoints));
         egress.setToPorts(List.of(kubeDnsToPorts));
         return egress;
+    }
+
+    private List<Dns> toDnsList(List<String> domains) {
+        if (allowAllEgress(domains)) {
+            Dns dns = new Dns();
+            dns.setMatchPattern(UDP_DNS_PATTERN_ALL);
+            return List.of(dns);
+        }
+        return domains.stream()
+                .map(domain -> {
+                    Dns dns = new Dns();
+                    dns.setMatchName(domain);
+                    return dns;
+                })
+                .toList();
     }
 
     private List<Ingress> createIngress(@Nullable Set<Integer> ports) {

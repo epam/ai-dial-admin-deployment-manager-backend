@@ -85,22 +85,23 @@ app:
     enabled: ${K8S_KNATIVE_ENABLED:true}
     deploy:
       namespace: ${K8S_KNATIVE_DEPLOYMENT_NAMESPACE:default}
-      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:300}
+      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:60}
       undeploy-timeout: ${K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC:300}
-      informer-resync-interval: ${K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
+      informer-resync-interval: ${K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
   nim:
     enabled: ${K8S_NIM_ENABLED:false}
     deploy:
       namespace: ${K8S_NIM_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
-      informer-resync-interval: ${K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
+      informer-resync-interval: ${K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
       use-cluster-internal-url: ${K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
+      cluster-host: ${K8S_NIM_CLUSTER_HOST:}
   kserve:
     enabled: ${K8S_KSERVE_ENABLED:false}
     deploy:
       namespace: ${K8S_KSERVE_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
-      informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
+      informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
       use-cluster-internal-url: ${K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
@@ -138,6 +139,10 @@ app:
         enabled: ${DEPLOYMENT_RECONCILE_ON_STARTUP_ENABLED:true}
         batch-size: ${DEPLOYMENT_RECONCILE_ON_STARTUP_BATCH_SIZE:50}
         concurrency: ${DEPLOYMENT_RECONCILE_ON_STARTUP_CONCURRENCY:2}
+      executor:
+        thread-pool-size: ${DEPLOYMENT_RECONCILE_EXECUTOR_THREAD_POOL_SIZE:5}
+        queue-capacity: ${DEPLOYMENT_RECONCILE_EXECUTOR_QUEUE_CAPACITY:100}
+        thread-name-prefix: ${DEPLOYMENT_RECONCILE_EXECUTOR_THREAD_NAME_PREFIX:k8s-reconciliation-pool}
   knative-service-config:
     apiVersion: serving.knative.dev/v1
     kind: Service
@@ -191,6 +196,18 @@ app:
         service:
           type: ClusterIP
           port: 8000
+  nim-service-expose-ingress-config:
+    enabled: true
+    annotations:
+      # Allow large payloads (often needed for large prompts/images)
+      "[nginx.ingress.kubernetes.io/proxy-body-size]": "0"
+      # Increase timeout (LLMs can take time to stream responses)
+      "[nginx.ingress.kubernetes.io/proxy-read-timeout]": "600"
+      # Cert-manager for SSL
+      "[cert-manager.io/cluster-issuer]": "letsencrypt-production"
+      "[nginx.ingress.kubernetes.io/force-ssl-redirect]": "true"
+    spec:
+      ingressClassName: nginx
   builder-job-config:
     apiVersion: batch/v1
     kind: Job

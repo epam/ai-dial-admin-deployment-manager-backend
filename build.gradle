@@ -20,7 +20,7 @@ plugins {
 }
 
 group = 'com.epam.aidial'
-version = "0.14.0-rc"
+version = "0.15.0-rc"
 
 java {
     toolchain {
@@ -134,7 +134,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.13') {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.14') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
