@@ -235,6 +235,12 @@ Default annotations:
 TLS and routing rules are generated automatically from `app.nim.deploy.cluster-host` and the NIM service name. Each NIM service gets a TLS secret named `<NimServiceName>-tls-secret`.
 
 
+### MCP Registry Configuration
+
+| Property                    | Environment Variable     | Default Value                              | Required | Applied when | Description                                           |
+|-----------------------------|--------------------------|--------------------------------------------|----------|--------------|--------------------------------------------------------|
+| `app.mcp-registry.base-url` | `MCP_REGISTRY_BASE_URL`  | `https://registry.modelcontextprotocol.io` | No       | -            | Base URL of the MCP Registry API (used by the proxy). |
+
 ### Hugging Face Configuration
 | Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |
 |----------------------------------|----------------------------------|--------------------------|----------|--------------|--------------------------------------------|
