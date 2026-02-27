@@ -111,7 +111,6 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         var userDefinedSimpleEnvs = filterEnvsByExactType(deployment, SimpleEnvVar.class);
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
-        var scaling = resolveScaling(deployment);
 
         return knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
@@ -119,20 +118,10 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
                 imageDefinition.getImageName(),
-                scaling,
+                getScaling(deployment),
                 deployment.getResources(),
                 containerPort,
                 deployment.getProbeProperties());
-    }
-
-    private Scaling resolveScaling(Deployment deployment) {
-        var explicitScaling = getScaling(deployment);
-        if (explicitScaling != null) {
-            return explicitScaling;
-        }
-        var min = deployment.getMinScale() != null ? deployment.getMinScale() : 0;
-        var max = deployment.getMaxScale() != null ? deployment.getMaxScale() : 3;
-        return new Scaling(min, max, null, null);
     }
 
     private Scaling getScaling(Deployment deployment) {

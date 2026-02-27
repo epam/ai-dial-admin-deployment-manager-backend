@@ -40,6 +40,7 @@ class ScalingValidatorTest {
         ScalingDto dto = new ScalingDto();
         dto.setMinReplicas(1);
         dto.setMaxReplicas(2);
+        dto.setStrategy(new ScalingStrategyDto(ScalingStrategyTypeDto.ACTIVE_REQUESTS, 50));
 
         assertThat(validator.isValid(dto, context)).isTrue();
         verifyNoInteractions(context);

@@ -34,6 +34,7 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeployment
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         DeploymentDtoMapperImpl.class,
         ProbePropertiesDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
+        ScalingDtoMapperImpl.class,
         McpEndpointPathResolver.class
 })
 class DeploymentControllerTest extends AbstractControllerNoneSecureTest {

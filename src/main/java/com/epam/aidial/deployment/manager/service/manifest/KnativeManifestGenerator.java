@@ -32,7 +32,6 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
@@ -158,16 +157,13 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
                               @Nullable Scaling scaling,
                               MappingChain<RevisionTemplateSpec> template,
                               MappingChain<RevisionSpec> revisionSpecChain) {
+        log.debug("Applying scaling for Knative deployment '{}': {}", name, scaling);
         if (scaling == null) {
             return;
         }
 
-        log.debug("Applying scaling for Knative deployment '{}': {}", name, scaling);
-
-        var templateMetadata = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD).data();
-        var annotations = (templateMetadata.getAnnotations() != null)
-                ? templateMetadata.getAnnotations()
-                : new HashMap<String, String>();
+        var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
+                .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
 
         var initialScale = Math.max(scaling.getMinReplicas(), 1);
         annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
@@ -181,10 +177,10 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
                 var target = scaling.getStrategy().getThreshold();
                 revisionSpecChain.data().setContainerConcurrency((long) target);
                 annotations.put("autoscaling.knative.dev/target", String.valueOf(target));
-                log.trace("Applied strategy ACTIVE_REQUESTS: containerConcurrency={}, target={} for Knative deployment '{}'",
-                        target, target, name);
+                log.trace("Applied strategy ACTIVE_REQUESTS: target={} for model '{}'",
+                        scaling.getStrategy().getThreshold(), name);
             } else {
-                throw new IllegalArgumentException("Scaling strategy '%s' is not supported for Knative. Supported strategies: %s"
+                throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
                         .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
             }
         }
@@ -196,7 +192,6 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
                     delayStr, name);
         }
 
-        templateMetadata.setAnnotations(annotations);
     }
 
     private EnvVarSource buildKnativeSecretRef(SensitiveEnvVar env) {

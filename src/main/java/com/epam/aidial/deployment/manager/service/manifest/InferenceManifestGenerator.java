@@ -35,7 +35,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
     private final KserveProbeConverter kserveProbeConverter;
 
     public InferenceManifestGenerator(AppProperties appconfig,
-                                     KserveProbeConverter kserveProbeConverter) {
+                                      KserveProbeConverter kserveProbeConverter) {
         super(appconfig);
         this.kserveProbeConverter = kserveProbeConverter;
     }
@@ -166,14 +166,15 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
                 .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
         annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
-        log.trace("Set annotation autoscaling.knative.dev/initial-scale={} for model '{}'", initialScale, name);
+        log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Inference deployment '{}'",
+                scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
 
         if (scaling.getStrategy() != null) {
             if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
                 predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
                 predictor.setScaleTarget(scaling.getStrategy().getThreshold());
-                log.trace("Applied strategy ACTIVE_REQUESTS: metric={}, target={} for model '{}'",
-                        Predictor.ScaleMetric.CONCURRENCY, scaling.getStrategy().getThreshold(), name);
+                log.trace("Applied strategy ACTIVE_REQUESTS: target={} for model '{}'",
+                        scaling.getStrategy().getThreshold(), name);
             } else {
                 throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
                         .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
