@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.config;
 
 import com.epam.aidial.deployment.manager.configuration.ConfigExportProperties;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.config.ExportRequest;
@@ -49,8 +50,8 @@ class ConfigTransferServiceTest {
         properties.setFileName(CONFIG_FILE_NAME);
         properties.setZipName(ZIP_NAME);
 
-        var exportJsonMapper = new JsonMapper();
-        jsonMapper = new JsonMapper();
+        var exportJsonMapper = JsonMapperConfiguration.createPrettyJsonMapper();
+        jsonMapper = JsonMapperConfiguration.createJsonMapper();
 
         configTransferService = new ConfigTransferService(
                 properties,

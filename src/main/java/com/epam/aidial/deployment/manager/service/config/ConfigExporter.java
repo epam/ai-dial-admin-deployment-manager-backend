@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.config;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
@@ -63,6 +64,7 @@ public class ConfigExporter {
             ExportConfigComponentType type = component.getType();
             String name = component.getName();
             if (type == null || StringUtils.isBlank(name)) {
+                log.debug("Skipping invalid component; type={}, name={}", type, name);
                 continue;
             }
             switch (type) {
@@ -82,6 +84,10 @@ public class ConfigExporter {
             config.getGlobalImageBuildDomainWhitelist().addAll(globalDomainWhitelistService.getDomainWhitelist());
         } catch (Exception e) {
             log.warn("Could not load global image build domain whitelist for export: {}", e.getMessage());
+            if (e instanceof GlobalDomainWhitelistNotFoundException) {
+                return;
+            }
+            throw e;
         }
     }
 

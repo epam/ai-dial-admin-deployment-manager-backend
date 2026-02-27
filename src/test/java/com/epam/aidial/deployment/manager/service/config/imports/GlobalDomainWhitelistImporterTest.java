@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service.config.imports;
 
+import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import org.junit.jupiter.api.Test;
@@ -46,7 +47,7 @@ class GlobalDomainWhitelistImporterTest {
     void importGlobalDomainWhitelist_getThrowsNotFound_createsWhitelist() {
         List<String> whitelist = List.of("a.com", "b.com");
         when(globalDomainWhitelistService.getDomainWhitelist())
-                .thenThrow(new IllegalStateException("not found"));
+                .thenThrow(new GlobalDomainWhitelistNotFoundException());
 
         globalDomainWhitelistImporter.importGlobalDomainWhitelist(whitelist, ConflictResolutionPolicy.OVERWRITE);
 

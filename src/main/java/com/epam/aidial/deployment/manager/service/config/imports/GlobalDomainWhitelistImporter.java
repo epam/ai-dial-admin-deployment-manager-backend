@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.config.imports;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import lombok.RequiredArgsConstructor;
@@ -25,13 +26,10 @@ public class GlobalDomainWhitelistImporter {
         List<String> current;
         try {
             current = globalDomainWhitelistService.getDomainWhitelist();
-        } catch (IllegalStateException e) {
-            if (e.getMessage() != null && e.getMessage().contains("not found")) {
-                globalDomainWhitelistService.setDomainWhitelistOrCreate(whitelist);
-                log.debug("Created global domain whitelist (none existed)");
-                return;
-            }
-            throw e;
+        } catch (GlobalDomainWhitelistNotFoundException e) {
+            globalDomainWhitelistService.setDomainWhitelistOrCreate(whitelist);
+            log.debug("Created global domain whitelist (none existed)");
+            return;
         }
         if (CollectionUtils.isEqualCollection(current, whitelist)) {
             log.debug("Global domain whitelist unchanged, skipping");

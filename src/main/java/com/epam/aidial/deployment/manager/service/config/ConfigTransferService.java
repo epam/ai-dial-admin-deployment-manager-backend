@@ -53,7 +53,7 @@ public class ConfigTransferService {
                 zos.closeEntry();
                 log.info("Export config stream written successfully");
             } catch (IOException e) {
-                log.warn("Export config stream failed: {}", e.getMessage(), e);
+                log.warn("Export config stream failed", e);
                 throw new RuntimeException(e);
             }
         };
@@ -71,17 +71,11 @@ public class ConfigTransferService {
                 } else {
                     log.info("Ignoring file {} in zip archive during import", entry.getName());
                 }
-                if (zipInputStream.available() != 0) {
-                    zipInputStream.closeEntry();
-                }
+                zipInputStream.closeEntry();
             }
             log.info("Config import completed successfully");
         } catch (Exception ex) {
-            if (ex instanceof IOException && ex.getMessage() != null && ex.getMessage().startsWith("Stream closed")) {
-                log.debug("Stream is already closed");
-                return;
-            }
-            log.warn("Config import failed: {}", ex.getMessage(), ex);
+            log.warn("Config import failed", ex);
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
     }
