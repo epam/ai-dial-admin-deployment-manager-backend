@@ -151,7 +151,7 @@ public class ImageBuildFromGitJobSpecification extends ImageBuildAndPushJobSpeci
                 : WORKSPACE_PATH;
         var args = new ArrayList<>(List.of(
                 "--local",
-                "context=%s".formatted(WORKSPACE_PATH),
+                "context=%s".formatted(dockerfile),
                 "--local",
                 "dockerfile=%s".formatted(dockerfile)
         ));
