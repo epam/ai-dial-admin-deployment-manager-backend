@@ -31,6 +31,9 @@ app:
     api-token: ${HUGGINGFACE_API_TOKEN:}
     tag-cache-duration: ${HUGGINGFACE_TAG_CACHE_DURATION:24h}
 
+  mcp-registry:
+    base-url: ${MCP_REGISTRY_BASE_URL:https://registry.modelcontextprotocol.io}
+
   kubernetes:
     connect-type: ${K8S_CONNECT_TYPE:CONFIG_FILE}
     config_file:

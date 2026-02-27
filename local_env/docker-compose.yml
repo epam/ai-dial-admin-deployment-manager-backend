@@ -1,5 +1,8 @@
 services:
   deployment-manager-backend:
+    build:
+      context: ../
+      dockerfile: Dockerfile
     container_name: ai-dial-admin-deployment-manager-backend
     image: aidial/ai-dial-admin-deployment-manager-backend:latest
     ports:
@@ -8,7 +11,7 @@ services:
       - "9464:9464"
     volumes:
       - ./data:/app/data
-      - ~/.kube:/root/.kube
+      - ~/.kube:/home/appuser/.kube
     environment:
       CONFIG_REST_SECURITY_MODE: "none"
       DEBUG_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5006"
@@ -23,6 +26,12 @@ services:
       # MS_SQL_SERVER database
       MS_SQL_SERVER_HOST: sqlserver
       MS_SQL_SERVER_OPS: encrypt=false;
+      K8S_KNATIVE_ENABLED: ${K8S_KNATIVE_ENABLED:-true}
+      K8S_KSERVE_ENABLED: ${K8S_KSERVE_ENABLED:-false}
+      K8S_NIM_ENABLED: ${K8S_NIM_ENABLED:-false}
+      MCP_PROXY_EXECUTABLE_IMAGE_ALPINE: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE:-mcp-proxy-exec:alpine}
+      MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN:-mcp-proxy-exec:debian}}
+
 
   keycloak:
     container_name: ai-dial-admin-deployment-manager-backend-keycloak
