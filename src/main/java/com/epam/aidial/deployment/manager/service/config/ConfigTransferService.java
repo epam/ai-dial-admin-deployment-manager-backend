@@ -64,14 +64,25 @@ public class ConfigTransferService {
         log.info("Importing config from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);
         try (var zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipFile.getBytes()))) {
             ZipEntry entry;
+            int validEntryCount = 0;
+            var exportConfigFileName = properties.getFileName();
             while ((entry = zipInputStream.getNextEntry()) != null) {
-                if (entry.getName().equals(properties.getFileName())) {
+                if (entry.getName().equals(exportConfigFileName)) {
+                    validEntryCount++;
+                    if (validEntryCount > 1) {
+                        throw new IllegalArgumentException("Multiple files '%s' with data found in the ZIP archive."
+                                .formatted(exportConfigFileName));
+                    }
                     ExportConfig config = jsonMapper.readValue(zipInputStream, ExportConfig.class);
                     configImporter.importConfig(config, resolutionPolicy);
                 } else {
                     log.info("Ignoring file {} in zip archive during import", entry.getName());
                 }
                 zipInputStream.closeEntry();
+                if (validEntryCount == 0) {
+                    throw new IllegalArgumentException("No valid export configuration file '%s' found in the ZIP archive."
+                            .formatted(exportConfigFileName));
+                }
             }
             log.info("Config import completed successfully");
         } catch (Exception ex) {

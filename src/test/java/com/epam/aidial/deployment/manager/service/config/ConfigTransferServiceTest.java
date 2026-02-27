@@ -24,6 +24,7 @@ import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -167,9 +168,13 @@ class ConfigTransferServiceTest {
         MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile(ZIP_NAME, zipBytes);
 
         // When
-        configTransferService.importConfig(multipartFile, ConflictResolutionPolicy.OVERWRITE);
+        var exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> configTransferService.importConfig(multipartFile, ConflictResolutionPolicy.OVERWRITE)
+        );
 
         // Then
+        assertThat(exception.getMessage()).isEqualTo("No valid export configuration file 'config.json' found in the ZIP archive.");
         verify(configImporter, never()).importConfig(any(ExportConfig.class), any(ConflictResolutionPolicy.class));
     }
 

@@ -307,18 +307,18 @@ public class DeploymentService {
         var type = request.getImageDefinitionType();
 
         if (id != null) {
-            return Optional.ofNullable(
-                    imageDefinitionService.getImageDefinition(id)
-                        .orElseThrow(notFound("ImageDefinition", id)));
+            var definition = imageDefinitionService.getImageDefinition(id)
+                    .orElseThrow(notFound("ImageDefinition", id));
+            return Optional.ofNullable(definition);
         }
 
         if (type != null
                 && StringUtils.isNotBlank(name)
                 && StringUtils.isNotBlank(version)) {
-            return Optional.ofNullable(
-                    imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
-                        .orElseThrow(
-                            () -> new EntityNotFoundException("ImageDefinition not found. Type='%s'. Name='%s'. Version='%s'".formatted(type, name, version))));
+            var definition = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
+                    .orElseThrow(
+                        () -> new EntityNotFoundException("ImageDefinition not found. Type='%s'. Name='%s'. Version='%s'".formatted(type, name, version)));
+            return Optional.ofNullable(definition);
         }
 
         return Optional.empty();
