@@ -9,6 +9,7 @@ import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.KubernetesConditionConstants;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -110,6 +111,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         var userDefinedSimpleEnvs = filterEnvsByExactType(deployment, SimpleEnvVar.class);
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
+        var scaling = resolveScaling(deployment);
 
         return knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
@@ -117,12 +119,33 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
                 imageDefinition.getImageName(),
-                deployment.getInitialScale(),
-                deployment.getMinScale(),
-                deployment.getMaxScale(),
+                scaling,
                 deployment.getResources(),
                 containerPort,
                 deployment.getProbeProperties());
+    }
+
+    private Scaling resolveScaling(Deployment deployment) {
+        var explicitScaling = getScaling(deployment);
+        if (explicitScaling != null) {
+            return explicitScaling;
+        }
+        var min = deployment.getMinScale() != null ? deployment.getMinScale() : 0;
+        var max = deployment.getMaxScale() != null ? deployment.getMaxScale() : 3;
+        return new Scaling(min, max, null, null);
+    }
+
+    private Scaling getScaling(Deployment deployment) {
+        if (deployment instanceof McpDeployment mcpDeployment) {
+            return mcpDeployment.getScaling();
+        }
+        if (deployment instanceof InterceptorDeployment interceptorDeployment) {
+            return interceptorDeployment.getScaling();
+        }
+        if (deployment instanceof AdapterDeployment adapterDeployment) {
+            return adapterDeployment.getScaling();
+        }
+        return null;
     }
 
     @Override

@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.service.manifest;
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -55,9 +57,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             List<SensitiveEnvVar> sensitiveEnv,
             List<SensitiveFileEnvVar> sensitiveFileEnvs,
             String imageName,
-            @Nullable Integer initScale,
-            @Nullable Integer minScale,
-            @Nullable Integer maxScale,
+            @Nullable Scaling scaling,
             Resources resources,
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties
@@ -71,9 +71,8 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         var template = config.get(KnativeMappers.SERVICE_SPEC_FIELD)
                 .get(KnativeMappers.SERVICE_TEMPLATE_FIELD);
 
-        configureAnnotations(template, initScale, minScale, maxScale);
-
         var revisionSpecChain = template.get(KnativeMappers.SERVICE_TEMPLATE_SPEC_FIELD);
+        applyScaling(name, scaling, template, revisionSpecChain);
         var containerChain = revisionSpecChain
                 .getList(KnativeMappers.TEMPLATE_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
                 .getOrDefault(appConfig.getKnativeServiceContainerConfig().getName(), appConfig::cloneKnativeServiceContainer);
@@ -155,26 +154,48 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         envVarChain.data().setValue(filePathToVolume);
     }
 
-    private void configureAnnotations(
-            MappingChain<RevisionTemplateSpec> template,
-            @Nullable Integer initScale,
-            @Nullable Integer minScale,
-            @Nullable Integer maxScale
-    ) {
+    private void applyScaling(String name,
+                              @Nullable Scaling scaling,
+                              MappingChain<RevisionTemplateSpec> template,
+                              MappingChain<RevisionSpec> revisionSpecChain) {
+        if (scaling == null) {
+            return;
+        }
+
+        log.debug("Applying scaling for Knative deployment '{}': {}", name, scaling);
+
         var templateMetadata = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD).data();
         var annotations = (templateMetadata.getAnnotations() != null)
                 ? templateMetadata.getAnnotations()
                 : new HashMap<String, String>();
 
-        if (initScale != null) {
-            annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initScale));
+        var initialScale = Math.max(scaling.getMinReplicas(), 1);
+        annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
+        annotations.put("autoscaling.knative.dev/min-scale", String.valueOf(scaling.getMinReplicas()));
+        annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(scaling.getMaxReplicas()));
+        log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Knative deployment '{}'",
+                scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
+
+        if (scaling.getStrategy() != null) {
+            if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
+                var target = scaling.getStrategy().getThreshold();
+                revisionSpecChain.data().setContainerConcurrency((long) target);
+                annotations.put("autoscaling.knative.dev/target", String.valueOf(target));
+                log.trace("Applied strategy ACTIVE_REQUESTS: containerConcurrency={}, target={} for Knative deployment '{}'",
+                        target, target, name);
+            } else {
+                throw new IllegalArgumentException("Scaling strategy '%s' is not supported for Knative. Supported strategies: %s"
+                        .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
+            }
         }
-        if (minScale != null) {
-            annotations.put("autoscaling.knative.dev/min-scale", String.valueOf(minScale));
+
+        if (scaling.getScaleToZeroDelaySeconds() != null) {
+            var delayStr = scaling.getScaleToZeroDelaySeconds() + "s";
+            annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
+            log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for Knative deployment '{}'",
+                    delayStr, name);
         }
-        if (maxScale != null) {
-            annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(maxScale));
-        }
+
         templateMetadata.setAnnotations(annotations);
     }
 

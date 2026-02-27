@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
@@ -66,7 +67,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, simpleEnvs, sensitiveEnvs, Collections.emptyList(), imageName,
-                null, null, null, resources, null, null
+                null, resources, null, null
         );
 
         // Then
@@ -80,11 +81,12 @@ class KnativeManifestGeneratorTest {
         // Given
         var deploymentName = "scaling-app";
         var imageName = "my-registry/scaling-image:v1";
+        var scaling = new Scaling(0, 10, null, null);
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                0, 0, 10, new Resources(), null, null
+                scaling, new Resources(), null, null
         );
 
         // Then
@@ -106,7 +108,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, resources, null, null
+                null, resources, null, null
         );
 
         // Then
@@ -125,7 +127,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), containerPort, null
+                null, new Resources(), containerPort, null
         );
 
         // Then
@@ -148,7 +150,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), null, null
+                null, new Resources(), null, null
         );
 
         // Then
@@ -168,7 +170,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, null, null, new Resources(), null, probeProperties
+                null, new Resources(), null, probeProperties
         );
 
         // Then: container has startup probe with expected path, port and timing

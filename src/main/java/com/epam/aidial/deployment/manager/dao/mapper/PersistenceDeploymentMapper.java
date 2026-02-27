@@ -123,6 +123,17 @@ public abstract class PersistenceDeploymentMapper {
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {
             existingMcp.setTransport(updatedMcp.getTransport());
             existingMcp.setMcpEndpointPath(updatedMcp.getMcpEndpointPath());
+            existingMcp.setScaling(updatedMcp.getScaling());
+        }
+
+        if (existingEntity instanceof AdapterDeploymentEntity existingAdapter
+                && updatedEntity instanceof AdapterDeploymentEntity updatedAdapter) {
+            existingAdapter.setScaling(updatedAdapter.getScaling());
+        }
+
+        if (existingEntity instanceof InterceptorDeploymentEntity existingInterceptor
+                && updatedEntity instanceof InterceptorDeploymentEntity updatedInterceptor) {
+            existingInterceptor.setScaling(updatedInterceptor.getScaling());
         }
 
         if (existingEntity instanceof NimDeploymentEntity existingNim

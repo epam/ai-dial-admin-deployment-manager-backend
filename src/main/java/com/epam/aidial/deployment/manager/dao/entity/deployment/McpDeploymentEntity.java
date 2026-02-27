@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.dao.entity.deployment;
 
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceMcpTransport;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceScaling;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
@@ -11,6 +12,8 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
@@ -27,4 +30,7 @@ public class McpDeploymentEntity extends DeploymentEntity {
 
     @Column(name = "mcp_endpoint_path")
     private String mcpEndpointPath;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private PersistenceScaling scaling;
 }

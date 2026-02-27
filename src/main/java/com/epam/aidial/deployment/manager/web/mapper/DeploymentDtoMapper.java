@@ -79,7 +79,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Mapper(
         componentModel = "spring",
-        uses = {EnvVarValueDtoMapper.class, ProbePropertiesDtoMapper.class},
+        uses = {EnvVarValueDtoMapper.class, ProbePropertiesDtoMapper.class, ScalingDtoMapper.class},
         subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION
 )
 public abstract class DeploymentDtoMapper {

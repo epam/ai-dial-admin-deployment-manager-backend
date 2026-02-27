@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.model.deployment;
 
 import com.epam.aidial.deployment.manager.model.McpTransport;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -8,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.jetbrains.annotations.Nullable;
 
 @Getter
 @Setter
@@ -19,4 +21,6 @@ import lombok.experimental.SuperBuilder;
 public class McpDeployment extends Deployment {
     private McpTransport transport;
     private String mcpEndpointPath;
+    @Nullable
+    private Scaling scaling;
 }

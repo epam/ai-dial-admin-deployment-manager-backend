@@ -26,6 +26,13 @@ public class ScalingValidator implements ConstraintValidator<ValidScaling, Scali
             return false;
         }
 
+        if (minReplicas == maxReplicas && value.getStrategy() != null) {
+            context.disableDefaultConstraintViolation();
+            context.buildConstraintViolationWithTemplate("strategy must be null when minReplicas equals maxReplicas")
+                    .addConstraintViolation();
+            return false;
+        }
+
         return true;
     }
 }
