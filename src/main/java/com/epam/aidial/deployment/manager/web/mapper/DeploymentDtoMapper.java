@@ -213,11 +213,12 @@ public abstract class DeploymentDtoMapper {
         setImageSource(dto, model);
     }
 
-    private static void setImageSource(ImageBasedDeploymentDto dto, Deployment model) {
+    private void setImageSource(ImageBasedDeploymentDto dto, Deployment model) {
         dto.setSource(toDeploymentSourceDto(model));
     }
 
-    private static DeploymentSourceDto toDeploymentSourceDto(Deployment model) {
+    @Named("toDeploymentSourceDto")
+    protected DeploymentSourceDto toDeploymentSourceDto(Deployment model) {
         var imageReference = getImageReference(model);
         if (StringUtils.isNotBlank(imageReference)) {
             return new ImageReferenceDeploymentSourceDto(imageReference);
@@ -327,6 +328,7 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "type", source = "model", qualifiedByName = "toDeploymentTypeDto")
+    @Mapping(target = "source", source = "model", qualifiedByName = "toDeploymentSourceDto")
     public abstract DeploymentInfoDto toDeploymentInfoDto(Deployment model);
 
     public abstract List<PodInfoDto> toPodInfoDto(List<PodInfo> model);
