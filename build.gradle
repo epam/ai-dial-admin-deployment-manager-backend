@@ -68,6 +68,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     implementation 'com.azure:azure-identity:1.18.0'
+    implementation 'com.azure:azure-identity-extensions:1.2.7'
 
     implementation 'net.javacrumbs.shedlock:shedlock-spring:6.3.0'
     implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:6.3.0'
@@ -78,6 +79,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core:11.14.0'
     implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
+    implementation 'com.google.cloud.sql:postgres-socket-factory:1.28.0'
 
     implementation 'io.modelcontextprotocol.sdk:mcp:0.15.0'
     implementation 'com.google.cloud.tools:jib-core:0.27.3'
@@ -125,6 +127,7 @@ dependencies {
     testImplementation 'io.jsonwebtoken:jjwt:0.9.1'
     testImplementation 'org.assertj:assertj-core:3.27.7'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation "org.testcontainers:junit-jupiter:${testcontainers_version}"
     testImplementation "org.testcontainers:testcontainers:${testcontainers_version}"
