@@ -422,8 +422,8 @@ metadata:
   namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 subjects:
   - kind: ServiceAccount
-    name: ai-dial-deployment-manager
-    namespace: <deployment-manager-sa-namespace>
+    name: dial-deployment-manager
+    namespace: <K8S_BUILD_NAMESPACE>
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
