@@ -9,8 +9,8 @@ import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
-import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -38,12 +38,12 @@ public class ImageDefinitionService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageType type) {
         return imageDefinitionRepository.getAllImageDefinitionsByType(type);
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(ImageTypeDto type) {
+    public Collection<ImageDefinitionView> getImageDefinitionViewsByType(ImageType type) {
         return imageDefinitionRepository.getAllImageDefinitionViewsByType(type);
     }
 
@@ -53,7 +53,7 @@ public class ImageDefinitionService {
     }
 
     @Transactional(readOnly = true)
-    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
+    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageType type) {
         return imageDefinitionRepository.getAllImageDefinitionsByNameAndType(name, type);
     }
 
@@ -65,6 +65,11 @@ public class ImageDefinitionService {
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinition(UUID id) {
         return imageDefinitionRepository.getImageDefinitionById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ImageDefinition> getImageDefinitionByTypeAndNameAndVersion(ImageType type, String name, String version) {
+        return imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(type, name, version);
     }
 
     @Transactional
@@ -81,10 +86,16 @@ public class ImageDefinitionService {
 
     @Transactional
     public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition) {
+        return updateImageDefinition(id, updatedImageDefinition, false);
+    }
+
+    @Transactional
+    public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition, boolean fromImport) {
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 
-        if (existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL || existing.getBuildStatus() == ImageStatus.BUILDING) {
+        // Allowing update of built images on import
+        if ((!fromImport && existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) || existing.getBuildStatus() == ImageStatus.BUILDING) {
             throw new IllegalArgumentException("Cannot update image definition with status %s. It is read-only."
                     .formatted(existing.getBuildStatus()));
         }

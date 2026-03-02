@@ -70,6 +70,13 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
             @Param("type") Class<? extends ImageDefinitionEntity> type
     );
 
+    @Query("SELECT i FROM ImageDefinitionEntity i WHERE i.name = :name AND TYPE(i) = :type AND i.version = :version")
+    Optional<ImageDefinitionEntity> findByNameAndTypeAndVersion(
+            @Param("name") String name,
+            @Param("type") Class<? extends ImageDefinitionEntity> type,
+            @Param("version") String version
+    );
+
     List<ImageDefinitionEntity> findAllByName(@Param("name") String name);
 
 }

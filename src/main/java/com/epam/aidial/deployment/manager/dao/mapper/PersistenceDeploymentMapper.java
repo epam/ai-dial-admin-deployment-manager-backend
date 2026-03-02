@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.dao.mapper;
 
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceEnvVar;
+import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceResources;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSensitiveEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSensitiveFileEnvVar;
@@ -18,6 +19,7 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceNimDe
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceNimDeploymentSource;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
@@ -75,6 +77,10 @@ public abstract class PersistenceDeploymentMapper {
 
     protected abstract PersistenceDeploymentStatus toStatusEntity(DeploymentStatus domain);
 
+    protected abstract ImageType toImageType(PersistenceImageType type);
+
+    protected abstract PersistenceImageType toPersistenceImageType(ImageType type);
+
     @SubclassMapping(source = PersistenceSimpleEnvVar.class, target = SimpleEnvVar.class)
     @SubclassMapping(source = PersistenceSensitiveFileEnvVar.class, target = SensitiveFileEnvVar.class)
     @SubclassMapping(source = PersistenceSensitiveEnvVar.class, target = SensitiveEnvVar.class)
@@ -106,6 +112,9 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setDisplayName(updatedEntity.getDisplayName());
         existingEntity.setDescription(updatedEntity.getDescription());
         existingEntity.setImageDefinitionId(updatedEntity.getImageDefinitionId());
+        existingEntity.setImageDefinitionType(updatedEntity.getImageDefinitionType());
+        existingEntity.setImageDefinitionName(updatedEntity.getImageDefinitionName());
+        existingEntity.setImageDefinitionVersion(updatedEntity.getImageDefinitionVersion());
         existingEntity.setUrl(updatedEntity.getUrl());
         existingEntity.setStatus(updatedEntity.getStatus());
         existingEntity.setContainerPort(updatedEntity.getContainerPort());
