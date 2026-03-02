@@ -121,6 +121,10 @@ app:
   component-cleaner-scheduler-lock-at-most-for: ${COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
   cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}
   resource-name-prefix: ${RESOURCE_NAME_PREFIX:}
+  config:
+    export:
+      file-name: ${CONFIG_EXPORT_FILE_NAME:dm-config.json}
+      zip-name: ${CONFIG_EXPORT_ZIP_NAME:deployment-manager-config.zip}
   validation:
     resources:
       max-cpu-in-cores: ${RESOURCES_MAX_CPU_IN_CORES:10}

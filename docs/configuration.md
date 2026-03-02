@@ -257,6 +257,13 @@ TLS and routing rules are generated automatically from `app.nim.deploy.cluster-h
 | `app.resources.max-memory-in-mb`    | `RESOURCES_MAX_MEMORY_IN_MB`    | `100000`                                    | No       | -             | Maximum allowed value for memory resource (in mb)  |
 | `app.resources.max-nvidia-gpu`      | `RESOURCES_MAX_NVIDIA_GPU`      | `5`                                         | No       | -             | Maximum allowed value for nvidia.com/gpu resource  |
 
+### Export/import Configuration
+
+| Property                      | Environment Variable      | Default Value                   | Required | Applied when  | Description                                   |
+|-------------------------------|---------------------------|---------------------------------|----------|---------------|-----------------------------------------------|
+| `app.config.export.file-name` | `CONFIG_EXPORT_FILE_NAME` | `dm-config.json`                | No       | -             | Name of JSON file with exported components    |
+| `app.config.export.zip-name`  | `CONFIG_EXPORT_ZIP_NAME`  | `deployment-manager-config.zip` | No       | -             | Name of ZIP archive containing exported files |
+
 ### HTTP Client Configuration
 
 Used by:

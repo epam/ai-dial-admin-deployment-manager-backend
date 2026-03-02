@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.concurrent.ExecutorService;
 
 @Slf4j
@@ -66,14 +67,19 @@ public class DeploymentLogsService {
                                             .name("logs")
                                             .data(line));
                                 } catch (IOException e) {
-                                    log.error("Failed to send log line. Deployment {}", id, e);
+                                    log.warn("Failed to send log line. Deployment {}", id, e);
                                     emitter.completeWithError(e);
                                 }
                             }
                         });
                 emitter.complete();
             } catch (Exception e) {
-                log.error("Failed to read logs for deployment {}", id, e);
+                String message = "Failed to read logs for deployment " + id;
+                if (e instanceof ClosedByInterruptException) {
+                    log.warn("{}. Reason: ClosedByInterruptException", message);
+                } else {
+                    log.warn(message, e);
+                }
                 emitter.completeWithError(e);
             }
         });

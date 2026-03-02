@@ -25,4 +25,9 @@ public class GlobalDomainWhitelistService {
     public List<String> updateDomainWhitelist(@NotNull List<String> allowedDomains) {
         return repository.updateAllowedDomains(allowedDomains);
     }
+
+    @Transactional
+    public void setDomainWhitelistOrCreate(@NotNull List<String> allowedDomains) {
+        repository.setAllowedDomainsOrCreate(allowedDomains);
+    }
 }

@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -790,7 +791,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     private Map<String, String> transformEnvs(Map<String, EnvVarValue> envs) {
         return MapUtils.emptyIfNull(envs).entrySet().stream()
-                .map(entry -> Map.entry(entry.getKey(), entry.getValue().getValue()))
+                .map(entry -> {
+                    var value = entry.getValue() != null ? entry.getValue().getValue() : StringUtils.EMPTY;
+                    return Map.entry(entry.getKey(), value);
+                })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
