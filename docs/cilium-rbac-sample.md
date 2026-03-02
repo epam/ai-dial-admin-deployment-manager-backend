@@ -8,9 +8,9 @@ In this case, **extra RBAC roles for Cilium are required** so that the Deploymen
 
 ## Required RBAC
 
-Create the following Role and RoleBinding in **each** namespace where the Deployment Manager will manage Cilium policies: `mcp-namespace`, `nim-namespace`, or `kserve-namespace`.
+Create the following Role and RoleBinding in **each** namespace where the Deployment Manager will manage Cilium policie:
 
-Replace `<mcp-namespace|nim-namespace|kserve-namespace>` with the actual target namespace for that manifest. Replace `<deployment-manager-sa-namespace>` with the namespace where the Deployment Manager ServiceAccount is located.
+Replace `<K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>` with the actual target namespace for that manifest. Replace `<deployment-manager-sa-namespace>` with the namespace where the Deployment Manager ServiceAccount is located.
 
 ### Role
 
@@ -55,7 +55,7 @@ metadata:
   namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 subjects:
   - kind: ServiceAccount
-    name: ai-dial-deployment-manager
+    name: ai-dial-deployment-manager # Service account specificly created for deployment manager to work with deployments
     namespace: <deployment-manager-sa-namespace> 
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -70,7 +70,7 @@ roleRef:
 | Setting | Effect |
 |--------|--------|
 | `CILIUM_NETWORK_POLICIES_ENABLED=true` | Deployment Manager can enable Cilium network policies for image build and deployments |
-| Required setup | Role + RoleBinding above in each target namespace (`mcp-namespace`, `nim-namespace`, `kserve-namespace`, etc.) |
+| Required setup | Role + RoleBinding above in each target namespace (`<K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>`, etc.) |
 
 Apply the manifests in each namespace where Cilium policies will be managed, then set `CILIUM_NETWORK_POLICIES_ENABLED=true` for the Deployment Manager.
 For more information about K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE use [https://github.com/epam/ai-dial-admin-deployment-manager-backend/blob/development/docs/configuration.md]
