@@ -19,7 +19,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: deployment-manager-cilium-role
-  namespace: <mcp-namespace|nim-namespace|kserve-namespace>
+  namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 rules:
   - verbs:
       - create
@@ -52,11 +52,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: ai-dial-deployment-manager-cilium-role
-  namespace: <mcp-namespace|nim-namespace|kserve-namespace>
+  namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 subjects:
   - kind: ServiceAccount
     name: ai-dial-deployment-manager
-    namespace: <deployment-manager-sa-namespace>
+    namespace: <deployment-manager-sa-namespace> 
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -73,3 +73,4 @@ roleRef:
 | Required setup | Role + RoleBinding above in each target namespace (`mcp-namespace`, `nim-namespace`, `kserve-namespace`, etc.) |
 
 Apply the manifests in each namespace where Cilium policies will be managed, then set `CILIUM_NETWORK_POLICIES_ENABLED=true` for the Deployment Manager.
+For more information about K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE use [https://github.com/epam/ai-dial-admin-deployment-manager-backend/blob/development/docs/configuration.md]
