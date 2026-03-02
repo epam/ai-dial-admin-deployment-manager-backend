@@ -1,0 +1,13 @@
+package com.epam.aidial.deployment.manager.model.config;
+
+public enum ExportConfigComponentType {
+    MCP_IMAGE_DEFINITION,
+    ADAPTER_IMAGE_DEFINITION,
+    INTERCEPTOR_IMAGE_DEFINITION,
+
+    MCP_DEPLOYMENT,
+    ADAPTER_DEPLOYMENT,
+    INTERCEPTOR_DEPLOYMENT,
+    NIM_DEPLOYMENT,
+    INFERENCE_DEPLOYMENT,
+}
