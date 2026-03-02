@@ -4,8 +4,10 @@ import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupServ
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
+import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.ComponentRemoval;
 import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
@@ -15,6 +17,9 @@ import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarValue;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ImageType;
+import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
+import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
@@ -111,11 +116,7 @@ public class DeploymentService {
         var envs = saveEnvVars(deploymentManager, id, envsPartition);
         var deployment = deploymentMapper.toDeployment(request, envs);
 
-        if (request.getImageDefinitionId() != null) {
-            var imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
-            deployment.setImageDefinitionName(imageDefinition.getName());
-            deployment.setImageDefinitionVersion(imageDefinition.getVersion());
-        }
+        resolveAndSetImageDefinitionRef(request, deployment);
 
         // Set author information - use provided author or extract from security context
         if (StringUtils.isBlank(request.getAuthor())) {
@@ -136,10 +137,7 @@ public class DeploymentService {
                     .formatted(id, request.getId()));
         }
 
-        ImageDefinition imageDefinition = null;
-        if (request.getImageDefinitionId() != null) {
-            imageDefinition = loadImageDefinitionOrThrow(request.getImageDefinitionId());
-        }
+        ImageDefinition imageDefinition = resolveImageDefinition(request).orElse(null);
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var existingDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
@@ -168,8 +166,7 @@ public class DeploymentService {
         deployment.setStatus(status);
 
         if (imageDefinition != null) {
-            deployment.setImageDefinitionName(imageDefinition.getName());
-            deployment.setImageDefinitionVersion(imageDefinition.getVersion());
+            setDeploymentImageDefinitionRef(deployment, imageDefinition);
         }
 
         var updatedDeployment = deploymentRepository.update(id, deployment);
@@ -197,9 +194,11 @@ public class DeploymentService {
     }
 
     public Deployment deploy(String id) {
+        var deployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+        requireImageBuiltForDeployment(deployment);
         var deploymentManager = deploymentManagerProvider.provide(id);
-        var deployment = deploymentManager.deploy(id);
-        return deploymentManager.resolveSecrets(deployment);
+        var deployed = deploymentManager.deploy(id);
+        return deploymentManager.resolveSecrets(deployed);
     }
 
     public Deployment undeploy(String id) {
@@ -301,14 +300,64 @@ public class DeploymentService {
         return ListUtils.union(sensitive, simple);
     }
 
+    private Optional<ImageDefinition> resolveImageDefinition(CreateDeployment request) {
+        var id = request.getImageDefinitionId();
+        var name = request.getImageDefinitionName();
+        var version = request.getImageDefinitionVersion();
+        var type = request.getImageDefinitionType();
+
+        if (id != null) {
+            var definition = imageDefinitionService.getImageDefinition(id)
+                    .orElseThrow(notFound("ImageDefinition", id));
+            return Optional.ofNullable(definition);
+        }
+
+        if (type != null
+                && StringUtils.isNotBlank(name)
+                && StringUtils.isNotBlank(version)) {
+            var definition = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
+                    .orElseThrow(
+                        () -> new EntityNotFoundException("ImageDefinition not found. Type='%s'. Name='%s'. Version='%s'".formatted(type, name, version)));
+            return Optional.ofNullable(definition);
+        }
+
+        return Optional.empty();
+    }
+
+    private void resolveAndSetImageDefinitionRef(CreateDeployment request, Deployment deployment) {
+        resolveImageDefinition(request).ifPresent(imageDefinition -> setDeploymentImageDefinitionRef(deployment, imageDefinition));
+    }
+
+    private void setDeploymentImageDefinitionRef(Deployment deployment, ImageDefinition imageDefinition) {
+        deployment.setImageDefinitionId(imageDefinition.getId());
+        deployment.setImageDefinitionType(getImageDefinitionType(imageDefinition));
+        deployment.setImageDefinitionName(imageDefinition.getName());
+        deployment.setImageDefinitionVersion(imageDefinition.getVersion());
+    }
+
+    private static ImageType getImageDefinitionType(ImageDefinition imageDefinition) {
+        return switch (imageDefinition) {
+            case McpImageDefinition ignored -> ImageType.MCP;
+            case AdapterImageDefinition ignored -> ImageType.ADAPTER;
+            case InterceptorImageDefinition ignored -> ImageType.INTERCEPTOR;
+            default -> throw new IllegalArgumentException("Unknown image definition type: " + imageDefinition.getClass().getName());
+        };
+    }
+
     private ImageDefinition loadImageDefinitionOrThrow(UUID id) {
         var imageDefinition = imageDefinitionService.getImageDefinition(id)
                 .orElseThrow(notFound("ImageDefinition", id));
         if (imageDefinition.getBuildStatus() != ImageStatus.BUILD_SUCCESSFUL) {
-            throw new IllegalStateException("Unable to perform requested operation: image '%s' is not built"
-                    .formatted(id));
+            throw new DeploymentException("Unable to perform requested operation: image '%s' is not built".formatted(id));
         }
         return imageDefinition;
+    }
+
+    private void requireImageBuiltForDeployment(Deployment deployment) {
+        if (deployment.getImageDefinitionId() == null) {
+            return;
+        }
+        loadImageDefinitionOrThrow(deployment.getImageDefinitionId());
     }
 
     private static List<SimpleEnvVar> toSimpleEnvs(Map<String, EnvVarValue> envs) {

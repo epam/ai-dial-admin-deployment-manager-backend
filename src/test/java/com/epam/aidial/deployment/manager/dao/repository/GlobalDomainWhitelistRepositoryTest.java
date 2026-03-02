@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.dao.repository;
 
 import com.epam.aidial.deployment.manager.dao.entity.DomainWhitelistEntity;
 import com.epam.aidial.deployment.manager.dao.jpa.DomainWhitelistJpaRepository;
+import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -43,7 +44,7 @@ public class GlobalDomainWhitelistRepositoryTest {
     void getAllowedDomains_throwsIfNoWhitelist() {
         when(jpaRepository.findAll()).thenReturn(Collections.emptyList());
 
-        var ex = assertThrows(IllegalStateException.class, () -> repository.getAllowedDomains());
+        var ex = assertThrows(GlobalDomainWhitelistNotFoundException.class, () -> repository.getAllowedDomains());
         assertEquals("Global domain whitelist not found", ex.getMessage());
     }
 
