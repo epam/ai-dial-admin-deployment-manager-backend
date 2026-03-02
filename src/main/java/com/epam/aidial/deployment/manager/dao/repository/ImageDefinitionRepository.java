@@ -11,7 +11,7 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
-import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,16 +43,16 @@ public class ImageDefinitionRepository {
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageTypeDto type) {
-        var entityClazz = detectEntityClazz(type);
-        return imageDefinitionJpaRepository.findAllByType(entityClazz).stream()
+    public Collection<ImageDefinition> getAllImageDefinitionsByType(ImageType type) {
+        var entityClass = detectEntityClass(type);
+        return imageDefinitionJpaRepository.findAllByType(entityClass).stream()
                 .map(mapper::toImageDefinition)
                 .collect(Collectors.toList());
     }
 
-    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageTypeDto type) {
-        var entityClazz = detectEntityClazz(type);
-        return imageDefinitionJpaRepository.findAllByNameAndType(name, entityClazz).stream()
+    public Collection<ImageDefinition> getAllImageDefinitionsByNameAndType(String name, ImageType type) {
+        var entityClass = detectEntityClass(type);
+        return imageDefinitionJpaRepository.findAllByNameAndType(name, entityClass).stream()
                 .map(mapper::toImageDefinition)
                 .collect(Collectors.toList());
     }
@@ -66,6 +66,13 @@ public class ImageDefinitionRepository {
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinitionById(UUID id) {
         return imageDefinitionJpaRepository.findById(id)
+                .map(mapper::toImageDefinition);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ImageDefinition> getImageDefinitionByTypeAndNameAndVersion(ImageType type, String name, String version) {
+        var entityClass = detectEntityClass(type);
+        return imageDefinitionJpaRepository.findByNameAndTypeAndVersion(name, entityClass, version)
                 .map(mapper::toImageDefinition);
     }
 
@@ -143,13 +150,16 @@ public class ImageDefinitionRepository {
         return viewMapper.toViews(imageDefinitions);
     }
 
-    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(ImageTypeDto type) {
-        var entityClazz = detectEntityClazz(type);
-        var imageDefinitions = imageDefinitionJpaRepository.findAllByType(entityClazz);
+    public List<ImageDefinitionView> getAllImageDefinitionViewsByType(ImageType type) {
+        var entityClass = detectEntityClass(type);
+        var imageDefinitions = imageDefinitionJpaRepository.findAllByType(entityClass);
         return viewMapper.toViews(imageDefinitions);
     }
 
-    private static Class<? extends ImageDefinitionEntity> detectEntityClazz(ImageTypeDto type) {
+    private static Class<? extends ImageDefinitionEntity> detectEntityClass(ImageType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Image type must not be null");
+        }
         return switch (type) {
             case MCP -> McpImageDefinitionEntity.class;
             case ADAPTER -> AdapterImageDefinitionEntity.class;

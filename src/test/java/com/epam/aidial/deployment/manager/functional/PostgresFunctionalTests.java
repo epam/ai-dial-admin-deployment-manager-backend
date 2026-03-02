@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.functional;
 
 import com.epam.aidial.deployment.manager.functional.config.PostgresFunctionalTestConfiguration;
+import com.epam.aidial.deployment.manager.functional.tests.ConfigExportImportFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowWithMockedK8sClientFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
@@ -19,6 +20,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @TestPropertySource(properties = {
         "datasource.vendor=POSTGRES",
         "app.image-build-logs-size-limit=3",
+        "app.config.export.file-name=config.json",
+        "app.config.export.zip-name=export.zip",
+        "app.knative.enabled=true",
+        "app.nim.enabled=true",
+        "app.kserve.enabled=true",
         "DOCKER_REGISTRY=test-docker-registry",
         "DOCKER_REGISTRY_AUTH=BASIC",
         "DOCKER_REGISTRY_USER=TestUser",
@@ -55,5 +61,9 @@ public class PostgresFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class FullWorkflowWithMockedK8sClientTest extends FullWorkflowWithMockedK8sClientFunctionalTest {
+    }
+
+    @Nested
+    class ConfigExportImportTests extends ConfigExportImportFunctionalTest {
     }
 }

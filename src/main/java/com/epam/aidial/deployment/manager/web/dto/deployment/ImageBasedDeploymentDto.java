@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.deployment;
 
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,6 +18,8 @@ import java.util.UUID;
 public abstract class ImageBasedDeploymentDto extends DeploymentDto {
     @NotNull
     private UUID imageDefinitionId;
+    @NotNull
+    private ImageTypeDto imageDefinitionType;
     @NotNull
     private String imageDefinitionName;
     @NotNull
