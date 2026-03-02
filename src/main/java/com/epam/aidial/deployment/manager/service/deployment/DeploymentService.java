@@ -17,9 +17,12 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
@@ -357,6 +360,15 @@ public class DeploymentService {
             case InferenceDeployment exInf when updated instanceof InferenceDeployment upInf ->
                     !Objects.equals(exInf.getArgs(), upInf.getArgs())
                             || !Objects.equals(exInf.getCommand(), upInf.getCommand());
+
+            case McpDeployment exMcp when updated instanceof McpDeployment upMcp ->
+                    !Objects.equals(exMcp.getImageReference(), upMcp.getImageReference());
+
+            case AdapterDeployment exAdapter when updated instanceof AdapterDeployment upAdapter ->
+                    !Objects.equals(exAdapter.getImageReference(), upAdapter.getImageReference());
+
+            case InterceptorDeployment exInterceptor when updated instanceof InterceptorDeployment upInterceptor ->
+                    !Objects.equals(exInterceptor.getImageReference(), upInterceptor.getImageReference());
 
             default -> false;
         };

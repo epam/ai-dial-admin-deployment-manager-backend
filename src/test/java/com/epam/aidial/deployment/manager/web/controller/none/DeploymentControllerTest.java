@@ -55,6 +55,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -255,6 +256,49 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(
                         "Field [metadata.envs[0].name]: Env variable name must contain only letters, numbers, dots (.), hyphens (-), and underscores (_)\n"));
+    }
+
+    @Test
+    void testCreateDeployment_withImageReference() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+        requestDto.setImageDefinitionId(null);
+        requestDto.setImageReference("ghcr.io/modelcontextprotocol/servers/fetch:latest");
+
+        var requestJson = objectMapper.writeValueAsString(requestDto);
+
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpDeployment.class);
+        model.setImageDefinitionId(null);
+        model.setImageDefinitionName(null);
+        model.setImageDefinitionVersion(null);
+        model.setImageReference(requestDto.getImageReference());
+
+        when(deploymentService.createDeployment(any())).thenReturn(model);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.imageReference").value(requestDto.getImageReference()))
+                .andExpect(jsonPath("$.imageDefinitionId").doesNotExist());
+
+        verify(deploymentService).createDeployment(any());
+    }
+
+    @Test
+    void testCreateDeployment_withoutImageSource() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+        requestDto.setImageDefinitionId(null);
+        requestDto.setImageReference(null);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString(
+                        "Exactly one image source must be provided: imageDefinitionId or imageReference")));
     }
 
     @Test

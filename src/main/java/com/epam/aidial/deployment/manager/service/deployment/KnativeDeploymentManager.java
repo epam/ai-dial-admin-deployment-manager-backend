@@ -102,8 +102,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
     @Override
     protected Service prepareServiceSpec(Deployment deployment) {
-        var imageDefinition = imageDefinitionService.getImageDefinition(deployment.getImageDefinitionId())
-                .orElseThrow(notFound("ImageDefinition", deployment.getImageDefinitionId()));
+        var imageName = resolveImageName(deployment);
 
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
         var userDefinedSensitiveFileEnvs = filterEnvsByExactType(deployment, SensitiveFileEnvVar.class);
@@ -116,13 +115,34 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
-                imageDefinition.getImageName(),
+                imageName,
                 deployment.getInitialScale(),
                 deployment.getMinScale(),
                 deployment.getMaxScale(),
                 deployment.getResources(),
                 containerPort,
                 deployment.getProbeProperties());
+    }
+
+    private String resolveImageName(Deployment deployment) {
+        String imageReference = switch (deployment) {
+            case McpDeployment mcpDeployment -> mcpDeployment.getImageReference();
+            case AdapterDeployment adapterDeployment -> adapterDeployment.getImageReference();
+            case InterceptorDeployment interceptorDeployment -> interceptorDeployment.getImageReference();
+            default -> null;
+        };
+        if (StringUtils.isNotBlank(imageReference)) {
+            return imageReference;
+        }
+
+        var imageDefinitionId = deployment.getImageDefinitionId();
+        if (imageDefinitionId == null) {
+            throw new IllegalArgumentException("Deployment '%s' does not define an image source".formatted(deployment.getId()));
+        }
+
+        return imageDefinitionService.getImageDefinition(imageDefinitionId)
+                .orElseThrow(notFound("ImageDefinition", imageDefinitionId))
+                .getImageName();
     }
 
     @Override

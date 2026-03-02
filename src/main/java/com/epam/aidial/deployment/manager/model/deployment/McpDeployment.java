@@ -17,6 +17,7 @@ import lombok.experimental.SuperBuilder;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class McpDeployment extends Deployment {
+    private String imageReference;
     private McpTransport transport;
     private String mcpEndpointPath;
 }
