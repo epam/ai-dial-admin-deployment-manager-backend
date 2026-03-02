@@ -187,11 +187,11 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             var target = scaling.getStrategy().getThreshold();
             revisionSpecChain.data().setContainerConcurrency((long) target);
             annotations.put("autoscaling.knative.dev/target", String.valueOf(target));
-            log.trace("Applied strategy ACTIVE_REQUESTS: target={} for model '{}'",
+            log.trace("Applied strategy ACTIVE_REQUESTS: target={} for deployment '{}'",
                     scaling.getStrategy().getThreshold(), name);
         } else {
             throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
-                    .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
+                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
         }
     }
 

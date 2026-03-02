@@ -188,7 +188,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
                     scaling.getStrategy().getThreshold(), name);
         } else {
             throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
-                    .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
+                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
         }
     }
 
