@@ -15,12 +15,12 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '3.5.3'
+    id 'org.springframework.boot' version '3.5.10'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
 group = 'com.epam.aidial'
-version = "0.14.0-rc"
+version = "0.15.0-rc"
 
 java {
     toolchain {
@@ -134,7 +134,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.13') {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.14') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {

@@ -3,9 +3,11 @@ package com.epam.aidial.deployment.manager.web.mapper;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeHandler;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
 import com.epam.aidial.deployment.manager.web.dto.probe.HttpGetProbeDto;
 import com.epam.aidial.deployment.manager.web.dto.probe.ProbeHandlerDto;
 import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
+import com.epam.aidial.deployment.manager.web.dto.probe.TcpSocketProbeDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.SubclassExhaustiveStrategy;
 import org.mapstruct.SubclassMapping;
@@ -18,8 +20,10 @@ public interface ProbePropertiesDtoMapper {
     ProbePropertiesDto toProbePropertiesDto(ProbeProperties model);
 
     @SubclassMapping(source = HttpGetProbeDto.class, target = HttpGetProbe.class)
+    @SubclassMapping(source = TcpSocketProbeDto.class, target = TcpSocketProbe.class)
     ProbeHandler toProbeHandler(ProbeHandlerDto dto);
 
     @SubclassMapping(source = HttpGetProbe.class, target = HttpGetProbeDto.class)
+    @SubclassMapping(source = TcpSocketProbe.class, target = TcpSocketProbeDto.class)
     ProbeHandlerDto toProbeHandlerDto(ProbeHandler model);
 }

@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.pipeline.specification;
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
@@ -47,8 +48,7 @@ class ImageBuildFromGitJobSpecificationTest {
     private static final String DOCKER_CONFIG_PATH = "/kaniko/.docker/config.json";
     private static final String GIT_URL = "https://github.com/test/repo.git";
     private static final String GIT_BRANCH = "main";
-    private static final String FULL_IMAGE_NAME = "test-build-id:1.0.0";
-    private static final String BUILD_CONTAINER_NAME = "kaniko";
+    private static final String BUILDER_CONTAINER_NAME = "builder-container";
     private static final String PUSH_CONTAINER_NAME = "push-container";
 
     @Mock
@@ -70,7 +70,13 @@ class ImageBuildFromGitJobSpecificationTest {
                 .branchName(GIT_BRANCH)
                 .build();
 
-        jobSpecification = new ImageBuildFromGitJobSpecification(
+        jobSpecification = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS);
+    }
+
+    private ImageBuildFromGitJobSpecification createJobSpecification(
+            GitDockerfileImageSource imageSource,
+            ImageBuilder imageBuilder) {
+        return new ImageBuildFromGitJobSpecification(
                 registryService,
                 manifestGenerator,
                 gitService,
@@ -79,7 +85,8 @@ class ImageBuildFromGitJobSpecificationTest {
                 DOCKER_CONFIG_PATH,
                 BUILD_ID,
                 IMAGE_NAME,
-                gitDockerfileImageSource
+                imageSource,
+                imageBuilder
         );
     }
 
@@ -127,7 +134,7 @@ class ImageBuildFromGitJobSpecificationTest {
         // Then
         assertNotNull(secrets);
         assertEquals(1, secrets.size());
-        assertEquals(mockSecret, secrets.get(0));
+        assertEquals(mockSecret, secrets.getFirst());
 
         // Verify the correct secret name was used
         verify(manifestGenerator).dialRegistryAuthSecretConfig(expectedSecretName);
@@ -136,14 +143,9 @@ class ImageBuildFromGitJobSpecificationTest {
     @Test
     void getJob_shouldReturnJobWithCorrectConfiguration() {
         // Given
-        Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
-        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
-        when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
-        when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
-        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
-        when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
-        when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
+        prepareConfiguration();
+        when(appConfig.getBuilderRootlessContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
 
         String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
         when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
@@ -163,15 +165,64 @@ class ImageBuildFromGitJobSpecificationTest {
         // Verify init container exists
         assertNotNull(job.getSpec().getTemplate().getSpec().getInitContainers());
         assertEquals(1, job.getSpec().getTemplate().getSpec().getInitContainers().size());
-        Container initContainer = job.getSpec().getTemplate().getSpec().getInitContainers().get(0);
+        Container initContainer = job.getSpec().getTemplate().getSpec().getInitContainers().getFirst();
         assertEquals("git-clone", initContainer.getName());
 
         // Verify the container arguments contain the expected values
-        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
         assertNotNull(args);
-        assertTrue(args.stream().anyMatch(arg -> arg.startsWith("--destination=") && arg.contains(FULL_IMAGE_NAME)));
-        assertTrue(args.stream().anyMatch(arg -> arg.startsWith("--context=") && arg.contains("/workspace")));
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace")));
+    }
+
+    @Test
+    void getJob_shouldReturnJobWithCorrectBuildkitRootConfiguration() {
+        // Given
+        prepareConfiguration();
+        when(appConfig.getBuilderRootContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
+
+        String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
+        when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
+
+        // When
+        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT).getJob();
+
+        // Verify the container arguments contain the expected values
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
+        List<String> args = buildContainer.getArgs();
+        assertNotNull(args);
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace")));
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace")));
+        assertFalse(args.stream().anyMatch(arg -> arg.equals("--no-push")));
+    }
+
+    @Test
+    void getJob_shouldReturnJobWithCorrectBuildkitRootlessConfigurationWhenBaseDirectoryIsProvided() {
+        // Given
+        prepareConfiguration();
+        when(appConfig.getBuilderRootlessContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
+
+        String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
+        when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
+
+        String baseDirectory = "src/app";
+        gitDockerfileImageSource = GitDockerfileImageSource.builder()
+                .url(GIT_URL)
+                .branchName(GIT_BRANCH)
+                .baseDirectory(baseDirectory)
+                .build();
+
+        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS).getJob();
+
+        // Verify the container arguments contain the expected values
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
+        List<String> args = buildContainer.getArgs();
+        assertNotNull(args);
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace/src/app")));
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace/src/app")));
+        assertFalse(args.stream().anyMatch(arg -> arg.equals("--no-push")));
     }
 
     @Test
@@ -184,76 +235,44 @@ class ImageBuildFromGitJobSpecificationTest {
                 .baseDirectory(baseDirectory)
                 .build();
 
-        jobSpecification = new ImageBuildFromGitJobSpecification(
-                registryService,
-                manifestGenerator,
-                gitService,
-                appConfig,
-                NAMESPACE,
-                DOCKER_CONFIG_PATH,
-                BUILD_ID,
-                IMAGE_NAME,
-                gitDockerfileImageSource
-        );
-
-        Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
-        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
-        when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
-        when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
-        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
-        when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
-        when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
+        prepareConfiguration();
+        when(appConfig.getBuilderRootlessContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
 
         String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
         when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
 
         // When
-        Job job = jobSpecification.getJob();
+        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS).getJob();
 
         // Then
-        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
 
-        assertThat(args).contains("--context=/workspace/src/app");
+        assertThat(args).contains("context=/workspace/src/app");
+        assertThat(args).contains("dockerfile=/workspace/src/app");
     }
 
     @Test
     void getJob_shouldConfigureSecretVolumeWhenBasicAuthIsUsed() {
         // Given
-        Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
-        Container builderContainerConfig = new ContainerBuilder().withName(BUILD_CONTAINER_NAME).build();
-        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
+        prepareConfiguration();
         when(registryService.getAuthScheme()).thenReturn(DockerAuthScheme.BASIC);
         when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJobWithVolumes());
-        when(appConfig.getBuilderContainerConfig()).thenReturn(builderContainerConfig);
-        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
-        when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
-        when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
+        when(appConfig.getBuilderRootlessContainerConfig())
+                .thenReturn(new ContainerBuilder().withName(BUILDER_CONTAINER_NAME).build());
 
         String gitSecretName = K8sNamingUtils.generateName("git", BUILD_ID);
         when(gitService.prepareGitSecret(GIT_URL, gitSecretName, manifestGenerator)).thenReturn(Optional.empty());
 
-        jobSpecification = new ImageBuildFromGitJobSpecification(
-                registryService,
-                manifestGenerator,
-                gitService,
-                appConfig,
-                NAMESPACE,
-                DOCKER_CONFIG_PATH,
-                BUILD_ID,
-                IMAGE_NAME,
-                gitDockerfileImageSource
-        );
-
         // When
-        Job job = jobSpecification.getJob();
+        Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS).getJob();
 
         // Then
         assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
-        assertTrue(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0);
+        assertFalse(job.getSpec().getTemplate().getSpec().getVolumes().isEmpty());
 
-        Container buildContainer = getContainerByName(job, BUILD_CONTAINER_NAME);
+        Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         assertNotNull(buildContainer.getVolumeMounts());
         assertFalse(buildContainer.getVolumeMounts().stream()
                 .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
@@ -277,7 +296,7 @@ class ImageBuildFromGitJobSpecificationTest {
 
     private Job createDefaultJob() {
         Container builderContainer = new ContainerBuilder()
-                .withName(BUILD_CONTAINER_NAME)
+                .withName(BUILDER_CONTAINER_NAME)
                 .withArgs(new ArrayList<>())
                 .build();
 
@@ -305,7 +324,7 @@ class ImageBuildFromGitJobSpecificationTest {
 
     private Job createDefaultJobWithVolumes() {
         Container builderContainer = new ContainerBuilder()
-                .withName(BUILD_CONTAINER_NAME)
+                .withName(BUILDER_CONTAINER_NAME)
                 .withArgs(new ArrayList<>())
                 .build();
 
@@ -334,5 +353,14 @@ class ImageBuildFromGitJobSpecificationTest {
         return new JobBuilder()
                 .withSpec(jobSpec)
                 .build();
+    }
+
+    private void prepareConfiguration() {
+        Container initContainerConfig = new ContainerBuilder().withName("git-clone").build();
+        Container pushContainerConfig = new ContainerBuilder().withName(PUSH_CONTAINER_NAME).build();
+        when(appConfig.cloneBuilderJobConfig()).thenReturn(createDefaultJob());
+        when(appConfig.getPushContainerConfig()).thenReturn(pushContainerConfig);
+        when(appConfig.getInitBuilderContainerConfig()).thenReturn(initContainerConfig);
+        when(appConfig.cloneInitBuilderContainerConfig()).thenReturn(new ContainerBuilder(initContainerConfig).build());
     }
 }

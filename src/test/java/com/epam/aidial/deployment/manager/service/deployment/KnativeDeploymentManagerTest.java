@@ -57,6 +57,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -249,16 +250,18 @@ class KnativeDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnContainerResourceForPod() {
+    void getContainerResourceForLogs_shouldReturnContainerResourceForRunningPod() {
         // Given
         Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
         when(k8sKnativeClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(SERVICE_CONTAINER)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = knativeDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
+        ContainerResource result = knativeDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -268,15 +271,14 @@ class KnativeDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnNullWhenPodNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
         when(k8sKnativeClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
-        // When
-        ContainerResource result = knativeDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
-
-        // Then
-        assertThat(result).isNull();
+        // When / Then
+        assertThatThrownBy(() -> knativeDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
@@ -292,7 +294,7 @@ class KnativeDeploymentManagerTest {
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
-        when(containerPortResolver.resolveContainerPort(any(), any())).thenReturn(containerPort);
+        when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
                 any(),
@@ -378,9 +380,9 @@ class KnativeDeploymentManagerTest {
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
-        when(containerPortResolver.resolveContainerPort(any(), any())).thenReturn(containerPort);
+        when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);

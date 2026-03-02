@@ -49,11 +49,18 @@ class ImageDefinitionCleanupStrategy extends AbstractCleanupStrategy {
 
         cleanupResources(id);
 
-        // Clean up deployments that reference this image definition
-        deploymentRepository.getAllByImageDefinitionId(uuid).stream()
+        // Clean up deployments that reference this image definition (sync or async depending on caller)
+        var deploymentIds = deploymentRepository.getAllByImageDefinitionId(uuid).stream()
                 .map(Deployment::getId)
-                .forEach(deploymentId
-                        -> componentCleanupService.deleteAsync(ComponentRemoval.of(deploymentId, ComponentType.DEPLOYMENT)));
+                .toList();
+        for (String deploymentId : deploymentIds) {
+            var removal = ComponentRemoval.of(deploymentId, ComponentType.DEPLOYMENT);
+            if (componentCleanupService.isSyncDeletion()) {
+                componentCleanupService.deleteSync(removal);
+            } else {
+                componentCleanupService.deleteAsync(removal);
+            }
+        }
 
         imageDefinitionRepository.deleteImageDefinitionById(uuid);
         log.info("Image definition '{}' deleted successfully", uuid);

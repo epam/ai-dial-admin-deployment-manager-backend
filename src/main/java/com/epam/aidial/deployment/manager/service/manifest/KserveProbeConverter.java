@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.StartupProbe;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.HttpGet;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.startupprobe.TcpSocket;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
@@ -79,6 +80,11 @@ public class KserveProbeConverter {
             httpGet.setPath(source.getHttpGet().getPath());
             httpGet.setPort(source.getHttpGet().getPort());
             target.setHttpGet(httpGet);
+        }
+        if (source.getTcpSocket() != null) {
+            var tcpSocket = new TcpSocket();
+            tcpSocket.setPort(source.getTcpSocket().getPort());
+            target.setTcpSocket(tcpSocket);
         }
     }
 }

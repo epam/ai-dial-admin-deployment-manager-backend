@@ -1,7 +1,6 @@
-package com.epam.aidial.deployment.manager.validation;
+package com.epam.aidial.deployment.manager.web.validation;
 
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
-import com.epam.aidial.deployment.manager.web.validation.ResourcesValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

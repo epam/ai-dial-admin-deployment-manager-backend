@@ -28,7 +28,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -85,7 +84,7 @@ class DeploymentLogsServiceTest {
                 .build();
 
         when(deploymentManagerProvider.provide(DEPLOYMENT_ID)).thenReturn(deploymentManager);
-        when(deploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME)).thenReturn(containerResource);
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false)).thenReturn(containerResource);
     }
 
     @Test
@@ -115,7 +114,7 @@ class DeploymentLogsServiceTest {
 
         // Verify container resource was retrieved
         verify(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        verify(deploymentManager).getContainerResource(DEPLOYMENT_ID, POD_NAME);
+        verify(deploymentManager).getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
 
         // Verify log reader was created and used
         verify(podLogReaderFactory).create(logReaderConfig);
@@ -353,14 +352,20 @@ class DeploymentLogsServiceTest {
     }
 
     @Test
-    void streamLogs_shouldHandleContainerResourceNotFound() {
+    void streamLogs_shouldReturnErrorEmitterWhenPodNotFound() {
         // Given
-        when(deploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME)).thenReturn(null);
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .thenThrow(new EntityNotFoundException("Pod could not be found " + POD_NAME));
+        when(sseEmitterFactory.createErrorEmitter(eq(DEPLOYMENT_ID), anyString(), anyString())).thenReturn(sseEmitter);
 
-        // When/Then
-        assertThatThrownBy(() -> deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig))
-                .isInstanceOf(EntityNotFoundException.class)
-                .hasMessageContaining("Pod not found. Deployment=");
+        // When
+        SseEmitter result = deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+
+        // Then
+        assertThat(result).isEqualTo(sseEmitter);
+        verify(sseEmitterFactory).createErrorEmitter(eq(DEPLOYMENT_ID),
+                eq("Deployment-test-pod"),
+                eq("Pod could not be found " + POD_NAME));
     }
 
     @Test

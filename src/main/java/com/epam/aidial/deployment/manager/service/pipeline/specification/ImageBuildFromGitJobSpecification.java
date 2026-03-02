@@ -1,10 +1,9 @@
 package com.epam.aidial.deployment.manager.service.pipeline.specification;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
-import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
 import com.epam.aidial.deployment.manager.model.GitSecretConfig;
-import com.epam.aidial.deployment.manager.service.JobSpecification;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.utils.GitCommandBuilder;
@@ -13,12 +12,10 @@ import com.epam.aidial.deployment.manager.utils.mapping.Mappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
@@ -26,33 +23,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
-@RequiredArgsConstructor
-public class ImageBuildFromGitJobSpecification implements JobSpecification {
+public class ImageBuildFromGitJobSpecification extends ImageBuildAndPushJobSpecification {
 
-    private static final String REGISTRY = "registry";
     private static final String GIT = "git";
     private static final String WORKSPACE_PATH = "/workspace";
 
-    private final RegistryService registryService;
-    private final ManifestGenerator manifestGenerator;
     private final GitService gitService;
-    private final AppProperties appConfig;
-
-    private final String namespace;
-    private final String dockerConfigPath;
-
-    private final String buildId;
-    private final String targetImage;
     private final GitDockerfileImageSource gitDockerfileImageSource;
 
-    @Override
-    public String getJobId() {
-        return buildId;
-    }
-
-    @Override
-    public String getNamespace() {
-        return namespace;
+    public ImageBuildFromGitJobSpecification(RegistryService registryService,
+                                             ManifestGenerator manifestGenerator,
+                                             GitService gitService,
+                                             AppProperties appConfig,
+                                             String namespace,
+                                             String dockerConfigPath,
+                                             String buildId,
+                                             String targetImage,
+                                             GitDockerfileImageSource gitDockerfileImageSource,
+                                             ImageBuilder imageBuilder) {
+        super(registryService,
+                manifestGenerator,
+                appConfig,
+                namespace,
+                dockerConfigPath,
+                buildId,
+                targetImage,
+                imageBuilder);
+        this.gitService = gitService;
+        this.gitDockerfileImageSource = gitDockerfileImageSource;
     }
 
     @Override
@@ -63,46 +61,22 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
     @Override
     public List<Secret> getSecrets() {
         List<Secret> secrets = new ArrayList<>();
-
-        // Add registry secret if needed
-        var authSecretName = K8sNamingUtils.generateName(REGISTRY, buildId);
-        var dialRegistryAuthSecret = manifestGenerator.dialRegistryAuthSecretConfig(authSecretName);
-        secrets.add(dialRegistryAuthSecret);
-
-        // Add git secret if the repo needs authentication
-        var gitSecretName = getGitSecretName();
-        gitService.prepareGitSecret(gitDockerfileImageSource.getUrl(), gitSecretName, manifestGenerator)
+        secrets.add(getRegistryAuthSecret());
+        gitService.prepareGitSecret(gitDockerfileImageSource.getUrl(), getGitSecretName(), manifestGenerator)
                 .ifPresent(config -> secrets.add(config.getSecret()));
-
         return secrets;
     }
 
     @Override
     public Job getJob() {
         log.info("Target image: {}", targetImage);
-
         var config = createBaseJobConfig();
         var podSpec = getPodSpec(config);
-
         configureInitContainer(podSpec);
-        configureBuilderContainer(podSpec, targetImage);
-        configurePushContainer(podSpec, targetImage);
-
+        var builderContainer = getBuilderContainer(podSpec);
+        configureBuilderContainerArgs(builderContainer);
+        configurePushContainer(podSpec);
         return config.data();
-    }
-
-    private MappingChain<Job> createBaseJobConfig() {
-        var config = new MappingChain<>(this.appConfig.cloneBuilderJobConfig());
-        config.get(Mappers.JOB_METADATA_FIELD)
-                .data()
-                .setName(K8sNamingUtils.generateName(buildId));
-        return config;
-    }
-
-    private MappingChain<PodSpec> getPodSpec(MappingChain<Job> config) {
-        return config.get(Mappers.JOB_SPEC_FIELD)
-                .get(Mappers.JOB_TEMPLATE_FIELD)
-                .get(Mappers.JOB_TEMPLATE_SPEC_FIELD);
     }
 
     private String getGitSecretName() {
@@ -150,67 +124,6 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
                 .add(cloneCommand);
     }
 
-    private void configureBuilderContainer(MappingChain<PodSpec> podSpec, String targetImage) {
-        var builder = getBuilderContainerChain(podSpec);
-        configureBuilderContainerArgs(builder, targetImage);
-    }
-
-    private MappingChain<Container> getBuilderContainerChain(MappingChain<PodSpec> podSpec) {
-        return podSpec.getList(Mappers.POD_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
-                .getOrDefault(appConfig.getBuilderContainerConfig().getName(), appConfig::cloneBuilderContainerConfig);
-    }
-
-    private void configureBuilderContainerArgs(MappingChain<Container> builder, String targetImage) {
-
-        var context = StringUtils.isNotBlank(gitDockerfileImageSource.getBaseDirectory())
-                ? WORKSPACE_PATH + "/" + gitDockerfileImageSource.getBaseDirectory()
-                : WORKSPACE_PATH;
-
-        var args = new ArrayList<>(List.of(
-                "--destination=%s".formatted(targetImage),
-                "--context=%s".formatted(context),
-                "--no-push",
-                "--tar-path=/image-build/image-tarball.tar"
-        ));
-
-        builder.get(Mappers.CONTAINER_ARGS_FIELD)
-                .data()
-                .addAll(args);
-    }
-
-    private void configurePushContainer(MappingChain<PodSpec> podSpec, String targetImage) {
-        var builder = getPushContainerChain(podSpec);
-        configurePushContainerEnvVars(builder, targetImage);
-        configureRegistryAuth(podSpec, builder);
-    }
-
-    private MappingChain<Container> getPushContainerChain(MappingChain<PodSpec> podSpec) {
-        return podSpec.getList(Mappers.POD_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
-                .getOrDefault(appConfig.getPushContainerConfig().getName(), appConfig::clonePushContainerConfig);
-    }
-
-    private void configurePushContainerEnvVars(MappingChain<Container> pushContainerChain, String targetImage) {
-        pushContainerChain.get(Mappers.CONTAINER_ENV_FIELD)
-                .data()
-                .add(new EnvVarBuilder().withName("TARGET_IMAGE").withValue(targetImage).build());
-    }
-
-    private void configureRegistryAuth(MappingChain<PodSpec> podSpec, MappingChain<Container> builder) {
-        if (registryService.getAuthScheme() == DockerAuthScheme.BASIC) {
-            var secretName = K8sNamingUtils.generateName(REGISTRY, buildId);
-            var secretVolumeName = "secret-volume";
-            podSpec.getList(Mappers.POD_VOLUMES_FIELD, Mappers.VOLUME_NAME)
-                    .get(secretVolumeName)
-                    .data()
-                    .setSecret(new SecretVolumeSourceBuilder().withSecretName(secretName).build());
-            var secretVolumeMount = builder.getList(Mappers.CONTAINER_VOLUME_MOUNTS_FIELD, Mappers.VOLUME_MOUNT_PATH)
-                    .get(dockerConfigPath)
-                    .data();
-            secretVolumeMount.setName(secretVolumeName);
-            secretVolumeMount.setSubPath(ManifestGenerator.DOCKER_CONFIG_KEY);
-        }
-    }
-
     private void configureGitSecretVolume(MappingChain<PodSpec> podSpec, GitSecretConfig gitSecretConfig, String gitSecretName) {
         var gitSecretVolume = podSpec.getList(Mappers.POD_VOLUMES_FIELD, Mappers.VOLUME_NAME)
                 .get(gitSecretConfig.getVolumeName())
@@ -232,4 +145,18 @@ public class ImageBuildFromGitJobSpecification implements JobSpecification {
         }
     }
 
+    private void configureBuilderContainerArgs(MappingChain<Container> builderContainer) {
+        var dockerfile = StringUtils.isNotBlank(gitDockerfileImageSource.getBaseDirectory())
+                ? WORKSPACE_PATH + "/" + gitDockerfileImageSource.getBaseDirectory()
+                : WORKSPACE_PATH;
+        var args = new ArrayList<>(List.of(
+                "--local",
+                "context=%s".formatted(dockerfile),
+                "--local",
+                "dockerfile=%s".formatted(dockerfile)
+        ));
+        builderContainer.get(Mappers.CONTAINER_ARGS_FIELD)
+                .data()
+                .addAll(args);
+    }
 }

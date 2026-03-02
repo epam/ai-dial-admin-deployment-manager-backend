@@ -1,0 +1,32 @@
+{
+  "servers": [
+    {
+      "server": {
+        "name": "ai.com.mcp/petstore",
+        "description": "MCP server that exposes all tools, resources and prompts",
+        "title": "Petstore",
+        "version": "1.0.0",
+        "packages": [
+          {
+            "registryType": "npm",
+            "identifier": "@ai.com.mcp/petstore",
+            "version": "1.0.0",
+            "transport": { "type": "stdio" }
+          }
+        ]
+      },
+      "_meta": {
+        "io.modelcontextprotocol.registry/official": {
+          "status": "active",
+          "publishedAt": "2023-12-01T10:30:00Z",
+          "updatedAt": "2023-12-01T11:00:00Z",
+          "isLatest": true
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "nextCursor": "ai.com.mcp%2Fpetstore:1.0.0",
+    "count": 1
+  }
+}
