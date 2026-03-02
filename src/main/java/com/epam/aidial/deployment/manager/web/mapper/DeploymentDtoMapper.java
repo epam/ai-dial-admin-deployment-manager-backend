@@ -109,16 +109,25 @@ public abstract class DeploymentDtoMapper {
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageDefinitionType", ignore = true)
+    @Mapping(target = "imageDefinitionName", ignore = true)
+    @Mapping(target = "imageDefinitionVersion", ignore = true)
     @Mapping(target = "imageReference", ignore = true)
     public abstract CreateMcpDeployment toCreateDeployment(CreateMcpDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageDefinitionType", ignore = true)
+    @Mapping(target = "imageDefinitionName", ignore = true)
+    @Mapping(target = "imageDefinitionVersion", ignore = true)
     @Mapping(target = "imageReference", ignore = true)
     public abstract CreateAdapterDeployment toCreateDeployment(CreateAdapterDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageDefinitionType", ignore = true)
+    @Mapping(target = "imageDefinitionName", ignore = true)
+    @Mapping(target = "imageDefinitionVersion", ignore = true)
     @Mapping(target = "imageReference", ignore = true)
     public abstract CreateInterceptorDeployment toCreateDeployment(CreateInterceptorDeploymentRequestDto dto);
 
