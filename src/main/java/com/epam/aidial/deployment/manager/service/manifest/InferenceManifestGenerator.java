@@ -169,24 +169,26 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Inference deployment '{}'",
                 scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
 
-        if (scaling.getStrategy() != null) {
-            if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
-                predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
-                predictor.setScaleTarget(scaling.getStrategy().getThreshold());
-                log.trace("Applied strategy ACTIVE_REQUESTS: target={} for model '{}'",
-                        scaling.getStrategy().getThreshold(), name);
-            } else {
-                throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
-                        .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
-            }
-        }
-
         if (scaling.getScaleToZeroDelaySeconds() != null) {
             var delay = scaling.getScaleToZeroDelaySeconds();
             var delayStr = delay + "s";
             annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
             log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for model '{}'",
                     delayStr, name);
+        }
+
+        if (scaling.getStrategy() == null) {
+            return;
+        }
+
+        if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
+            predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
+            predictor.setScaleTarget(scaling.getStrategy().getThreshold());
+            log.trace("Applied strategy ACTIVE_REQUESTS: target={} for model '{}'",
+                    scaling.getStrategy().getThreshold(), name);
+        } else {
+            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
+                    .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
         }
     }
 
