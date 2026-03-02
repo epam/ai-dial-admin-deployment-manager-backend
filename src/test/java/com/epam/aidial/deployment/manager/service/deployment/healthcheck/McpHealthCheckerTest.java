@@ -124,8 +124,7 @@ class McpHealthCheckerTest {
         );
 
         assertThat(exception)
-                .hasMessageContaining("MCP service failed to become ready at URL: " + SERVICE_URL)
-                .hasCause(initializationException);
+                .hasMessageContaining("MCP service failed to become ready at URL: %s. Reason: %s".formatted(SERVICE_URL, "Connection failed"));
         verify(retryTemplateFactory).apply(TIMEOUT);
         verify(mcpEndpointPathResolver).resolveEndpointPath(mcpDeployment);
     }
