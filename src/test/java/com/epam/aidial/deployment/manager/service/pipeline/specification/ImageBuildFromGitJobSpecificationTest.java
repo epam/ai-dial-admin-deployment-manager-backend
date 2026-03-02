@@ -221,7 +221,7 @@ class ImageBuildFromGitJobSpecificationTest {
         List<String> args = buildContainer.getArgs();
         assertNotNull(args);
         assertTrue(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace/src/app")));
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace")));
+        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace/src/app")));
         assertFalse(args.stream().anyMatch(arg -> arg.equals("--no-push")));
     }
 
@@ -249,7 +249,7 @@ class ImageBuildFromGitJobSpecificationTest {
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
 
-        assertThat(args).contains("context=/workspace");
+        assertThat(args).contains("context=/workspace/src/app");
         assertThat(args).contains("dockerfile=/workspace/src/app");
     }
 
