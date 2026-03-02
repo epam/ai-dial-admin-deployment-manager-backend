@@ -1,6 +1,6 @@
 package com.epam.aidial.deployment.manager.utils;
 
-import com.epam.aidial.deployment.manager.web.security.JwtProvidersProperties;
+import com.epam.aidial.deployment.manager.web.security.IdentityProvidersProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -8,19 +8,19 @@ import org.springframework.context.annotation.Primary;
 import java.util.Set;
 
 @Configuration
-public class TestJwtProviderConfig {
+public class TestIdentityProviderConfig {
 
     @Primary
     @Bean
-    public JwtProvidersProperties jwtProvidersProperties() {
-        var config = JwtProviderTestHelper.createProviderConfig();
+    public IdentityProvidersProperties identityProvidersProperties() {
+        var config = IdentityProviderTestHelper.createJwtProviderConfig();
         config.setAllowedRoles(Set.of("testRole"));
 
-        var config2 = JwtProviderTestHelper.createProviderConfig();
+        var config2 = IdentityProviderTestHelper.createJwtProviderConfig();
         config2.setIssuer("https://sts.windows.net/issuer_test2/");
         config2.setJwkSetUri("https://test2/keys");
 
-        var properties = new JwtProvidersProperties();
+        IdentityProvidersProperties properties = new IdentityProvidersProperties();
         properties.getProviders().put("test", config);
         properties.getProviders().put("test2", config2);
 
