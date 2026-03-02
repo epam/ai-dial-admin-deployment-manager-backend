@@ -30,6 +30,7 @@ import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DuplicateDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.EnvVarDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenceDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
@@ -262,8 +263,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     void testCreateDeployment_withImageReference() throws Exception {
         var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
         var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
-        requestDto.setImageDefinitionId(null);
-        requestDto.setImageReference("ghcr.io/modelcontextprotocol/servers/fetch:latest");
+        var imageReference = "ghcr.io/modelcontextprotocol/servers/fetch:latest";
+        requestDto.setSource(new CreateImageReferenceDeploymentSourceRequestDto(imageReference));
 
         var requestJson = objectMapper.writeValueAsString(requestDto);
 
@@ -272,7 +273,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         model.setImageDefinitionId(null);
         model.setImageDefinitionName(null);
         model.setImageDefinitionVersion(null);
-        model.setImageReference(requestDto.getImageReference());
+        model.setImageReference(imageReference);
 
         when(deploymentService.createDeployment(any())).thenReturn(model);
 
@@ -280,7 +281,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestJson))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.imageReference").value(requestDto.getImageReference()))
+                .andExpect(jsonPath("$.source.$type").value("image_reference"))
+                .andExpect(jsonPath("$.source.imageReference").value(imageReference))
                 .andExpect(jsonPath("$.imageDefinitionId").doesNotExist());
 
         verify(deploymentService).createDeployment(any());
@@ -290,15 +292,14 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     void testCreateDeployment_withoutImageSource() throws Exception {
         var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
         var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
-        requestDto.setImageDefinitionId(null);
-        requestDto.setImageReference(null);
+        requestDto.setSource(null);
 
         mockMvc.perform(post("/api/v1/deployments")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestDto)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString(
-                        "Exactly one image source must be provided: imageDefinitionId or imageReference")));
+                        "Field [source]: must not be null")));
     }
 
     @Test

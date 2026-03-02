@@ -1,7 +1,10 @@
 {
   "$type": "mcp",
   "name": "deploy00-0000-4000-a000-000000000000",
-  "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
+  "source": {
+    "$type": "internal_image",
+    "imageDefinitionId": "decade00-0000-4000-a000-000000000010"
+  },
   "displayName": "example deployment 1",
   "description": "Description of example deployment 1",
   "metadata": {

@@ -36,15 +36,22 @@ import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.AdapterDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateAdapterDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageBasedDeploymentRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenceDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateInferenceDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateInterceptorDeploymentRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateInternalImageDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateNimDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentSourceDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.ImageBasedDeploymentDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.ImageReferenceDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentHuggingFaceSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InterceptorDeploymentDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.InternalImageDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentNgcRegistrySourceDto;
@@ -74,6 +81,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -99,6 +107,21 @@ public abstract class DeploymentDtoMapper {
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageReference", ignore = true)
+    public abstract CreateMcpDeployment toCreateDeployment(CreateMcpDeploymentRequestDto dto);
+
+    @Mapping(target = "id", source = "name")
+    @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageReference", ignore = true)
+    public abstract CreateAdapterDeployment toCreateDeployment(CreateAdapterDeploymentRequestDto dto);
+
+    @Mapping(target = "id", source = "name")
+    @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageReference", ignore = true)
+    public abstract CreateInterceptorDeployment toCreateDeployment(CreateInterceptorDeploymentRequestDto dto);
+
+    @Mapping(target = "id", source = "name")
+    @Mapping(target = "imageDefinitionId", ignore = true)
     public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
@@ -121,6 +144,24 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
     public abstract DeploymentDto toDeploymentDto(Deployment model);
 
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "source", ignore = true)
+    protected abstract McpDeploymentDto toMcpDeploymentDto(McpDeployment model);
+
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "source", ignore = true)
+    protected abstract AdapterDeploymentDto toAdapterDeploymentDto(AdapterDeployment model);
+
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "source", ignore = true)
+    protected abstract InterceptorDeploymentDto toInterceptorDeploymentDto(InterceptorDeployment model);
+
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSource.class, target = InferenceDeploymentHuggingFaceSourceDto.class)
     protected abstract InferenceDeploymentSourceDto toDto(InferenceDeploymentSource model);
 
@@ -139,6 +180,95 @@ public abstract class DeploymentDtoMapper {
     protected void setMcpTransport(@MappingTarget DeploymentInternalDto dto, Deployment model) {
         if (model instanceof McpDeployment mcpDeployment && dto instanceof McpDeploymentInternalDto mcpDto) {
             mcpDto.setTransport(toMcpTransportDtoWithDefault(mcpDeployment.getTransport()));
+        }
+    }
+
+    @AfterMapping
+    protected void setCreateMcpImageSource(@MappingTarget CreateMcpDeployment model, CreateMcpDeploymentRequestDto dto) {
+        setCreateImageSource(model, dto);
+    }
+
+    @AfterMapping
+    protected void setCreateAdapterImageSource(@MappingTarget CreateAdapterDeployment model, CreateAdapterDeploymentRequestDto dto) {
+        setCreateImageSource(model, dto);
+    }
+
+    @AfterMapping
+    protected void setCreateInterceptorImageSource(@MappingTarget CreateInterceptorDeployment model, CreateInterceptorDeploymentRequestDto dto) {
+        setCreateImageSource(model, dto);
+    }
+
+    @AfterMapping
+    protected void setMcpImageSource(@MappingTarget McpDeploymentDto dto, McpDeployment model) {
+        setImageSource(dto, model);
+    }
+
+    @AfterMapping
+    protected void setAdapterImageSource(@MappingTarget AdapterDeploymentDto dto, AdapterDeployment model) {
+        setImageSource(dto, model);
+    }
+
+    @AfterMapping
+    protected void setInterceptorImageSource(@MappingTarget InterceptorDeploymentDto dto, InterceptorDeployment model) {
+        setImageSource(dto, model);
+    }
+
+    private static void setImageSource(ImageBasedDeploymentDto dto, Deployment model) {
+        dto.setSource(toDeploymentSourceDto(model));
+    }
+
+    private static DeploymentSourceDto toDeploymentSourceDto(Deployment model) {
+        var imageReference = getImageReference(model);
+        if (StringUtils.isNotBlank(imageReference)) {
+            return new ImageReferenceDeploymentSourceDto(imageReference);
+        }
+
+        return new InternalImageDeploymentSourceDto(
+                model.getImageDefinitionId(),
+                model.getImageDefinitionName(),
+                model.getImageDefinitionVersion()
+        );
+    }
+
+    private static void setCreateImageSource(CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
+        switch (dto.getSource()) {
+            case CreateInternalImageDeploymentSourceRequestDto(UUID imageDefinitionId) ->
+                    setInternalImageSource(model, imageDefinitionId);
+            case CreateImageReferenceDeploymentSourceRequestDto(String imageReference) ->
+                    setImageReferenceSource(model, imageReference);
+            case null -> throw new IllegalArgumentException("Deployment source must not be null");
+            default -> throw new IllegalArgumentException(
+                    "Unsupported deployment source type: " + dto.getSource().getClass().getName());
+        }
+    }
+
+    private static void setInternalImageSource(CreateDeployment model, UUID imageDefinitionId) {
+        model.setImageDefinitionId(imageDefinitionId);
+        setImageReference(model, null);
+    }
+
+    private static void setImageReferenceSource(CreateDeployment model, String imageReference) {
+        model.setImageDefinitionId(null);
+        setImageReference(model, imageReference);
+    }
+
+    private static String getImageReference(Deployment model) {
+        return switch (model) {
+            case McpDeployment mcpDeployment -> mcpDeployment.getImageReference();
+            case AdapterDeployment adapterDeployment -> adapterDeployment.getImageReference();
+            case InterceptorDeployment interceptorDeployment -> interceptorDeployment.getImageReference();
+            default -> null;
+        };
+    }
+
+    private static void setImageReference(CreateDeployment model, String imageReference) {
+        switch (model) {
+            case CreateMcpDeployment mcpDeployment -> mcpDeployment.setImageReference(imageReference);
+            case CreateAdapterDeployment adapterDeployment -> adapterDeployment.setImageReference(imageReference);
+            case CreateInterceptorDeployment interceptorDeployment ->
+                    interceptorDeployment.setImageReference(imageReference);
+            default -> {
+            }
         }
     }
 
