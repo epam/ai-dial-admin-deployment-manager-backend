@@ -418,7 +418,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: ai-dial-deployment-manager-cilium-role
+  name: deployment-manager-cilium-role
   namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 subjects:
   - kind: ServiceAccount
