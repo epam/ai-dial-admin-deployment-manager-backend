@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ValidationException;
+import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
@@ -17,6 +18,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -115,6 +117,7 @@ class InferenceDeploymentManagerTest {
         kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         kserveDeployProperties.setUseClusterInternalUrl(false);
 
+        var huggingFaceProperties = new HuggingFaceProperties();
         inferenceDeploymentManager = new InferenceDeploymentManager(
                 k8sClient,
                 disposableResourceManager,
@@ -124,7 +127,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 deploymentRepository,
                 k8sKserveClient,
-                kserveDeployProperties
+                kserveDeployProperties,
+                huggingFaceProperties
         );
 
         TransactionSynchronizationManager.initSynchronization();
@@ -423,6 +427,64 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
+    void deploy_shouldMergeDefaultAllowedDomainsWithDeploymentDomainsForHuggingFaceSource() {
+        // Given: HuggingFace source with deployment-specific domains and config default domains
+        var huggingFaceProperties = new HuggingFaceProperties();
+        huggingFaceProperties.setDefaultAllowedDomains("huggingface.co,cdn.huggingface.co");
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
+        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setAllowedDomains(List.of("custom.com"));
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("custom.com")
+                                && domains.contains("huggingface.co")
+                                && domains.contains("cdn.huggingface.co")
+                                && domains.size() == 3),
+                any()
+        );
+    }
+
+    private InferenceDeploymentManager getInferenceDeploymentManager(HuggingFaceProperties huggingFaceProperties) {
+        var kserveDeployProperties = new KserveDeployProperties();
+        kserveDeployProperties.setNamespace(NAMESPACE);
+        kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        kserveDeployProperties.setUseClusterInternalUrl(false);
+        return new InferenceDeploymentManager(
+                k8sClient,
+                disposableResourceManager,
+                manifestGenerator,
+                inferenceManifestGenerator,
+                containerPortResolver,
+                ciliumNetworkPolicyCreator,
+                deploymentRepository,
+                k8sKserveClient,
+                kserveDeployProperties, huggingFaceProperties
+        );
+    }
+
+    @Test
     void deploy_shouldReturnExistingDeploymentIfAlreadyActive() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
@@ -687,6 +749,7 @@ class InferenceDeploymentManagerTest {
         kserveDeployProperties.setNamespace(NAMESPACE);
         kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         kserveDeployProperties.setUseClusterInternalUrl(true); // use internal url
+        var huggingFaceProperties = new HuggingFaceProperties();
         inferenceDeploymentManager = new InferenceDeploymentManager(
                 k8sClient,
                 disposableResourceManager,
@@ -696,7 +759,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 deploymentRepository,
                 k8sKserveClient,
-                kserveDeployProperties
+                kserveDeployProperties,
+                huggingFaceProperties
         );
 
         var reconcileConfig = getReconcileConfig(service);
