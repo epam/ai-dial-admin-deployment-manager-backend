@@ -66,9 +66,10 @@ Set the following shell variables before running the commands in this section. S
 # kubectl context name that points to the untrusted cluster (from your local kubeconfig)
 UNTRUSTED_CTX=<your-untrusted-context-name>
 
-# Namespace on the untrusted cluster used for build jobs and the service account
+# Namespace on the untrusted cluster used for build jobs and the service account 
 UNTRUSTED_NS=<K8S_BUILD_NAMESPACE>
 ```
+> **Note:** It is not obligatory to use build namespace as a Service account namespace, but as build images stage shared between all kind of model deployments it is better to use it.
 
 ### 2.1 Create a Service Account on the Untrusted Cluster
 
