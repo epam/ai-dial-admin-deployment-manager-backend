@@ -16,6 +16,7 @@ import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
@@ -154,14 +155,19 @@ public class ConfigExporter {
     }
 
     private void addReferencedImageDefinition(ExportConfig config, Deployment deployment) {
-        if (deployment.getImageDefinitionType() == null || deployment.getImageDefinitionName() == null || deployment.getImageDefinitionVersion() == null) {
+        if (!(deployment.getSource() instanceof InternalImageSource internalSource)) {
+            return;
+        }
+        if (internalSource.imageDefinitionType() == null
+                || internalSource.imageDefinitionName() == null
+                || internalSource.imageDefinitionVersion() == null) {
             return;
         }
         var imageDefinition = imageDefinitionService
                 .getImageDefinitionByTypeAndNameAndVersion(
-                        deployment.getImageDefinitionType(),
-                        deployment.getImageDefinitionName(),
-                        deployment.getImageDefinitionVersion());
+                        internalSource.imageDefinitionType(),
+                        internalSource.imageDefinitionName(),
+                        internalSource.imageDefinitionVersion());
         addImageDefinition(config, imageDefinition);
     }
 

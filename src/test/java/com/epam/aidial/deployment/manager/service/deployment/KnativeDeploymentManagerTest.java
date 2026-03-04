@@ -18,7 +18,9 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
@@ -375,8 +377,7 @@ class KnativeDeploymentManagerTest {
         // Given
         var deployment = new McpDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(null);
-        deployment.setImageReference(MCP_IMAGE_REFERENCE);
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
         deployment.setStatus(DeploymentStatus.STOPPED);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -419,8 +420,7 @@ class KnativeDeploymentManagerTest {
         // Given
         var deployment = new AdapterDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(null);
-        deployment.setImageReference(MCP_IMAGE_REFERENCE);
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
         deployment.setStatus(DeploymentStatus.STOPPED);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -463,8 +463,7 @@ class KnativeDeploymentManagerTest {
         // Given
         var deployment = new InterceptorDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(null);
-        deployment.setImageReference(MCP_IMAGE_REFERENCE);
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
         deployment.setStatus(DeploymentStatus.STOPPED);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -676,7 +675,7 @@ class KnativeDeploymentManagerTest {
     private Deployment createDeployment(DeploymentStatus status) {
         var deployment = new McpDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(IMAGE_DEFINITION_ID);
+        deployment.setSource(new InternalImageSource(IMAGE_DEFINITION_ID, null, null, null));
         deployment.setStatus(status);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));

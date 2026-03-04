@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.dao.repository;
 
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceEnvVar;
+import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceResources;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSimpleEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSimpleEnvVarValue;
@@ -10,17 +11,20 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInternalImageSource;
 import com.epam.aidial.deployment.manager.dao.jpa.DeploymentJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,7 +121,8 @@ class DeploymentRepositoryTest {
         var deploymentEntity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
         var deployment = createDeployment(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
 
-        when(deploymentJpaRepository.findAllByImageDefinitionId(IMAGE_DEFINITION_ID)).thenReturn(List.of(deploymentEntity));
+        when(deploymentJpaRepository.findAllByImageDefinitionId(IMAGE_DEFINITION_ID))
+                .thenReturn(List.of(deploymentEntity));
 
         // When
         var result = deploymentRepository.getAllByImageDefinitionId(IMAGE_DEFINITION_ID);
@@ -238,6 +243,8 @@ class DeploymentRepositoryTest {
 
         var capturedEntity = deploymentEntityCaptor.getValue();
         assertThat(capturedEntity.getImageDefinitionId()).isEqualTo(IMAGE_DEFINITION_ID);
+        assertThat(capturedEntity.getSource()).isInstanceOf(PersistenceInternalImageSource.class);
+        assertThat(((PersistenceInternalImageSource) capturedEntity.getSource()).imageDefinitionId()).isEqualTo(IMAGE_DEFINITION_ID);
         assertThat(capturedEntity.getDisplayName()).isEqualTo(expectedSavedDeployment.getDisplayName());
     }
 
@@ -269,7 +276,8 @@ class DeploymentRepositoryTest {
 
         assertThat(capturedEntity.getDisplayName()).isEqualTo(deployment.getDisplayName());
         assertThat(capturedEntity.getDescription()).isEqualTo(deployment.getDescription());
-        assertThat(capturedEntity.getImageDefinitionId()).isEqualTo(IMAGE_DEFINITION_ID);
+        assertThat(capturedEntity.getSource()).isInstanceOf(PersistenceInternalImageSource.class);
+        assertThat(((PersistenceInternalImageSource) capturedEntity.getSource()).imageDefinitionId()).isEqualTo(IMAGE_DEFINITION_ID);
         assertThat(capturedEntity.getEnvs()).hasSameElementsAs(mapper.toEntity(deployment).getEnvs());
 
         verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
@@ -371,14 +379,22 @@ class DeploymentRepositoryTest {
                 .name(imageDefinitionName)
                 .version(imageDefinitionVersion)
                 .build();
-        var deploymentIds = List.of(String.valueOf(UUID.randomUUID()), String.valueOf(UUID.randomUUID()));
+        var deploymentId1 = String.valueOf(UUID.randomUUID());
+        var deploymentId2 = String.valueOf(UUID.randomUUID());
+        var deploymentIds = List.of(deploymentId1, deploymentId2);
+
+        var expectedSource = new PersistenceInternalImageSource(
+                imageDefinitionId, PersistenceImageType.INTERCEPTOR,
+                imageDefinitionName, imageDefinitionVersion);
 
         // When
-        deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deploymentIds);
+        deploymentRepository.updateImageDefinitionForDeployments(
+                imageDefinition, ImageType.INTERCEPTOR, deploymentIds);
 
         // Then
-        verify(deploymentJpaRepository).updateImageDefinitionIdForDeployments(imageDefinitionId, imageDefinitionName,
-                imageDefinitionVersion, deploymentIds);
+        verify(deploymentJpaRepository).updateImageDefinitionAndSourceForDeployments(
+                imageDefinitionId, expectedSource, deploymentIds);
+        verifyNoMoreInteractions(deploymentJpaRepository);
     }
 
     private DeploymentEntity createDeploymentEntity(String deploymentId, UUID imageDefinitionId) {
@@ -395,6 +411,7 @@ class DeploymentRepositoryTest {
         var deploymentEntity = new InterceptorDeploymentEntity();
         deploymentEntity.setId(String.valueOf(deploymentId));
         deploymentEntity.setImageDefinitionId(imageDefinitionId);
+        deploymentEntity.setSource(new PersistenceInternalImageSource(imageDefinitionId, PersistenceImageType.INTERCEPTOR, null, null));
         deploymentEntity.setDisplayName("test-deployment");
         deploymentEntity.setDescription("Test Description");
         deploymentEntity.setEnvs(persistenceEnvs);
@@ -424,7 +441,7 @@ class DeploymentRepositoryTest {
 
         return InterceptorDeployment.builder()
                 .id(deploymentId)
-                .imageDefinitionId(imageDefinitionId)
+                .source(new InternalImageSource(imageDefinitionId, ImageType.INTERCEPTOR, null, null))
                 .displayName("test-deployment")
                 .description("Test Description")
                 .envs(envs)

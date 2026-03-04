@@ -72,9 +72,12 @@
     "mcp-dep-exp": {
       "$type": "mcp",
       "id": "mcp-dep-exp",
-      "imageDefinitionType": "mcp",
-      "imageDefinitionName": "mcp-exp",
-      "imageDefinitionVersion": "1.0.0",
+      "source": {
+        "$type": "internal_image",
+        "imageDefinitionType": "mcp",
+        "imageDefinitionName": "mcp-exp",
+        "imageDefinitionVersion": "1.0.0"
+      },
       "displayName": "MCP deployment export test",
       "description": "MCP deployment for import test",
       "metadata": {
@@ -115,9 +118,12 @@
     "adapter-dep-exp": {
       "$type": "adapter",
       "id": "adapter-dep-exp",
-      "imageDefinitionType": "adapter",
-      "imageDefinitionName": "adapter-exp",
-      "imageDefinitionVersion": "1.0.0",
+      "source": {
+        "$type": "internal_image",
+        "imageDefinitionType": "adapter",
+        "imageDefinitionName": "adapter-exp",
+        "imageDefinitionVersion": "1.0.0"
+      },
       "displayName": "Adapter deployment export test",
       "description": "Adapter deployment for import test",
       "metadata": {
@@ -142,9 +148,12 @@
     "interceptor-dep-exp": {
       "$type": "interceptor",
       "id": "interceptor-dep-exp",
-      "imageDefinitionType": "interceptor",
-      "imageDefinitionName": "interceptor-exp",
-      "imageDefinitionVersion": "1.0.0",
+      "source": {
+        "$type": "internal_image",
+        "imageDefinitionType": "interceptor",
+        "imageDefinitionName": "interceptor-exp",
+        "imageDefinitionVersion": "1.0.0"
+      },
       "displayName": "Interceptor deployment export test",
       "description": "Interceptor deployment for import test",
       "metadata": {

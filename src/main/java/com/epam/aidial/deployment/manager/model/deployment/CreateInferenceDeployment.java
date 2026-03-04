@@ -21,7 +21,6 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class CreateInferenceDeployment extends CreateDeployment {
     private String modelFormat;
-    private InferenceDeploymentSource source;
     @Nullable
     private List<String> command;
     @Nullable

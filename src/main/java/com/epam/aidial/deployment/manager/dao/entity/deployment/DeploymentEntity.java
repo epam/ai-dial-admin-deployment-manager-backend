@@ -3,7 +3,6 @@ package com.epam.aidial.deployment.manager.dao.entity.deployment;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentMetadata;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceEnvVar;
-import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceResources;
 import com.epam.aidial.deployment.manager.dao.entity.probe.PersistenceProbeProperties;
 import jakarta.persistence.Column;
@@ -42,15 +41,8 @@ public class DeploymentEntity {
     @Column(name = "image_definition_id")
     private UUID imageDefinitionId;
 
-    @Column(name = "image_definition_type")
-    @Enumerated(EnumType.STRING)
-    private PersistenceImageType imageDefinitionType;
-
-    @Column(name = "image_definition_name")
-    private String imageDefinitionName;
-
-    @Column(name = "image_definition_version")
-    private String imageDefinitionVersion;
+    @JdbcTypeCode(SqlTypes.JSON)
+    private PersistenceSource source;
 
     private String displayName;
 

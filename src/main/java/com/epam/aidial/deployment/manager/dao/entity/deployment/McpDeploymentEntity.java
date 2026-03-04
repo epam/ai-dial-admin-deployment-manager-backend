@@ -25,9 +25,6 @@ public class McpDeploymentEntity extends DeploymentEntity {
     @Enumerated(value = EnumType.STRING)
     private PersistenceMcpTransport transport;
 
-    @Column(name = "image_reference")
-    private String imageReference;
-
     @Column(name = "mcp_endpoint_path")
     private String mcpEndpointPath;
 }

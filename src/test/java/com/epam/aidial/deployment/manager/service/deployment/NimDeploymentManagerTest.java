@@ -15,8 +15,9 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -430,7 +431,7 @@ class NimDeploymentManagerTest {
     void deploy_shouldThrowExceptionWhenSourceIsNull() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
-        ((NimDeployment) deployment).setSource(null);
+        deployment.setSource(null);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
 
@@ -681,7 +682,7 @@ class NimDeploymentManagerTest {
     private Deployment createDeployment(DeploymentStatus status) {
         var deployment = new NimDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(IMAGE_DEFINITION_ID);
+        deployment.setSource(new InternalImageSource(IMAGE_DEFINITION_ID, null, null, null));
         deployment.setStatus(status);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -690,7 +691,7 @@ class NimDeploymentManagerTest {
         ));
         deployment.setContainerGrpcPort(50052);
         deployment.setAllowedDomains(List.of("test-domain-1", "test-domain-2"));
-        deployment.setSource(new NimDeploymentNgcRegistrySource(IMAGE_NAME));
+        deployment.setSource(new NgcRegistrySource(IMAGE_NAME));
         return deployment;
     }
 

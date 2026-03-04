@@ -16,12 +16,13 @@ import com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
@@ -189,11 +190,11 @@ class ConfigExporterTest {
                 .build();
         NimDeployment nimDeployment = NimDeployment.builder()
                 .id(nimDepId)
-                .source(new NimDeploymentNgcRegistrySource("ngc://img"))
+                .source(new NgcRegistrySource("ngc://img"))
                 .build();
         InferenceDeployment inferenceDeployment = InferenceDeployment.builder()
                 .id(inferenceDepId)
-                .source(new InferenceDeploymentHuggingFaceSource("model-1"))
+                .source(new HuggingFaceSource("model-1"))
                 .build();
 
         SelectedItemsExportRequest request = new SelectedItemsExportRequest();
@@ -285,9 +286,7 @@ class ConfigExporterTest {
         McpDeployment deployment = McpDeployment.builder()
                 .id(DEPLOYMENT_ID)
                 .transport(McpTransport.SSE)
-                .imageDefinitionType(ImageType.MCP)
-                .imageDefinitionName(MCP_NAME)
-                .imageDefinitionVersion(IMAGE_VERSION)
+                .source(new InternalImageSource(MCP_IMAGE_ID, ImageType.MCP, MCP_NAME, IMAGE_VERSION))
                 .build();
 
         SelectedItemsExportRequest request = new SelectedItemsExportRequest();

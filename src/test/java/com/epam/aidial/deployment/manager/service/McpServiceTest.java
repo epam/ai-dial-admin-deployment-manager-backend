@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.McpTransport;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.utils.TestException;
@@ -208,7 +209,7 @@ class McpServiceTest {
     private McpDeployment createDeployment() {
         var deployment = new McpDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(IMAGE_DEFINITION_ID);
+        deployment.setSource(new InternalImageSource(IMAGE_DEFINITION_ID, null, null, null));
         deployment.setStatus(DeploymentStatus.RUNNING);
         deployment.setUrl(DEPLOYMENT_URL);
         deployment.setTransport(McpTransport.SSE);

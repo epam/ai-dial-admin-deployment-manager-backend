@@ -16,14 +16,15 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDepl
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
+import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
@@ -70,7 +71,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -108,48 +108,24 @@ public abstract class DeploymentDtoMapper {
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
-    @Mapping(target = "imageDefinitionId", ignore = true)
-    @Mapping(target = "imageDefinitionType", ignore = true)
-    @Mapping(target = "imageDefinitionName", ignore = true)
-    @Mapping(target = "imageDefinitionVersion", ignore = true)
-    @Mapping(target = "imageReference", ignore = true)
+    @Mapping(target = "source", ignore = true)
     public abstract CreateMcpDeployment toCreateDeployment(CreateMcpDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
-    @Mapping(target = "imageDefinitionId", ignore = true)
-    @Mapping(target = "imageDefinitionType", ignore = true)
-    @Mapping(target = "imageDefinitionName", ignore = true)
-    @Mapping(target = "imageDefinitionVersion", ignore = true)
-    @Mapping(target = "imageReference", ignore = true)
+    @Mapping(target = "source", ignore = true)
     public abstract CreateAdapterDeployment toCreateDeployment(CreateAdapterDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
-    @Mapping(target = "imageDefinitionId", ignore = true)
-    @Mapping(target = "imageDefinitionType", ignore = true)
-    @Mapping(target = "imageDefinitionName", ignore = true)
-    @Mapping(target = "imageDefinitionVersion", ignore = true)
-    @Mapping(target = "imageReference", ignore = true)
+    @Mapping(target = "source", ignore = true)
     public abstract CreateInterceptorDeployment toCreateDeployment(CreateInterceptorDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
-    @Mapping(target = "imageDefinitionId", ignore = true)
-    @Mapping(target = "imageDefinitionType", ignore = true)
-    @Mapping(target = "imageDefinitionName", ignore = true)
-    @Mapping(target = "imageDefinitionVersion", ignore = true)
+    @Mapping(target = "source", ignore = true)
     public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
-    @Mapping(target = "imageDefinitionId", ignore = true)
-    @Mapping(target = "imageDefinitionType", ignore = true)
-    @Mapping(target = "imageDefinitionName", ignore = true)
-    @Mapping(target = "imageDefinitionVersion", ignore = true)
+    @Mapping(target = "source", ignore = true)
     public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
-
-    @SubclassMapping(source = InferenceDeploymentHuggingFaceSourceDto.class, target = InferenceDeploymentHuggingFaceSource.class)
-    protected abstract InferenceDeploymentSource toModel(InferenceDeploymentSourceDto dto);
-
-    @SubclassMapping(source = NimDeploymentNgcRegistrySourceDto.class, target = NimDeploymentNgcRegistrySource.class)
-    protected abstract NimDeploymentSource toModel(NimDeploymentSourceDto dto);
 
     @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
@@ -179,11 +155,17 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "source", ignore = true)
     protected abstract InterceptorDeploymentDto toInterceptorDeploymentDto(InterceptorDeployment model);
 
-    @SubclassMapping(source = InferenceDeploymentHuggingFaceSource.class, target = InferenceDeploymentHuggingFaceSourceDto.class)
-    protected abstract InferenceDeploymentSourceDto toDto(InferenceDeploymentSource model);
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "source", ignore = true)
+    protected abstract NimDeploymentDto toNimDeploymentDto(NimDeployment model);
 
-    @SubclassMapping(source = NimDeploymentNgcRegistrySource.class, target = NimDeploymentNgcRegistrySourceDto.class)
-    protected abstract NimDeploymentSourceDto toDto(NimDeploymentSource model);
+    @Mapping(target = "name", source = "id")
+    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
+    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "source", ignore = true)
+    protected abstract InferenceDeploymentDto toInferenceDeploymentDto(InferenceDeployment model);
 
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentInternalDto.class)
@@ -216,6 +198,28 @@ public abstract class DeploymentDtoMapper {
     }
 
     @AfterMapping
+    protected void setCreateNimSource(@MappingTarget CreateNimDeployment model, CreateNimDeploymentRequestDto dto) {
+        switch (dto.getSource()) {
+            case NimDeploymentNgcRegistrySourceDto(String imageRef) ->
+                    model.setSource(new NgcRegistrySource(imageRef));
+            case null -> throw new IllegalArgumentException("NIM deployment source must not be null");
+            default -> throw new IllegalArgumentException(
+                    "Unsupported NIM deployment source type: " + dto.getSource().getClass().getName());
+        }
+    }
+
+    @AfterMapping
+    protected void setCreateInferenceSource(@MappingTarget CreateInferenceDeployment model, CreateInferenceDeploymentRequestDto dto) {
+        switch (dto.getSource()) {
+            case InferenceDeploymentHuggingFaceSourceDto(String modelName) ->
+                    model.setSource(new HuggingFaceSource(modelName));
+            case null -> throw new IllegalArgumentException("Inference deployment source must not be null");
+            default -> throw new IllegalArgumentException(
+                    "Unsupported Inference deployment source type: " + dto.getSource().getClass().getName());
+        }
+    }
+
+    @AfterMapping
     protected void setMcpImageSource(@MappingTarget McpDeploymentDto dto, McpDeployment model) {
         setImageSource(dto, model);
     }
@@ -230,63 +234,45 @@ public abstract class DeploymentDtoMapper {
         setImageSource(dto, model);
     }
 
+    @AfterMapping
+    protected void setNimDtoSource(@MappingTarget NimDeploymentDto dto, NimDeployment model) {
+        if (model.getSource() instanceof NgcRegistrySource ngcSource) {
+            dto.setSource(new NimDeploymentNgcRegistrySourceDto(ngcSource.imageRef()));
+        }
+    }
+
+    @AfterMapping
+    protected void setInferenceDtoSource(@MappingTarget InferenceDeploymentDto dto, InferenceDeployment model) {
+        if (model.getSource() instanceof HuggingFaceSource hfSource) {
+            dto.setSource(new InferenceDeploymentHuggingFaceSourceDto(hfSource.modelName()));
+        }
+    }
+
     private void setImageSource(ImageBasedDeploymentDto dto, Deployment model) {
         dto.setSource(toDeploymentSourceDto(model));
     }
 
     @Named("toDeploymentSourceDto")
     protected DeploymentSourceDto toDeploymentSourceDto(Deployment model) {
-        var imageReference = getImageReference(model);
-        if (StringUtils.isNotBlank(imageReference)) {
-            return new ImageReferenceDeploymentSourceDto(imageReference);
-        }
-
-        return new InternalImageDeploymentSourceDto(
-                model.getImageDefinitionId(),
-                model.getImageDefinitionName(),
-                model.getImageDefinitionVersion()
-        );
+        return switch (model.getSource()) {
+            case ImageReferenceSource(String imageReference) ->
+                    new ImageReferenceDeploymentSourceDto(imageReference);
+            case InternalImageSource(UUID imageDefinitionId, var type, String imageDefinitionName, String imageDefinitionVersion) ->
+                    new InternalImageDeploymentSourceDto(imageDefinitionId, imageDefinitionName, imageDefinitionVersion);
+            case null -> null;
+            default -> null;
+        };
     }
 
     private static void setCreateImageSource(CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
         switch (dto.getSource()) {
             case CreateInternalImageDeploymentSourceRequestDto(UUID imageDefinitionId) ->
-                    setInternalImageSource(model, imageDefinitionId);
+                    model.setSource(new InternalImageSource(imageDefinitionId, null, null, null));
             case CreateImageReferenceDeploymentSourceRequestDto(String imageReference) ->
-                    setImageReferenceSource(model, imageReference);
+                    model.setSource(new ImageReferenceSource(imageReference));
             case null -> throw new IllegalArgumentException("Deployment source must not be null");
             default -> throw new IllegalArgumentException(
                     "Unsupported deployment source type: " + dto.getSource().getClass().getName());
-        }
-    }
-
-    private static void setInternalImageSource(CreateDeployment model, UUID imageDefinitionId) {
-        model.setImageDefinitionId(imageDefinitionId);
-        setImageReference(model, null);
-    }
-
-    private static void setImageReferenceSource(CreateDeployment model, String imageReference) {
-        model.setImageDefinitionId(null);
-        setImageReference(model, imageReference);
-    }
-
-    private static String getImageReference(Deployment model) {
-        return switch (model) {
-            case McpDeployment mcpDeployment -> mcpDeployment.getImageReference();
-            case AdapterDeployment adapterDeployment -> adapterDeployment.getImageReference();
-            case InterceptorDeployment interceptorDeployment -> interceptorDeployment.getImageReference();
-            default -> null;
-        };
-    }
-
-    private static void setImageReference(CreateDeployment model, String imageReference) {
-        switch (model) {
-            case CreateMcpDeployment mcpDeployment -> mcpDeployment.setImageReference(imageReference);
-            case CreateAdapterDeployment adapterDeployment -> adapterDeployment.setImageReference(imageReference);
-            case CreateInterceptorDeployment interceptorDeployment ->
-                    interceptorDeployment.setImageReference(imageReference);
-            default -> {
-            }
         }
     }
 
@@ -399,7 +385,7 @@ public abstract class DeploymentDtoMapper {
     }
 
     protected List<String> stringToList(String str) {
-        if (StringUtils.isBlank(str)) {
+        if (org.apache.commons.lang3.StringUtils.isBlank(str)) {
             return null;
         }
 

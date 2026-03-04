@@ -14,8 +14,10 @@ import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategy;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
@@ -125,7 +127,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
         var deployId = model.getId();
-        var imageDefinitionId = model.getImageDefinitionId();
+        var imageDefinitionId = ((InternalImageSource) model.getSource()).imageDefinitionId();
 
         var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
@@ -270,10 +272,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
-        model.setImageDefinitionId(null);
-        model.setImageDefinitionName(null);
-        model.setImageDefinitionVersion(null);
-        model.setImageReference(imageReference);
+        model.setSource(new ImageReferenceSource(imageReference));
 
         when(deploymentService.createDeployment(any())).thenReturn(model);
 
@@ -316,7 +315,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
 
-        when(imageDefinitionService.getImageDefinition(model.getImageDefinitionId())).thenReturn(Optional.of(imageModel));
+        when(imageDefinitionService.getImageDefinition(((InternalImageSource) model.getSource()).imageDefinitionId())).thenReturn(Optional.of(imageModel));
         when(deploymentService.duplicateDeployment(requestDto.sourceDeploymentName(), requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName())).thenReturn(model);
 
@@ -712,7 +711,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         deployment.setId(id);
         deployment.setDisplayName("Test Inference Deployment");
         deployment.setModelFormat("huggingface");
-        deployment.setSource(new InferenceDeploymentHuggingFaceSource("test-user/test-model"));
+        deployment.setSource(new HuggingFaceSource("test-user/test-model"));
         deployment.setMetadata(new DeploymentMetadata(new ArrayList<>()));
         deployment.setStatus(DeploymentStatus.NOT_DEPLOYED);
         deployment.setUrl("http://test-url");

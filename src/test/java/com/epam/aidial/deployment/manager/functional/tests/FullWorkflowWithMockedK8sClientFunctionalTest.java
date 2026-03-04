@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
@@ -176,7 +177,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         var sensEnv = new EnvVarDefinition("SENS_VAR_1", new SimpleEnvVarValue("some-sensitive-value"),
                 EnvVarMountType.SECURE_CONTENT, "Some sensitive value");
         var deployment = FunctionalTestHelper.createRealInterceptorDeploymentRequest(deploymentName, List.of(dialUrlEnv, sensEnv));
-        deployment.setImageDefinitionId(imageId);
+        deployment.setSource(new InternalImageSource(imageId, null, null, null));
 
         // When - Create deployment
         var createdDeployment = deploymentService.createDeployment(deployment);

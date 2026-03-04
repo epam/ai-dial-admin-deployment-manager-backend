@@ -14,7 +14,9 @@ import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
@@ -125,24 +127,17 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     private String resolveImageName(Deployment deployment) {
-        String imageReference = switch (deployment) {
-            case McpDeployment mcpDeployment -> mcpDeployment.getImageReference();
-            case AdapterDeployment adapterDeployment -> adapterDeployment.getImageReference();
-            case InterceptorDeployment interceptorDeployment -> interceptorDeployment.getImageReference();
-            default -> null;
+        return switch (deployment.getSource()) {
+            case ImageReferenceSource(String imageReference) -> imageReference;
+            case InternalImageSource(var imageDefinitionId, var type, var name, var version) ->
+                    imageDefinitionService.getImageDefinition(imageDefinitionId)
+                            .orElseThrow(notFound("ImageDefinition", imageDefinitionId))
+                            .getImageName();
+            case null -> throw new IllegalArgumentException(
+                    "Deployment '%s' does not define an image source".formatted(deployment.getId()));
+            default -> throw new IllegalArgumentException(
+                    "Unsupported source type for Knative deployment: " + deployment.getSource().getClass().getName());
         };
-        if (StringUtils.isNotBlank(imageReference)) {
-            return imageReference;
-        }
-
-        var imageDefinitionId = deployment.getImageDefinitionId();
-        if (imageDefinitionId == null) {
-            throw new IllegalArgumentException("Deployment '%s' does not define an image source".formatted(deployment.getId()));
-        }
-
-        return imageDefinitionService.getImageDefinition(imageDefinitionId)
-                .orElseThrow(notFound("ImageDefinition", imageDefinitionId))
-                .getImageName();
     }
 
     @Override

@@ -29,9 +29,6 @@ public class InferenceDeploymentEntity extends DeploymentEntity {
     private String modelFormat;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    private PersistenceInferenceDeploymentSource source;
-
-    @JdbcTypeCode(SqlTypes.JSON)
     private List<String> command;
 
     @JdbcTypeCode(SqlTypes.JSON)

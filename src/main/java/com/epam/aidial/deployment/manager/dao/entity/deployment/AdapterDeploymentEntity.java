@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.dao.entity.deployment;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Table;
@@ -18,6 +17,4 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class AdapterDeploymentEntity extends DeploymentEntity {
-    @Column(name = "image_reference")
-    private String imageReference;
 }
