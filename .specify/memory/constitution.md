@@ -1,7 +1,8 @@
 <!-- Sync Impact Report
-Version change: 0.0.0 (template) → 1.0.0 (initial)
-Added sections: Tech Stack, Architecture Principles, Naming Conventions, Code Style, API Conventions, Testing Conventions, Key Patterns, Anti-Patterns, Governance
-Removed sections: none (fresh init)
+Version change: 1.0.0 → 1.1.0 (MINOR: new sections + Key Patterns expansion)
+Added sections: Multi-Vendor Database Pattern, Tooling Commands
+Modified sections: Key Patterns (expanded @LogExecution known gaps, MapStruct settings, Lombok patterns, Records; fixed migration paths)
+Fixed: Key Patterns table listed src/main/java/db/migration/ for SQL files — corrected to src/main/resources/db/migration/; java-based migrations path clarified
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No [PLACEHOLDER] tokens remain
@@ -121,16 +122,59 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 
 ## Key Patterns
 
+**`@LogExecution`** — Class-level annotation MUST appear on every Spring component (`@RestController`,
+`@Service`, `@Repository`, `@Component`, `@Configuration`). Import:
+`com.epam.aidial.deployment.manager.configuration.logging.LogExecution`. Wired via
+`CustomizableTraceInterceptor` in `configuration/logging/`. Known gaps in existing code (legacy —
+do NOT treat as a model): `TopicController`, `GlobalDomainWhitelistController`, `HealthController`,
+`McpController`, `DisposableResourceController`. All new code MUST include it without exception.
+
+**MapStruct** — All mapper interfaces MUST declare:
+```java
+@Mapper(componentModel = "spring",
+        subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
+```
+Web mappers (`*DtoMapper`) live in `web/mapper/`; DAO mappers (`Persistence*Mapper`) in `dao/mapper/`;
+service-level mappers (`*Mapper`) in `mapper/`.
+
+**Lombok** — Standard annotations: `@Data`, `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor`
+for mutable domain objects and entities; `@Slf4j` for logging (never declare a `Logger` field manually).
+`@Value` and Java `record` types are preferred for simple immutable DTOs (e.g., request/response
+records where no inheritance is needed).
+
 | Pattern | Mechanism | Location |
 |---|---|---|
-| Method-level execution logging | `@LogExecution` AOP annotation | `configuration/logging/LogExecution` |
+| Execution logging | `@LogExecution` AOP (see above) | `configuration/logging/` |
 | Response caching | Caffeine + `@Cacheable` / `@CacheEvict` | `configuration/`, service layer |
 | Distributed job locking | ShedLock `@SchedulerLock` | `service/` scheduled components |
 | K8s state watching | Fabric8 informers + handler registrations | `kubernetes/informer/` |
-| Schema migrations | Flyway only; per-vendor directories in `db/migration/{H2,POSTGRES,MS_SQL_SERVER,common}` | `src/main/java/db/migration/` |
-| JPA DDL | `ddl-auto: validate` only; Flyway owns schema creation | `configuration/datasource/` |
+| SQL schema migrations | Flyway `.sql` files per vendor | `src/main/resources/db/migration/{H2,POSTGRES,MS_SQL_SERVER}/` |
+| Java data migrations | Flyway `.java` callbacks per vendor | `src/main/java/db/migration/{H2,POSTGRES,MS_SQL_SERVER,common}/` |
+| JPA DDL | `ddl-auto: validate` only; Flyway owns schema | `configuration/datasource/` |
 | Image build pipeline | Multi-step `service/pipeline/step/` chain | `service/pipeline/` |
 | Resource lifecycle/cleanup | `cleanup/` package with `@Component` registrations | `cleanup/` |
+
+## Multi-Vendor Database Pattern
+
+Database vendor is selected at runtime via the `DATASOURCE_VENDOR` environment variable:
+`H2` (default for local/test) | `POSTGRES` | `MS_SQL_SERVER`.
+
+**SQL migrations** — `src/main/resources/db/migration/{H2,POSTGRES,MS_SQL_SERVER}/`
+- Naming: `V{major}.{minor}__{Description}.sql` — e.g. `V1.25__AddAuthorColumnToTables.sql`
+- Dot separator between major and minor (standard Flyway format)
+
+**Java migrations** — `src/main/java/db/migration/{H2,POSTGRES,MS_SQL_SERVER,common}/`
+- Used for complex data migrations that require Java logic (e.g. JSON transformations)
+- Naming: `V{major}_{minor}__{Description}.java` — underscore replaces dot (dots invalid in Java class names)
+- `common/` subfolder applies to all vendors
+
+**Flyway configuration**:
+- `baseline-on-migrate: true`
+- `baseline-version: 1.1`
+- JPA `ddl-auto: validate` — Flyway owns schema; Hibernate MUST NOT create or alter tables
+
+When adding a migration, create the corresponding file in all applicable vendor directories
+(H2, POSTGRES, MS_SQL_SERVER) unless the migration is vendor-specific by design.
 
 ## Anti-Patterns
 
@@ -146,6 +190,19 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 8. **Hard-coded credentials or secrets** — All secrets via environment variables or Kubernetes Secrets.
 9. **Polling loops for K8s state** — Use Fabric8 informers.
 10. **`ddl-auto` values other than `validate`** — Flyway owns schema; JPA must not create or update tables.
+
+## Tooling Commands
+
+| Command | Purpose |
+|---|---|
+| `./gradlew test` | Run all tests |
+| `./gradlew checkstyleMain checkstyleTest` | Run Checkstyle on main and test sources |
+| `./gradlew clean build` | Full clean build (tests + Checkstyle) |
+| `./gradlew clean bootJar` | Build executable JAR without running tests |
+| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.13-jdk21-alpine` → `amazoncorretto:21-alpine`) |
+
+After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
+considering the task done. A clean `./gradlew clean build` is the gate for PR readiness.
 
 ## Governance
 
@@ -164,4 +221,4 @@ This constitution is the authoritative source of architectural truth for the DIA
 
 **Compliance review**: All PRs MUST be checked against this constitution. Automated checks (Checkstyle, `-Werror`) enforce code style sections; architectural sections are enforced via PR review.
 
-**Version**: 1.0.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-04
+**Version**: 1.1.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-04
