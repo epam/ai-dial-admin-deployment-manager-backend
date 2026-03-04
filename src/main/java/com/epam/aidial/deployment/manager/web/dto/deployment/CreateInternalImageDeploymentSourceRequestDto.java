@@ -1,10 +1,14 @@
 package com.epam.aidial.deployment.manager.web.dto.deployment;
 
-import jakarta.validation.constraints.NotNull;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
+import jakarta.annotation.Nullable;
 
 import java.util.UUID;
 
 public record CreateInternalImageDeploymentSourceRequestDto(
-        @NotNull UUID imageDefinitionId
+        @Nullable UUID imageDefinitionId,
+        @Nullable ImageTypeDto imageDefinitionType,
+        @Nullable String imageDefinitionName,
+        @Nullable String imageDefinitionVersion
 ) implements CreateDeploymentSourceRequestDto {
 }

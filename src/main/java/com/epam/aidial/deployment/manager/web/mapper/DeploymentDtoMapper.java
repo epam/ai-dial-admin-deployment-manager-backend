@@ -266,8 +266,9 @@ public abstract class DeploymentDtoMapper {
 
     private static void setCreateImageSource(CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
         switch (dto.getSource()) {
-            case CreateInternalImageDeploymentSourceRequestDto(UUID imageDefinitionId) ->
-                    model.setSource(new InternalImageSource(imageDefinitionId, null, null, null));
+            case CreateInternalImageDeploymentSourceRequestDto(UUID imageDefinitionId, var typeDto, String name, String version) ->
+                    model.setSource(new InternalImageSource(imageDefinitionId,
+                            typeDto != null ? ImageType.valueOf(typeDto.name()) : null, name, version));
             case CreateImageReferenceDeploymentSourceRequestDto(String imageReference) ->
                     model.setSource(new ImageReferenceSource(imageReference));
             case null -> throw new IllegalArgumentException("Deployment source must not be null");
