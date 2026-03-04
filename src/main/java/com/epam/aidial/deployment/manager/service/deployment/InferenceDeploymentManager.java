@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResou
 import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
@@ -12,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -22,11 +24,13 @@ import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -40,6 +44,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     private final InferenceManifestGenerator inferenceManifestGenerator;
     private final K8sKserveClient k8sKserveClient;
     private final boolean useClusterInternalUrl;
+    private final List<String> defaultAllowedDomains;
 
     public InferenceDeploymentManager(
             K8sClient k8sClient,
@@ -50,7 +55,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
             DeploymentRepository deploymentRepository,
             K8sKserveClient k8sKserveClient,
-            KserveDeployProperties kserveDeployProperties
+            KserveDeployProperties kserveDeployProperties,
+            HuggingFaceProperties huggingFaceProperties
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
                 containerPortResolver, ciliumNetworkPolicyCreator, kserveDeployProperties.getNamespace(),
@@ -58,6 +64,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
+        this.defaultAllowedDomains = huggingFaceProperties.getDefaultAllowedDomains();
     }
 
     @Override
@@ -226,6 +233,22 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     @Override
     protected String getServiceNameLabel() {
         return SERVICE_NAME_LABEL;
+    }
+
+    @Override
+    protected List<String> getEffectiveDeploymentAllowedDomains(InferenceDeployment deployment) {
+        List<String> allowedDomains = super.getEffectiveDeploymentAllowedDomains(deployment);
+
+        if (!(deployment.getSource() instanceof InferenceDeploymentHuggingFaceSource)
+                || CollectionUtils.isEmpty(defaultAllowedDomains)) {
+            return allowedDomains;
+        }
+
+        return Stream.concat(
+                        allowedDomains.stream(),
+                        defaultAllowedDomains.stream())
+                .distinct()
+                .toList();
     }
 
     private String getClusterInternalUrl(Components predictor, String serviceName) {

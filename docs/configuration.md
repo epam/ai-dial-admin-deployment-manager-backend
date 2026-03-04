@@ -242,11 +242,12 @@ TLS and routing rules are generated automatically from `app.nim.deploy.cluster-h
 | `app.mcp-registry.base-url` | `MCP_REGISTRY_BASE_URL`  | `https://registry.modelcontextprotocol.io` | No       | -            | Base URL of the MCP Registry API (used by the proxy). |
 
 ### Hugging Face Configuration
-| Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |
-|----------------------------------|----------------------------------|--------------------------|----------|--------------|--------------------------------------------|
-| `huggingface.base-url`           | `HUGGINGFACE_BASE_URL`           | `https://huggingface.co` | No       | -            | Base URL for Hugging Face API              |
-| `huggingface.api-token`          | `HUGGINGFACE_API_TOKEN`          | -                        | No       | -            | API token for authentication               |
-| `huggingface.tag-cache-duration` | `HUGGINGFACE_TAG_CACHE_DURATION` | `24h`                    | No       | -            | Duration to cache tag data (e.g. 24h, 60m) |
+| Property                                   | Environment Variable                   | Default Value                                                   | Required | Applied when | Description                                                                                                                      |
+|--------------------------------------------|----------------------------------------|-----------------------------------------------------------------|----------|--------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `app.huggingface.base-url`                 | `HUGGINGFACE_BASE_URL`                 | `https://huggingface.co`                                        | No       | -            | Base URL for Hugging Face API                                                                                                    |
+| `app.huggingface.api-token`                | `HUGGINGFACE_API_TOKEN`                | -                                                               | No       | -            | API token for authentication                                                                                                     |
+| `app.huggingface.tag-cache-duration`       | `HUGGINGFACE_TAG_CACHE_DURATION`       | `24h`                                                           | No       | -            | Duration to cache tag data (e.g. 24h, 60m)                                                                                       |
+| `app.huggingface.default-allowed-domains`  | `HUGGINGFACE_DEFAULT_ALLOWED_DOMAINS`  | `huggingface.co,transfer.xethub.hf.co,cas-server.xethub.hf.co`  | No       | -            | Comma-separated list of default domains added to Cilium network policy egress for inference deployments with HuggingFace source. |
 
 ### Validation Configuration
 
