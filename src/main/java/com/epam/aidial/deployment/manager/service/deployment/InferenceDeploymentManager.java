@@ -25,7 +25,6 @@ import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -247,7 +246,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         return Stream.concat(
                         allowedDomains.stream(),
-                        defaultAllowedDomains.stream().filter(StringUtils::isNotBlank))
+                        defaultAllowedDomains.stream())
                 .distinct()
                 .toList();
     }

@@ -785,7 +785,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected Set<Integer> getCiliumIngressPorts(D deployment) {
         Set<Integer> ports = new HashSet<>();
         Optional.ofNullable(deployment.getContainerPort()).ifPresent(ports::add);
-        Optional.of(defaultContainerPort).ifPresent(ports::add);
+        ports.add(defaultContainerPort);
         return ports;
     }
 

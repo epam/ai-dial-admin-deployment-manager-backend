@@ -8,10 +8,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.annotation.PostConstruct;
+
+import static java.util.stream.Collectors.toList;
 
 @Getter
 @Setter
@@ -26,17 +28,29 @@ public class HuggingFaceProperties {
     @Getter(AccessLevel.NONE)
     private String defaultAllowedDomains;
 
+    @Getter(AccessLevel.NONE)
+    private List<String> parsedDefaultAllowedDomains;
+
+    @PostConstruct
+    void initDefaultAllowedDomains() {
+        if (StringUtils.isBlank(defaultAllowedDomains)) {
+            parsedDefaultAllowedDomains = List.of();
+        } else {
+            parsedDefaultAllowedDomains = Stream.of(defaultAllowedDomains.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(toList());
+        }
+    }
+
     /**
      * Returns the default allowed domains for HuggingFace inference deployments egress.
-     * Parses the comma-separated string {@link #defaultAllowedDomains}.
+     * Parsed once at startup from the comma-separated {@link #defaultAllowedDomains} property.
+     * Null check is required for cases when method is called before init is done.
      */
     public List<String> getDefaultAllowedDomains() {
-        if (StringUtils.isBlank(defaultAllowedDomains)) {
-            return new ArrayList<>();
-        }
-        return Arrays.stream(defaultAllowedDomains.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
+        return parsedDefaultAllowedDomains == null
+                ? List.of()
+                : Collections.unmodifiableList(parsedDefaultAllowedDomains);
     }
 }
