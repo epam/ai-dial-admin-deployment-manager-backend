@@ -41,6 +41,8 @@ class InferenceManifestGeneratorTest {
     private AppProperties appconfig;
     @Mock
     private KserveProbeConverter kserveProbeConverter;
+    @Mock
+    private ProgressDeadlineCalculator progressDeadlineCalculator;
     @InjectMocks
     private InferenceManifestGenerator manifestGenerator;
 
@@ -264,7 +266,8 @@ class InferenceManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsProgressDeadlineAnnotation() {
         // Given
-        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
         var deploymentName = "deadline-inference-app";
         var storageUri = "s3://my-bucket/deadline-model";
         // deadline = 5 + (10 * 2) + 30 = 55
@@ -304,7 +307,8 @@ class InferenceManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnModel() {
         // Given: generator with real KserveProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
         var deploymentName = "probe-inference-app";
         var storageUri = "s3://my-bucket/probe-model";
         var httpGet = new HttpGetProbe("/health", 8080);

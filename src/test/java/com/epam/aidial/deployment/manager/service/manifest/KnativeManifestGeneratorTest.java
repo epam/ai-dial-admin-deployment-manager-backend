@@ -38,6 +38,8 @@ class KnativeManifestGeneratorTest {
     private AppProperties appconfig;
     @Mock
     private ProbeConverter probeConverter;
+    @Mock
+    private ProgressDeadlineCalculator progressDeadlineCalculator;
     @InjectMocks
     private KnativeManifestGenerator manifestGenerator;
 
@@ -159,7 +161,8 @@ class KnativeManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsProgressDeadlineAnnotation() {
         // Given
-        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter());
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter(), realCalculator);
         var deploymentName = "deadline-app";
         var imageName = "my-registry/deadline-image:v1";
         // deadline = 5 + (10 * 2) + 30 = 55
@@ -197,7 +200,8 @@ class KnativeManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnContainer() {
         // Given: generator with real ProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter());
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter(), realCalculator);
         var deploymentName = "probe-app";
         var imageName = "my-registry/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);

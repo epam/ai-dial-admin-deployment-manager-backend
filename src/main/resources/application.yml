@@ -133,6 +133,11 @@ app:
   deployment:
     healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}
     reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
+    progress-deadline:
+      default-initial-delay: ${DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_INITIAL_DELAY:0}
+      default-period: ${DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_PERIOD:10}
+      default-failure-threshold: ${DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_FAILURE_THRESHOLD:3}
+      buffer-seconds: ${DEPLOYMENT_PROGRESS_DEADLINE_BUFFER_SECONDS:30}
     reconcile:
       background:
         cron: ${DEPLOYMENT_RECONCILE_BACKGROUND_CRON:0 */15 * * * *}

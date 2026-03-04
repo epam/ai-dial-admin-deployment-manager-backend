@@ -1,16 +1,30 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
+@Slf4j
+@Component
 public class ProgressDeadlineCalculator {
 
-    private static final int DEFAULT_INITIAL_DELAY = 0;
-    private static final int DEFAULT_PERIOD = 10;
-    private static final int DEFAULT_FAILURE_THRESHOLD = 3;
-    private static final int BUFFER_SECONDS = 30;
+    private final int defaultInitialDelay;
+    private final int defaultPeriod;
+    private final int defaultFailureThreshold;
+    private final int bufferSeconds;
 
-    private ProgressDeadlineCalculator() {
+    public ProgressDeadlineCalculator(
+            @Value("${app.deployment.progress-deadline.default-initial-delay:0}") int defaultInitialDelay,
+            @Value("${app.deployment.progress-deadline.default-period:10}") int defaultPeriod,
+            @Value("${app.deployment.progress-deadline.default-failure-threshold:3}") int defaultFailureThreshold,
+            @Value("${app.deployment.progress-deadline.buffer-seconds:30}") int bufferSeconds
+    ) {
+        this.defaultInitialDelay = defaultInitialDelay;
+        this.defaultPeriod = defaultPeriod;
+        this.defaultFailureThreshold = defaultFailureThreshold;
+        this.bufferSeconds = bufferSeconds;
     }
 
     /**
@@ -18,17 +32,19 @@ public class ProgressDeadlineCalculator {
      * or null if no probe is configured.
      */
     @Nullable
-    public static String compute(@Nullable ProbeProperties probe) {
+    public String compute(@Nullable ProbeProperties probe) {
         if (probe == null || !probe.isEnabled()) {
             return null;
         }
         int initial = probe.getInitialDelaySeconds() != null
-                ? probe.getInitialDelaySeconds() : DEFAULT_INITIAL_DELAY;
+                ? probe.getInitialDelaySeconds() : defaultInitialDelay;
         int period = probe.getPeriodSeconds() != null
-                ? probe.getPeriodSeconds() : DEFAULT_PERIOD;
+                ? probe.getPeriodSeconds() : defaultPeriod;
         int threshold = probe.getFailureThreshold() != null
-                ? probe.getFailureThreshold() : DEFAULT_FAILURE_THRESHOLD;
-        int deadline = initial + (period * threshold) + BUFFER_SECONDS;
+                ? probe.getFailureThreshold() : defaultFailureThreshold;
+        int deadline = initial + (period * threshold) + bufferSeconds;
+        log.debug("Computed progress deadline: {}s (initial={}, period={}, threshold={}, buffer={})",
+                deadline, initial, period, threshold, bufferSeconds);
         return deadline + "s";
     }
 }

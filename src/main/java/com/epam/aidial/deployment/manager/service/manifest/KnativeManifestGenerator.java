@@ -42,11 +42,14 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
     private String secretsVolumeMountPath;
 
     private final ProbeConverter probeConverter;
+    private final ProgressDeadlineCalculator progressDeadlineCalculator;
 
     public KnativeManifestGenerator(AppProperties appconfig,
-                                    ProbeConverter probeConverter) {
+                                    ProbeConverter probeConverter,
+                                    ProgressDeadlineCalculator progressDeadlineCalculator) {
         super(appconfig);
         this.probeConverter = probeConverter;
+        this.progressDeadlineCalculator = progressDeadlineCalculator;
     }
 
     public Service serviceConfig(
@@ -177,7 +180,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(maxScale));
         }
 
-        var progressDeadline = ProgressDeadlineCalculator.compute(probeProperties);
+        var progressDeadline = progressDeadlineCalculator.compute(probeProperties);
         if (progressDeadline != null) {
             annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
         }
