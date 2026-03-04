@@ -262,6 +262,46 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
+    void testServiceConfig_withProbeProperties_setsProgressDeadlineAnnotation() {
+        // Given
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));
+        var deploymentName = "deadline-inference-app";
+        var storageUri = "s3://my-bucket/deadline-model";
+        // deadline = 5 + (10 * 2) + 30 = 55
+        var httpGet = new HttpGetProbe("/health", 8080);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, probeProperties
+        );
+
+        // Then
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "55s");
+    }
+
+    @Test
+    void testServiceConfig_withoutProbe_doesNotSetProgressDeadlineAnnotation() {
+        // Given
+        var deploymentName = "no-deadline-inference-app";
+        var storageUri = "s3://my-bucket/no-deadline-model";
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, null
+        );
+
+        // Then
+        var annotations = generatedService.getMetadata().getAnnotations();
+        if (annotations != null) {
+            assertThat(annotations).doesNotContainKey("serving.knative.dev/progress-deadline");
+        }
+    }
+
+    @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnModel() {
         // Given: generator with real KserveProbeConverter so probe is built from properties
         var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));

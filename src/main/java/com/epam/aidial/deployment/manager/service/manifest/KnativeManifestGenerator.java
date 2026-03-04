@@ -71,7 +71,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         var template = config.get(KnativeMappers.SERVICE_SPEC_FIELD)
                 .get(KnativeMappers.SERVICE_TEMPLATE_FIELD);
 
-        configureAnnotations(template, initScale, minScale, maxScale);
+        configureAnnotations(template, initScale, minScale, maxScale, probeProperties);
 
         var revisionSpecChain = template.get(KnativeMappers.SERVICE_TEMPLATE_SPEC_FIELD);
         var containerChain = revisionSpecChain
@@ -159,7 +159,8 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             MappingChain<RevisionTemplateSpec> template,
             @Nullable Integer initScale,
             @Nullable Integer minScale,
-            @Nullable Integer maxScale
+            @Nullable Integer maxScale,
+            @Nullable ProbeProperties probeProperties
     ) {
         var templateMetadata = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD).data();
         var annotations = (templateMetadata.getAnnotations() != null)
@@ -175,6 +176,12 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         if (maxScale != null) {
             annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(maxScale));
         }
+
+        var progressDeadline = ProgressDeadlineCalculator.compute(probeProperties);
+        if (progressDeadline != null) {
+            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
+        }
+
         templateMetadata.setAnnotations(annotations);
     }
 

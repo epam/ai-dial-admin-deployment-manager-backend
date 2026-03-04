@@ -63,6 +63,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var predictorChain = specChain.get(InferenceMappers.SERVICE_SPEC_PREDICTOR_FIELD);
 
         applyScaling(name, scaling, predictorChain, config);
+        applyProgressDeadline(probeProperties, config);
 
         var modelChain = predictorChain.get(InferenceMappers.PREDICTOR_MODEL_FIELD);
         modelChain.data().setStorageUri(storageUri);
@@ -145,6 +146,16 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var valueFrom = new ValueFrom();
         valueFrom.setSecretKeyRef(secretKeyRef);
         return valueFrom;
+    }
+
+    private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
+                                       MappingChain<InferenceService> config) {
+        var progressDeadline = ProgressDeadlineCalculator.compute(probeProperties);
+        if (progressDeadline != null) {
+            var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
+                    .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
+            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
+        }
     }
 
     private void applyScaling(String name,
