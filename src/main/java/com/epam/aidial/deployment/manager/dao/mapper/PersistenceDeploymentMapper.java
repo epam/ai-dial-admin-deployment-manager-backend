@@ -127,22 +127,12 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setProbeProperties(updatedEntity.getProbeProperties());
         existingEntity.setAuthor(updatedEntity.getAuthor());
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
+        existingEntity.setScaling(updatedEntity.getScaling());
 
         if (existingEntity instanceof McpDeploymentEntity existingMcp
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {
             existingMcp.setTransport(updatedMcp.getTransport());
             existingMcp.setMcpEndpointPath(updatedMcp.getMcpEndpointPath());
-            existingMcp.setScaling(updatedMcp.getScaling());
-        }
-
-        if (existingEntity instanceof AdapterDeploymentEntity existingAdapter
-                && updatedEntity instanceof AdapterDeploymentEntity updatedAdapter) {
-            existingAdapter.setScaling(updatedAdapter.getScaling());
-        }
-
-        if (existingEntity instanceof InterceptorDeploymentEntity existingInterceptor
-                && updatedEntity instanceof InterceptorDeploymentEntity updatedInterceptor) {
-            existingInterceptor.setScaling(updatedInterceptor.getScaling());
         }
 
         if (existingEntity instanceof NimDeploymentEntity existingNim
@@ -157,7 +147,6 @@ public abstract class PersistenceDeploymentMapper {
             existingInference.setSource(updatedInference.getSource());
             existingInference.setCommand(updatedInference.getCommand());
             existingInference.setArgs(updatedInference.getArgs());
-            existingInference.setScaling(updatedInference.getScaling());
         }
     }
 

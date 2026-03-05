@@ -21,14 +21,10 @@ import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.PodInfo;
-import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
-import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
@@ -422,18 +418,8 @@ public class DeploymentService {
                 || !Objects.equals(existing.getInitialScale(), updated.getInitialScale())
                 || !Objects.equals(existing.getMinScale(), updated.getMinScale())
                 || !Objects.equals(existing.getMaxScale(), updated.getMaxScale())
-                || !Objects.equals(getScaling(existing), getScaling(updated))
+                || !Objects.equals(existing.getScaling(), updated.getScaling())
                 || !Objects.equals(existing.getResources(), updated.getResources());
-    }
-
-    private static Scaling getScaling(Deployment deployment) {
-        return switch (deployment) {
-            case McpDeployment mcp -> mcp.getScaling();
-            case AdapterDeployment adapter -> adapter.getScaling();
-            case InterceptorDeployment interceptor -> interceptor.getScaling();
-            case InferenceDeployment inference -> inference.getScaling();
-            default -> null;
-        };
     }
 
     private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {

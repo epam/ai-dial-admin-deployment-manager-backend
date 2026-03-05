@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.KubernetesConditionConstants;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
-import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -118,23 +117,10 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
                 imageDefinition.getImageName(),
-                getScaling(deployment),
+                deployment.getScaling(),
                 deployment.getResources(),
                 containerPort,
                 deployment.getProbeProperties());
-    }
-
-    private Scaling getScaling(Deployment deployment) {
-        if (deployment instanceof McpDeployment mcpDeployment) {
-            return mcpDeployment.getScaling();
-        }
-        if (deployment instanceof InterceptorDeployment interceptorDeployment) {
-            return interceptorDeployment.getScaling();
-        }
-        if (deployment instanceof AdapterDeployment adapterDeployment) {
-            return adapterDeployment.getScaling();
-        }
-        return null;
     }
 
     @Override

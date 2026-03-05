@@ -1,8 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.deployment;
 
 import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
-import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,9 +27,6 @@ public abstract class CreateImageBasedDeploymentRequestDto extends CreateDeploym
     private String imageDefinitionVersion;
     @Nullable
     private ImageTypeDto imageDefinitionType;
-    @Nullable
-    @Valid
-    private ScalingDto scaling;
 
     @AssertTrue(message = "Either imageDefinitionId or (imageDefinitionType, imageDefinitionName, imageDefinitionVersion) must be set")
     public boolean isValidImageReference() {

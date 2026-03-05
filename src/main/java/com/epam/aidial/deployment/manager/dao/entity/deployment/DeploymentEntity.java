@@ -72,6 +72,9 @@ public class DeploymentEntity {
     private Integer maxScale;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    private PersistenceScaling scaling;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     private PersistenceResources resources;
 
     @JdbcTypeCode(SqlTypes.JSON)

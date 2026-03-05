@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.web.dto.deployment;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentStatusDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
 import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -46,6 +47,9 @@ public abstract class DeploymentDto {
     private Integer minScale;
     @Nullable
     private Integer maxScale;
+    @Nullable
+    @Valid
+    private ScalingDto scaling;
     @Nullable
     private ResourcesDto resources;
     @Nullable

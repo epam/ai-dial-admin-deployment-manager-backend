@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.web.dto.deployment;
 
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
 import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
@@ -56,6 +57,9 @@ public abstract class CreateDeploymentRequestDto {
     private Integer minScale;
     @Nullable
     private Integer maxScale;
+    @Nullable
+    @Valid
+    private ScalingDto scaling;
     @Nullable
     @ValidResources
     private ResourcesDto resources;
