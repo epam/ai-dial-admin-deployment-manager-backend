@@ -10,6 +10,11 @@ public class V1_47__UnifyDeploymentSource extends V1_47__UnifyDeploymentSourceBa
     @Override
     protected void addSourceColumn(Statement statement) throws Exception {
         statement.execute("ALTER TABLE deployment ADD source varchar(max)");
+        statement.execute("""
+                ALTER TABLE deployment
+                    ADD CONSTRAINT chk_deployment_source_is_json
+                    CHECK (source IS NULL OR isjson(source) > 0)
+                """);
     }
 
     @Override
