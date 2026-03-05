@@ -100,6 +100,7 @@ public abstract class DeploymentDtoMapper {
     private McpEndpointPathResolver mcpEndpointPathResolver;
 
     @Mapping(target = "id", source = "name")
+    @Mapping(target = "source", ignore = true)
     @SubclassMapping(source = CreateMcpDeploymentRequestDto.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = CreateAdapterDeploymentRequestDto.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = CreateInterceptorDeploymentRequestDto.class, target = CreateInterceptorDeployment.class)
@@ -107,65 +108,16 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = CreateInferenceDeploymentRequestDto.class, target = CreateInferenceDeployment.class)
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
 
-    @Mapping(target = "id", source = "name")
-    @Mapping(target = "source", ignore = true)
-    public abstract CreateMcpDeployment toCreateDeployment(CreateMcpDeploymentRequestDto dto);
-
-    @Mapping(target = "id", source = "name")
-    @Mapping(target = "source", ignore = true)
-    public abstract CreateAdapterDeployment toCreateDeployment(CreateAdapterDeploymentRequestDto dto);
-
-    @Mapping(target = "id", source = "name")
-    @Mapping(target = "source", ignore = true)
-    public abstract CreateInterceptorDeployment toCreateDeployment(CreateInterceptorDeploymentRequestDto dto);
-
-    @Mapping(target = "id", source = "name")
-    @Mapping(target = "source", ignore = true)
-    public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
-
-    @Mapping(target = "id", source = "name")
-    @Mapping(target = "source", ignore = true)
-    public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
-
     @Mapping(target = "name", source = "id")
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "source", ignore = true)
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentDto.class)
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentDto.class)
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
     public abstract DeploymentDto toDeploymentDto(Deployment model);
-
-    @Mapping(target = "name", source = "id")
-    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
-    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
-    @Mapping(target = "source", ignore = true)
-    protected abstract McpDeploymentDto toMcpDeploymentDto(McpDeployment model);
-
-    @Mapping(target = "name", source = "id")
-    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
-    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
-    @Mapping(target = "source", ignore = true)
-    protected abstract AdapterDeploymentDto toAdapterDeploymentDto(AdapterDeployment model);
-
-    @Mapping(target = "name", source = "id")
-    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
-    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
-    @Mapping(target = "source", ignore = true)
-    protected abstract InterceptorDeploymentDto toInterceptorDeploymentDto(InterceptorDeployment model);
-
-    @Mapping(target = "name", source = "id")
-    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
-    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
-    @Mapping(target = "source", ignore = true)
-    protected abstract NimDeploymentDto toNimDeploymentDto(NimDeployment model);
-
-    @Mapping(target = "name", source = "id")
-    @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
-    @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
-    @Mapping(target = "source", ignore = true)
-    protected abstract InferenceDeploymentDto toInferenceDeploymentDto(InferenceDeployment model);
 
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentInternalDto.class)
