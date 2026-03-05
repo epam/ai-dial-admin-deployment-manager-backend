@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ValidationException;
+import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
@@ -18,6 +19,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -48,6 +50,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -116,6 +119,7 @@ class InferenceDeploymentManagerTest {
         kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         kserveDeployProperties.setUseClusterInternalUrl(false);
 
+        var huggingFaceProperties = new HuggingFaceProperties();
         inferenceDeploymentManager = new InferenceDeploymentManager(
                 k8sClient,
                 disposableResourceManager,
@@ -125,7 +129,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 deploymentRepository,
                 k8sKserveClient,
-                kserveDeployProperties
+                kserveDeployProperties,
+                huggingFaceProperties
         );
 
         TransactionSynchronizationManager.initSynchronization();
@@ -421,6 +426,151 @@ class InferenceDeploymentManagerTest {
         verify(disposableResourceManager).saveInferenceServiceResource(DEPLOYMENT_ID, NAMESPACE);
         verify(k8sKserveClient).createService(eq(NAMESPACE), eq(serviceSpec));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+
+        // Cilium policy created with deployment domains list (no default domains)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                    domains.contains("test-domain-1")
+                        && domains.contains("test-domain-2")
+                        && domains.size() == 2),
+                any()
+        );
+    }
+
+    @Test
+    void deploy_shouldMergeDefaultAllowedDomainsWithDeploymentDomainsForHuggingFaceSource() {
+        // Given: HuggingFace source with deployment-specific domains and config default domains
+        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
+        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setAllowedDomains(List.of("custom.com"));
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("custom.com")
+                                && domains.contains("huggingface.co")
+                                && domains.contains("cdn.huggingface.co")
+                                && domains.size() == 3),
+                any()
+        );
+    }
+
+    @Test
+    void deploy_shouldNotAppendDefaultDomainsWhenSourceIsNotHuggingFace() {
+        // Given: non-HF source (e.g. S3) with config default domains set
+        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        // source is () -> "s3://test-bucket/model" — not InferenceDeploymentHuggingFaceSource
+        assertThat(((InferenceDeployment) deployment).getSource()).isNotInstanceOf(InferenceDeploymentHuggingFaceSource.class);
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: only deployment allowedDomains are used; default domains are NOT appended
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("test-domain-1")
+                                && domains.contains("test-domain-2")
+                                && domains.size() == 2),
+                any()
+        );
+    }
+
+    @Test
+    void deploy_shouldUseOnlyDefaultAllowedDomainsWhenDeploymentDomainsEmptyWithHuggingFaceSource() {
+        // Given: HuggingFace source with empty deployment allowedDomains
+        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
+        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setAllowedDomains(Collections.emptyList());
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: only default allowed domains appear in Cilium policy
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("huggingface.co")
+                                && domains.contains("cdn.huggingface.co")
+                                && domains.size() == 2),
+                any()
+        );
+    }
+
+    private InferenceDeploymentManager getInferenceDeploymentManager(HuggingFaceProperties huggingFaceProperties) {
+        var kserveDeployProperties = new KserveDeployProperties();
+        kserveDeployProperties.setNamespace(NAMESPACE);
+        kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        kserveDeployProperties.setUseClusterInternalUrl(false);
+        return new InferenceDeploymentManager(
+                k8sClient,
+                disposableResourceManager,
+                manifestGenerator,
+                inferenceManifestGenerator,
+                containerPortResolver,
+                ciliumNetworkPolicyCreator,
+                deploymentRepository,
+                k8sKserveClient,
+                kserveDeployProperties, huggingFaceProperties
+        );
     }
 
     @Test
@@ -688,6 +838,7 @@ class InferenceDeploymentManagerTest {
         kserveDeployProperties.setNamespace(NAMESPACE);
         kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         kserveDeployProperties.setUseClusterInternalUrl(true); // use internal url
+        var huggingFaceProperties = new HuggingFaceProperties();
         inferenceDeploymentManager = new InferenceDeploymentManager(
                 k8sClient,
                 disposableResourceManager,
@@ -697,7 +848,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 deploymentRepository,
                 k8sKserveClient,
-                kserveDeployProperties
+                kserveDeployProperties,
+                huggingFaceProperties
         );
 
         var reconcileConfig = getReconcileConfig(service);
@@ -1023,5 +1175,18 @@ class InferenceDeploymentManagerTest {
                 .initiator("Reconciliation Test")
                 .ignorePendingOnServiceNotFound(false)
                 .build();
+    }
+
+    private static HuggingFaceProperties createHuggingFacePropertiesWithDefaultDomains() {
+        var props = new HuggingFaceProperties();
+        props.setDefaultAllowedDomains("huggingface.co,cdn.huggingface.co");
+        try {
+            Method init = HuggingFaceProperties.class.getDeclaredMethod("initDefaultAllowedDomains");
+            init.setAccessible(true);
+            init.invoke(props);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return props;
     }
 }
