@@ -129,14 +129,15 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     private String resolveImageName(Deployment deployment) {
         return switch (deployment.getSource()) {
             case ImageReferenceSource(String imageReference) -> imageReference;
-            case InternalImageSource(var imageDefinitionId, var type, var name, var version) ->
-                    imageDefinitionService.getImageDefinition(imageDefinitionId)
-                            .orElseThrow(notFound("ImageDefinition", imageDefinitionId))
+            case InternalImageSource internalSource ->
+                    imageDefinitionService.getImageDefinition(internalSource.imageDefinitionId())
+                            .orElseThrow(notFound("ImageDefinition", internalSource.imageDefinitionId()))
                             .getImageName();
             case null -> throw new IllegalArgumentException(
                     "Deployment '%s' does not define an image source".formatted(deployment.getId()));
             default -> throw new IllegalArgumentException(
-                    "Unsupported source type for Knative deployment: " + deployment.getSource().getClass().getName());
+                    "Unsupported source type for Knative deployment '%s': %s".formatted(
+                            deployment.getId(), deployment.getSource().getClass().getName()));
         };
     }
 

@@ -414,7 +414,7 @@ public class DeploymentService {
     private static void validateSourceForDeploymentType(CreateDeployment request) {
         Source source = request.getSource();
         if (source == null) {
-            throw new IllegalArgumentException("Deployment source must not be null");
+            throw new IllegalArgumentException("Deployment '%s' source must not be null".formatted(request.getId()));
         }
 
         boolean valid = switch (request) {
@@ -424,8 +424,8 @@ public class DeploymentService {
         };
 
         if (!valid) {
-            throw new IllegalArgumentException("Invalid source type '%s' for deployment type '%s'"
-                    .formatted(source.getClass().getSimpleName(), request.getClass().getSimpleName()));
+            throw new IllegalArgumentException("Invalid source type '%s' for deployment '%s' of type '%s'"
+                    .formatted(source.getClass().getSimpleName(), request.getId(), request.getClass().getSimpleName()));
         }
     }
 
