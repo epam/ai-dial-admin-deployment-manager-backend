@@ -17,10 +17,10 @@ The project MUST use the following canonical versions. Any upgrade MUST go throu
 
 - **Runtime**: Java 21, Spring Boot 3.5.10, Gradle 8.13
 - **Code generation**: Lombok 8.10 (freefair plugin), MapStruct 1.6.0
-- **Database migrations**: Flyway 11.14.0 (postgresql + sqlserver modules)
+- **Database migrations**: Flyway 11.14.0 (flyway-core for H2, flyway-database-postgresql, flyway-sqlserver)
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, io.kubernetes:client-java 22.0.0
 - **Serialization**: Jackson 2.21.1 (enforced via buildscript constraint)
-- **Logging**: Log4j2 2.25.3 (log4j-core), SLF4J 2 bridge (log4j-slf4j2-impl); spring-boot-starter-logging MUST be excluded globally
+- **Logging**: Log4j2 — `log4j-core` 2.25.3, `log4j-slf4j2-impl` 2.24.3, `log4j-jul` 2.24.3; spring-boot-starter-logging MUST be excluded globally
 - **Observability**: OpenTelemetry SDK + OTLP exporter, opentelemetry-spring-boot-starter 2.12.0, Micrometer + Prometheus
 - **Caching**: Caffeine 3.2.3 via spring-boot-starter-cache
 - **Distributed locking**: ShedLock 6.3.0 (JDBC provider)
@@ -104,7 +104,7 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 
 - **Public API base path**: `/api/v1/`
 - **Internal API base path**: `/api/internal/v1/`
-- **Error response schema**: `ErrorView` — MUST include `message`, `code`, and `traceparent` (from OTel span context).
+- **Error response schema**: `ErrorView` — MUST include `message`, `status`, and `traceparent` (from OTel span context). Full fields: `path`, `method`, `status`, `error`, `message`, `traceparent`.
 - **OpenAPI annotations**: Every endpoint method MUST carry `@Operation` (SpringDoc) with `summary` and relevant `@ApiResponse` annotations.
 - **Pagination**: List endpoints returning potentially large datasets MUST support pagination via Spring's `Pageable`.
 - **SSE endpoints**: Real-time status updates (builds, deployments) MUST use `SseEmitter` and follow existing patterns in `web/handler/`.
@@ -116,7 +116,7 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 - **Database selection**: Controlled by `DATASOURCE_VENDOR` env var; Testcontainers for Postgres and SQL Server in CI, H2 for lightweight local runs.
 - **Test infrastructure**: Testcontainers 1.21.3; `@Testcontainers` + `@Container` for container lifecycle.
 - **Assertions**: AssertJ preferred (`assertThat(...)`); raw JUnit `assertEquals` is discouraged.
-- **Functional tests**: MUST extend or mirror `PostgresFunctionalTests` / `SqlServerFunctionalTests` base patterns; cover both supported vendors where SQL behavior may differ.
+- **Functional tests**: MUST extend or mirror `H2FunctionalTests` / `PostgresFunctionalTests` / `SqlServerFunctionalTests` base patterns; cover all supported vendors where SQL behavior may differ.
 - **Security tests**: Use `spring-security-test` for authenticated endpoint tests; JWT tokens generated with `io.jsonwebtoken:jjwt`.
 - **No mocking of K8s calls in functional tests**: Use Testcontainers or in-memory stubs defined in `src/test/`.
 
@@ -127,7 +127,7 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 `com.epam.aidial.deployment.manager.configuration.logging.LogExecution`. Wired via
 `CustomizableTraceInterceptor` in `configuration/logging/`. Known gaps in existing code (legacy —
 do NOT treat as a model): `TopicController`, `GlobalDomainWhitelistController`, `HealthController`,
-`McpController`, `DisposableResourceController`. All new code MUST include it without exception.
+`McpController`, `DisposableResourceController`, `ConfigController`. All new code MUST include it without exception.
 
 **MapStruct** — All mapper interfaces MUST declare:
 ```java
