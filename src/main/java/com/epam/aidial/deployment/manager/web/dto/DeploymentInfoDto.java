@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record DeploymentInfoDto(
@@ -25,6 +26,7 @@ public record DeploymentInfoDto(
         @NotNull DeploymentStatusDto status,
         @Nullable String url,
         @NotNull Instant createdAt,
-        @NotNull Instant updatedAt
+        @NotNull Instant updatedAt,
+        @Nullable List<String> topics
 ) {
 }

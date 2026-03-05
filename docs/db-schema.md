@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-03-05T11:28:12.107568Z
+> Generated at: 2026-03-05T14:52:59.905029Z
 
 ## Tables
 
@@ -9,6 +9,7 @@
 - [ADAPTER_IMAGE_DEFINITION](#adapter_image_definition)
 - [COMPONENT_REMOVAL](#component_removal)
 - [DEPLOYMENT](#deployment)
+- [DEPLOYMENT_TOPICS](#deployment_topics)
 - [DISPOSABLE_RESOURCE](#disposable_resource)
 - [DOMAIN_WHITELIST](#domain_whitelist)
 - [IMAGE_DEFINITION](#image_definition)
@@ -69,6 +70,17 @@
 **Indexes:**
 
 - `IDX_DEPLOYMENT_IMAGE_DEFINITION_ID` on (IMAGE_DEFINITION_ID)
+
+## DEPLOYMENT_TOPICS
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| DEPLOYMENT_ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
+| TOPIC_NAME | VARCHAR(255) | No |  | PK |
+
+**Indexes:**
+
+- `FK_DEPLOYMENT_TOPICS_DEPLOYMENT_INDEX_B` on (DEPLOYMENT_ID)
 
 ## DISPOSABLE_RESOURCE
 

@@ -70,6 +70,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipInputStream;
@@ -252,6 +253,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 .probeProperties(probeTcp8080)
                 .containerPort(8080)
                 .allowedDomains(List.of())
+                .topics(List.of("nlp", "mcp-topic"))
                 .transport(McpTransport.SSE)
                 .mcpEndpointPath("some-path")
                 .build();
@@ -474,6 +476,10 @@ public abstract class ConfigExportImportFunctionalTest {
         Assertions.assertEquals(expected.getContainerPort(), actual.getContainerPort(), "containerPort");
         Assertions.assertEquals(expected.getResources(), actual.getResources(), "resources");
         Assertions.assertEquals(expected.getAllowedDomains(), actual.getAllowedDomains(), "allowedDomains");
+        Assertions.assertEquals(
+                Set.copyOf(expected.getTopics() != null ? expected.getTopics() : List.of()),
+                Set.copyOf(actual.getTopics() != null ? actual.getTopics() : List.of()),
+                "topics");
         assertProbePropertiesEquals(expected.getProbeProperties(), actual.getProbeProperties());
         assertMetadataEnvsEquals(
                 expected.getMetadata() != null ? expected.getMetadata().getEnvs() : null,

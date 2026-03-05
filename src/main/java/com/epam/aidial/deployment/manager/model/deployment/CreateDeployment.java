@@ -33,4 +33,5 @@ public abstract class CreateDeployment {
     private Integer containerPort;
     private String author;
     private List<String> allowedDomains;
+    private List<String> topics;
 }

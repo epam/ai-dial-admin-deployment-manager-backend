@@ -107,6 +107,7 @@
       },
       "containerPort": 8080,
       "allowedDomains": [],
+      "topics": ["mcp-topic", "nlp"],
       "transport": "sse",
       "mcpEndpointPath": "some-path"
     }
@@ -135,7 +136,8 @@
       "maxScale": 5,
       "resources": {"limits": {}, "requests": {}},
       "containerPort": 5000,
-      "allowedDomains": ["*"]
+      "allowedDomains": ["*"],
+      "topics": []
     }
   },
   "interceptorDeployments": {
@@ -170,7 +172,8 @@
         "probe": {"$type": "tcpSocket", "port": 8080}
       },
       "containerPort": 8080,
-      "allowedDomains": ["test-domain-2.com"]
+      "allowedDomains": ["test-domain-2.com"],
+      "topics": []
     }
   },
   "nimDeployments": {
@@ -194,6 +197,7 @@
       },
       "containerPort": 8000,
       "allowedDomains": [],
+      "topics": [],
       "source": {"$type": "ngc_registry", "imageRef": "nvcr.io/nim/test-model:latest"},
       "containerGrpcPort": 50051
     }
@@ -220,6 +224,7 @@
       },
       "containerPort": 8080,
       "allowedDomains": [],
+      "topics": [],
       "source": {
         "$type": "huggingface",
         "modelName": "test-org/export-test-model",
