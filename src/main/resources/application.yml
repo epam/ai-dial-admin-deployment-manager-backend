@@ -30,6 +30,7 @@ app:
     base-url: ${HUGGINGFACE_BASE_URL:https://huggingface.co}
     api-token: ${HUGGINGFACE_API_TOKEN:}
     tag-cache-duration: ${HUGGINGFACE_TAG_CACHE_DURATION:24h}
+    default-allowed-domains: ${HUGGINGFACE_DEFAULT_ALLOWED_DOMAINS:huggingface.co,transfer.xethub.hf.co,cas-server.xethub.hf.co}
 
   mcp-registry:
     base-url: ${MCP_REGISTRY_BASE_URL:https://registry.modelcontextprotocol.io}
@@ -373,10 +374,12 @@ config:
   rest:
     security:
       mode: ${CONFIG_REST_SECURITY_MODE:none}
-      email-claim: ${SECURITY_EMAIL_CLAIM:unique_name}
+      require-email: ${SECURITY_REQUIRE_EMAIL:false}
       disable-swagger-authorization: ${DISABLE_SWAGGER_AUTHORIZATION:false}
       default:
         allowedRoles: ConfigAdmin,admin
+        email-claim: ${CLAIMS_EMAIL_KEY:unique_name}
+        principal-claim: ${SECURITY_USER_CLAIM:oid}
 
 azure:
   auth:
