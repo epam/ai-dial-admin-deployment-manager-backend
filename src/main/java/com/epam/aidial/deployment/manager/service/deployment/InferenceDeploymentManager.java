@@ -14,7 +14,6 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -245,7 +244,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     protected List<String> getEffectiveDeploymentAllowedDomains(InferenceDeployment deployment) {
         List<String> allowedDomains = super.getEffectiveDeploymentAllowedDomains(deployment);
 
-        if (!(deployment.getSource() instanceof InferenceDeploymentHuggingFaceSource)
+        if (!(deployment.getSource() instanceof HuggingFaceSource)
                 || CollectionUtils.isEmpty(defaultAllowedDomains)) {
             return allowedDomains;
         }
