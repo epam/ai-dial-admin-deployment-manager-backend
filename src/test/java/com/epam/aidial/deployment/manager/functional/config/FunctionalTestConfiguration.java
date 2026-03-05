@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
     "com.epam.aidial.deployment.manager.configuration",
     "com.epam.aidial.deployment.manager.dao",
     "com.epam.aidial.deployment.manager.docker",
+    "com.epam.aidial.deployment.manager.huggingface",
     "com.epam.aidial.deployment.manager.kubernetes",
     "com.epam.aidial.deployment.manager.mapper",
     "com.epam.aidial.deployment.manager.model",

@@ -113,7 +113,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        createCiliumNetworkPolicy(id, deployment.getAllowedDomains(), getCiliumIngressPorts(deployment));
+                        createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment), getCiliumIngressPorts(deployment));
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
@@ -741,7 +741,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var deployment = getDeployment(id);
 
         try {
-            updateCiliumNetworkPolicy(id, deployment.getAllowedDomains(), getCiliumIngressPorts(deployment));
+            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment), getCiliumIngressPorts(deployment));
         } catch (Exception e) {
             var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
             log.warn(errorMessage, e);
@@ -785,8 +785,13 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected Set<Integer> getCiliumIngressPorts(D deployment) {
         Set<Integer> ports = new HashSet<>();
         Optional.ofNullable(deployment.getContainerPort()).ifPresent(ports::add);
-        Optional.ofNullable(defaultContainerPort).ifPresent(ports::add);
+        ports.add(defaultContainerPort);
         return ports;
+    }
+
+    protected List<String> getEffectiveDeploymentAllowedDomains(D deployment) {
+        var domains = deployment.getAllowedDomains();
+        return domains != null ? new ArrayList<>(domains) : new ArrayList<>();
     }
 
     private Map<String, String> transformEnvs(Map<String, EnvVarValue> envs) {

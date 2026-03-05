@@ -30,6 +30,7 @@ app:
     base-url: ${HUGGINGFACE_BASE_URL:https://huggingface.co}
     api-token: ${HUGGINGFACE_API_TOKEN:}
     tag-cache-duration: ${HUGGINGFACE_TAG_CACHE_DURATION:24h}
+    default-allowed-domains: ${HUGGINGFACE_DEFAULT_ALLOWED_DOMAINS:huggingface.co,transfer.xethub.hf.co,cas-server.xethub.hf.co}
 
   mcp-registry:
     base-url: ${MCP_REGISTRY_BASE_URL:https://registry.modelcontextprotocol.io}
