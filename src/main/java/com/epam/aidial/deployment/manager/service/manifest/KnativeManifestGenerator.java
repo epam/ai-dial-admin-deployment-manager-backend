@@ -43,11 +43,14 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
     private String secretsVolumeMountPath;
 
     private final ProbeConverter probeConverter;
+    private final ProgressDeadlineCalculator progressDeadlineCalculator;
 
     public KnativeManifestGenerator(AppProperties appconfig,
-                                    ProbeConverter probeConverter) {
+                                    ProbeConverter probeConverter,
+                                    ProgressDeadlineCalculator progressDeadlineCalculator) {
         super(appconfig);
         this.probeConverter = probeConverter;
+        this.progressDeadlineCalculator = progressDeadlineCalculator;
     }
 
     public Service serviceConfig(
@@ -72,6 +75,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
 
         var revisionSpecChain = template.get(KnativeMappers.SERVICE_TEMPLATE_SPEC_FIELD);
         applyScaling(name, scaling, template, revisionSpecChain);
+        applyProgressDeadline(probeProperties, template);
         var containerChain = revisionSpecChain
                 .getList(KnativeMappers.TEMPLATE_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
                 .getOrDefault(appConfig.getKnativeServiceContainerConfig().getName(), appConfig::cloneKnativeServiceContainer);
@@ -192,6 +196,16 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         } else {
             throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
                     .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
+        }
+    }
+
+    private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
+                                       MappingChain<RevisionTemplateSpec> template) {
+        var progressDeadline = progressDeadlineCalculator.compute(probeProperties);
+        if (progressDeadline != null) {
+            var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
+                    .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
+            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
         }
     }
 

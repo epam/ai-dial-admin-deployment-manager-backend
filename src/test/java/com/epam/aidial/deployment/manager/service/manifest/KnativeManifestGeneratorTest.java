@@ -39,6 +39,8 @@ class KnativeManifestGeneratorTest {
     private AppProperties appconfig;
     @Mock
     private ProbeConverter probeConverter;
+    @Mock
+    private ProgressDeadlineCalculator progressDeadlineCalculator;
     @InjectMocks
     private KnativeManifestGenerator manifestGenerator;
 
@@ -159,9 +161,49 @@ class KnativeManifestGeneratorTest {
     }
 
     @Test
+    void testServiceConfig_withProbeProperties_setsProgressDeadlineAnnotation() {
+        // Given
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter(), realCalculator);
+        var deploymentName = "deadline-app";
+        var imageName = "my-registry/deadline-image:v1";
+        // deadline = 5 + ((2-1) * 10) + 3 + 30 = 48
+        var httpGet = new HttpGetProbe("/ready", 9090);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, probeProperties
+        );
+
+        // Then
+        var annotations = generatedService.getSpec().getTemplate().getMetadata().getAnnotations();
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "48s");
+    }
+
+    @Test
+    void testServiceConfig_withoutProbe_doesNotSetProgressDeadlineAnnotation() {
+        // Given
+        var deploymentName = "no-deadline-app";
+        var imageName = "my-registry/no-deadline-image:v1";
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null
+        );
+
+        // Then
+        var annotations = generatedService.getSpec().getTemplate().getMetadata().getAnnotations();
+        assertThat(annotations).doesNotContainKey("serving.knative.dev/progress-deadline");
+    }
+
+    @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnContainer() {
         // Given: generator with real ProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter());
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter(), realCalculator);
         var deploymentName = "probe-app";
         var imageName = "my-registry/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
