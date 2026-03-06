@@ -165,7 +165,7 @@ class KnativeManifestGeneratorTest {
         var generatorWithRealConverter = new KnativeManifestGenerator(appconfig, new ProbeConverter(), realCalculator);
         var deploymentName = "deadline-app";
         var imageName = "my-registry/deadline-image:v1";
-        // deadline = 5 + (10 * 2) + 30 = 55
+        // deadline = 5 + ((2-1) * 10) + 3 + 30 = 48
         var httpGet = new HttpGetProbe("/ready", 9090);
         var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
 
@@ -177,7 +177,7 @@ class KnativeManifestGeneratorTest {
 
         // Then
         var annotations = generatedService.getSpec().getTemplate().getMetadata().getAnnotations();
-        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "55s");
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "48s");
     }
 
     @Test

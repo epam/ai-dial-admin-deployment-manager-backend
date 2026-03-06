@@ -125,7 +125,7 @@ KNative has a default progress deadline of 600 seconds (10 minutes). If a Revisi
 When a startup probe is configured on a deployment, the application automatically computes and sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative) or the InferenceService metadata (for KServe). The formula is:
 
 ```
-progressDeadline = initialDelaySeconds + (periodSeconds × failureThreshold) + bufferSeconds
+progressDeadline = initialDelaySeconds + ((failureThreshold - 1) × periodSeconds) + timeoutSeconds + bufferSeconds
 ```
 
 If the startup probe does not specify `initialDelaySeconds`, `periodSeconds`, or `failureThreshold`, the corresponding default values from the properties above are used (matching Kubernetes defaults).

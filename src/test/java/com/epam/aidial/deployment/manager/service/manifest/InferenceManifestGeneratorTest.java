@@ -270,7 +270,7 @@ class InferenceManifestGeneratorTest {
         var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
         var deploymentName = "deadline-inference-app";
         var storageUri = "s3://my-bucket/deadline-model";
-        // deadline = 5 + (10 * 2) + 30 = 55
+        // deadline = 5 + ((2-1) * 10) + 3 + 30 = 48
         var httpGet = new HttpGetProbe("/health", 8080);
         var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
 
@@ -282,7 +282,7 @@ class InferenceManifestGeneratorTest {
 
         // Then
         var annotations = generatedService.getMetadata().getAnnotations();
-        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "55s");
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "48s");
     }
 
     @Test
