@@ -41,6 +41,8 @@ class InferenceManifestGeneratorTest {
     private AppProperties appconfig;
     @Mock
     private KserveProbeConverter kserveProbeConverter;
+    @Mock
+    private ProgressDeadlineCalculator progressDeadlineCalculator;
     @InjectMocks
     private InferenceManifestGenerator manifestGenerator;
 
@@ -262,9 +264,51 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
+    void testServiceConfig_withProbeProperties_setsProgressDeadlineAnnotation() {
+        // Given
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
+        var deploymentName = "deadline-inference-app";
+        var storageUri = "s3://my-bucket/deadline-model";
+        // deadline = 5 + ((2-1) * 10) + 3 + 30 = 48
+        var httpGet = new HttpGetProbe("/health", 8080);
+        var probeProperties = new ProbeProperties(true, 5, 10, 3, 2, httpGet);
+
+        // When
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, probeProperties
+        );
+
+        // Then
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "48s");
+    }
+
+    @Test
+    void testServiceConfig_withoutProbe_doesNotSetProgressDeadlineAnnotation() {
+        // Given
+        var deploymentName = "no-deadline-inference-app";
+        var storageUri = "s3://my-bucket/no-deadline-model";
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, null
+        );
+
+        // Then
+        var annotations = generatedService.getMetadata().getAnnotations();
+        if (annotations != null) {
+            assertThat(annotations).doesNotContainKey("serving.knative.dev/progress-deadline");
+        }
+    }
+
+    @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnModel() {
         // Given: generator with real KserveProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()));
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
         var deploymentName = "probe-inference-app";
         var storageUri = "s3://my-bucket/probe-model";
         var httpGet = new HttpGetProbe("/health", 8080);

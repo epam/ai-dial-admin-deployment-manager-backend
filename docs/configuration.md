@@ -113,6 +113,24 @@ app:
 | `app.image-name-format`                 | `IMAGE_NAME_FORMAT`               | `app-%s`                                | No                                                   | -            | Name format for images that are built using Deployment Manager. Must contain `%s` that will be replaced by image definition ID.                                                                                |
 | `app.resource-name-prefix`              | `RESOURCE_NAME_PREFIX`            | -                                       | No                                                   | -            | Prefix that will be added to all resources that image build and deployments produce. Important note: do not change this value on exising setups, otherwise existing images and K8s resources will be lost.     |
 | `app.deployment.healthcheck-enabled`    | `DEPLOYMENT_HEALTHCHECK_ENABLED`  | `true`                                  | No                                                   | -            | Flag that allows to enable/disable deployment healthchecks                                                                                                                                                     |
+| `app.deployment.progress-deadline.default-initial-delay` | `DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_INITIAL_DELAY` | `0` | No | - | Default `initialDelaySeconds` used when computing the KNative progress deadline from a startup probe that has no explicit initial delay set. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.deployment.progress-deadline.default-period` | `DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_PERIOD` | `10` | No | - | Default `periodSeconds` used when computing the KNative progress deadline from a startup probe that has no explicit period set. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.deployment.progress-deadline.default-failure-threshold` | `DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_FAILURE_THRESHOLD` | `3` | No | - | Default `failureThreshold` used when computing the KNative progress deadline from a startup probe that has no explicit failure threshold set. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.deployment.progress-deadline.buffer-seconds` | `DEPLOYMENT_PROGRESS_DEADLINE_BUFFER_SECONDS` | `30` | No | - | Extra buffer (in seconds) added on top of the computed startup probe window when setting the KNative progress deadline. Accounts for image pull time, readiness probe, and scheduling overhead. See [Progress Deadline](#progress-deadline-configuration). |
+
+#### Progress Deadline Configuration
+
+KNative has a default progress deadline of 600 seconds (10 minutes). If a Revision does not become ready within this window, KNative marks it as **Failed** and terminates the pod. This can cause deployments of large models to fail if they need more time to download or initialize.
+
+When a startup probe is configured on a deployment, the application automatically computes and sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative) or the InferenceService metadata (for KServe). The formula is:
+
+```
+progressDeadline = initialDelaySeconds + ((failureThreshold - 1) × periodSeconds) + timeoutSeconds + bufferSeconds
+```
+
+If the startup probe does not specify `initialDelaySeconds`, `periodSeconds`, or `failureThreshold`, the corresponding default values from the properties above are used (matching Kubernetes defaults).
+
+When no startup probe is configured, no annotation is set and KNative's built-in default of 600s applies.
 
 #### MCP Proxy Configuration
 
