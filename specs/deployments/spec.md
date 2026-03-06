@@ -173,9 +173,7 @@ All deployment types SHALL carry these fields:
 | `probeProperties` | ProbePropertiesDto | No | Startup probe configuration (see below). |
 | `allowedDomains` | List\<String\> | No | Runtime network policy — see `domain-whitelist` spec. |
 | `containerPort` | Integer | No | 1–65535. Container port override. |
-| `initialScale` | Integer | No | KNative initial replica count (annotation `autoscaling.knative.dev/initial-scale`). |
-| `minScale` | Integer | No | KNative minimum replicas (annotation `autoscaling.knative.dev/min-scale`). |
-| `maxScale` | Integer | No | KNative maximum replicas (annotation `autoscaling.knative.dev/max-scale`). |
+| `scaling` | ScalingDto | No | Scaling configuration — replicas, strategy, scale-to-zero. See structure below. |
 | `status` | DeploymentStatusDto | Yes (response) | Current lifecycle status (see status lifecycle above). |
 | `url` | String | No (response only) | Auto-generated service URL. Set when deployment becomes RUNNING; cleared on undeploy/stop. Not user-supplied. |
 | `author` | String | No | |
@@ -199,6 +197,22 @@ All deployment types SHALL carry these fields:
 | `timeoutSeconds` | Integer | No | Probe timeout in seconds. Min: 1, max: 12000. |
 | `failureThreshold` | Integer | No | Consecutive failures before marking failed. Min: 1, max: 100. |
 | `probe` | ProbeHandlerDto | Yes | Probe handler — one of `HttpGetProbeDto` (path + port) or `TcpSocketProbeDto` (port). |
+
+**`ScalingDto` structure** (scaling configuration, applies to all deployment types):
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. |
+| `maxReplicas` | int | Yes | Maximum replica count. `@Min(1)`. |
+| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. |
+| `strategy` | ScalingStrategyDto | Conditional | Scaling strategy. Nullable. Required when `minReplicas != maxReplicas` (unless `minReplicas=0, maxReplicas=1`). Must be null when `minReplicas == maxReplicas` or when `minReplicas=0, maxReplicas=1`. |
+
+**`ScalingStrategyDto` structure:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `$type` | ScalingStrategyTypeDto | Yes | Strategy type: `PENDING_REQUESTS`, `ACTIVE_REQUESTS`, or `HARDWARE_USAGE`. Note: KNative deployments only support `ACTIVE_REQUESTS`; KServe supports all types. |
+| `threshold` | int | Yes | Scale-out threshold. `@Min(1)`. |
 
 Status: **Implemented**
 
@@ -342,6 +356,12 @@ There is no `ImageBasedDeploymentEntity`. The `imageDefinitionId`, `imageDefinit
 - Duplicate request: `com.epam.aidial.deployment.manager.web.dto.DuplicateDeploymentRequestDto`
 - Image change request: `com.epam.aidial.deployment.manager.web.dto.DeploymentImageChangeRequestDto`
 - Resources DTO: `com.epam.aidial.deployment.manager.web.dto.ResourcesDto` (record with `limits`/`requests` maps)
+- Scaling DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingDto` (minReplicas, maxReplicas, scaleToZeroDelaySeconds, strategy)
+- Scaling strategy DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyDto` ($type as `ScalingStrategyTypeDto`, threshold)
+- Scaling strategy type enum: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyTypeDto` (PENDING_REQUESTS, ACTIVE_REQUESTS, HARDWARE_USAGE)
+- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts)
+- Scaling DTO mapper: `com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapper`
+- Domain scaling model: `com.epam.aidial.deployment.manager.model.Scaling`, `com.epam.aidial.deployment.manager.model.ScalingStrategy`, `com.epam.aidial.deployment.manager.model.ScalingStrategyType`
 - Probe properties DTO: `com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto`
 - Probe handlers: `HttpGetProbeDto` (path + port), `TcpSocketProbeDto` (port)
 - URL resolution: `AbstractDeploymentManager.resolveServiceUrl()` — populated on RUNNING, cleared on undeploy
