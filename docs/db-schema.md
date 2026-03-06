@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-03-05T14:52:59.905029Z
+> Generated at: 2026-03-06T11:16:25.615748Z
 
 ## Tables
 
@@ -50,9 +50,6 @@
 | DISPLAY_NAME | VARCHAR(1000000000) | No |  |  |
 | DESCRIPTION | VARCHAR(1000000000) | Yes |  |  |
 | ENVS | JSON | Yes |  |  |
-| INITIAL_SCALE | INTEGER | Yes |  |  |
-| MIN_SCALE | INTEGER | Yes |  |  |
-| MAX_SCALE | INTEGER | Yes |  |  |
 | STATUS | VARCHAR(32) | Yes |  |  |
 | URL | VARCHAR(2048) | Yes |  |  |
 | RESOURCES | JSON | Yes |  |  |
@@ -66,6 +63,7 @@
 | ALLOWED_DOMAINS | JSON | No | JSON '[]' |  |
 | PROBE_PROPERTIES | JSON | Yes |  |  |
 | IMAGE_DEFINITION_TYPE | VARCHAR(20) | Yes |  |  |
+| SCALING | JSON | Yes |  |  |
 
 **Indexes:**
 
@@ -150,7 +148,6 @@
 | MODEL_FORMAT | VARCHAR(32) | No |  |  |
 | SOURCE | JSON | No |  |  |
 | COMMAND | JSON | Yes |  |  |
-| SCALING | JSON | Yes |  |  |
 
 ## INTERCEPTOR_DEPLOYMENT
 
