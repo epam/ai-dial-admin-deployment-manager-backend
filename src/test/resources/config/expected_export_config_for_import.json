@@ -96,6 +96,12 @@
       "initialScale": 1,
       "minScale": 0,
       "maxScale": 5,
+      "scaling": {
+        "minReplicas": 0,
+        "maxReplicas": 5,
+        "scaleToZeroDelaySeconds": 300,
+        "strategy": {"$type": "pending_requests", "threshold": 10}
+      },
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
@@ -133,6 +139,11 @@
       "initialScale": 1,
       "minScale": 0,
       "maxScale": 5,
+      "scaling": {
+        "minReplicas": 0,
+        "maxReplicas": 5,
+        "strategy": {"$type": "active_requests", "threshold": 50}
+      },
       "resources": {"limits": {}, "requests": {}},
       "containerPort": 5000,
       "allowedDomains": ["*"]
@@ -160,6 +171,11 @@
       "initialScale": 1,
       "minScale": 0,
       "maxScale": 5,
+      "scaling": {
+        "minReplicas": 0,
+        "maxReplicas": 5,
+        "scaleToZeroDelaySeconds": 600
+      },
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
