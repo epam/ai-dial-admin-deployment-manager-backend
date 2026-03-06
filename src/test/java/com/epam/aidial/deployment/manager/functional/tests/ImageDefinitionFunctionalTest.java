@@ -6,13 +6,13 @@ import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionViewElement;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
-import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -110,7 +110,7 @@ public abstract class ImageDefinitionFunctionalTest {
         CreateDeployment createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefId);
         Deployment deployment = deploymentService.createDeployment(createDeployment);
 
-        service.deleteImageDefinitionAsync(imageDefId);
+        service.deleteImageDefinitionSync(imageDefId);
         imageDefs = service.getAllImageDefinitions().stream().toList();
         boolean isImageDefPresent = service.getImageDefinition(imageDefId).isPresent();
         boolean isDeploymentPresent = deploymentService.getDeployment(deployment.getId()).isPresent();
@@ -221,7 +221,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // When
         service.createImageDefinition(mcpImageDef);
         service.createImageDefinition(interceptorImageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageTypeDto.MCP).stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageType.MCP).stream().toList();
 
         // Then
         Assertions.assertEquals(1, imageDefs.size());
@@ -249,7 +249,7 @@ public abstract class ImageDefinitionFunctionalTest {
         service.createImageDefinition(mcpImageDef);
         service.createImageDefinition(interceptorImageDef1);
         service.createImageDefinition(interceptorImageDef2);
-        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.INTERCEPTOR).stream()
+        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageType.INTERCEPTOR).stream()
                 .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
@@ -330,7 +330,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // When
         service.createImageDefinition(adapterImageDef);
         service.createImageDefinition(interceptorImageDef);
-        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageTypeDto.ADAPTER).stream().toList();
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageType.ADAPTER).stream().toList();
 
         // Then
         Assertions.assertEquals(1, imageDefs.size());
@@ -358,7 +358,7 @@ public abstract class ImageDefinitionFunctionalTest {
         service.createImageDefinition(interceptorImageDef);
         service.createImageDefinition(adapterImageDef1);
         service.createImageDefinition(adapterImageDef2);
-        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageTypeDto.ADAPTER).stream()
+        var imageDefs = service.getAllImageDefinitionsByNameAndType(name, ImageType.ADAPTER).stream()
                 .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
@@ -395,8 +395,8 @@ public abstract class ImageDefinitionFunctionalTest {
 
         service.updateBuildStatus(createdAdapter1.getId(), ImageStatus.BUILD_SUCCESSFUL);
 
-        var adapterViews = service.getImageDefinitionViewsByType(ImageTypeDto.ADAPTER).stream().toList();
-        var interceptorViews = service.getImageDefinitionViewsByType(ImageTypeDto.INTERCEPTOR).stream().toList();
+        var adapterViews = service.getImageDefinitionViewsByType(ImageType.ADAPTER).stream().toList();
+        var interceptorViews = service.getImageDefinitionViewsByType(ImageType.INTERCEPTOR).stream().toList();
 
         // Then
         Assertions.assertEquals(1, adapterViews.size());
@@ -527,8 +527,8 @@ public abstract class ImageDefinitionFunctionalTest {
         service.updateBuildStatus(createdMcp1.getId(), ImageStatus.BUILD_SUCCESSFUL);
 
         // When
-        var mcpViews = service.getImageDefinitionViewsByType(ImageTypeDto.MCP).stream().toList();
-        var interceptorViews = service.getImageDefinitionViewsByType(ImageTypeDto.INTERCEPTOR).stream().toList();
+        var mcpViews = service.getImageDefinitionViewsByType(ImageType.MCP).stream().toList();
+        var interceptorViews = service.getImageDefinitionViewsByType(ImageType.INTERCEPTOR).stream().toList();
 
         // Then
         Assertions.assertEquals(1, mcpViews.size());

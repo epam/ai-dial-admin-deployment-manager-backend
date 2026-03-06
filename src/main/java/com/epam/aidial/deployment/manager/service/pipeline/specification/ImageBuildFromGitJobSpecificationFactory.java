@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.pipeline.specification;
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,9 @@ public class ImageBuildFromGitJobSpecificationFactory {
     @Value("${app.docker-config-path}")
     private final String dockerConfigPath;
 
-    public ImageBuildFromGitJobSpecification create(String jobId, String imageName, GitDockerfileImageSource imageSource) {
+    public ImageBuildFromGitJobSpecification create(String jobId, String imageName,
+                                                    GitDockerfileImageSource imageSource,
+                                                    ImageBuilder imageBuilder) {
         return new ImageBuildFromGitJobSpecification(
                 registryService,
                 manifestGenerator,
@@ -38,7 +41,8 @@ public class ImageBuildFromGitJobSpecificationFactory {
 
                 jobId,
                 imageName,
-                imageSource
+                imageSource,
+                imageBuilder
         );
     }
 

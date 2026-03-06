@@ -7,6 +7,9 @@ buildscript {
             classpath ('org.springframework:spring-core:6.2.11') {
                 because("previous versions have vulnerabilities")
             }
+            classpath ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
+                because("previous versions have vulnerabilities")
+            }
         }
     }
 }
@@ -15,12 +18,12 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '3.5.3'
+    id 'org.springframework.boot' version '3.5.10'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
 group = 'com.epam.aidial'
-version = "0.14.0-rc"
+version = "0.15.0-rc"
 
 java {
     toolchain {
@@ -68,6 +71,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     implementation 'com.azure:azure-identity:1.18.0'
+    implementation 'com.azure:azure-identity-extensions:1.2.7'
 
     implementation 'net.javacrumbs.shedlock:shedlock-spring:6.3.0'
     implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:6.3.0'
@@ -78,6 +82,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core:11.14.0'
     implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
+    implementation 'com.google.cloud.sql:postgres-socket-factory:1.28.0'
 
     implementation 'io.modelcontextprotocol.sdk:mcp:0.15.0'
     implementation 'com.google.cloud.tools:jib-core:0.27.3'
@@ -125,6 +130,7 @@ dependencies {
     testImplementation 'io.jsonwebtoken:jjwt:0.9.1'
     testImplementation 'org.assertj:assertj-core:3.27.7'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation "org.testcontainers:junit-jupiter:${testcontainers_version}"
     testImplementation "org.testcontainers:testcontainers:${testcontainers_version}"
@@ -134,7 +140,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.13') {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.14') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
@@ -164,6 +170,9 @@ dependencies {
         implementation ('org.springframework:spring-core:6.2.11') {
             because("previous versions have vulnerabilities")
         }
+        implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
+            because("previous versions have vulnerabilities")
+        }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
             because("previous versions have vulnerabilities")
         }
@@ -172,6 +181,13 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('generateDbSchema', JavaExec) {
+    dependsOn classes
+    mainClass = 'db.schema.GenerateDbSchema'
+    classpath = sourceSets.main.runtimeClasspath
+    args = ["${projectDir}/docs/db-schema.md"]
 }
 
 tasks.withType(JavaCompile).configureEach {

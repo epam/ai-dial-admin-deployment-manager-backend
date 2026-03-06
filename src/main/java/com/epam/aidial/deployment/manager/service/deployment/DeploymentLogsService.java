@@ -1,7 +1,7 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderFactory;
 import com.epam.aidial.deployment.manager.service.SafeAutoCloseable;
@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.nio.channels.ClosedByInterruptException;
 import java.util.concurrent.ExecutorService;
 
 @Slf4j
@@ -33,17 +34,22 @@ public class DeploymentLogsService {
                                  String podName,
                                  PodLogReaderConfiguration cfg) {
 
-        var containerResource = deploymentManagerProvider.provide(id)
-                .getContainerResource(id, podName);
+        try {
+            var containerResource = deploymentManagerProvider.provide(id)
+                    .getContainerResourceForLogs(id, podName, cfg.previous());
 
-        if (containerResource == null) {
-            throw new EntityNotFoundException("Pod not found. Deployment=%s Pod=%s".formatted(id, podName));
+            return sseEmitterFactory.createEmitter(
+                    id,
+                    "Deployment-" + podName,
+                    emitter -> startPodStreaming(id, containerResource, cfg, emitter));
+
+        } catch (ValidationException e) {
+            log.info("Log streaming rejected for deployment '{}', pod '{}': {}", id, podName, e.getMessage());
+            return sseEmitterFactory.createErrorEmitter(id, "Deployment-" + podName, e.getMessage());
+        } catch (Exception e) {
+            log.warn("Log streaming failed for deployment '{}', pod '{}'", id, podName, e);
+            return sseEmitterFactory.createErrorEmitter(id, "Deployment-" + podName, "Unknown error occurred");
         }
-
-        return sseEmitterFactory.createEmitter(
-                id,
-                "Deployment-" + podName,
-                emitter -> startPodStreaming(id, containerResource, cfg, emitter));
     }
 
     private SafeAutoCloseable startPodStreaming(String id,
@@ -61,14 +67,19 @@ public class DeploymentLogsService {
                                             .name("logs")
                                             .data(line));
                                 } catch (IOException e) {
-                                    log.error("Failed to send log line. Deployment {}", id, e);
+                                    log.warn("Failed to send log line. Deployment {}", id, e);
                                     emitter.completeWithError(e);
                                 }
                             }
                         });
                 emitter.complete();
             } catch (Exception e) {
-                log.error("Failed to read logs for deployment {}", id, e);
+                String message = "Failed to read logs for deployment " + id;
+                if (e instanceof ClosedByInterruptException) {
+                    log.warn("{}. Reason: ClosedByInterruptException", message);
+                } else {
+                    log.warn(message, e);
+                }
                 emitter.completeWithError(e);
             }
         });

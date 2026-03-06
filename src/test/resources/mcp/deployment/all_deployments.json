@@ -26,9 +26,6 @@
         }
       ]
     },
-    "initialScale": 1,
-    "minScale": 0,
-    "maxScale": 2,
     "resources": {
       "limits": {"cpu": "10"},
       "requests": {"cpu": "5"}
@@ -67,9 +64,6 @@
         }
       ]
     },
-    "initialScale": 1,
-    "minScale": 0,
-    "maxScale": 2,
     "resources": {
       "limits": {"cpu": "10"},
       "requests": {"cpu": "5"}

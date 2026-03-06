@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.docker.DockerRegistryClient;
 import com.epam.aidial.deployment.manager.model.DistroInfo;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -34,7 +35,10 @@ public class ImageWrapperBuildJobSpecificationFactory {
     @Value("${app.build.mcp-proxy.images.debian}")
     private final String mcpProxyDebianImageName;
 
-    public JobSpecification create(String jobId, String wrapperImageName, DockerImageSource dockerImageSource, DistroInfo distryInfo) {
+    public JobSpecification create(String jobId, String wrapperImageName,
+                                   DockerImageSource dockerImageSource,
+                                   DistroInfo distroInfo,
+                                   ImageBuilder imageBuilder) {
         return new ImageWrapperBuildJobSpecification(
                 registryClient,
                 registryService,
@@ -47,10 +51,11 @@ public class ImageWrapperBuildJobSpecificationFactory {
                 jobId,
                 wrapperImageName,
                 dockerImageSource,
-                distryInfo,
+                distroInfo,
 
                 mcpProxyAlpineImageName,
-                mcpProxyDebianImageName
+                mcpProxyDebianImageName,
+                imageBuilder
         );
     }
 

@@ -170,6 +170,18 @@ class ImageDefinitionServiceTest {
         verify(componentCleanupService).deleteAsync(ComponentRemoval.of(String.valueOf(imageId), ComponentType.IMAGE_DEFINITION));
     }
 
+    @Test
+    void testDeleteImageDefinitionSync() {
+        // Given
+        var imageId = UUID.randomUUID();
+
+        // When
+        imageDefinitionService.deleteImageDefinitionSync(imageId);
+
+        // Then
+        verify(componentCleanupService).deleteSync(ComponentRemoval.of(String.valueOf(imageId), ComponentType.IMAGE_DEFINITION));
+    }
+
     private McpImageDefinition createImageDefinition(UUID id, String name) {
         return McpImageDefinition.builder()
                 .id(id)

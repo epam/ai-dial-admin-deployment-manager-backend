@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.configuration;
 
 import com.nvidia.apps.v1alpha1.NIMService;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.knative.serving.v1.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.Container;
@@ -26,7 +27,8 @@ public class AppProperties {
 
     private Job builderJobConfig;
     private Container initBuilderContainerConfig;
-    private Container builderContainerConfig;
+    private Container builderRootContainerConfig;
+    private Container builderRootlessContainerConfig;
     private Container pushContainerConfig;
     private Secret builderSecretConfig;
 
@@ -40,6 +42,7 @@ public class AppProperties {
     private Container knativeServiceContainerConfig;
 
     private NIMService nimServiceConfig;
+    private Ingress nimServiceExposeIngressConfig;
 
     private InferenceService inferenceServiceConfig;
     private Container inferenceServiceContainerConfig;
@@ -65,8 +68,12 @@ public class AppProperties {
         return new JobBuilder(builderJobConfig).build();
     }
 
-    public Container cloneBuilderContainerConfig() {
-        return new ContainerBuilder(builderContainerConfig).build();
+    public Container cloneBuilderRootContainerConfig() {
+        return new ContainerBuilder(builderRootContainerConfig).build();
+    }
+
+    public Container cloneBuilderRootlessContainerConfig() {
+        return new ContainerBuilder(builderRootlessContainerConfig).build();
     }
 
     public Container clonePushContainerConfig() {

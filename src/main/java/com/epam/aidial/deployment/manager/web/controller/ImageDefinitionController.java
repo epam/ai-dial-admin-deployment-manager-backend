@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.web.dto.BaseImageDetailsDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionDto;
@@ -49,7 +50,7 @@ public class ImageDefinitionController {
             @RequestParam(required = false) ImageTypeDto type
     ) {
         Collection<ImageDefinition> imageDefinitions = type != null
-                ? imageDefinitionService.getAllImageDefinitionsByType(type)
+                ? imageDefinitionService.getAllImageDefinitionsByType(toImageType(type))
                 : imageDefinitionService.getAllImageDefinitions();
         return imageDefinitions.stream()
                 .map(dtoMapper::toImageDefinitionDto)
@@ -62,7 +63,7 @@ public class ImageDefinitionController {
             @RequestParam(required = false) ImageTypeDto type
     ) {
         Collection<ImageDefinitionView> imageDefinitionViews = type != null
-                ? imageDefinitionService.getImageDefinitionViewsByType(type)
+                ? imageDefinitionService.getImageDefinitionViewsByType(toImageType(type))
                 : imageDefinitionService.getImageDefinitionViews();
         return imageDefinitionViews.stream()
                 .map(viewDtoMapper::toDto)
@@ -84,7 +85,7 @@ public class ImageDefinitionController {
             @RequestParam(required = false) ImageTypeDto type
     ) {
         Collection<ImageDefinition> imageDefinitions = type != null
-                ? imageDefinitionService.getAllImageDefinitionsByNameAndType(name, type)
+                ? imageDefinitionService.getAllImageDefinitionsByNameAndType(name, toImageType(type))
                 : imageDefinitionService.getAllImageDefinitionsByName(name);
         return imageDefinitions.stream()
                 .map(dtoMapper::toBaseImageDetailsDto)
@@ -112,6 +113,10 @@ public class ImageDefinitionController {
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteImageDefinition(@PathVariable UUID id) {
-        imageDefinitionService.deleteImageDefinitionAsync(id);
+        imageDefinitionService.deleteImageDefinitionSync(id);
+    }
+
+    private static ImageType toImageType(ImageTypeDto dto) {
+        return dto == null ? null : ImageType.valueOf(dto.name());
     }
 }

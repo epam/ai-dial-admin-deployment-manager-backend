@@ -1,5 +1,6 @@
 [
   {
+    "$type": "mcp",
     "name": "decade00-0000-4000-a000-000000000000",
     "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
     "imageDefinitionName": "test-image",
@@ -7,9 +8,6 @@
     "displayName": "example deployment 1",
     "description": "Description of example deployment 1",
     "author": "user1@test.com",
-    "initialScale": 1,
-    "minScale": 0,
-    "maxScale": 2,
     "resources": {
       "limits": {"cpu": "10"},
       "requests": {"cpu": "5"}
@@ -17,10 +15,10 @@
     "status": "running",
     "url": "http://example.com/deployment1/mcp",
     "createdAt": 1745996228431,
-    "updatedAt": 1745996228431,
-    "type": "mcp"
+    "updatedAt": 1745996228431
   },
   {
+    "$type": "mcp",
     "name": "decade00-0000-4000-a000-000000000001",
     "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
     "imageDefinitionName": "test-image-1",
@@ -28,16 +26,12 @@
     "displayName": "example deployment 2",
     "description": "Description of example deployment 2",
     "author": "user2@test.com",
-    "initialScale": 1,
-    "minScale": 0,
-    "maxScale": 2,
     "resources": {
       "limits": {"cpu": "10"},
       "requests": {"cpu": "5"}
     },
     "status": "not_deployed",
     "createdAt": 1745996228431,
-    "updatedAt": 1745996228431,
-    "type": "mcp"
+    "updatedAt": 1745996228431
   }
 ]

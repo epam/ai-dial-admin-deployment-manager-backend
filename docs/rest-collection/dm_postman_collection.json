@@ -1181,6 +1181,365 @@
               ]
             },
             {
+              "name": "mcp-registry",
+              "item": [
+                {
+                  "name": "list servers (no params)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "list servers (with query params)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers?search=petstore&limit=50&version=latest",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers"],
+                      "query": [
+                        {"key": "search", "value": "petstore"},
+                        {"key": "limit", "value": "50"},
+                        {"key": "version", "value": "latest"}
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "list servers (pagination)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers?cursor=ai.com.mcp%2Fpetstore:1.0.0&limit=10",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers"],
+                      "query": [
+                        {"key": "cursor", "value": "ai.com.mcp%2Fpetstore:1.0.0"},
+                        {"key": "limit", "value": "10"}
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "list versions (namespace/name)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/ai.com.mcp/petstore/versions",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "ai.com.mcp", "petstore", "versions"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get specific server version",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/ai.com.mcp/petstore/versions/1.0.0",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "ai.com.mcp", "petstore", "versions", "1.0.0"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get latest server version",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/ai.com.mcp/petstore/versions/latest",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "ai.com.mcp", "petstore", "versions", "latest"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "list versions (official MCP server)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/io.modelcontextprotocol/everything/versions",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "io.modelcontextprotocol", "everything", "versions"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get version (official MCP server)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [{"key": "Accept", "value": "application/json"}],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/io.modelcontextprotocol/everything/versions/latest",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "io.modelcontextprotocol", "everything", "versions", "latest"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "POST list servers (all params in body)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {"key": "Content-Type", "value": "application/json"},
+                      {"key": "Accept", "value": "application/json"}
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"search\": \"petstore\",\n  \"limit\": 50,\n  \"version\": \"latest\"\n}",
+                      "options": {"raw": {"language": "json"}}
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/list",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "list"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "POST list servers (with cursor)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {"key": "Content-Type", "value": "application/json"},
+                      {"key": "Accept", "value": "application/json"}
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"cursor\": \"ai.com.mcp%2Fpetstore:1.0.0\",\n  \"limit\": 10\n}",
+                      "options": {"raw": {"language": "json"}}
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/list",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "list"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "POST list versions (serverName in body)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {"key": "Content-Type", "value": "application/json"},
+                      {"key": "Accept", "value": "application/json"}
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"serverName\": \"ai.com.mcp/petstore\"\n}",
+                      "options": {"raw": {"language": "json"}}
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/versions",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "versions"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "POST get server version (serverName and version in body)",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {"key": "Content-Type", "value": "application/json"},
+                      {"key": "Accept", "value": "application/json"}
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"serverName\": \"ai.com.mcp/petstore\",\n  \"version\": \"1.0.0\"\n}",
+                      "options": {"raw": {"language": "json"}}
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/versions",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "versions"]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "POST get latest version",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {"key": "Content-Type", "value": "application/json"},
+                      {"key": "Accept", "value": "application/json"}
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"serverName\": \"io.modelcontextprotocol/everything\",\n  \"version\": \"latest\"\n}",
+                      "options": {"raw": {"language": "json"}}
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/mcp-registry/servers/versions",
+                      "host": ["{{HOST}}"],
+                      "path": ["api", "v1", "mcp-registry", "servers", "versions"]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "config",
+              "item": [
+                {
+                  "name": "export",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"$type\": \"custom\",\n    \"addSecrets\": false,\n    \"addGlobalImageBuildDomainWhitelist\": true,\n    \"components\": [\n        {\n            \"name\": \"{{DEPLOYMENT_NAME}}\",\n            \"type\": \"MCP_DEPLOYMENT\"\n        }\n    ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/configs/export",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "configs",
+                        "export"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "import",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "uuid": "ef065c92-6627-4867-8878-c144fbd3ad87",
+                          "value": null
+                        }
+                      ]
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/configs/import?resolutionPolicy=SKIP_IF_EXISTS",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "configs",
+                        "import"
+                      ],
+                      "query": [
+                        {
+                          "key": "resolutionPolicy",
+                          "value": "SKIP_IF_EXISTS"
+                        }
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
               "name": "healthcheck",
               "protocolProfileBehavior": {
                 "followRedirects": true,

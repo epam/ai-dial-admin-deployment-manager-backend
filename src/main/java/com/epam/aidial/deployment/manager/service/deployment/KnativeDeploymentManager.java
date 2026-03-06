@@ -43,6 +43,7 @@ import java.util.Optional;
 public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployment, Service> {
 
     private static final String SERVICE_NAME_LABEL = "serving.knative.dev/service";
+    private static final int DEFAULT_KNATIVE_SERVICE_PORT = 8080;
 
     private final KnativeManifestGenerator knativeManifestGenerator;
     private final ImageDefinitionService imageDefinitionService;
@@ -67,7 +68,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
                 containerPortResolver, ciliumNetworkPolicyCreator, knativeDeployProperties.getNamespace(),
-                knativeDeployProperties.getStartupTimeout(), null);
+                knativeDeployProperties.getStartupTimeout(), DEFAULT_KNATIVE_SERVICE_PORT);
         this.knativeManifestGenerator = knativeManifestGenerator;
         this.imageDefinitionService = imageDefinitionService;
         this.healthCheckProvider = healthCheckProvider;
@@ -116,9 +117,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
                 imageDefinition.getImageName(),
-                deployment.getInitialScale(),
-                deployment.getMinScale(),
-                deployment.getMaxScale(),
+                deployment.getScaling(),
                 deployment.getResources(),
                 containerPort,
                 deployment.getProbeProperties());

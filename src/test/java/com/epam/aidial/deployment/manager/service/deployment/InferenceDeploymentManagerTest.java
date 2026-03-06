@@ -6,6 +6,8 @@ import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ValidationException;
+import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
@@ -16,6 +18,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -40,17 +43,21 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -111,6 +118,7 @@ class InferenceDeploymentManagerTest {
         kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         kserveDeployProperties.setUseClusterInternalUrl(false);
 
+        var huggingFaceProperties = new HuggingFaceProperties();
         inferenceDeploymentManager = new InferenceDeploymentManager(
                 k8sClient,
                 disposableResourceManager,
@@ -120,7 +128,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 deploymentRepository,
                 k8sKserveClient,
-                kserveDeployProperties
+                kserveDeployProperties,
+                huggingFaceProperties
         );
 
         TransactionSynchronizationManager.initSynchronization();
@@ -249,16 +258,18 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnContainerResourceForPod() {
+    void getContainerResourceForLogs_shouldReturnContainerResourceForRunningPod() {
         // Given
         Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -268,19 +279,18 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void getContainerResource_shouldReturnNullWhenPodNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(null);
 
-        // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME);
-
-        // Then
-        assertThat(result).isNull();
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
 
     @Test
-    void getContainerResource_shouldThrowExceptionWhenContainerNotFound() {
+    void getContainerResourceForLogs_shouldThrowExceptionWhenContainerNotFound() {
         // Given
         Pod pod = new Pod();
         pod.setMetadata(new ObjectMeta());
@@ -290,9 +300,99 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResource(DEPLOYMENT_ID, POD_NAME))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container not found for pod");
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerStatusIsEmpty() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().setContainerStatuses(Collections.emptyList());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerStatusNotFoundByName() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst().setName("other-container");
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Container is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerIsNotRunning() {
+        // Given
+        Pod pod = createPod(POD_NAME, false); // waiting state
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenContainerIsTerminated() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewTerminated().endTerminated().build());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrowWhenPreviousLogsNotAvailable() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Previous logs are not available for container in deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldReturnContainerResourceForPreviousLogs() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        var containerStatus = pod.getStatus().getContainerStatuses().getFirst();
+        containerStatus.setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+        containerStatus.setLastState(new ContainerStateBuilder().withNewTerminated().endTerminated().build());
+
+        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
+
+        // When
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true);
+
+        // Then
+        assertThat(result).isEqualTo(containerResource);
     }
 
     @Test
@@ -325,6 +425,151 @@ class InferenceDeploymentManagerTest {
         verify(disposableResourceManager).saveInferenceServiceResource(DEPLOYMENT_ID, NAMESPACE);
         verify(k8sKserveClient).createService(eq(NAMESPACE), eq(serviceSpec));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+
+        // Cilium policy created with deployment domains list (no default domains)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                    domains.contains("test-domain-1")
+                        && domains.contains("test-domain-2")
+                        && domains.size() == 2),
+                any()
+        );
+    }
+
+    @Test
+    void deploy_shouldMergeDefaultAllowedDomainsWithDeploymentDomainsForHuggingFaceSource() {
+        // Given: HuggingFace source with deployment-specific domains and config default domains
+        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
+        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setAllowedDomains(List.of("custom.com"));
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("custom.com")
+                                && domains.contains("huggingface.co")
+                                && domains.contains("cdn.huggingface.co")
+                                && domains.size() == 3),
+                any()
+        );
+    }
+
+    @Test
+    void deploy_shouldNotAppendDefaultDomainsWhenSourceIsNotHuggingFace() {
+        // Given: non-HF source (e.g. S3) with config default domains set
+        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        // source is () -> "s3://test-bucket/model" — not InferenceDeploymentHuggingFaceSource
+        assertThat(((InferenceDeployment) deployment).getSource()).isNotInstanceOf(InferenceDeploymentHuggingFaceSource.class);
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: only deployment allowedDomains are used; default domains are NOT appended
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("test-domain-1")
+                                && domains.contains("test-domain-2")
+                                && domains.size() == 2),
+                any()
+        );
+    }
+
+    @Test
+    void deploy_shouldUseOnlyDefaultAllowedDomainsWhenDeploymentDomainsEmptyWithHuggingFaceSource() {
+        // Given: HuggingFace source with empty deployment allowedDomains
+        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
+        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
+
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
+        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setAllowedDomains(Collections.emptyList());
+
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
+
+        // When
+        managerWithDefaults.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: only default allowed domains appear in Cilium policy
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                anyString(),
+                argThat((List<String> domains) ->
+                        domains.contains("huggingface.co")
+                                && domains.contains("cdn.huggingface.co")
+                                && domains.size() == 2),
+                any()
+        );
+    }
+
+    private InferenceDeploymentManager getInferenceDeploymentManager(HuggingFaceProperties huggingFaceProperties) {
+        var kserveDeployProperties = new KserveDeployProperties();
+        kserveDeployProperties.setNamespace(NAMESPACE);
+        kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        kserveDeployProperties.setUseClusterInternalUrl(false);
+        return new InferenceDeploymentManager(
+                k8sClient,
+                disposableResourceManager,
+                manifestGenerator,
+                inferenceManifestGenerator,
+                containerPortResolver,
+                ciliumNetworkPolicyCreator,
+                deploymentRepository,
+                k8sKserveClient,
+                kserveDeployProperties, huggingFaceProperties
+        );
     }
 
     @Test
@@ -562,12 +807,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && SERVICE_URL.equals(updatedDeployment.getUrl())
-        ));
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
     }
 
     @Test
@@ -589,6 +837,7 @@ class InferenceDeploymentManagerTest {
         kserveDeployProperties.setNamespace(NAMESPACE);
         kserveDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         kserveDeployProperties.setUseClusterInternalUrl(true); // use internal url
+        var huggingFaceProperties = new HuggingFaceProperties();
         inferenceDeploymentManager = new InferenceDeploymentManager(
                 k8sClient,
                 disposableResourceManager,
@@ -598,7 +847,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 deploymentRepository,
                 k8sKserveClient,
-                kserveDeployProperties
+                kserveDeployProperties,
+                huggingFaceProperties
         );
 
         var reconcileConfig = getReconcileConfig(service);
@@ -606,12 +856,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && INTERNAL_SERVICE_URL.equals(updatedDeployment.getUrl())
-        ));
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(INTERNAL_SERVICE_URL)));
     }
 
     @Test
@@ -683,12 +936,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && updatedDeployment.getUrl() == null
-        ));
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(null)));
     }
 
     @Test
@@ -711,12 +967,15 @@ class InferenceDeploymentManagerTest {
         // When
         boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
 
+        // Execute transaction synchronization callbacks manually for unit tests
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
         // Then
         assertThat(result).isTrue();
-        verify(deploymentRepository).update(eq(DEPLOYMENT_ID), argThat(updatedDeployment ->
-                updatedDeployment.getStatus() == DeploymentStatus.RUNNING
-                        && "".equals(updatedDeployment.getUrl())
-        ));
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning("")));
     }
 
     @Test
@@ -739,6 +998,14 @@ class InferenceDeploymentManagerTest {
         // Then
         assertThat(result).isTrue();
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
+    }
+
+    private ArgumentMatcher<Consumer<Deployment>> mutatorExpectingUrlAndRunning(String expectedUrl) {
+        return mutator -> {
+            Deployment d = createDeployment(DeploymentStatus.PENDING);
+            mutator.accept(d);
+            return d.getStatus() == DeploymentStatus.RUNNING && Objects.equals(expectedUrl, d.getUrl());
+        };
     }
 
     private Deployment createDeployment(DeploymentStatus status) {
@@ -907,5 +1174,18 @@ class InferenceDeploymentManagerTest {
                 .initiator("Reconciliation Test")
                 .ignorePendingOnServiceNotFound(false)
                 .build();
+    }
+
+    private static HuggingFaceProperties createHuggingFacePropertiesWithDefaultDomains() {
+        var props = new HuggingFaceProperties();
+        props.setDefaultAllowedDomains("huggingface.co,cdn.huggingface.co");
+        try {
+            Method init = HuggingFaceProperties.class.getDeclaredMethod("initDefaultAllowedDomains");
+            init.setAccessible(true);
+            init.invoke(props);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return props;
     }
 }

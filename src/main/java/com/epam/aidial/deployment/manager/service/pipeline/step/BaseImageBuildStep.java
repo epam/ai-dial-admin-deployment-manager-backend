@@ -39,11 +39,14 @@ public class BaseImageBuildStep {
         disposableResourceManager.saveContainerRegistryResource(baseImageName, imageDefinition.getId(), resourceLifecycleState);
 
         var isJobSuccessful = jobRunner.run(
-                imageBuildFromGitJobSpecificationFactory.create(baseImageJobName, baseImageName, gitDockerfileImageSource),
+                imageBuildFromGitJobSpecificationFactory.create(baseImageJobName,
+                        baseImageName,
+                        gitDockerfileImageSource,
+                        imageDefinition.getImageBuilder()),
                 (NewLogJobCallback) logs -> imageDefinitionService.addBuildLogs(imageDefinition.getId(), logs),
                 imageBuildTimeoutSec,
                 imageDefinition.getId(),
-                List.of("init-container", "builder-container"),
+                List.of("init-container", "builder-container", "push-container"),
                 imageDefinition.getAllowedDomains()
         );
 

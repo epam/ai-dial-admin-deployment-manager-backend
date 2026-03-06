@@ -30,6 +30,10 @@ app:
     base-url: ${HUGGINGFACE_BASE_URL:https://huggingface.co}
     api-token: ${HUGGINGFACE_API_TOKEN:}
     tag-cache-duration: ${HUGGINGFACE_TAG_CACHE_DURATION:24h}
+    default-allowed-domains: ${HUGGINGFACE_DEFAULT_ALLOWED_DOMAINS:huggingface.co,transfer.xethub.hf.co,cas-server.xethub.hf.co}
+
+  mcp-registry:
+    base-url: ${MCP_REGISTRY_BASE_URL:https://registry.modelcontextprotocol.io}
 
   kubernetes:
     connect-type: ${K8S_CONNECT_TYPE:CONFIG_FILE}
@@ -76,7 +80,8 @@ app:
         debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN}
   build-namespace: ${K8S_BUILD_NAMESPACE:default}
   git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:2.52.0}
-  builder-image: gcr.io/kaniko-project/executor:v1.24.0
+  builder-root-image: moby/buildkit:v0.27.1
+  builder-rootless-image: moby/buildkit:v0.27.1-rootless
   analyser-image: anchore/syft:v1.40.0
   copy-image: quay.io/skopeo/stable:v1.21.0
   docker-config-path: /kaniko/.docker/config.json
@@ -84,22 +89,23 @@ app:
     enabled: ${K8S_KNATIVE_ENABLED:true}
     deploy:
       namespace: ${K8S_KNATIVE_DEPLOYMENT_NAMESPACE:default}
-      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:300}
+      startup-timeout: ${K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:60}
       undeploy-timeout: ${K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC:300}
-      informer-resync-interval: ${K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
+      informer-resync-interval: ${K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
   nim:
     enabled: ${K8S_NIM_ENABLED:false}
     deploy:
       namespace: ${K8S_NIM_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
-      informer-resync-interval: ${K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
+      informer-resync-interval: ${K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
       use-cluster-internal-url: ${K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
+      cluster-host: ${K8S_NIM_CLUSTER_HOST:}
   kserve:
     enabled: ${K8S_KSERVE_ENABLED:false}
     deploy:
       namespace: ${K8S_KSERVE_DEPLOYMENT_NAMESPACE:default}
       startup-timeout: ${K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
-      informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:60}
+      informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
       use-cluster-internal-url: ${K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
@@ -116,6 +122,10 @@ app:
   component-cleaner-scheduler-lock-at-most-for: ${COMPONENT_CLEANER_SCHEDULER_LOCK_AT_MOST_FOR:10m}
   cilium-network-policies-enabled: ${CILIUM_NETWORK_POLICIES_ENABLED:false}
   resource-name-prefix: ${RESOURCE_NAME_PREFIX:}
+  config:
+    export:
+      file-name: ${CONFIG_EXPORT_FILE_NAME:dm-config.json}
+      zip-name: ${CONFIG_EXPORT_ZIP_NAME:deployment-manager-config.zip}
   validation:
     resources:
       max-cpu-in-cores: ${RESOURCES_MAX_CPU_IN_CORES:10}
@@ -124,6 +134,11 @@ app:
   deployment:
     healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}
     reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}
+    progress-deadline:
+      default-initial-delay: ${DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_INITIAL_DELAY:0}
+      default-period: ${DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_PERIOD:10}
+      default-failure-threshold: ${DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_FAILURE_THRESHOLD:3}
+      buffer-seconds: ${DEPLOYMENT_PROGRESS_DEADLINE_BUFFER_SECONDS:30}
     reconcile:
       background:
         cron: ${DEPLOYMENT_RECONCILE_BACKGROUND_CRON:0 */15 * * * *}
@@ -133,6 +148,10 @@ app:
         enabled: ${DEPLOYMENT_RECONCILE_ON_STARTUP_ENABLED:true}
         batch-size: ${DEPLOYMENT_RECONCILE_ON_STARTUP_BATCH_SIZE:50}
         concurrency: ${DEPLOYMENT_RECONCILE_ON_STARTUP_CONCURRENCY:2}
+      executor:
+        thread-pool-size: ${DEPLOYMENT_RECONCILE_EXECUTOR_THREAD_POOL_SIZE:5}
+        queue-capacity: ${DEPLOYMENT_RECONCILE_EXECUTOR_QUEUE_CAPACITY:100}
+        thread-name-prefix: ${DEPLOYMENT_RECONCILE_EXECUTOR_THREAD_NAME_PREFIX:k8s-reconciliation-pool}
   knative-service-config:
     apiVersion: serving.knative.dev/v1
     kind: Service
@@ -142,7 +161,7 @@ app:
           annotations:
             "[autoscaling.knative.dev/initial-scale]": ${KNATIVE_SERVICE_DEFAULT_INITIAL_SCALE:1}
             "[autoscaling.knative.dev/min-scale]": ${KNATIVE_SERVICE_DEFAULT_MIN_SCALE:0}
-            "[autoscaling.knative.dev/max-scale]": ${KNATIVE_SERVICE_DEFAULT_MAX_SCALE:3}
+            "[autoscaling.knative.dev/max-scale]": ${KNATIVE_SERVICE_DEFAULT_MAX_SCALE:1}
             "[autoscaling.knative.dev/window]": ${KNATIVE_SERVICE_DEFAULT_WINDOW:300s}
         spec:
           idleTimeoutSeconds: 300
@@ -186,6 +205,18 @@ app:
         service:
           type: ClusterIP
           port: 8000
+  nim-service-expose-ingress-config:
+    enabled: true
+    annotations:
+      # Allow large payloads (often needed for large prompts/images)
+      "[nginx.ingress.kubernetes.io/proxy-body-size]": "0"
+      # Increase timeout (LLMs can take time to stream responses)
+      "[nginx.ingress.kubernetes.io/proxy-read-timeout]": "600"
+      # Cert-manager for SSL
+      "[cert-manager.io/cluster-issuer]": "letsencrypt-production"
+      "[nginx.ingress.kubernetes.io/force-ssl-redirect]": "true"
+    spec:
+      ingressClassName: nginx
   builder-job-config:
     apiVersion: batch/v1
     kind: Job
@@ -206,9 +237,43 @@ app:
     volumeMounts:
       - name: workspace-volume
         mountPath: /workspace
-  builder-container-config:
+  builder-root-container-config:
     name: builder-container
-    image: ${app.builder-image}
+    image: ${app.builder-root-image}
+    command:
+      - buildctl-daemonless.sh
+    args:
+      - build
+      - --frontend
+      - dockerfile.v0
+      - --output
+      - type=docker,dest=/image-build/image-tarball.tar
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /workspace
+      - name: build-volume
+        mountPath: /image-build
+  builder-rootless-container-config:
+    name: builder-container
+    image: ${app.builder-rootless-image}
+    command:
+      - buildctl-daemonless.sh
+    env:
+      - name: BUILDKITD_FLAGS
+        value: "--oci-worker-no-process-sandbox"
+    args:
+      - build
+      - --frontend
+      - dockerfile.v0
+      - --output
+      - type=docker,dest=/image-build/image-tarball.tar
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      appArmorProfile:
+        type: Unconfined
     volumeMounts:
       - name: workspace-volume
         mountPath: /workspace
@@ -314,10 +379,12 @@ config:
   rest:
     security:
       mode: ${CONFIG_REST_SECURITY_MODE:none}
-      email-claim: ${SECURITY_EMAIL_CLAIM:unique_name}
+      require-email: ${SECURITY_REQUIRE_EMAIL:false}
       disable-swagger-authorization: ${DISABLE_SWAGGER_AUTHORIZATION:false}
       default:
         allowedRoles: ConfigAdmin,admin
+        email-claim: ${CLAIMS_EMAIL_KEY:unique_name}
+        principal-claim: ${SECURITY_USER_CLAIM:oid}
 
 azure:
   auth:

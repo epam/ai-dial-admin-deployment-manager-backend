@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.nvidia.apps.v1alpha1.nimservicespec.StartupProbe;
 import com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.HttpGet;
+import com.nvidia.apps.v1alpha1.nimservicespec.startupprobe.probe.TcpSocket;
 import io.fabric8.kubernetes.api.model.Probe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -84,6 +85,11 @@ public class NimProbeConverter {
             httpGet.setPath(source.getHttpGet().getPath());
             httpGet.setPort(source.getHttpGet().getPort());
             target.setHttpGet(httpGet);
+        }
+        if (source.getTcpSocket() != null) {
+            var tcpSocket = new TcpSocket();
+            tcpSocket.setPort(source.getTcpSocket().getPort());
+            target.setTcpSocket(tcpSocket);
         }
     }
 }

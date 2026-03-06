@@ -1,11 +1,10 @@
 package com.epam.aidial.deployment.manager.service.pipeline.specification;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
-import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.docker.DockerRegistryClient;
 import com.epam.aidial.deployment.manager.model.DistroInfo;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
-import com.epam.aidial.deployment.manager.service.JobSpecification;
+import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
@@ -15,10 +14,10 @@ import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSourceBuilder;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 
@@ -27,37 +26,51 @@ import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
-@RequiredArgsConstructor
-public class ImageWrapperBuildJobSpecification implements JobSpecification {
+public class ImageWrapperBuildJobSpecification extends ImageBuildAndPushJobSpecification {
 
     private static final String WRAPPER_DOCKERFILE_TEMPLATE = "/build/mcp_wrapper.Dockerfile";
     private static final String DOCKERFILE = "dockerfile";
-    private static final String REGISTRY = "registry";
+    private static final List<String> BUILDER_ARGS = List.of(
+            "--local", "context=/templates",
+            "--local", "dockerfile=/templates"
+    );
+    private static final String DOCKER_CONFIG_ENV_VAR_NAME = "DOCKER_CONFIG";
+    private static final String DOCKER_CONFIG_ENV_VAR_VALUE = "/kaniko/.docker";
 
     private final DockerRegistryClient registryClient;
-    private final RegistryService registryService;
-    private final ManifestGenerator manifestGenerator;
-    private final AppProperties appConfig;
-
-    private final String namespace;
-    private final String dockerConfigPath;
-
-    private final String buildId;
-    private final String targetImage;
     private final DockerImageSource dockerImageSource;
     private final DistroInfo distroInfo;
-
     private final String mcpProxyAlpineImageName;
     private final String mcpProxyDebianImageName;
 
-    @Override
-    public String getJobId() {
-        return buildId;
-    }
-
-    @Override
-    public String getNamespace() {
-        return namespace;
+    public ImageWrapperBuildJobSpecification(
+            DockerRegistryClient registryClient,
+            RegistryService registryService,
+            ManifestGenerator manifestGenerator,
+            AppProperties appConfig,
+            String namespace,
+            String dockerConfigPath,
+            String buildId,
+            String targetImage,
+            DockerImageSource dockerImageSource,
+            DistroInfo distroInfo,
+            String mcpProxyAlpineImageName,
+            String mcpProxyDebianImageName,
+            ImageBuilder imageBuilder
+    ) {
+        super(registryService,
+                manifestGenerator,
+                appConfig,
+                namespace,
+                dockerConfigPath,
+                buildId,
+                targetImage,
+                imageBuilder);
+        this.registryClient = registryClient;
+        this.dockerImageSource = dockerImageSource;
+        this.distroInfo = distroInfo;
+        this.mcpProxyAlpineImageName = mcpProxyAlpineImageName;
+        this.mcpProxyDebianImageName = mcpProxyDebianImageName;
     }
 
     @Override
@@ -65,66 +78,46 @@ public class ImageWrapperBuildJobSpecification implements JobSpecification {
         var configMapName = K8sNamingUtils.generateName(DOCKERFILE, buildId);
         var entrypoint = extractEntrypoint(dockerImageSource);
         var dockerConfigMap = createDockerfileConfigmap(configMapName, dockerImageSource.getImageUri(), entrypoint);
-
         return List.of(dockerConfigMap);
     }
 
     @Override
     public List<Secret> getSecrets() {
-        var authSecretName = K8sNamingUtils.generateName(REGISTRY, buildId);
-        var dialRegistryAuthSecret = manifestGenerator.dialRegistryAuthSecretConfig(authSecretName);
-        return List.of(dialRegistryAuthSecret);
+        return List.of(getRegistryAuthSecret());
     }
 
     @Override
     public Job getJob() {
         log.info("Target image: {}", targetImage);
+        var config = createBaseJobConfig();
+        var podSpec = getPodSpec(config);
+        var builderContainer = getBuilderContainer(podSpec);
+        configureBuilderContainerArgs(builderContainer);
+        configureBuilderContainerVolume(podSpec, builderContainer);
+        addEnvVar(builderContainer, DOCKER_CONFIG_ENV_VAR_NAME, DOCKER_CONFIG_ENV_VAR_VALUE);
+        configurePushContainer(podSpec);
+        configureRegistryAuth(podSpec, builderContainer);
+        return config.data();
+    }
 
-        var config = new MappingChain<>(this.appConfig.cloneBuilderJobConfig());
-        config.get(Mappers.JOB_METADATA_FIELD)
-                .data()
-                .setName(K8sNamingUtils.generateName(buildId));
-        var podSpec = config.get(Mappers.JOB_SPEC_FIELD)
-                .get(Mappers.JOB_TEMPLATE_FIELD)
-                .get(Mappers.JOB_TEMPLATE_SPEC_FIELD);
-
-        var builder = podSpec.getList(Mappers.POD_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
-                .getOrDefault(appConfig.getBuilderContainerConfig().getName(), appConfig::cloneBuilderContainerConfig);
-        builder.get(Mappers.CONTAINER_ARGS_FIELD)
-                .data()
-                .addAll(List.of(
-                        "--destination=%s".formatted(targetImage),
-                        "--context=/sources",
-                        "--dockerfile=/templates/Dockerfile"
-                ));
-
+    private void configureBuilderContainerVolume(MappingChain<PodSpec> podSpec, MappingChain<Container> builderContainer) {
         var configmapName = K8sNamingUtils.generateName(DOCKERFILE, buildId);
         var configmapVolumeName = "dockerfile-volume";
         podSpec.getList(Mappers.POD_VOLUMES_FIELD, Mappers.VOLUME_NAME)
                 .get(configmapVolumeName)
                 .data()
                 .setConfigMap(new ConfigMapVolumeSourceBuilder().withName(configmapName).build());
-        var configVolumeMount = builder.getList(Mappers.CONTAINER_VOLUME_MOUNTS_FIELD, Mappers.VOLUME_MOUNT_PATH)
+        var configVolumeMount = builderContainer.getList(Mappers.CONTAINER_VOLUME_MOUNTS_FIELD, Mappers.VOLUME_MOUNT_PATH)
                 .get("/templates/Dockerfile")
                 .data();
         configVolumeMount.setName(configmapVolumeName);
         configVolumeMount.setSubPath("Dockerfile");
+    }
 
-        if (registryService.getAuthScheme() == DockerAuthScheme.BASIC) {
-            var secretName = K8sNamingUtils.generateName(REGISTRY, buildId);
-            var secretVolumeName = "secret-volume";
-            podSpec.getList(Mappers.POD_VOLUMES_FIELD, Mappers.VOLUME_NAME)
-                    .get(secretVolumeName)
-                    .data()
-                    .setSecret(new SecretVolumeSourceBuilder().withSecretName(secretName).build());
-            var secretVolumeMount = builder.getList(Mappers.CONTAINER_VOLUME_MOUNTS_FIELD, Mappers.VOLUME_MOUNT_PATH)
-                    .get(dockerConfigPath)
-                    .data();
-            secretVolumeMount.setName(secretVolumeName);
-            secretVolumeMount.setSubPath(ManifestGenerator.DOCKER_CONFIG_KEY);
-        }
-
-        return config.data();
+    private void configureBuilderContainerArgs(MappingChain<Container> builderContainer) {
+        builderContainer.get(Mappers.CONTAINER_ARGS_FIELD)
+                .data()
+                .addAll(BUILDER_ARGS);
     }
 
     private ConfigMap createDockerfileConfigmap(String name, String sourceImageName, List<String> sourceImageArgs) {
@@ -168,5 +161,4 @@ public class ImageWrapperBuildJobSpecification implements JobSpecification {
         }
         return entrypoint;
     }
-
 }

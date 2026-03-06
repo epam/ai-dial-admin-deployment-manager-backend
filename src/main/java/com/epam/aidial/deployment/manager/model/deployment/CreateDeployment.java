@@ -1,7 +1,9 @@
 package com.epam.aidial.deployment.manager.model.deployment;
 
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,12 +20,13 @@ import java.util.UUID;
 public abstract class CreateDeployment {
     private String id;
     private UUID imageDefinitionId;
+    private ImageType imageDefinitionType;
+    private String imageDefinitionName;
+    private String imageDefinitionVersion;
     private String displayName;
     private String description;
     private DeploymentMetadata metadata;
-    private Integer initialScale;
-    private Integer minScale;
-    private Integer maxScale;
+    private Scaling scaling;
     private Resources resources;
     private ProbeProperties probeProperties;
     private Integer containerPort;

@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarMountType;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -30,6 +31,7 @@ import com.epam.aidial.deployment.manager.web.dto.DeploymentStatusDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import com.epam.aidial.deployment.manager.web.dto.EnvVarDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.EnvVarMountTypeDto;
+import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import com.epam.aidial.deployment.manager.web.dto.McpTransportDto;
 import com.epam.aidial.deployment.manager.web.dto.PodInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
@@ -79,7 +81,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Mapper(
         componentModel = "spring",
-        uses = {EnvVarValueDtoMapper.class, ProbePropertiesDtoMapper.class},
+        uses = {EnvVarValueDtoMapper.class, ProbePropertiesDtoMapper.class, ScalingDtoMapper.class},
         subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION
 )
 public abstract class DeploymentDtoMapper {
@@ -99,10 +101,16 @@ public abstract class DeploymentDtoMapper {
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageDefinitionType", ignore = true)
+    @Mapping(target = "imageDefinitionName", ignore = true)
+    @Mapping(target = "imageDefinitionVersion", ignore = true)
     public abstract CreateNimDeployment toCreateDeployment(CreateNimDeploymentRequestDto dto);
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "imageDefinitionId", ignore = true)
+    @Mapping(target = "imageDefinitionType", ignore = true)
+    @Mapping(target = "imageDefinitionName", ignore = true)
+    @Mapping(target = "imageDefinitionVersion", ignore = true)
     public abstract CreateInferenceDeployment toCreateDeployment(CreateInferenceDeploymentRequestDto dto);
 
     @SubclassMapping(source = InferenceDeploymentHuggingFaceSourceDto.class, target = InferenceDeploymentHuggingFaceSource.class)
@@ -177,6 +185,10 @@ public abstract class DeploymentDtoMapper {
     public abstract EnvVarMountTypeDto toEnvVarMountTypeDto(EnvVarMountType mountType);
 
     public abstract DeploymentStatusDto toDeploymentStatusDto(DeploymentStatus status);
+
+    public abstract ImageType toImageType(ImageTypeDto dto);
+
+    public abstract ImageTypeDto toImageTypeDto(ImageType type);
 
     @Named("toDeploymentTypeDto")
     protected DeploymentTypeDto toDeploymentTypeDto(Deployment deployment) {
