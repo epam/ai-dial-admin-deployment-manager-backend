@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
 import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
+import com.epam.aidial.deployment.manager.web.validation.ValidTopics;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.Valid;
@@ -66,4 +67,7 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     @ValidDomainList
     private List<String> allowedDomains = new ArrayList<>();
+    @Nullable
+    @ValidTopics
+    private List<String> topics;
 }

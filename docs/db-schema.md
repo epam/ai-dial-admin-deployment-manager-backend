@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-03-05T11:28:12.107568Z
+> Generated at: 2026-03-06T11:16:25.615748Z
 
 ## Tables
 
@@ -9,6 +9,7 @@
 - [ADAPTER_IMAGE_DEFINITION](#adapter_image_definition)
 - [COMPONENT_REMOVAL](#component_removal)
 - [DEPLOYMENT](#deployment)
+- [DEPLOYMENT_TOPICS](#deployment_topics)
 - [DISPOSABLE_RESOURCE](#disposable_resource)
 - [DOMAIN_WHITELIST](#domain_whitelist)
 - [IMAGE_DEFINITION](#image_definition)
@@ -49,9 +50,6 @@
 | DISPLAY_NAME | VARCHAR(1000000000) | No |  |  |
 | DESCRIPTION | VARCHAR(1000000000) | Yes |  |  |
 | ENVS | JSON | Yes |  |  |
-| INITIAL_SCALE | INTEGER | Yes |  |  |
-| MIN_SCALE | INTEGER | Yes |  |  |
-| MAX_SCALE | INTEGER | Yes |  |  |
 | STATUS | VARCHAR(32) | Yes |  |  |
 | URL | VARCHAR(2048) | Yes |  |  |
 | RESOURCES | JSON | Yes |  |  |
@@ -65,10 +63,22 @@
 | ALLOWED_DOMAINS | JSON | No | JSON '[]' |  |
 | PROBE_PROPERTIES | JSON | Yes |  |  |
 | IMAGE_DEFINITION_TYPE | VARCHAR(20) | Yes |  |  |
+| SCALING | JSON | Yes |  |  |
 
 **Indexes:**
 
 - `IDX_DEPLOYMENT_IMAGE_DEFINITION_ID` on (IMAGE_DEFINITION_ID)
+
+## DEPLOYMENT_TOPICS
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| DEPLOYMENT_ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
+| TOPIC_NAME | VARCHAR(255) | No |  | PK |
+
+**Indexes:**
+
+- `FK_DEPLOYMENT_TOPICS_DEPLOYMENT_INDEX_B` on (DEPLOYMENT_ID)
 
 ## DISPOSABLE_RESOURCE
 
@@ -138,7 +148,6 @@
 | MODEL_FORMAT | VARCHAR(32) | No |  |  |
 | SOURCE | JSON | No |  |  |
 | COMMAND | JSON | Yes |  |  |
-| SCALING | JSON | Yes |  |  |
 
 ## INTERCEPTOR_DEPLOYMENT
 

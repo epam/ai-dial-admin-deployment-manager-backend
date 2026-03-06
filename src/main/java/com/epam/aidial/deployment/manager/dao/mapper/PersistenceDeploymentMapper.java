@@ -125,6 +125,7 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setAuthor(updatedEntity.getAuthor());
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
         existingEntity.setScaling(updatedEntity.getScaling());
+        existingEntity.setTopics(updatedEntity.getTopics());
 
         if (existingEntity instanceof McpDeploymentEntity existingMcp
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {

@@ -61,26 +61,14 @@ Status: **Implemented**
 - **WHEN** an inference deployment is created with `command` or `args` values
 - **THEN** they are persisted and passed to KServe for manifest generation
 
-### Requirement: Inference deployment supports auto-scaling configuration
-An inference deployment SHALL optionally carry a `scaling` object (`ScalingDto`) configuring KServe-specific horizontal scaling behavior. This is separate from the base deployment scale fields (`initialScale`, `minScale`, `maxScale`) which control KNative annotations. The `ScalingDto` maps to KServe predictor-level scaling: `minReplicas`, `maxReplicas`, scale metric, and scale-to-zero delay. Validation: `maxReplicas` must be ≥ 1, `minReplicas` must be ≥ 0, and `strategy` is required when `scaling` is provided.
+### Requirement: Inference deployment uses base scaling configuration for KServe
+An inference deployment uses the base `scaling` field (see `deployments` spec) to configure KServe-specific horizontal scaling behavior. The `ScalingDto` maps to KServe predictor-level scaling: `minReplicas`, `maxReplicas`, scale metric, and scale-to-zero delay. KServe supports all scaling strategy types (`PENDING_REQUESTS`, `ACTIVE_REQUESTS`, `HARDWARE_USAGE`).
 
 Status: **Implemented**
 
-#### Scenario: Scaling configuration stored and applied
+#### Scenario: Scaling configuration applied to KServe
 - **WHEN** an inference deployment is created or updated with a `scaling` object
-- **THEN** the scaling parameters are persisted and used for KServe autoscaler configuration
-
-#### Scenario: Scale-to-zero delay
-- **WHEN** `scaling.scaleToZeroDelaySeconds` is set (must be ≥1 if provided)
-- **THEN** the deployment scales down to zero replicas after the specified idle period
-
-#### Scenario: Scaling strategy set
-- **WHEN** `scaling.strategy` is provided with `$type: PENDING_REQUESTS | ACTIVE_REQUESTS | HARDWARE_USAGE` and `threshold ≥1`
-- **THEN** the autoscaler uses the specified metric and threshold to trigger scale-out
-
-#### Scenario: Invalid scaling parameters rejected
-- **WHEN** `scaling.maxReplicas < 1` or `scaling.minReplicas < 0` or `scaling.strategy.threshold < 1`
-- **THEN** the system responds with 400
+- **THEN** the scaling parameters are used for KServe autoscaler configuration (predictor replicas, scale metric, scale-to-zero)
 
 ### Requirement: Inference deployment is backed by KServe
 When KServe is enabled (`app.kserve.enabled=true`), the system SHALL generate a KServe `InferenceService` manifest for inference deployments during deploy.
@@ -97,23 +85,15 @@ Status: **Implemented**
 
 ## Implementation Notes
 - Domain model: `com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment`
-  - Fields: `modelFormat` (String), `source` (InferenceDeploymentSource), `command` (nullable List\<String\>), `args` (nullable List\<String\>), `scaling` (nullable Scaling)
+  - Fields: `modelFormat` (String), `source` (InferenceDeploymentSource), `command` (nullable List\<String\>), `args` (nullable List\<String\>)
 - Source domain model (interface): `com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource` (`$type` discriminator, subtype: `huggingface`)
 - HuggingFace source domain model: `com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource`
-- Domain scaling model: `com.epam.aidial.deployment.manager.model.Scaling` (minReplicas, maxReplicas, scaleToZeroDelaySeconds, strategy)
-- Domain scaling strategy model: `com.epam.aidial.deployment.manager.model.ScalingStrategy` (`$type` as `ScalingStrategyType`, threshold)
-- Domain scaling strategy type enum: `com.epam.aidial.deployment.manager.model.ScalingStrategyType` (PENDING_REQUESTS, ACTIVE_REQUESTS, HARDWARE_USAGE)
 - Request DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.CreateInferenceDeploymentRequestDto`
-  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `command` (nullable String), `args` (nullable String), `scaling` (nullable `ScalingDto`)
+  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `command` (nullable String), `args` (nullable String)
 - Response DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto`
-  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `command` (nullable String), `args` (nullable String), `scaling` (nullable `ScalingDto`)
+  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `command` (nullable String), `args` (nullable String)
 - Source DTO (interface): `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentSourceDto` (`$type` discriminator)
 - HuggingFace source DTO (record): `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentHuggingFaceSourceDto` (`modelName` with `@NotNull @ValidHuggingFaceModelName`)
-- Scaling DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingDto`
-  - `minReplicas` (int, `@Min(0)`), `maxReplicas` (int, `@Min(1)`), `scaleToZeroDelaySeconds` (nullable Integer, `@Min(1)`), `strategy` (required `ScalingStrategyDto`)
-- Scaling strategy DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyDto`
-  - `$type` as `ScalingStrategyTypeDto` (`@NotNull`), `threshold` (int, `@Min(1)`)
-- Scaling strategy type enum: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyTypeDto` (PENDING_REQUESTS, ACTIVE_REQUESTS, HARDWARE_USAGE)
 - Probe converter: `com.epam.aidial.deployment.manager.service.manifest.KserveProbeConverter`
 - Deployment manager: `com.epam.aidial.deployment.manager.service.deployment.InferenceDeploymentManager` (active when `app.kserve.enabled=true`)
 - Manifest generator: `com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator`

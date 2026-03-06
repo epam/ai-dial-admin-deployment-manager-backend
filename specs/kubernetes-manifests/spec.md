@@ -22,7 +22,7 @@ When KNative is enabled, the system SHALL generate a KNative Service manifest fo
 
 - **Container**: image name, container port, resource limits/requests, startup probe (when `probeProperties.enabled`)
 - **Environment variables**: plain env vars set directly; sensitive env vars via Kubernetes Secret references (`SecretKeyRef`); file-based secrets via volume mounts (at configurable path, default: `/etc/secrets`)
-- **Scaling annotations** on RevisionTemplate metadata: `autoscaling.knative.dev/initial-scale`, `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`
+- **Scaling annotations** on RevisionTemplate metadata (from `Scaling` config): `autoscaling.knative.dev/initial-scale` (computed as `max(minReplicas, 1)`), `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`, `autoscaling.knative.dev/scale-to-zero-pod-retention-period` (when `scaleToZeroDelaySeconds` set), `autoscaling.knative.dev/target` (when `ACTIVE_REQUESTS` strategy). `containerConcurrency` is set on RevisionSpec when strategy is `ACTIVE_REQUESTS`.
 - **Progress deadline annotation**: `serving.knative.dev/progress-deadline` set automatically on RevisionTemplate metadata when a startup probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe))
 - **Volumes**: Secret volumes for `SECURE_FILE` mount type env vars
 - **Naming**: Resources named via `K8sNamingUtils.generateMcpPrefixedName()`
@@ -33,9 +33,21 @@ Status: **Implemented**
 - **WHEN** a deploy operation is triggered for an MCP, Interceptor, or Adapter deployment with `app.knative.enabled=true`
 - **THEN** a KNative Service resource is created with the container image, env vars, resource limits, and scaling parameters
 
-#### Scenario: Scaling annotations applied
-- **WHEN** a deployment specifies `minScale` and `maxScale`
-- **THEN** the KNative Service annotations for autoscaling reflect those values
+#### Scenario: Scaling annotations applied from Scaling config
+- **WHEN** a deployment has a `scaling` object with `minReplicas` and `maxReplicas`
+- **THEN** the KNative Service annotations `min-scale`, `max-scale`, and `initial-scale` (computed as `max(minReplicas, 1)`) are set
+
+#### Scenario: ACTIVE_REQUESTS scaling strategy applied
+- **WHEN** a KNative deployment has `scaling.strategy.$type: ACTIVE_REQUESTS` with a `threshold`
+- **THEN** `containerConcurrency` is set on the RevisionSpec and `autoscaling.knative.dev/target` annotation is set to the threshold
+
+#### Scenario: Unsupported scaling strategy rejected
+- **WHEN** a KNative deployment has a scaling strategy other than `ACTIVE_REQUESTS`
+- **THEN** manifest generation fails with an `IllegalArgumentException`
+
+#### Scenario: Scale-to-zero delay applied
+- **WHEN** a KNative deployment has `scaling.scaleToZeroDelaySeconds` set
+- **THEN** the `autoscaling.knative.dev/scale-to-zero-pod-retention-period` annotation is set (e.g., `"60s"`)
 
 #### Scenario: Sensitive file env vars mounted as volumes
 - **WHEN** a deployment has env vars with `mountType: SECURE_FILE`
@@ -45,7 +57,7 @@ Status: **Implemented**
 When KServe is enabled, the system SHALL generate a KServe InferenceService manifest for Inference deployments. The manifest includes:
 
 - **Predictor model spec**: `storageUri` (model location), `modelFormat` (framework), env vars (plain + sensitive via Secret), resource limits/requests, startup probe, custom `command`/`args`, container port
-- **Scaling**: `minReplicas` and `maxReplicas` on predictor; `autoscaling.knative.dev/initial-scale` annotation on service metadata; scale metric (`CONCURRENCY` for `ACTIVE_REQUESTS` strategy); `autoscaling.knative.dev/scale-to-zero-pod-retention-period` for scale-to-zero delay
+- **Scaling**: `minReplicas` and `maxReplicas` on predictor (from base `Scaling` config); `autoscaling.knative.dev/initial-scale` annotation on service metadata; scale metric (`CONCURRENCY` for `ACTIVE_REQUESTS` strategy); `autoscaling.knative.dev/scale-to-zero-pod-retention-period` for scale-to-zero delay
 - **Progress deadline annotation**: `serving.knative.dev/progress-deadline` set on service metadata when a startup probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe))
 - **Model name argument**: `--model_name` automatically added to args if not already present
 - **Naming**: Resources named via `K8sNamingUtils.generateName()`

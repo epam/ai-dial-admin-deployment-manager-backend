@@ -50,4 +50,5 @@ public abstract class Deployment {
     private Instant updatedAt;
     private String author;
     private List<String> allowedDomains;
+    private List<String> topics;
 }

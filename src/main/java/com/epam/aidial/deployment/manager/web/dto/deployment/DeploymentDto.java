@@ -62,4 +62,6 @@ public abstract class DeploymentDto {
     private String author;
     @NotNull
     private List<String> allowedDomains;
+    @Nullable
+    private List<String> topics;
 }
