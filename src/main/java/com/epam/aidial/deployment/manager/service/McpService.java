@@ -10,7 +10,9 @@ import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.function.BiFunction;
 
@@ -45,6 +47,21 @@ public class McpService {
         } catch (Exception e) {
             throw new McpClientException(("Failed to connect to MCP server. Make sure transport '%s' and path '%s' are correct."
                     + " Deployment id: %s").formatted(deployment.getTransport(), deployment.getMcpEndpointPath(), deploymentId), e);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public McpSchema.CallToolResult callTool(String deploymentId, McpSchema.CallToolRequest callToolRequest) {
+        var deployment = getDeployment(deploymentId);
+        var endpointPath = mcpEndpointPathResolver.resolveEndpointPath(deployment);
+
+        try (var mcpClient = mcpClientFactory.create(deployment.getUrl(), endpointPath, deployment.getTransport())) {
+            mcpClient.initialize();
+            return mcpClient.callTool(callToolRequest);
+        } catch (Exception e) {
+            String reason = ExceptionUtils.getRootCause(e).getMessage();
+            throw new McpClientException(("Failed to call a tool via MCP server. Deployment id: %s. Transport: '%s'. Path: '%s'. Reason: %s")
+                    .formatted(deploymentId, deployment.getTransport(), deployment.getMcpEndpointPath(), reason), e);
         }
     }
 
