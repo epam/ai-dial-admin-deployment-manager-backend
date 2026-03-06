@@ -16,3 +16,13 @@ go
 
 ALTER TABLE inference_deployment DROP COLUMN scaling;
 go
+
+-- Drop deprecated scale columns from deployment table
+ALTER TABLE deployment DROP COLUMN initial_scale;
+go
+
+ALTER TABLE deployment DROP COLUMN min_scale;
+go
+
+ALTER TABLE deployment DROP COLUMN max_scale;
+go

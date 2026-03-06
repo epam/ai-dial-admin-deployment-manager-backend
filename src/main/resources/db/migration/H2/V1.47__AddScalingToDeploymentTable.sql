@@ -6,3 +6,8 @@ UPDATE deployment d SET scaling = (SELECT scaling FROM inference_deployment c WH
 
 -- Drop scaling column from inference_deployment (added in V1.43)
 ALTER TABLE inference_deployment DROP COLUMN scaling;
+
+-- Drop deprecated scale columns from deployment table
+ALTER TABLE deployment DROP COLUMN initial_scale;
+ALTER TABLE deployment DROP COLUMN min_scale;
+ALTER TABLE deployment DROP COLUMN max_scale;
