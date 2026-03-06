@@ -49,8 +49,9 @@ web (controller / handler / dto / mapper)
 
 ### II. Transactional Discipline
 
-- `@Transactional` MUST only appear on `service`-layer classes or their methods.
-- Controllers and DAOs MUST NOT carry `@Transactional`.
+- `@Transactional` MUST only appear on `service`-layer or `dao`-layer classes or their methods.
+- Controllers MUST NOT carry `@Transactional`.
+- DAO `@Transactional` is permitted on repository wrapper methods (e.g., custom query methods in `*Repository` classes) where transaction boundaries are inherent to the data access operation.
 - Propagation and isolation overrides require an explanatory comment.
 
 ### III. Kubernetes Isolation
@@ -99,6 +100,8 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 - **Braces**: K&R style; mandatory for all control flow statements.
 - **Indentation**: 4 spaces; no tabs.
 - **One statement per line** and **one top-level class per file** enforced.
+- **Collection emptiness checks**: Use `CollectionUtils.isEmpty()` / `CollectionUtils.isNotEmpty()` (`org.apache.commons.collections4.CollectionUtils`) instead of `collection != null && !collection.isEmpty()` or similar inline null-and-empty checks.
+- **String emptiness checks**: Use Apache Commons `StringUtils.isEmpty()` / `StringUtils.isNotEmpty()` / `StringUtils.isBlank()` / `StringUtils.isNotBlank()` (`org.apache.commons.lang3.StringUtils`) instead of inline null-and-empty checks on strings.
 
 ## API Conventions
 
@@ -129,10 +132,13 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 do NOT treat as a model): `TopicController`, `GlobalDomainWhitelistController`, `HealthController`,
 `McpController`, `DisposableResourceController`, `ConfigController`. All new code MUST include it without exception.
 
-**MapStruct** — All mapper interfaces MUST declare:
+**MapStruct** — All mapper interfaces MUST declare `componentModel = "spring"`.
+`subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION` SHOULD be included
+when the mapper handles polymorphic types; it MAY be omitted for simple mappers that don't
+involve subclass mappings.
 ```java
 @Mapper(componentModel = "spring",
-        subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
+        subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION) // include when mapping polymorphic types
 ```
 Web mappers (`*DtoMapper`) live in `web/mapper/`; DAO mappers (`Persistence*Mapper`) in `dao/mapper/`;
 service-level mappers (`*Mapper`) in `mapper/`.
@@ -183,7 +189,7 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 1. **Business logic in entities** — `*Entity` classes are pure data holders; no service calls, computed state, or Lombok `@Builder` default methods with side effects.
 2. **Silent exception swallowing** — Every `catch` block MUST either rethrow, log with context, or explicitly document why suppression is safe.
 3. **Generic `Exception` catch** — Catch specific exception types. `catch (Exception e)` is allowed only in top-level exception handlers (`DefaultExceptionHandler`).
-4. **`@Transactional` on controllers or DAOs** — Violates Transactional Discipline (Principle II).
+4. **`@Transactional` on controllers** — Violates Transactional Discipline (Principle II). DAO-layer `@Transactional` is permitted on repository wrapper methods.
 5. **Kubernetes API calls from the service layer** — Violates Kubernetes Isolation (Principle III).
 6. **Wildcard imports** — Violates Code Style; blocked by Checkstyle.
 7. **Direct `System.out.println` or `e.printStackTrace()`** — Use SLF4J logger via Log4j2.
@@ -209,10 +215,9 @@ considering the task done. A clean `./gradlew clean build` is the gate for PR re
 This constitution is the authoritative source of architectural truth for the DIAL Deployment Manager Backend. It supersedes any conflicting guidance in PR comments, local convention notes, or informal team agreements.
 
 **Amendment procedure**:
-1. Raise a PR with changes to this file.
-2. Tag `@team-leads` for review; at least one approval required.
-3. Include a migration note if the amendment changes existing code patterns (link to a follow-up issue for affected code).
-4. Run `/speckit.constitution` via Claude Code to propagate changes to dependent templates.
+1. Raise a PR with changes to this file; at least one approval required.
+2. Include a migration note if the amendment changes existing code patterns (link to a follow-up issue for affected code).
+3. Run `/speckit.constitution` via Claude Code to propagate changes to dependent templates.
 
 **Versioning policy**:
 - MAJOR: Removal or redefinition of an existing principle (breaks existing code).
