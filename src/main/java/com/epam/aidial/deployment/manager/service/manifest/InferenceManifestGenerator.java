@@ -180,17 +180,8 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
                 .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
         annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
-        log.trace("Set annotation autoscaling.knative.dev/initial-scale={} for model '{}'", initialScale, name);
-
-        if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
-            predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
-            predictor.setScaleTarget(scaling.getStrategy().getThreshold());
-            log.trace("Applied strategy ACTIVE_REQUESTS: metric={}, target={} for model '{}'",
-                    Predictor.ScaleMetric.CONCURRENCY, scaling.getStrategy().getThreshold(), name);
-        } else {
-            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
-                    .formatted(scaling.getStrategy().getType(), List.of(ScalingStrategyType.ACTIVE_REQUESTS)));
-        }
+        log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Inference deployment '{}'",
+                scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
 
         if (scaling.getScaleToZeroDelaySeconds() != null) {
             var delay = scaling.getScaleToZeroDelaySeconds();
@@ -198,6 +189,20 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
             log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for model '{}'",
                     delayStr, name);
+        }
+
+        if (scaling.getStrategy() == null) {
+            return;
+        }
+
+        if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
+            predictor.setScaleMetric(Predictor.ScaleMetric.CONCURRENCY);
+            predictor.setScaleTarget(scaling.getStrategy().getThreshold());
+            log.trace("Applied strategy ACTIVE_REQUESTS: target={} for model '{}'",
+                    scaling.getStrategy().getThreshold(), name);
+        } else {
+            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
+                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
         }
     }
 

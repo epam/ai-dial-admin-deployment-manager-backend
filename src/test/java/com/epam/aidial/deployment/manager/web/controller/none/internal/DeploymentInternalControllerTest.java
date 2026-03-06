@@ -11,6 +11,7 @@ import com.epam.aidial.deployment.manager.web.controller.none.AbstractController
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         DeploymentDtoMapperImpl.class,
         ProbePropertiesDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
+        ScalingDtoMapperImpl.class,
         McpEndpointPathResolver.class
 })
 class DeploymentInternalControllerTest extends AbstractControllerNoneSecureTest {

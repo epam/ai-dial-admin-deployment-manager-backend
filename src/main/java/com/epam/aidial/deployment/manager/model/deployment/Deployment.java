@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -39,9 +40,7 @@ public abstract class Deployment {
     private String description;
     private List<EnvVar> envs;
     private DeploymentMetadata metadata;
-    private Integer initialScale;
-    private Integer minScale;
-    private Integer maxScale;
+    private Scaling scaling;
     private Resources resources;
     private ProbeProperties probeProperties;
     private DeploymentStatus status;

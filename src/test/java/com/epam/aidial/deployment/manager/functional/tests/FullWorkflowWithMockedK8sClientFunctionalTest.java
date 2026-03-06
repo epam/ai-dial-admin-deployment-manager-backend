@@ -331,7 +331,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         Map<String, String> annotations = new HashMap<>();
         annotations.put("autoscaling.knative.dev/initial-scale", "1");
         annotations.put("autoscaling.knative.dev/min-scale", "0");
-        annotations.put("autoscaling.knative.dev/max-scale", "5");
+        annotations.put("autoscaling.knative.dev/max-scale", "1");
         annotations.put("autoscaling.knative.dev/window", "300s");
         templateMeta.setAnnotations(annotations);
 
