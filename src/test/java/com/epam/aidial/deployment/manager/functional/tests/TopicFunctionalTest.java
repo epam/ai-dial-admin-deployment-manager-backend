@@ -70,7 +70,7 @@ public abstract class TopicFunctionalTest {
         var deployment = deploymentService.createDeployment(request);
 
         // Then
-        assertThat(deployment.getTopics()).isNullOrEmpty();
+        assertThat(deployment.getTopics()).isNull();
     }
 
     @Test
@@ -129,11 +129,11 @@ public abstract class TopicFunctionalTest {
         var allTopics = topicService.getAllTopics();
 
         // Then — "shared" appears exactly once
-        assertThat(allTopics.stream().filter("shared"::equals).count()).isEqualTo(1);
+        assertThat(allTopics).containsOnlyOnce("shared");
     }
 
     private static CreateMcpDeployment createRequest(String id, UUID imageDefinitionId) {
-        var request = (CreateMcpDeployment) FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        var request = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
         request.setId(id);
         request.setMetadata(new DeploymentMetadata(List.of()));
         return request;

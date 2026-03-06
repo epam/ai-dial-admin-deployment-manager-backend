@@ -192,7 +192,7 @@ public class FunctionalTestHelper {
                 .build();
     }
 
-    public static CreateDeployment createMcpDeploymentRequest(UUID imageDefinitionId) {
+    public static CreateMcpDeployment createMcpDeploymentRequest(UUID imageDefinitionId) {
         return CreateMcpDeployment.builder()
                 .id("mcp-test-deployment-1")
                 .imageDefinitionId(imageDefinitionId)
