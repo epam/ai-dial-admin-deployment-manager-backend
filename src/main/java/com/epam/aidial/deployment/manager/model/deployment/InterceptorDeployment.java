@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.model.deployment;
 
-import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
-@AllArgsConstructor
+@NoArgsConstructor
 public class InterceptorDeployment extends Deployment {
 }

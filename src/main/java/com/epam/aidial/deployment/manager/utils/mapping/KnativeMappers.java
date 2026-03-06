@@ -10,7 +10,9 @@ import io.fabric8.kubernetes.api.model.Volume;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @UtilityClass
 public class KnativeMappers {
@@ -34,6 +36,11 @@ public class KnativeMappers {
             ObjectMeta::new,
             RevisionTemplateSpec::getMetadata,
             RevisionTemplateSpec::setMetadata);
+
+    public static final FieldMapper<ObjectMeta, Map<String, String>> METADATA_ANNOTATIONS_FIELD = new FieldMapper<>(
+            HashMap::new,
+            ObjectMeta::getAnnotations,
+            ObjectMeta::setAnnotations);
 
     public static final FieldMapper<RevisionTemplateSpec, RevisionSpec> SERVICE_TEMPLATE_SPEC_FIELD = new FieldMapper<>(
             RevisionSpec::new,

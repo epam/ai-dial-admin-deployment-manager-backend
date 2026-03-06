@@ -161,7 +161,7 @@ app:
           annotations:
             "[autoscaling.knative.dev/initial-scale]": ${KNATIVE_SERVICE_DEFAULT_INITIAL_SCALE:1}
             "[autoscaling.knative.dev/min-scale]": ${KNATIVE_SERVICE_DEFAULT_MIN_SCALE:0}
-            "[autoscaling.knative.dev/max-scale]": ${KNATIVE_SERVICE_DEFAULT_MAX_SCALE:3}
+            "[autoscaling.knative.dev/max-scale]": ${KNATIVE_SERVICE_DEFAULT_MAX_SCALE:1}
             "[autoscaling.knative.dev/window]": ${KNATIVE_SERVICE_DEFAULT_WINDOW:300s}
         spec:
           idleTimeoutSeconds: 300
