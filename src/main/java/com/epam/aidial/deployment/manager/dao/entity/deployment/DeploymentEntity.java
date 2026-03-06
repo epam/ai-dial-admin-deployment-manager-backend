@@ -62,14 +62,8 @@ public class DeploymentEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private PersistenceDeploymentMetadata metadata;
 
-    @Column(name = "initial_scale")
-    private Integer initialScale;
-
-    @Column(name = "min_scale")
-    private Integer minScale;
-
-    @Column(name = "max_scale")
-    private Integer maxScale;
+    @JdbcTypeCode(SqlTypes.JSON)
+    private PersistenceScaling scaling;
 
     @JdbcTypeCode(SqlTypes.JSON)
     private PersistenceResources resources;

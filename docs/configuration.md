@@ -113,6 +113,24 @@ app:
 | `app.image-name-format`                 | `IMAGE_NAME_FORMAT`               | `app-%s`                                | No                                                   | -            | Name format for images that are built using Deployment Manager. Must contain `%s` that will be replaced by image definition ID.                                                                                |
 | `app.resource-name-prefix`              | `RESOURCE_NAME_PREFIX`            | -                                       | No                                                   | -            | Prefix that will be added to all resources that image build and deployments produce. Important note: do not change this value on exising setups, otherwise existing images and K8s resources will be lost.     |
 | `app.deployment.healthcheck-enabled`    | `DEPLOYMENT_HEALTHCHECK_ENABLED`  | `true`                                  | No                                                   | -            | Flag that allows to enable/disable deployment healthchecks                                                                                                                                                     |
+| `app.deployment.progress-deadline.default-initial-delay` | `DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_INITIAL_DELAY` | `0` | No | - | Default `initialDelaySeconds` used when computing the KNative progress deadline from a startup probe that has no explicit initial delay set. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.deployment.progress-deadline.default-period` | `DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_PERIOD` | `10` | No | - | Default `periodSeconds` used when computing the KNative progress deadline from a startup probe that has no explicit period set. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.deployment.progress-deadline.default-failure-threshold` | `DEPLOYMENT_PROGRESS_DEADLINE_DEFAULT_FAILURE_THRESHOLD` | `3` | No | - | Default `failureThreshold` used when computing the KNative progress deadline from a startup probe that has no explicit failure threshold set. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.deployment.progress-deadline.buffer-seconds` | `DEPLOYMENT_PROGRESS_DEADLINE_BUFFER_SECONDS` | `30` | No | - | Extra buffer (in seconds) added on top of the computed startup probe window when setting the KNative progress deadline. Accounts for image pull time, readiness probe, and scheduling overhead. See [Progress Deadline](#progress-deadline-configuration). |
+
+#### Progress Deadline Configuration
+
+KNative has a default progress deadline of 600 seconds (10 minutes). If a Revision does not become ready within this window, KNative marks it as **Failed** and terminates the pod. This can cause deployments of large models to fail if they need more time to download or initialize.
+
+When a startup probe is configured on a deployment, the application automatically computes and sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative) or the InferenceService metadata (for KServe). The formula is:
+
+```
+progressDeadline = initialDelaySeconds + ((failureThreshold - 1) × periodSeconds) + timeoutSeconds + bufferSeconds
+```
+
+If the startup probe does not specify `initialDelaySeconds`, `periodSeconds`, or `failureThreshold`, the corresponding default values from the properties above are used (matching Kubernetes defaults).
+
+When no startup probe is configured, no annotation is set and KNative's built-in default of 600s applies.
 
 #### MCP Proxy Configuration
 
@@ -242,11 +260,12 @@ TLS and routing rules are generated automatically from `app.nim.deploy.cluster-h
 | `app.mcp-registry.base-url` | `MCP_REGISTRY_BASE_URL`  | `https://registry.modelcontextprotocol.io` | No       | -            | Base URL of the MCP Registry API (used by the proxy). |
 
 ### Hugging Face Configuration
-| Property                         | Environment Variable             | Default Value            | Required | Applied when | Description                                |
-|----------------------------------|----------------------------------|--------------------------|----------|--------------|--------------------------------------------|
-| `huggingface.base-url`           | `HUGGINGFACE_BASE_URL`           | `https://huggingface.co` | No       | -            | Base URL for Hugging Face API              |
-| `huggingface.api-token`          | `HUGGINGFACE_API_TOKEN`          | -                        | No       | -            | API token for authentication               |
-| `huggingface.tag-cache-duration` | `HUGGINGFACE_TAG_CACHE_DURATION` | `24h`                    | No       | -            | Duration to cache tag data (e.g. 24h, 60m) |
+| Property                                   | Environment Variable                   | Default Value                                                   | Required | Applied when | Description                                                                                                                      |
+|--------------------------------------------|----------------------------------------|-----------------------------------------------------------------|----------|--------------|----------------------------------------------------------------------------------------------------------------------------------|
+| `app.huggingface.base-url`                 | `HUGGINGFACE_BASE_URL`                 | `https://huggingface.co`                                        | No       | -            | Base URL for Hugging Face API                                                                                                    |
+| `app.huggingface.api-token`                | `HUGGINGFACE_API_TOKEN`                | -                                                               | No       | -            | API token for authentication                                                                                                     |
+| `app.huggingface.tag-cache-duration`       | `HUGGINGFACE_TAG_CACHE_DURATION`       | `24h`                                                           | No       | -            | Duration to cache tag data (e.g. 24h, 60m)                                                                                       |
+| `app.huggingface.default-allowed-domains`  | `HUGGINGFACE_DEFAULT_ALLOWED_DOMAINS`  | `huggingface.co,transfer.xethub.hf.co,cas-server.xethub.hf.co`  | No       | -            | Comma-separated list of default domains added to Cilium network policy egress for inference deployments with HuggingFace source. |
 
 ### Validation Configuration
 

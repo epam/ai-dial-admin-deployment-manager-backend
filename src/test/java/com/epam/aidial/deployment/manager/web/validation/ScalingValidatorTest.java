@@ -1,6 +1,8 @@
 package com.epam.aidial.deployment.manager.web.validation;
 
 import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
+import com.epam.aidial.deployment.manager.web.dto.ScalingStrategyDto;
+import com.epam.aidial.deployment.manager.web.dto.ScalingStrategyTypeDto;
 import jakarta.validation.ConstraintValidatorContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,19 +40,33 @@ class ScalingValidatorTest {
         ScalingDto dto = new ScalingDto();
         dto.setMinReplicas(1);
         dto.setMaxReplicas(2);
+        dto.setStrategy(new ScalingStrategyDto(ScalingStrategyTypeDto.ACTIVE_REQUESTS, 50));
 
         assertThat(validator.isValid(dto, context)).isTrue();
         verifyNoInteractions(context);
     }
 
     @Test
-    void shouldBeValidWhenMinEqualsMax() {
+    void shouldBeValidWhenMinEqualsMaxAndStrategyNull() {
         ScalingDto dto = new ScalingDto();
         dto.setMinReplicas(2);
         dto.setMaxReplicas(2);
+        dto.setStrategy(null);
 
         assertThat(validator.isValid(dto, context)).isTrue();
         verifyNoInteractions(context);
+    }
+
+    @Test
+    void shouldFailWhenMinEqualsMaxAndStrategySet() {
+        ScalingDto dto = new ScalingDto();
+        dto.setMinReplicas(2);
+        dto.setMaxReplicas(2);
+        dto.setStrategy(new ScalingStrategyDto(ScalingStrategyTypeDto.ACTIVE_REQUESTS, 10));
+
+        assertThat(validator.isValid(dto, context)).isFalse();
+        verify(context).buildConstraintViolationWithTemplate(
+                "strategy must be null when minReplicas equals maxReplicas");
     }
 
     @Test

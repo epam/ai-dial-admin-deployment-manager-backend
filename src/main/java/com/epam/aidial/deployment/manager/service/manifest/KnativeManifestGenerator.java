@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.service.manifest;
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -30,7 +32,6 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.List;
 
 @Slf4j
@@ -42,11 +43,14 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
     private String secretsVolumeMountPath;
 
     private final ProbeConverter probeConverter;
+    private final ProgressDeadlineCalculator progressDeadlineCalculator;
 
     public KnativeManifestGenerator(AppProperties appconfig,
-                                    ProbeConverter probeConverter) {
+                                    ProbeConverter probeConverter,
+                                    ProgressDeadlineCalculator progressDeadlineCalculator) {
         super(appconfig);
         this.probeConverter = probeConverter;
+        this.progressDeadlineCalculator = progressDeadlineCalculator;
     }
 
     public Service serviceConfig(
@@ -55,9 +59,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             List<SensitiveEnvVar> sensitiveEnv,
             List<SensitiveFileEnvVar> sensitiveFileEnvs,
             String imageName,
-            @Nullable Integer initScale,
-            @Nullable Integer minScale,
-            @Nullable Integer maxScale,
+            @Nullable Scaling scaling,
             Resources resources,
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties
@@ -71,9 +73,9 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         var template = config.get(KnativeMappers.SERVICE_SPEC_FIELD)
                 .get(KnativeMappers.SERVICE_TEMPLATE_FIELD);
 
-        configureAnnotations(template, initScale, minScale, maxScale);
-
         var revisionSpecChain = template.get(KnativeMappers.SERVICE_TEMPLATE_SPEC_FIELD);
+        applyScaling(name, scaling, template, revisionSpecChain);
+        applyProgressDeadline(probeProperties, template);
         var containerChain = revisionSpecChain
                 .getList(KnativeMappers.TEMPLATE_CONTAINERS_FIELD, Mappers.CONTAINER_NAME)
                 .getOrDefault(appConfig.getKnativeServiceContainerConfig().getName(), appConfig::cloneKnativeServiceContainer);
@@ -155,27 +157,56 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         envVarChain.data().setValue(filePathToVolume);
     }
 
-    private void configureAnnotations(
-            MappingChain<RevisionTemplateSpec> template,
-            @Nullable Integer initScale,
-            @Nullable Integer minScale,
-            @Nullable Integer maxScale
-    ) {
-        var templateMetadata = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD).data();
-        var annotations = (templateMetadata.getAnnotations() != null)
-                ? templateMetadata.getAnnotations()
-                : new HashMap<String, String>();
+    private void applyScaling(String name,
+                              @Nullable Scaling scaling,
+                              MappingChain<RevisionTemplateSpec> template,
+                              MappingChain<RevisionSpec> revisionSpecChain) {
+        log.debug("Applying scaling for Knative deployment '{}': {}", name, scaling);
+        if (scaling == null) {
+            return;
+        }
 
-        if (initScale != null) {
-            annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initScale));
+        var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
+                .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
+
+        var initialScale = Math.max(scaling.getMinReplicas(), 1);
+        annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
+        annotations.put("autoscaling.knative.dev/min-scale", String.valueOf(scaling.getMinReplicas()));
+        annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(scaling.getMaxReplicas()));
+        log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Knative deployment '{}'",
+                scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
+
+        if (scaling.getScaleToZeroDelaySeconds() != null) {
+            var delayStr = scaling.getScaleToZeroDelaySeconds() + "s";
+            annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
+            log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for Knative deployment '{}'",
+                    delayStr, name);
         }
-        if (minScale != null) {
-            annotations.put("autoscaling.knative.dev/min-scale", String.valueOf(minScale));
+
+        if (scaling.getStrategy() == null) {
+            return;
         }
-        if (maxScale != null) {
-            annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(maxScale));
+
+        if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
+            var target = scaling.getStrategy().getThreshold();
+            revisionSpecChain.data().setContainerConcurrency((long) target);
+            annotations.put("autoscaling.knative.dev/target", String.valueOf(target));
+            log.trace("Applied strategy ACTIVE_REQUESTS: target={} for deployment '{}'",
+                    scaling.getStrategy().getThreshold(), name);
+        } else {
+            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
+                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
         }
-        templateMetadata.setAnnotations(annotations);
+    }
+
+    private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
+                                       MappingChain<RevisionTemplateSpec> template) {
+        var progressDeadline = progressDeadlineCalculator.compute(probeProperties);
+        if (progressDeadline != null) {
+            var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
+                    .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
+            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
+        }
     }
 
     private EnvVarSource buildKnativeSecretRef(SensitiveEnvVar env) {

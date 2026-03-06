@@ -118,15 +118,13 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setUrl(updatedEntity.getUrl());
         existingEntity.setStatus(updatedEntity.getStatus());
         existingEntity.setContainerPort(updatedEntity.getContainerPort());
-        existingEntity.setInitialScale(updatedEntity.getInitialScale());
-        existingEntity.setMaxScale(updatedEntity.getMaxScale());
-        existingEntity.setMinScale(updatedEntity.getMinScale());
         existingEntity.setEnvs(updatedEntity.getEnvs());
         existingEntity.setMetadata(updatedEntity.getMetadata());
         existingEntity.setResources(updatedEntity.getResources());
         existingEntity.setProbeProperties(updatedEntity.getProbeProperties());
         existingEntity.setAuthor(updatedEntity.getAuthor());
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
+        existingEntity.setScaling(updatedEntity.getScaling());
 
         if (existingEntity instanceof McpDeploymentEntity existingMcp
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {
@@ -146,7 +144,6 @@ public abstract class PersistenceDeploymentMapper {
             existingInference.setSource(updatedInference.getSource());
             existingInference.setCommand(updatedInference.getCommand());
             existingInference.setArgs(updatedInference.getArgs());
-            existingInference.setScaling(updatedInference.getScaling());
         }
     }
 
