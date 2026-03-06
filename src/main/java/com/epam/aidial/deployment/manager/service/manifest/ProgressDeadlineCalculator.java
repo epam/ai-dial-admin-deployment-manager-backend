@@ -10,16 +10,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class ProgressDeadlineCalculator {
 
+    private static final int DEFAULT_TIMEOUT = 1;
+
     private final int defaultInitialDelay;
     private final int defaultPeriod;
     private final int defaultFailureThreshold;
     private final int bufferSeconds;
 
     public ProgressDeadlineCalculator(
-            @Value("${app.deployment.progress-deadline.default-initial-delay:0}") int defaultInitialDelay,
-            @Value("${app.deployment.progress-deadline.default-period:10}") int defaultPeriod,
-            @Value("${app.deployment.progress-deadline.default-failure-threshold:3}") int defaultFailureThreshold,
-            @Value("${app.deployment.progress-deadline.buffer-seconds:30}") int bufferSeconds
+            @Value("${app.deployment.progress-deadline.default-initial-delay}") int defaultInitialDelay,
+            @Value("${app.deployment.progress-deadline.default-period}") int defaultPeriod,
+            @Value("${app.deployment.progress-deadline.default-failure-threshold}") int defaultFailureThreshold,
+            @Value("${app.deployment.progress-deadline.buffer-seconds}") int bufferSeconds
     ) {
         this.defaultInitialDelay = defaultInitialDelay;
         this.defaultPeriod = defaultPeriod;
@@ -42,9 +44,11 @@ public class ProgressDeadlineCalculator {
                 ? probe.getPeriodSeconds() : defaultPeriod;
         int threshold = probe.getFailureThreshold() != null
                 ? probe.getFailureThreshold() : defaultFailureThreshold;
-        int deadline = initial + (period * threshold) + bufferSeconds;
-        log.debug("Computed progress deadline: {}s (initial={}, period={}, threshold={}, buffer={})",
-                deadline, initial, period, threshold, bufferSeconds);
+        int timeout = probe.getTimeoutSeconds() != null
+                ? probe.getTimeoutSeconds() : DEFAULT_TIMEOUT;
+        int deadline = initial + ((threshold - 1) * period) + timeout + bufferSeconds;
+        log.debug("Computed progress deadline: {}s (initial={}, period={}, threshold={}, timeout={}, buffer={})",
+                deadline, initial, period, threshold, timeout, bufferSeconds);
         return deadline + "s";
     }
 }
