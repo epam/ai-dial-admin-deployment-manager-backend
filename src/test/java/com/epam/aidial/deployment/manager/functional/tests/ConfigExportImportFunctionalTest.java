@@ -248,9 +248,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("MCP deployment export test")
                 .description("MCP deployment for import test")
                 .metadata(mcpDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
                 .scaling(new Scaling(0, 5, 300, new ScalingStrategy(ScalingStrategyType.PENDING_REQUESTS, 10)))
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(probeTcp8080)
@@ -268,9 +265,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("Adapter deployment export test")
                 .description("Adapter deployment for import test")
                 .metadata(adapterDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
                 .scaling(new Scaling(0, 5, null, new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 50)))
                 .resources(EMPTY_RESOURCES)
                 .containerPort(5000)
@@ -285,9 +279,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("Interceptor deployment export test")
                 .description("Interceptor deployment for import test")
                 .metadata(interceptorDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
                 .scaling(new Scaling(0, 5, 600, null))
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(probeTcp8080)
@@ -301,9 +292,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("NIM deployment export test")
                 .description("NIM deployment for import test")
                 .metadata(new DeploymentMetadata(List.of()))
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(2)
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(nimProbe)
                 .containerPort(8000)
@@ -319,9 +307,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .description("Inference deployment for import test")
                 .modelFormat("huggingface")
                 .metadata(new DeploymentMetadata(List.of()))
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(3)
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(inferenceProbe)
                 .containerPort(8080)
@@ -474,9 +459,6 @@ public abstract class ConfigExportImportFunctionalTest {
         Assertions.assertEquals(expected.getId(), actual.getId(), "id");
         Assertions.assertEquals(expected.getDisplayName(), actual.getDisplayName(), "displayName");
         Assertions.assertEquals(expected.getDescription(), actual.getDescription(), "description");
-        Assertions.assertEquals(expected.getInitialScale(), actual.getInitialScale(), "initialScale");
-        Assertions.assertEquals(expected.getMinScale(), actual.getMinScale(), "minScale");
-        Assertions.assertEquals(expected.getMaxScale(), actual.getMaxScale(), "maxScale");
         Assertions.assertEquals(expected.getScaling(), actual.getScaling(), "scaling");
         Assertions.assertEquals(expected.getContainerPort(), actual.getContainerPort(), "containerPort");
         Assertions.assertEquals(expected.getResources(), actual.getResources(), "resources");

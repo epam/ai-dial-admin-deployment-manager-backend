@@ -42,12 +42,6 @@ public abstract class DeploymentDto {
     @Valid
     private DeploymentMetadataDto metadata;
     @Nullable
-    private Integer initialScale;
-    @Nullable
-    private Integer minScale;
-    @Nullable
-    private Integer maxScale;
-    @Nullable
     @Valid
     private ScalingDto scaling;
     @Nullable

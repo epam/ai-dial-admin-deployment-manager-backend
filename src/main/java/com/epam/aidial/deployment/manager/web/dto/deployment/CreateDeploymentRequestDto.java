@@ -6,7 +6,6 @@ import com.epam.aidial.deployment.manager.web.dto.ScalingDto;
 import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
-import com.epam.aidial.deployment.manager.web.validation.ValidScaleConfiguration;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.Valid;
@@ -34,7 +33,6 @@ import java.util.List;
         @JsonSubTypes.Type(value = CreateNimDeploymentRequestDto.class, name = "nim"),
         @JsonSubTypes.Type(value = CreateInferenceDeploymentRequestDto.class, name = "inference"),
 })
-@ValidScaleConfiguration
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -51,12 +49,6 @@ public abstract class CreateDeploymentRequestDto {
     @NotNull
     @Valid
     private DeploymentMetadataDto metadata;
-    @Nullable
-    private Integer initialScale;
-    @Nullable
-    private Integer minScale;
-    @Nullable
-    private Integer maxScale;
     @Nullable
     @Valid
     private ScalingDto scaling;

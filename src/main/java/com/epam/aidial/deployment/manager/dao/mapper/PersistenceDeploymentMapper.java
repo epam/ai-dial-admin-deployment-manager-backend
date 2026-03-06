@@ -118,9 +118,6 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setUrl(updatedEntity.getUrl());
         existingEntity.setStatus(updatedEntity.getStatus());
         existingEntity.setContainerPort(updatedEntity.getContainerPort());
-        existingEntity.setInitialScale(updatedEntity.getInitialScale());
-        existingEntity.setMaxScale(updatedEntity.getMaxScale());
-        existingEntity.setMinScale(updatedEntity.getMinScale());
         existingEntity.setEnvs(updatedEntity.getEnvs());
         existingEntity.setMetadata(updatedEntity.getMetadata());
         existingEntity.setResources(updatedEntity.getResources());

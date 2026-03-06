@@ -40,9 +40,6 @@ public abstract class Deployment {
     private String description;
     private List<EnvVar> envs;
     private DeploymentMetadata metadata;
-    private Integer initialScale;
-    private Integer minScale;
-    private Integer maxScale;
     private Scaling scaling;
     private Resources resources;
     private ProbeProperties probeProperties;

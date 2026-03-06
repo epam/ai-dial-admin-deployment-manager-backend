@@ -174,24 +174,6 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
-    void testCreateDeployment_withMinScaleBiggerThanMaxScale() throws Exception {
-        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
-        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
-
-        requestDto.setMinScale(5);
-        requestDto.setInitialScale(null);
-        requestDto.setMaxScale(2);
-
-        var invalidRequestJson = objectMapper.writeValueAsString(requestDto);
-
-        mockMvc.perform(post("/api/v1/deployments")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidRequestJson))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("minScale must be less than or equal to maxScale\n"));
-    }
-
-    @Test
     void testCreateDeployment_withCpuResourceExceedingMaxLimit() throws Exception {
         var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
         var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);

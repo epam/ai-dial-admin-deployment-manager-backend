@@ -26,9 +26,6 @@ public abstract class CreateDeployment {
     private String displayName;
     private String description;
     private DeploymentMetadata metadata;
-    private Integer initialScale;
-    private Integer minScale;
-    private Integer maxScale;
     private Scaling scaling;
     private Resources resources;
     private ProbeProperties probeProperties;

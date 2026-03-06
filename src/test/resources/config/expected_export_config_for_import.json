@@ -93,9 +93,6 @@
           }
         ]
       },
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 5,
       "scaling": {
         "minReplicas": 0,
         "maxReplicas": 5,
@@ -136,9 +133,6 @@
           }
         ]
       },
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 5,
       "scaling": {
         "minReplicas": 0,
         "maxReplicas": 5,
@@ -168,9 +162,6 @@
           }
         ]
       },
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 5,
       "scaling": {
         "minReplicas": 0,
         "maxReplicas": 5,
@@ -196,9 +187,6 @@
       "displayName": "NIM deployment export test",
       "description": "NIM deployment for import test",
       "metadata": {"envs": []},
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 2,
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
@@ -222,9 +210,6 @@
       "description": "Inference deployment for import test",
       "modelFormat": "huggingface",
       "metadata": {"envs": []},
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 3,
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
