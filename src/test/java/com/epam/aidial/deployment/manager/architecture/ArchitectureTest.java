@@ -163,12 +163,12 @@ class ArchitectureTest {
                 @Override
                 public void check(JavaClass item, ConditionEvents events) {
                     item.tryGetAnnotationOfType("org.mapstruct.Mapper")
-                        .ifPresent(annotation -> {
-                            var componentModel = annotation.get("componentModel");
-                            if (componentModel.isEmpty() || !"spring".equals(componentModel.get())) {
-                                events.add(SimpleConditionEvent.violated(item, item.getDescription() + " does not declare @Mapper(componentModel = \"spring\")"));
-                            }
-                        });
+                            .ifPresent(annotation -> {
+                                var componentModel = annotation.get("componentModel");
+                                if (componentModel.isEmpty() || !"spring".equals(componentModel.get())) {
+                                    events.add(SimpleConditionEvent.violated(item, item.getDescription() + " does not declare @Mapper(componentModel = \"spring\")"));
+                                }
+                            });
                 }
             })
             .because("all MapStruct mappers must declare componentModel = \"spring\" to integrate with the Spring context");
