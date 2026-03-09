@@ -9,11 +9,15 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
+@Slf4j
 @Service
 @LogExecution
 @RequiredArgsConstructor
@@ -36,15 +40,26 @@ public class McpService {
     }
 
     private <T> T get(String deploymentId, String nextCursor, BiFunction<McpSyncClient, String, T> function) {
+        return execute(deploymentId, client -> function.apply(client, nextCursor), "connect to");
+    }
+
+    public McpSchema.CallToolResult callTool(String deploymentId, McpSchema.CallToolRequest callToolRequest) {
+        return execute(deploymentId, client -> client.callTool(callToolRequest), "call a tool via");
+    }
+
+    private <T> T execute(String deploymentId, Function<McpSyncClient, T> operation, String operationName) {
         var deployment = getDeployment(deploymentId);
         var endpointPath = mcpEndpointPathResolver.resolveEndpointPath(deployment);
-
         try (var mcpClient = mcpClientFactory.create(deployment.getUrl(), endpointPath, deployment.getTransport())) {
             mcpClient.initialize();
-            return function.apply(mcpClient, nextCursor);
+            return operation.apply(mcpClient);
         } catch (Exception e) {
-            throw new McpClientException(("Failed to connect to MCP server. Make sure transport '%s' and path '%s' are correct."
-                    + " Deployment id: %s").formatted(deployment.getTransport(), deployment.getMcpEndpointPath(), deploymentId), e);
+            var root = ExceptionUtils.getRootCause(e);
+            String reason = root != null ? root.getMessage() : e.getMessage();
+            String message = "Failed to %s MCP server. Deployment id: %s. Transport: '%s'. Path: '%s'"
+                    .formatted(operationName, deploymentId, deployment.getTransport(), deployment.getMcpEndpointPath());
+            log.warn("{}. Reason: {}", message, reason);
+            throw new McpClientException(message, e);
         }
     }
 
