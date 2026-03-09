@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.dao.repository;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.ComponentId;
 import com.epam.aidial.deployment.manager.dao.jpa.ComponentRemovalJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.ComponentRemovalMapper;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class ComponentRemovalRepository {
 

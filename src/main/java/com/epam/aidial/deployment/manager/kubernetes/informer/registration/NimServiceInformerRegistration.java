@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.registration;
 
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.informer.handler.NimServiceEventHandler;
 import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
 import com.nvidia.apps.v1alpha1.NIMService;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@LogExecution
 @ConditionalOnProperty(name = "app.nim.enabled", havingValue = "true")
 public class NimServiceInformerRegistration extends AbstractInformerRegistration<NIMService> {
 

@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
@@ -24,6 +25,7 @@ import java.util.function.Consumer;
 
 @Slf4j
 @Service
+@LogExecution
 @RequiredArgsConstructor
 public class ImageBuildRunner {
 

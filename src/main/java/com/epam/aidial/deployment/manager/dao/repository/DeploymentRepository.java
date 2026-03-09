@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.dao.repository;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.AdapterDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class DeploymentRepository {
 

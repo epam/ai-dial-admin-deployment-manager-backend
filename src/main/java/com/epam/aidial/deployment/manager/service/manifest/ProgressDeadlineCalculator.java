@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@LogExecution
 public class ProgressDeadlineCalculator {
 
     private static final int DEFAULT_TIMEOUT = 1;

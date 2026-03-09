@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.registration;
 
 import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.informer.handler.InferenceServiceEventHandler;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@LogExecution
 @ConditionalOnProperty(name = "app.kserve.enabled", havingValue = "true")
 public class InferenceServiceInformerRegistration extends AbstractInformerRegistration<InferenceService> {
 
