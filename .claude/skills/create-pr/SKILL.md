@@ -8,7 +8,7 @@ argument-hint: [base branch (optional)]
 
 Create a pull request for the current branch.
 
-If `$ARGUMENTS` is provided, use it as the base branch. Otherwise, default to the repository's main branch (usually `master` or `main`).
+If `$ARGUMENTS` is provided, use it as the base branch. Otherwise, default to the repository's development branch.
 
 ## Workflow
 
