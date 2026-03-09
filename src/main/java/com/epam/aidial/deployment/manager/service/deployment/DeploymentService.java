@@ -447,9 +447,7 @@ public class DeploymentService {
                 || specializedUpdate
                 || !Objects.equals(existing.getSource(), updated.getSource())
                 || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
-                || !Objects.equals(existing.getInitialScale(), updated.getInitialScale())
-                || !Objects.equals(existing.getMinScale(), updated.getMinScale())
-                || !Objects.equals(existing.getMaxScale(), updated.getMaxScale())
+                || !Objects.equals(existing.getScaling(), updated.getScaling())
                 || !Objects.equals(existing.getResources(), updated.getResources());
     }
 

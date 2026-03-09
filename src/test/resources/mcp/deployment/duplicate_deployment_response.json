@@ -43,9 +43,6 @@
   },
   "transport": "sse",
   "containerPort": 8082,
-  "initialScale": 1,
-  "minScale": 0,
-  "maxScale": 2,
   "status": "not_deployed",
   "resources": {
     "limits": {

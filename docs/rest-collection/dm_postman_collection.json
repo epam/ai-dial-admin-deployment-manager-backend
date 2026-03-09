@@ -996,6 +996,47 @@
                   "response": []
                 },
                 {
+                  "name": "call tool",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\": \"tool_1\",\n    \"arguments\": {\"arg1\": \"val1\"}\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/mcp/{{DEPLOYMENT_NAME}}/call-tool",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "mcp",
+                        "{{DEPLOYMENT_NAME}}",
+                        "call-tool"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
                   "name": "get prompts",
                   "protocolProfileBehavior": {
                     "followRedirects": true,

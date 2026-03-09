@@ -29,6 +29,7 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 - [Getting Started](#getting-started)
 - [Deploying NVIDIA NIM Models](#deploying-nvidia-nim-models)
 - [Security](#security)
+- [Spec-Driven Development](#spec-driven-development)
 - [Contributing](#contributing)
 - [License](#license)
 - [Documentation](#documentation)
@@ -185,6 +186,33 @@ The system supports two authentication methods:
 Keycloak can be used as a simple IDP replacement for local test/development.
 Please refer to the [Keycloak setup guide](https://github.com/epam/ai-dial-admin-backend/blob/development/docs/keycloak_configuration.md) for more information.
 
+
+## Spec-Driven Development
+
+This project uses [spec-kit](https://github.com/github/spec-kit) for spec-driven development. AI agents follow the project constitution and structured specs to ensure every feature aligns with architectural principles.
+
+### Developer Setup
+
+Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/).
+
+```bash
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
+```
+
+### Workflow
+
+| Command | Purpose |
+|---|---|
+| `/speckit.constitution` | View or amend the project constitution (`.specify/memory/constitution.md`) |
+| `/speckit.specify <description>` | Create a new feature spec in `specs/N-name/spec.md` on a new branch |
+| `/speckit.plan` | Generate a technical plan (`plan.md`) from the current spec |
+| `/speckit.tasks` | Break the plan into an implementation checklist (`tasks.md`) |
+| `/speckit.implement` | Execute all tasks in order |
+| `/speckit.clarify` | Ask structured questions to de-risk ambiguous requirements |
+| `/speckit.analyze` | Cross-artifact consistency check before implementation |
+| `/speckit.checklist` | Generate quality checklists for the plan |
+
+Feature specs land in `specs/N-feature-name/`. The constitution is at `.specify/memory/constitution.md`.
 
 ## Contributing
 

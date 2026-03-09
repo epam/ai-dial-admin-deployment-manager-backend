@@ -126,9 +126,6 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), deploymentSource.imageDefinitionId());
         Assertions.assertEquals(imageDefinitionName, deploymentSource.imageDefinitionName());
         Assertions.assertEquals(imageDefinitionVersion, deploymentSource.imageDefinitionVersion());
-        Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
-        Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
-        Assertions.assertEquals(createDeployment.getInitialScale(), deployment.getInitialScale());
         Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
@@ -158,9 +155,6 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), adapterDeploymentSource.imageDefinitionId());
         Assertions.assertEquals(adapterImageDef.getName(), adapterDeploymentSource.imageDefinitionName());
         Assertions.assertEquals(adapterImageDef.getVersion(), adapterDeploymentSource.imageDefinitionVersion());
-        Assertions.assertEquals(createDeployment.getMinScale(), deployment.getMinScale());
-        Assertions.assertEquals(createDeployment.getMaxScale(), deployment.getMaxScale());
-        Assertions.assertEquals(createDeployment.getInitialScale(), deployment.getInitialScale());
         Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
@@ -848,9 +842,6 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(originalDeployment.getDescription(), clonedDeployment.getDescription());
         Assertions.assertEquals(((InternalImageSource) originalDeployment.getSource()).imageDefinitionId(),
                 ((InternalImageSource) clonedDeployment.getSource()).imageDefinitionId());
-        Assertions.assertEquals(originalDeployment.getMinScale(), clonedDeployment.getMinScale());
-        Assertions.assertEquals(originalDeployment.getMaxScale(), clonedDeployment.getMaxScale());
-        Assertions.assertEquals(originalDeployment.getInitialScale(), clonedDeployment.getInitialScale());
         Assertions.assertEquals(originalDeployment.getResources(), clonedDeployment.getResources());
         Assertions.assertEquals(originalDeployment.getContainerPort(), clonedDeployment.getContainerPort());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, clonedDeployment.getStatus());

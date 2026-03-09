@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.model.deployment;
 
-import com.epam.aidial.deployment.manager.model.Scaling;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -25,6 +24,4 @@ public class InferenceDeployment extends Deployment {
     private List<String> command;
     @Nullable
     private List<String> args;
-    @Nullable
-    private Scaling scaling;
 }

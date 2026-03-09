@@ -69,9 +69,6 @@
       "request1": "some-rvalue-1"
     }
   },
-  "initialScale": 1,
-  "minScale": 0,
-  "maxScale": 2,
   "status": "not_deployed",
   "createdAt": 1745996228431,
   "updatedAt": 1745996228431

@@ -11,9 +11,6 @@
     "displayName": "example deployment 1",
     "description": "Description of example deployment 1",
     "author": "user1@test.com",
-    "initialScale": 1,
-    "minScale": 0,
-    "maxScale": 2,
     "resources": {
       "limits": {"cpu": "10"},
       "requests": {"cpu": "5"}
@@ -35,9 +32,6 @@
     "displayName": "example deployment 2",
     "description": "Description of example deployment 2",
     "author": "user2@test.com",
-    "initialScale": 1,
-    "minScale": 0,
-    "maxScale": 2,
     "resources": {
       "limits": {"cpu": "10"},
       "requests": {"cpu": "5"}

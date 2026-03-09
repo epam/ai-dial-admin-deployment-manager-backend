@@ -206,6 +206,29 @@ class McpServiceTest {
         verify(mcpSyncClient).listTools(null);
     }
 
+    @Test
+    void testCallTool() {
+        // Given
+        var deployment = createDeployment();
+        String endpointPath = "/sseCustom";
+        deployment.setMcpEndpointPath(endpointPath);
+        deployment.setTransport(McpTransport.SSE);
+
+        when(deploymentService.getDeployment(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(mcpClientFactory.create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE)).thenReturn(mcpSyncClient);
+
+        var callToolRequest = Mockito.mock(McpSchema.CallToolRequest.class);
+        var expectedCallToolResult = Mockito.mock(McpSchema.CallToolResult.class);
+        when(mcpSyncClient.callTool(callToolRequest)).thenReturn(expectedCallToolResult);
+
+        // When
+        var result = mcpService.callTool(DEPLOYMENT_ID, callToolRequest);
+
+        // Then
+        assertThat(result).isEqualTo(expectedCallToolResult);
+        verify(mcpSyncClient).callTool(callToolRequest);
+    }
+
     private McpDeployment createDeployment() {
         var deployment = new McpDeployment();
         deployment.setId(DEPLOYMENT_ID);

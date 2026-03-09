@@ -183,6 +183,13 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
+tasks.register('generateDbSchema', JavaExec) {
+    dependsOn classes
+    mainClass = 'db.schema.GenerateDbSchema'
+    classpath = sourceSets.main.runtimeClasspath
+    args = ["${projectDir}/docs/db-schema.md"]
+}
+
 tasks.withType(JavaCompile).configureEach {
     dependsOn(crd2java)
     options.compilerArgs += "-Werror"

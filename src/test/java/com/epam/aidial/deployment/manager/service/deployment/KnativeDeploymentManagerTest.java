@@ -306,9 +306,7 @@ class KnativeDeploymentManagerTest {
                 any(),
                 any(),
                 eq(IMAGE_NAME),
-                eq(deployment.getInitialScale()),
-                eq(deployment.getMinScale()),
-                eq(deployment.getMaxScale()),
+                any(),
                 eq(deployment.getResources()),
                 eq(containerPort),
                 any()
@@ -397,9 +395,7 @@ class KnativeDeploymentManagerTest {
                 any(),
                 any(),
                 eq(MCP_IMAGE_REFERENCE),
-                eq(deployment.getInitialScale()),
-                eq(deployment.getMinScale()),
-                eq(deployment.getMaxScale()),
+                eq(deployment.getScaling()),
                 eq(deployment.getResources()),
                 eq(8080),
                 any()
@@ -440,9 +436,7 @@ class KnativeDeploymentManagerTest {
                 any(),
                 any(),
                 eq(MCP_IMAGE_REFERENCE),
-                eq(deployment.getInitialScale()),
-                eq(deployment.getMinScale()),
-                eq(deployment.getMaxScale()),
+                eq(deployment.getScaling()),
                 eq(deployment.getResources()),
                 eq(8080),
                 any()
@@ -483,9 +477,7 @@ class KnativeDeploymentManagerTest {
                 any(),
                 any(),
                 eq(MCP_IMAGE_REFERENCE),
-                eq(deployment.getInitialScale()),
-                eq(deployment.getMinScale()),
-                eq(deployment.getMaxScale()),
+                eq(deployment.getScaling()),
                 eq(deployment.getResources()),
                 eq(8080),
                 any()
@@ -516,7 +508,7 @@ class KnativeDeploymentManagerTest {
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), anyInt(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);

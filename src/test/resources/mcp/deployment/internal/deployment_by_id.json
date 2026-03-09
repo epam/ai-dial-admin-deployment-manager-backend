@@ -22,9 +22,6 @@
     "limits": {},
     "requests": {}
   },
-  "initialScale": 1,
-  "minScale": 0,
-  "maxScale": 2,
   "status": "running",
   "url": "https://example.com/example-deployment-1"
 }

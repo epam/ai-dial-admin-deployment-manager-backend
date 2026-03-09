@@ -415,9 +415,6 @@ class DeploymentRepositoryTest {
         deploymentEntity.setDisplayName("test-deployment");
         deploymentEntity.setDescription("Test Description");
         deploymentEntity.setEnvs(persistenceEnvs);
-        deploymentEntity.setInitialScale(1);
-        deploymentEntity.setMinScale(1);
-        deploymentEntity.setMaxScale(3);
         deploymentEntity.setResources(persistenceResources);
         deploymentEntity.setStatus(PersistenceDeploymentStatus.RUNNING);
         deploymentEntity.setUrl("http://test-deployment.url");
@@ -445,9 +442,6 @@ class DeploymentRepositoryTest {
                 .displayName("test-deployment")
                 .description("Test Description")
                 .envs(envs)
-                .initialScale(1)
-                .minScale(1)
-                .maxScale(3)
                 .resources(resources)
                 .status(DeploymentStatus.RUNNING)
                 .url("http://test-deployment.url")

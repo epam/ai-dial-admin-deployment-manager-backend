@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.utils.mapping.ListMapper;
@@ -13,6 +14,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class DeployableManifestGenerator extends BaseManifestGenerator {
+
+    protected static final List<ScalingStrategyType> SUPPORTED_SCALING_STRATEGIES =
+            List.of(ScalingStrategyType.ACTIVE_REQUESTS);
 
     public DeployableManifestGenerator(AppProperties appconfig) {
         super(appconfig);

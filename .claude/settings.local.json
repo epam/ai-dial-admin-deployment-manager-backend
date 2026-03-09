@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash:*",
+      "Bash(./gradlew clean:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(xargs grep:*)",
+      "Bash(./gradlew compileTestJava:*)",
+      "Bash(./gradlew checkstyleMain:*)",
+      "Bash(./gradlew checkstyleTest:*)",
+      "Bash(grep:*)",
+      "Bash(mv:*)",
+      "mcp__github__pull_request_read",
+      "mcp__github__pull_request_review_write",
+      "mcp__github__add_comment_to_pending_review",
+      "mcp__github__get_me",
+      "mcp__github__search_repositories",
+      "mcp__github__issue_write",
+      "mcp__github__get_commit",
+      "mcp__github__issue_read",
+      "WebFetch(domain:github.com)",
+      "Bash(gh repo:*)",
+      "WebFetch(domain:knative.dev)",
+      "Bash(git config:*)",
+      "mcp__github__add_reply_to_pull_request_comment",
+      "Bash(gh label:*)",
+      "Bash(gh issue:*)",
+      "Bash(gh version:*)",
+      "mcp__github__list_issue_types",
+      "Bash(gh project:*)",
+      "Bash(gh auth:*)",
+      "Read(//c/Users/Oleksii_Donets/IdeaProjects/ai-dial-admin-mcp-manager-backend/$HOME/.claude/**)",
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git:*)"
+    ]
+  }
+}

@@ -118,9 +118,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
                 imageName,
-                deployment.getInitialScale(),
-                deployment.getMinScale(),
-                deployment.getMaxScale(),
+                deployment.getScaling(),
                 deployment.getResources(),
                 containerPort,
                 deployment.getProbeProperties());
