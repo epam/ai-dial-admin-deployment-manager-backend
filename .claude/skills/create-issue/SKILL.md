@@ -25,10 +25,14 @@ If `$ARGUMENTS` starts with `bug` or `feature`, use that as the issue type. Othe
    - If it's a bug, try to identify the root cause or narrow down the area of code involved
    - If it's a feature, understand current architecture to describe where the feature fits
 
-4. **Draft the issue** using the appropriate template below.
+4. **Draft the issue** — read the appropriate GitHub issue template from `.github/ISSUE_TEMPLATE/` and use it as the structure for the issue body:
+   - **Bug Report**: read `.github/ISSUE_TEMPLATE/01_bug_report.yml` — extract the field labels and structure from the YAML form definition.
+   - **Feature Request**: read `.github/ISSUE_TEMPLATE/02_feature_request.yml` — extract the field labels and structure from the YAML form definition.
+
+   Convert the YAML form fields into a Markdown body where each field's `label` becomes a `### Heading` and the content is filled in based on your investigation.
 
 5. **Determine labels and metadata**:
-   - **Type label**: `bug` for bug reports, `enhancement` for feature requests.
+   - **Type labels**: read the `labels` field from the corresponding `.github/ISSUE_TEMPLATE/*.yml` file to get the correct labels (e.g. bug reports use `bug`; feature requests use `enhancement` and `to-be-documented`).
    - **Priority label** (one of): `Priority-Low`, `Priority-Medium`, `Priority-High`. Guess the appropriate priority based on context, but **always confirm with the user**.
    - **Severity label** (one of): `Severity-Low`, `Severity-Minor`, `Severity-Major`, `Severity-Critical`. Guess the appropriate severity based on context, but **always confirm with the user**.
    - **Milestone**: Use `release-<MAJOR>.<MINOR>` format (version from `build.gradle` without the bugfix/patch part, e.g. version `0.15.0-rc` → milestone `release-0.15`). **Always confirm the milestone with the user**.
@@ -62,59 +66,14 @@ If `$ARGUMENTS` starts with `bug` or `feature`, use that as the issue type. Othe
 
 ---
 
-## Bug Report Template
+## Issue Templates
 
-**Title:** Short, descriptive summary of the bug
+Templates are defined in `.github/ISSUE_TEMPLATE/` — always read the appropriate YAML file to get the current field structure. Do NOT hardcode template fields here; the YAML files are the single source of truth.
 
-**Body:**
+- **Bug Report**: `.github/ISSUE_TEMPLATE/01_bug_report.yml`
+- **Feature Request**: `.github/ISSUE_TEMPLATE/02_feature_request.yml`
 
-```
-### Name and Version
-
-[BE] <VERSION_FROM_BUILD_GRADLE>
-
-### What steps will reproduce the bug?
-
-<DETAILED_REPRODUCTION_STEPS>
-
-### What is the expected behavior?
-
-<EXPECTED_BEHAVIOR>
-
-### What do you see instead?
-
-<ACTUAL_BEHAVIOR>
-
-### Additional information
-
-<ANY_EXTRA_CONTEXT — e.g. relevant code snippets, stack traces, environment details, related issues, possible root cause>
-```
-
----
-
-## Feature Request Template
-
-**Title:** Short, descriptive summary of the feature
-
-**Body:**
-
-```
-### Name and Version
-
-[BE] <VERSION_FROM_BUILD_GRADLE>
-
-### What is the problem this feature will solve?
-
-<CLEAR_DESCRIPTION_OF_THE_PROBLEM — pain points, use cases, limitations of the current behavior>
-
-### What is the feature you are proposing to solve the problem?
-
-<PROPOSED_FEATURE — what it does, how it works, which components are affected>
-
-### What alternatives have you considered?
-
-<OTHER_APPROACHES_CONSIDERED_AND_WHY_THEY_WERE_REJECTED>
-```
+**General format for the issue body** — for each field in the template YAML, create a `### <label>` heading followed by the content. Use the version from `build.gradle` for the `Name and Version` field (e.g. `[BE] 0.15.0-rc`).
 
 ---
 
@@ -125,7 +84,7 @@ If `$ARGUMENTS` starts with `bug` or `feature`, use that as the issue type. Othe
 - ALWAYS approach the issue from multiple perspectives (user, developer, system) to write a thorough description.
 - ALWAYS show the full draft (title, body, labels, milestone, project) to the user before creating the issue.
 - ALWAYS confirm Priority, Severity, and Milestone with the user before creating.
-- ALWAYS apply the correct type label: `bug` for bug reports, `enhancement` for feature requests.
+- ALWAYS read the labels from the corresponding `.github/ISSUE_TEMPLATE/*.yml` file and apply them to the issue.
 - ALWAYS set the GitHub issue type after creation: `Bug` for bug reports, `Feature` for feature requests (using `mcp__github__issue_write`).
 - ALWAYS add the issue to the AI DIAL Admin project (number 68) using `gh project item-add`.
 - Do NOT create the issue without user confirmation.
