@@ -3,9 +3,12 @@ package com.epam.aidial.deployment.manager.web.controller;
 import com.epam.aidial.deployment.manager.service.McpService;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +25,12 @@ public class McpController {
     public McpSchema.ListToolsResult getTools(@PathVariable String deploymentId,
                                               @RequestParam(required = false) String nextCursor) {
         return mcpService.getTools(deploymentId, nextCursor);
+    }
+
+    @PostMapping(path = "/{deploymentId}/call-tool", produces = MediaType.APPLICATION_JSON_VALUE)
+    public McpSchema.CallToolResult callTool(@PathVariable String deploymentId,
+                                             @RequestBody McpSchema.CallToolRequest callToolRequest) {
+        return mcpService.callTool(deploymentId, callToolRequest);
     }
 
     @GetMapping(path = "/{deploymentId}/resources",

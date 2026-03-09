@@ -1,7 +1,7 @@
 # MCP Servers
 
 ## Purpose
-This spec describes the MCP server introspection API — querying a live MCP deployment for its advertised tools, resources, and prompts via the MCP protocol. All three listing endpoints support cursor-based pagination.
+This spec describes the MCP server interaction API — querying a live MCP deployment for its advertised tools, resources, and prompts via the MCP protocol, as well as invoking individual tools. All three listing endpoints support cursor-based pagination.
 
 Status: **Implemented**
 
@@ -49,6 +49,23 @@ Status: **Implemented**
 - **WHEN** `GET /api/v1/deployments/mcp/{deploymentId}/prompts` is called
 - **THEN** the list of prompts advertised by the MCP server is returned
 
+### Requirement: Call an MCP tool on a deployment
+The system SHALL invoke a specific tool on a live MCP deployment and return the result.
+
+Status: **Implemented**
+
+#### Scenario: Successful tool call
+- **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called with a valid tool name and arguments
+- **THEN** the tool is invoked on the MCP server and the result is returned
+
+#### Scenario: MCP server unreachable during tool call
+- **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called and the MCP server is unavailable
+- **THEN** an appropriate error response is returned
+
+#### Scenario: Non-existent deployment
+- **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called with an unknown deployment ID
+- **THEN** the system responds with 404
+
 ### Requirement: Cursor-based pagination for MCP listings
 Tools, resources, and prompts listing endpoints SHALL support cursor-based pagination via an optional `nextCursor` query parameter.
 
@@ -67,6 +84,7 @@ Status: **Implemented**
 - Base path: `/api/v1/deployments/mcp`
 - Endpoints:
   - `GET /api/v1/deployments/mcp/{deploymentId}/tools`
+  - `POST /api/v1/deployments/mcp/{deploymentId}/call-tool`
   - `GET /api/v1/deployments/mcp/{deploymentId}/resources`
   - `GET /api/v1/deployments/mcp/{deploymentId}/prompts`
 - Service: `com.epam.aidial.deployment.manager.service.McpService`
@@ -77,6 +95,6 @@ Status: **Implemented**
 - MCP endpoint path resolver: `com.epam.aidial.deployment.manager.service.McpEndpointPathResolver`
 - Health checker: `com.epam.aidial.deployment.manager.service.deployment.healthcheck.McpHealthChecker`
 - MCP SDK: `io.modelcontextprotocol` (protocol communication via `McpSyncClient`)
-- Response types: `McpSchema.ListToolsResult`, `McpSchema.ListResourcesResult`, `McpSchema.ListPromptsResult`
+- Request/response types: `McpSchema.CallToolRequest` / `McpSchema.CallToolResult`, `McpSchema.ListToolsResult`, `McpSchema.ListResourcesResult`, `McpSchema.ListPromptsResult`
 - Pagination: optional `nextCursor` query parameter (`@RequestParam(required = false)`) on all three listing endpoints
 - Related specs: `mcp-deployments`, `mcp-image-definitions`
