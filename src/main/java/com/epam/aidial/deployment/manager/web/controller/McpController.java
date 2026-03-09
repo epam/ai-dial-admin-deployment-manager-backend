@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.controller;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.McpService;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/deployments/mcp")
+@LogExecution
 @RequiredArgsConstructor
 public class McpController {
 

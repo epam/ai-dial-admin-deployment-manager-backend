@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.controller;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/global-whitelist")
+@LogExecution
 @RequiredArgsConstructor
 public class GlobalDomainWhitelistController {
 
