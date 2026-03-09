@@ -31,9 +31,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class McpControllerTest extends AbstractControllerNoneSecureTest {
 
-    private static final String CALL_TOOL_REQUEST_DTO_JSON_PATH = "/mcp/call_tool_request_dto.json";
-    private static final String CALL_TOOL_RESULT_DTO_JSON_PATH = "/mcp/call_tool_result_dto.json";
-
     private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final String NEXT_CURSOR = "some-cursor";
 
@@ -146,11 +143,11 @@ class McpControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testCallTool() throws Exception {
-        var callToolRequestDtoJson = ResourceUtils.readResource(CALL_TOOL_REQUEST_DTO_JSON_PATH);
+        var callToolRequestDtoJson = ResourceUtils.readResource("/mcp/call_tool_request_dto.json");
         var callToolRequestDto = objectMapper.readValue(callToolRequestDtoJson, new TypeReference<McpSchema.CallToolRequest>() {
         });
 
-        var callToolResultDtoJson = ResourceUtils.readResource(CALL_TOOL_RESULT_DTO_JSON_PATH);
+        var callToolResultDtoJson = ResourceUtils.readResource("/mcp/call_tool_result_dto.json");
         var callToolResultDto = objectMapper.readValue(callToolResultDtoJson, new TypeReference<McpSchema.CallToolResult>() {
         });
 
