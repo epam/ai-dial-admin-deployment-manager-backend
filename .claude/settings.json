@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./gradlew test --tests 'com.epam.aidial.deployment.manager.architecture.ArchitectureTest' -q 2>&1 | tail -5"
+          }
+        ]
+      }
     ]
   }
 }
