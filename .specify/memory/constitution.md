@@ -199,14 +199,16 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 
 | Command | Purpose |
 |---|---|
-| `./gradlew test` | Run all tests |
+| `./gradlew testFast` | Run all tests except Postgres and SQL Server testcontainers functional tests — **use this during development** |
+| `./gradlew test` | Run the full test suite including all testcontainers functional tests |
 | `./gradlew checkstyleMain checkstyleTest` | Run Checkstyle on main and test sources |
 | `./gradlew clean build` | Full clean build (tests + Checkstyle) |
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
 | `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.13-jdk21-alpine` → `amazoncorretto:21-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
-considering the task done. A clean `./gradlew clean build` is the gate for PR readiness.
+considering the task done. Use `./gradlew testFast` to run tests during development; a clean
+`./gradlew clean build` (full suite) is the gate for PR readiness.
 
 ## Governance
 

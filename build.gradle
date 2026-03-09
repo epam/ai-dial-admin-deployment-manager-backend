@@ -184,6 +184,16 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
+tasks.register('testFast', Test) {
+    description = 'Runs all tests except Postgres and SQL Server functional tests (testcontainers).'
+    group = 'verification'
+    useJUnitPlatform()
+    filter {
+        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.PostgresFunctionalTests'
+        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.SqlServerFunctionalTests'
+    }
+}
+
 tasks.register('generateDbSchema', JavaExec) {
     dependsOn classes
     mainClass = 'db.schema.GenerateDbSchema'
