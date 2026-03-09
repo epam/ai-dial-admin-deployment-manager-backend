@@ -93,9 +93,12 @@
           }
         ]
       },
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 5,
+      "scaling": {
+        "minReplicas": 0,
+        "maxReplicas": 5,
+        "scaleToZeroDelaySeconds": 300,
+        "strategy": {"$type": "pending_requests", "threshold": 10}
+      },
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
@@ -107,6 +110,7 @@
       },
       "containerPort": 8080,
       "allowedDomains": [],
+      "topics": ["mcp-topic", "nlp"],
       "transport": "sse",
       "mcpEndpointPath": "some-path"
     }
@@ -130,12 +134,15 @@
           }
         ]
       },
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 5,
+      "scaling": {
+        "minReplicas": 0,
+        "maxReplicas": 5,
+        "strategy": {"$type": "active_requests", "threshold": 50}
+      },
       "resources": {"limits": {}, "requests": {}},
       "containerPort": 5000,
-      "allowedDomains": ["*"]
+      "allowedDomains": ["*"],
+      "topics": []
     }
   },
   "interceptorDeployments": {
@@ -157,9 +164,11 @@
           }
         ]
       },
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 5,
+      "scaling": {
+        "minReplicas": 0,
+        "maxReplicas": 5,
+        "scaleToZeroDelaySeconds": 600
+      },
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
@@ -170,7 +179,8 @@
         "probe": {"$type": "tcpSocket", "port": 8080}
       },
       "containerPort": 8080,
-      "allowedDomains": ["test-domain-2.com"]
+      "allowedDomains": ["test-domain-2.com"],
+      "topics": []
     }
   },
   "nimDeployments": {
@@ -180,9 +190,6 @@
       "displayName": "NIM deployment export test",
       "description": "NIM deployment for import test",
       "metadata": {"envs": []},
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 2,
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
@@ -194,6 +201,7 @@
       },
       "containerPort": 8000,
       "allowedDomains": [],
+      "topics": [],
       "source": {"$type": "ngc_registry", "imageRef": "nvcr.io/nim/test-model:latest"},
       "containerGrpcPort": 50051
     }
@@ -206,9 +214,6 @@
       "description": "Inference deployment for import test",
       "modelFormat": "huggingface",
       "metadata": {"envs": []},
-      "initialScale": 1,
-      "minScale": 0,
-      "maxScale": 3,
       "resources": {"limits": {}, "requests": {}},
       "probeProperties": {
         "enabled": true,
@@ -220,6 +225,7 @@
       },
       "containerPort": 8080,
       "allowedDomains": [],
+      "topics": [],
       "source": {
         "$type": "huggingface",
         "modelName": "test-org/export-test-model",

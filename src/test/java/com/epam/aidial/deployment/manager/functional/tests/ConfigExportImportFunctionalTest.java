@@ -19,6 +19,9 @@ import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponent;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType;
@@ -70,6 +73,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipInputStream;
@@ -245,13 +249,12 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("MCP deployment export test")
                 .description("MCP deployment for import test")
                 .metadata(mcpDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
+                .scaling(new Scaling(0, 5, 300, new ScalingStrategy(ScalingStrategyType.PENDING_REQUESTS, 10)))
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(probeTcp8080)
                 .containerPort(8080)
                 .allowedDomains(List.of())
+                .topics(List.of("nlp", "mcp-topic"))
                 .transport(McpTransport.SSE)
                 .mcpEndpointPath("some-path")
                 .build();
@@ -264,9 +267,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("Adapter deployment export test")
                 .description("Adapter deployment for import test")
                 .metadata(adapterDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
+                .scaling(new Scaling(0, 5, null, new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 50)))
                 .resources(EMPTY_RESOURCES)
                 .containerPort(5000)
                 .allowedDomains(List.of("*"))
@@ -280,9 +281,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("Interceptor deployment export test")
                 .description("Interceptor deployment for import test")
                 .metadata(interceptorDeploymentMetadata())
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(5)
+                .scaling(new Scaling(0, 5, 600, null))
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(probeTcp8080)
                 .containerPort(8080)
@@ -295,9 +294,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .displayName("NIM deployment export test")
                 .description("NIM deployment for import test")
                 .metadata(new DeploymentMetadata(List.of()))
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(2)
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(nimProbe)
                 .containerPort(8000)
@@ -313,9 +309,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .description("Inference deployment for import test")
                 .modelFormat("huggingface")
                 .metadata(new DeploymentMetadata(List.of()))
-                .initialScale(1)
-                .minScale(0)
-                .maxScale(3)
                 .resources(EMPTY_RESOURCES)
                 .probeProperties(inferenceProbe)
                 .containerPort(8080)
@@ -468,12 +461,14 @@ public abstract class ConfigExportImportFunctionalTest {
         Assertions.assertEquals(expected.getId(), actual.getId(), "id");
         Assertions.assertEquals(expected.getDisplayName(), actual.getDisplayName(), "displayName");
         Assertions.assertEquals(expected.getDescription(), actual.getDescription(), "description");
-        Assertions.assertEquals(expected.getInitialScale(), actual.getInitialScale(), "initialScale");
-        Assertions.assertEquals(expected.getMinScale(), actual.getMinScale(), "minScale");
-        Assertions.assertEquals(expected.getMaxScale(), actual.getMaxScale(), "maxScale");
+        Assertions.assertEquals(expected.getScaling(), actual.getScaling(), "scaling");
         Assertions.assertEquals(expected.getContainerPort(), actual.getContainerPort(), "containerPort");
         Assertions.assertEquals(expected.getResources(), actual.getResources(), "resources");
         Assertions.assertEquals(expected.getAllowedDomains(), actual.getAllowedDomains(), "allowedDomains");
+        Assertions.assertEquals(
+                Set.copyOf(expected.getTopics() != null ? expected.getTopics() : List.of()),
+                Set.copyOf(actual.getTopics() != null ? actual.getTopics() : List.of()),
+                "topics");
         assertProbePropertiesEquals(expected.getProbeProperties(), actual.getProbeProperties());
         assertMetadataEnvsEquals(
                 expected.getMetadata() != null ? expected.getMetadata().getEnvs() : null,

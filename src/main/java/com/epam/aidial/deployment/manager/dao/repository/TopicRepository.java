@@ -14,10 +14,15 @@ public class TopicRepository {
     @PersistenceContext
     private EntityManager entityManager;
 
+    @SuppressWarnings("unchecked")
     public List<String> getAllTopics() {
-        return entityManager.createQuery(
-                        "select distinct t from ImageDefinitionEntity i join i.topics t order by t",
-                        String.class)
+        return entityManager.createNativeQuery("""
+                        SELECT DISTINCT topic_name FROM (
+                            SELECT topic_name FROM image_definition_topics
+                            UNION
+                            SELECT topic_name FROM deployment_topics
+                        ) AS all_topics ORDER BY topic_name
+                        """, String.class)
                 .getResultList();
     }
 

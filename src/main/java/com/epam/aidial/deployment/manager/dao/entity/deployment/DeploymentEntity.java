@@ -6,14 +6,18 @@ import com.epam.aidial.deployment.manager.dao.entity.PersistenceEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceResources;
 import com.epam.aidial.deployment.manager.dao.entity.probe.PersistenceProbeProperties;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -62,14 +66,8 @@ public class DeploymentEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private PersistenceDeploymentMetadata metadata;
 
-    @Column(name = "initial_scale")
-    private Integer initialScale;
-
-    @Column(name = "min_scale")
-    private Integer minScale;
-
-    @Column(name = "max_scale")
-    private Integer maxScale;
+    @JdbcTypeCode(SqlTypes.JSON)
+    private PersistenceScaling scaling;
 
     @JdbcTypeCode(SqlTypes.JSON)
     private PersistenceResources resources;
@@ -99,5 +97,10 @@ public class DeploymentEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "allowed_domains")
     private List<String> allowedDomains;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "deployment_topics", joinColumns = @JoinColumn(name = "deployment_id"))
+    @Column(name = "topic_name")
+    private List<String> topics;
 
 }
