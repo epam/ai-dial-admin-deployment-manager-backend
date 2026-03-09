@@ -2,7 +2,6 @@ package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceCleaner;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
