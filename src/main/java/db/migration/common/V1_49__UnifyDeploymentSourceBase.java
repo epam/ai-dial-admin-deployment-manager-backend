@@ -11,7 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.Statement;
 
 @Slf4j
-public abstract class V1_47__UnifyDeploymentSourceBase extends BaseJavaMigration {
+public abstract class V1_49__UnifyDeploymentSourceBase extends BaseJavaMigration {
 
     protected static final ObjectMapper MAPPER = JsonMapperConfiguration.createJsonMapper();
 

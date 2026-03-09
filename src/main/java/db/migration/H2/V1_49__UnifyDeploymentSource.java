@@ -1,11 +1,11 @@
 package db.migration.H2;
 
-import db.migration.common.V1_47__UnifyDeploymentSourceBase;
+import db.migration.common.V1_49__UnifyDeploymentSourceBase;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
-public class V1_47__UnifyDeploymentSource extends V1_47__UnifyDeploymentSourceBase {
+public class V1_49__UnifyDeploymentSource extends V1_49__UnifyDeploymentSourceBase {
 
     @Override
     protected void addSourceColumn(Statement statement) throws Exception {
