@@ -57,7 +57,6 @@ web (controller / handler / dto / mapper)
 ### III. Kubernetes Isolation
 
 - All calls that create, update, delete, or read Kubernetes resources MUST live in the `kubernetes/` package.
-- Services MUST NOT import `io.fabric8.*` or `io.kubernetes.*` client types (only domain models are allowed to cross this boundary).
 - Fabric8 informers are the canonical mechanism for watching K8s state changes; polling loops are forbidden.
 
 ### IV. Observability First
@@ -126,11 +125,10 @@ Package names MUST be all-lowercase with no underscores (enforced by Checkstyle 
 ## Key Patterns
 
 **`@LogExecution`** — Class-level annotation MUST appear on every Spring component (`@RestController`,
-`@Service`, `@Repository`, `@Component`, `@Configuration`). Import:
+`@Service`, `@Repository`, `@Component`). Import:
 `com.epam.aidial.deployment.manager.configuration.logging.LogExecution`. Wired via
-`CustomizableTraceInterceptor` in `configuration/logging/`. Known gaps in existing code (legacy —
-do NOT treat as a model): `TopicController`, `GlobalDomainWhitelistController`, `HealthController`,
-`McpController`, `DisposableResourceController`, `ConfigController`. All new code MUST include it without exception.
+`CustomizableTraceInterceptor` in `configuration/logging/`. Enforced automatically by ArchUnit
+(`ArchitectureTest` — see that class for the precise set of exclusions and known legacy gaps).
 
 **MapStruct** — All mapper interfaces MUST declare `componentModel = "spring"`.
 `subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION` SHOULD be included
@@ -201,14 +199,16 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 
 | Command | Purpose |
 |---|---|
-| `./gradlew test` | Run all tests |
+| `./gradlew testFast` | Run all tests except Postgres and SQL Server testcontainers functional tests — **use this during development** |
+| `./gradlew test` | Run the full test suite including all testcontainers functional tests |
 | `./gradlew checkstyleMain checkstyleTest` | Run Checkstyle on main and test sources |
 | `./gradlew clean build` | Full clean build (tests + Checkstyle) |
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
 | `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.13-jdk21-alpine` → `amazoncorretto:21-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
-considering the task done. A clean `./gradlew clean build` is the gate for PR readiness.
+considering the task done. Use `./gradlew testFast` to run tests during development; a clean
+`./gradlew clean build` (full suite) is the gate for PR readiness.
 
 ## Governance
 

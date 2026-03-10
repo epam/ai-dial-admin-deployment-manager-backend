@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.dao.repository;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceReference;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.jpa.DisposableResourceJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDisposableResourceMapper;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class DisposableResourceRepository {
 

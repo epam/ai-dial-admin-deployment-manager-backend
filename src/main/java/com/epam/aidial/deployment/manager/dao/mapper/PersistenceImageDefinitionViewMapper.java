@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.dao.mapper;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
+@LogExecution
 public class PersistenceImageDefinitionViewMapper {
 
     public List<ImageDefinitionView> toViews(List<ImageDefinitionEntity> imageDefinitions) {
