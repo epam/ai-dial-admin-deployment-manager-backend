@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployme
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -156,7 +157,7 @@ public class FunctionalTestHelper {
     public static CreateDeployment createInterceptorDeploymentRequest(UUID imageDefinitionId) {
         return CreateInterceptorDeployment.builder()
                 .id("interceptor-test-deployment-1")
-                .imageDefinitionId(imageDefinitionId)
+                .source(new InternalImageSource(imageDefinitionId, null, null, null))
                 .displayName("test-deployment")
                 .description("Test deployment description")
                 .resources(createResources())
@@ -169,7 +170,7 @@ public class FunctionalTestHelper {
     public static CreateDeployment createAdapterDeploymentRequest(UUID imageDefinitionId) {
         return CreateAdapterDeployment.builder()
                 .id("adapter-test-deployment-1")
-                .imageDefinitionId(imageDefinitionId)
+                .source(new InternalImageSource(imageDefinitionId, null, null, null))
                 .displayName("test-adapter-deployment")
                 .description("Test adapter deployment description")
                 .resources(createResources())
@@ -195,7 +196,7 @@ public class FunctionalTestHelper {
     public static CreateMcpDeployment createMcpDeploymentRequest(UUID imageDefinitionId) {
         return CreateMcpDeployment.builder()
                 .id("mcp-test-deployment-1")
-                .imageDefinitionId(imageDefinitionId)
+                .source(new InternalImageSource(imageDefinitionId, null, null, null))
                 .displayName("test-deployment")
                 .description("Test deployment description")
                 .resources(createResources())

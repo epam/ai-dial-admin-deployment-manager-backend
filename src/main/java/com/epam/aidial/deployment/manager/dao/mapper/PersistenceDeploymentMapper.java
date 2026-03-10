@@ -2,7 +2,6 @@ package com.epam.aidial.deployment.manager.dao.mapper;
 
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceEnvVar;
-import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceResources;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSensitiveEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSensitiveFileEnvVar;
@@ -13,30 +12,33 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploym
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInferenceDeploymentHuggingFaceSource;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInferenceDeploymentSource;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceNimDeploymentNgcRegistrySource;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceNimDeploymentSource;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceHuggingFaceSource;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceImageReferenceSource;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInternalImageSource;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceNgcRegistrySource;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceSource;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
-import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
+import com.epam.aidial.deployment.manager.model.deployment.Source;
 import org.apache.commons.collections4.MapUtils;
+import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 import org.mapstruct.SubclassExhaustiveStrategy;
 import org.mapstruct.SubclassMapping;
 
@@ -54,12 +56,13 @@ public abstract class PersistenceDeploymentMapper {
     @SubclassMapping(source = InferenceDeploymentEntity.class, target = InferenceDeployment.class)
     public abstract Deployment toDomain(DeploymentEntity entity);
 
-    @SubclassMapping(source = PersistenceInferenceDeploymentHuggingFaceSource.class, target = InferenceDeploymentHuggingFaceSource.class)
-    protected abstract InferenceDeploymentSource toDomain(PersistenceInferenceDeploymentSource entity);
+    @SubclassMapping(source = PersistenceInternalImageSource.class, target = InternalImageSource.class)
+    @SubclassMapping(source = PersistenceImageReferenceSource.class, target = ImageReferenceSource.class)
+    @SubclassMapping(source = PersistenceNgcRegistrySource.class, target = NgcRegistrySource.class)
+    @SubclassMapping(source = PersistenceHuggingFaceSource.class, target = HuggingFaceSource.class)
+    protected abstract Source toDomain(PersistenceSource entity);
 
-    @SubclassMapping(source = PersistenceNimDeploymentNgcRegistrySource.class, target = NimDeploymentNgcRegistrySource.class)
-    protected abstract NimDeploymentSource toDomain(PersistenceNimDeploymentSource entity);
-
+    @Mapping(target = "imageDefinitionId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentEntity.class)
@@ -69,17 +72,20 @@ public abstract class PersistenceDeploymentMapper {
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentEntity.class)
     public abstract DeploymentEntity toEntity(Deployment domain);
 
-    @SubclassMapping(source = InferenceDeploymentHuggingFaceSource.class, target = PersistenceInferenceDeploymentHuggingFaceSource.class)
-    protected abstract PersistenceInferenceDeploymentSource toEntity(InferenceDeploymentSource domain);
+    @SubclassMapping(source = InternalImageSource.class, target = PersistenceInternalImageSource.class)
+    @SubclassMapping(source = ImageReferenceSource.class, target = PersistenceImageReferenceSource.class)
+    @SubclassMapping(source = NgcRegistrySource.class, target = PersistenceNgcRegistrySource.class)
+    @SubclassMapping(source = HuggingFaceSource.class, target = PersistenceHuggingFaceSource.class)
+    protected abstract PersistenceSource toEntity(Source domain);
 
-    @SubclassMapping(source = NimDeploymentNgcRegistrySource.class, target = PersistenceNimDeploymentNgcRegistrySource.class)
-    protected abstract PersistenceNimDeploymentSource toEntity(NimDeploymentSource domain);
+    @AfterMapping
+    protected void setImageDefinitionId(Deployment domain, @MappingTarget DeploymentEntity entity) {
+        if (domain.getSource() instanceof InternalImageSource source) {
+            entity.setImageDefinitionId(source.imageDefinitionId());
+        }
+    }
 
     protected abstract PersistenceDeploymentStatus toStatusEntity(DeploymentStatus domain);
-
-    protected abstract ImageType toImageType(PersistenceImageType type);
-
-    protected abstract PersistenceImageType toPersistenceImageType(ImageType type);
 
     @SubclassMapping(source = PersistenceSimpleEnvVar.class, target = SimpleEnvVar.class)
     @SubclassMapping(source = PersistenceSensitiveFileEnvVar.class, target = SensitiveFileEnvVar.class)
@@ -111,10 +117,8 @@ public abstract class PersistenceDeploymentMapper {
         // do not update id, createdAt, updatedAt
         existingEntity.setDisplayName(updatedEntity.getDisplayName());
         existingEntity.setDescription(updatedEntity.getDescription());
+        existingEntity.setSource(updatedEntity.getSource());
         existingEntity.setImageDefinitionId(updatedEntity.getImageDefinitionId());
-        existingEntity.setImageDefinitionType(updatedEntity.getImageDefinitionType());
-        existingEntity.setImageDefinitionName(updatedEntity.getImageDefinitionName());
-        existingEntity.setImageDefinitionVersion(updatedEntity.getImageDefinitionVersion());
         existingEntity.setUrl(updatedEntity.getUrl());
         existingEntity.setStatus(updatedEntity.getStatus());
         existingEntity.setContainerPort(updatedEntity.getContainerPort());
@@ -137,14 +141,12 @@ public abstract class PersistenceDeploymentMapper {
 
         if (existingEntity instanceof NimDeploymentEntity existingNim
                 && updatedEntity instanceof NimDeploymentEntity updatedNim) {
-            existingNim.setSource(updatedNim.getSource());
             existingNim.setContainerGrpcPort(updatedNim.getContainerGrpcPort());
         }
 
         if (existingEntity instanceof InferenceDeploymentEntity existingInference
                 && updatedEntity instanceof InferenceDeploymentEntity updatedInference) {
             existingInference.setModelFormat(updatedInference.getModelFormat());
-            existingInference.setSource(updatedInference.getSource());
         }
     }
 

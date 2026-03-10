@@ -16,7 +16,11 @@ import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
+import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
@@ -79,6 +83,7 @@ class KnativeDeploymentManagerTest {
     private static final String SERVICE_NAME = "test-" + DEPLOYMENT_ID;
     private static final String SERVICE_CONTAINER = "user-container";
     private static final String IMAGE_NAME = "test-image:latest";
+    private static final String MCP_IMAGE_REFERENCE = "ghcr.io/example/mcp-server:latest";
     private static final String NAMESPACE = "test-namespace";
     private static final String POD_NAME = "test-pod";
 
@@ -368,6 +373,135 @@ class KnativeDeploymentManagerTest {
     }
 
     @Test
+    void deploy_shouldUseImageReferenceForMcpDeployment() {
+        // Given
+        var deployment = new McpDeployment();
+        deployment.setId(DEPLOYMENT_ID);
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
+        deployment.setStatus(DeploymentStatus.STOPPED);
+        deployment.setMetadata(new DeploymentMetadata());
+        deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
+        deployment.setEnvs(List.of(new SimpleEnvVar("TEST_ENV", new SimpleEnvVarValue("test-value"))));
+        deployment.setAllowedDomains(List.of("test-domain-1"));
+        deployment.setContainerPort(8080);
+
+        var serviceSpec = new Service();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(8080);
+        when(knativeManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                any(),
+                any(),
+                any(),
+                eq(MCP_IMAGE_REFERENCE),
+                eq(deployment.getScaling()),
+                eq(deployment.getResources()),
+                eq(8080),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+
+        // When
+        knativeDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then
+        verify(imageDefinitionService, never()).getImageDefinition(any());
+        verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+    }
+
+    @Test
+    void deploy_shouldUseImageReferenceForAdapterDeployment() {
+        // Given
+        var deployment = new AdapterDeployment();
+        deployment.setId(DEPLOYMENT_ID);
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
+        deployment.setStatus(DeploymentStatus.STOPPED);
+        deployment.setMetadata(new DeploymentMetadata());
+        deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
+        deployment.setEnvs(List.of(new SimpleEnvVar("TEST_ENV", new SimpleEnvVarValue("test-value"))));
+        deployment.setAllowedDomains(List.of("test-domain-1"));
+        deployment.setContainerPort(8080);
+
+        var serviceSpec = new Service();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(8080);
+        when(knativeManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                any(),
+                any(),
+                any(),
+                eq(MCP_IMAGE_REFERENCE),
+                eq(deployment.getScaling()),
+                eq(deployment.getResources()),
+                eq(8080),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+
+        // When
+        knativeDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then
+        verify(imageDefinitionService, never()).getImageDefinition(any());
+        verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+    }
+
+    @Test
+    void deploy_shouldUseImageReferenceForInterceptorDeployment() {
+        // Given
+        var deployment = new InterceptorDeployment();
+        deployment.setId(DEPLOYMENT_ID);
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
+        deployment.setStatus(DeploymentStatus.STOPPED);
+        deployment.setMetadata(new DeploymentMetadata());
+        deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
+        deployment.setEnvs(List.of(new SimpleEnvVar("TEST_ENV", new SimpleEnvVarValue("test-value"))));
+        deployment.setAllowedDomains(List.of("test-domain-1"));
+        deployment.setContainerPort(8080);
+
+        var serviceSpec = new Service();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(8080);
+        when(knativeManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                any(),
+                any(),
+                any(),
+                eq(MCP_IMAGE_REFERENCE),
+                eq(deployment.getScaling()),
+                eq(deployment.getResources()),
+                eq(8080),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+
+        // When
+        knativeDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then
+        verify(imageDefinitionService, never()).getImageDefinition(any());
+        verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+    }
+
+    @Test
     void deploy_shouldHandleExceptionDuringDeployment() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
@@ -541,7 +675,7 @@ class KnativeDeploymentManagerTest {
     private Deployment createDeployment(DeploymentStatus status) {
         var deployment = new McpDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(IMAGE_DEFINITION_ID);
+        deployment.setSource(new InternalImageSource(IMAGE_DEFINITION_ID, null, null, null));
         deployment.setStatus(status);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));

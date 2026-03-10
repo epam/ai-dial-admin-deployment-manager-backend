@@ -1,9 +1,12 @@
 {
   "$type": "mcp",
   "id": "deploy00-0000-4000-a000-000000000000",
-  "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
-  "imageDefinitionName": "test-image",
-  "imageDefinitionVersion": "1.0.0",
+  "source": {
+    "$type": "internal_image",
+    "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
+    "imageDefinitionName": "test-image",
+    "imageDefinitionVersion": "1.0.0"
+  },
   "displayName": "example deployment 1",
   "description": "Description of example deployment 1",
   "envs": [

@@ -2,10 +2,12 @@ package com.epam.aidial.deployment.manager.configuration;
 
 import com.epam.aidial.deployment.manager.configuration.export.DeploymentExportMixIn;
 import com.epam.aidial.deployment.manager.configuration.export.ImageDefinitionExportMixIn;
+import com.epam.aidial.deployment.manager.configuration.export.InternalImageSourceExportMixIn;
 import com.epam.aidial.deployment.manager.configuration.export.SensitiveEnvVarExportMixIn;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -40,6 +42,7 @@ public class JsonMapperConfiguration {
         JsonMapper mapper = createPrettyJsonMapper();
         mapper.addMixIn(ImageDefinition.class, ImageDefinitionExportMixIn.class);
         mapper.addMixIn(Deployment.class, DeploymentExportMixIn.class);
+        mapper.addMixIn(InternalImageSource.class, InternalImageSourceExportMixIn.class);
         mapper.addMixIn(SensitiveEnvVar.class, SensitiveEnvVarExportMixIn.class);
         return mapper;
     }

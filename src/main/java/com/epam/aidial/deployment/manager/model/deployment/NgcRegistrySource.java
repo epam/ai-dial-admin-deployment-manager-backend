@@ -1,6 +1,6 @@
 package com.epam.aidial.deployment.manager.model.deployment;
 
-public record NimDeploymentNgcRegistrySource(
+public record NgcRegistrySource(
         String imageRef
-) implements NimDeploymentSource {
+) implements Source {
 }

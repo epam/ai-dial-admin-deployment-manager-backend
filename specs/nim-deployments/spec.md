@@ -7,7 +7,7 @@ Status: **Implemented**
 
 ## Key Terms
 - **NIM deployment**: A deployment of type `NIM` that runs NVIDIA Inference Microservices for GPU-accelerated model serving.
-- **NGC registry**: NVIDIA GPU Cloud model registry — the source for NIM model references.
+- **NGC registry**: NVIDIA GPU Cloud model registry — the source for NIM model references. Uses the unified `Source` sealed interface; the only supported variant for NIM is `NgcRegistrySource` (`$type: "ngc_registry"`). The source is stored as a JSON column on the base `deployment` table.
 - **NIM**: NVIDIA Inference Microservices — pre-built, optimized containers for serving NVIDIA models.
 - **`containerGrpcPort`**: Optional gRPC port for NIM services (1–65535). Used when the NIM container exposes a gRPC inference endpoint alongside the HTTP endpoint.
 
@@ -19,7 +19,7 @@ A NIM deployment SHALL reference an NVIDIA NGC registry source to identify the m
 Status: **Implemented**
 
 #### Scenario: Create NIM deployment with NGC source
-- **WHEN** `POST /api/v1/deployments` is called with `type: NIM` and a `NimDeploymentNgcRegistrySourceDto` (`$type: "ngc_registry"`)
+- **WHEN** `POST /api/v1/deployments` is called with `type: NIM` and a `NimDeploymentSourceDto` with `$type: "ngc_registry"`
 - **THEN** a NIM deployment is persisted with the NGC model reference and base deployment fields
 
 #### Scenario: Retrieve NIM deployment
@@ -80,14 +80,15 @@ Status: **Implemented**
 
 ## Implementation Notes
 - Domain model: `com.epam.aidial.deployment.manager.model.deployment.NimDeployment`
-- Source domain model (interface): `com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource` (`$type` discriminator, subtype: `ngc_registry`)
-- NGC registry source domain model: `com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource`
+- Source domain model: `com.epam.aidial.deployment.manager.model.deployment.Source` (unified sealed interface; NIM uses `NgcRegistrySource` variant)
+- NGC registry source domain model: `com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource`
 - Request DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.CreateNimDeploymentRequestDto`
   - Fields: `source` (required `NimDeploymentSourceDto`), `containerGrpcPort` (nullable Integer, `@Min(1) @Max(65535)`)
 - Response DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto`
   - Fields: `source` (required `NimDeploymentSourceDto`), `containerGrpcPort` (nullable Integer)
 - Source DTO (interface): `com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentSourceDto` (`$type` discriminator)
 - NGC source DTO (record): `com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentNgcRegistrySourceDto` (`imageRef` with `@NotNull @ValidDockerImageName`)
+- Persistence source: stored as `PersistenceNgcRegistrySource` within the unified `PersistenceSource` JSON column on base `DeploymentEntity`
 - Deployment manager: `com.epam.aidial.deployment.manager.service.deployment.NimDeploymentManager` (active when `app.nim.enabled=true`)
 - Manifest generator: `com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator`
 - Kubernetes backend: NIM-specific `NIMService` resources via `K8sNimClient` (conditioned on `app.nim.enabled=true`)

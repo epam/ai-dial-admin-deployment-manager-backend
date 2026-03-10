@@ -13,20 +13,24 @@ Status: **Implemented**
 ## Requirements
 
 ### Requirement: MCP deployment extends the image-based contract
-An MCP deployment SHALL carry all image-based deployment fields: `imageDefinitionId` (nullable), `imageDefinitionName` (nullable), `imageDefinitionVersion` (nullable), `imageDefinitionType` (`ImageTypeDto`; `@NotNull` in response), plus all base deployment fields. The image definition can be referenced either by `imageDefinitionId` alone, or by the (`imageDefinitionType`, `imageDefinitionName`, `imageDefinitionVersion`) triple.
+An MCP deployment SHALL carry all image-based deployment fields including a `source` field of type `DeploymentSourceDto` (polymorphic, `$type` discriminator), plus all base deployment fields. Two source types are supported: `internal_image` (references a managed image definition) and `image_reference` (direct Docker image URI).
 
 Status: **Implemented**
 
-#### Scenario: Image definition linked by ID
-- **WHEN** an MCP deployment is created with a valid `imageDefinitionId`
-- **THEN** the deployment references the specified image definition and `imageDefinitionType` is populated in the response
+#### Scenario: Internal image source linked by ID
+- **WHEN** an MCP deployment is created with `source.$type: "internal_image"` and a valid `imageDefinitionId`
+- **THEN** the deployment references the specified image definition
 
-#### Scenario: Image definition linked by type + name + version
-- **WHEN** an MCP deployment is created with `imageDefinitionType: MCP`, `imageDefinitionName`, and `imageDefinitionVersion` (no `imageDefinitionId`)
+#### Scenario: Internal image source linked by type + name + version
+- **WHEN** an MCP deployment is created with `source.$type: "internal_image"`, `imageDefinitionType: MCP`, `imageDefinitionName`, and `imageDefinitionVersion`
 - **THEN** the image definition is resolved by type + name + version and the deployment is created successfully
 
-#### Scenario: Incomplete image reference rejected
-- **WHEN** `POST /api/v1/deployments` is called with `type: MCP` without a complete image reference (no `imageDefinitionId` and missing one or more of `imageDefinitionType`/`imageDefinitionName`/`imageDefinitionVersion`)
+#### Scenario: Image reference source
+- **WHEN** an MCP deployment is created with `source.$type: "image_reference"` and a valid `imageReference`
+- **THEN** the deployment is created with the direct Docker image reference (no image definition required)
+
+#### Scenario: Incomplete internal_image source rejected
+- **WHEN** `POST /api/v1/deployments` is called with `type: MCP` and an `internal_image` source missing both `imageDefinitionId` and a complete type+name+version triple
 - **THEN** the system responds with 400
 
 ### Requirement: MCP deployment carries transport configuration

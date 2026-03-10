@@ -23,9 +23,16 @@ import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.EnvVarChangeDetector;
@@ -108,6 +115,7 @@ public class DeploymentService {
     @Transactional
     public Deployment createDeployment(CreateDeployment request) {
         var id = request.getId();
+        validateSourceForDeploymentType(request);
 
         checkNoResourcesAreAssociatedWithId(id);
 
@@ -136,6 +144,7 @@ public class DeploymentService {
             throw new IllegalArgumentException("Deployment ID in request path '%s' and in request body '%s' do not match"
                     .formatted(id, request.getId()));
         }
+        validateSourceForDeploymentType(request);
 
         ImageDefinition imageDefinition = resolveImageDefinition(request).orElse(null);
 
@@ -221,9 +230,9 @@ public class DeploymentService {
 
     @Transactional
     public void updateImageDefinitionForDeployments(UUID imageDefinitionId, List<String> deployments) {
-        // loading image definition to verify that it is built
         var imageDefinition = loadImageDefinitionOrThrow(imageDefinitionId);
-        deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, deployments);
+        var imageType = getImageDefinitionType(imageDefinition);
+        deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, imageType, deployments);
         deployments.forEach(this::rollingUpdate);
     }
 
@@ -301,10 +310,14 @@ public class DeploymentService {
     }
 
     private Optional<ImageDefinition> resolveImageDefinition(CreateDeployment request) {
-        var id = request.getImageDefinitionId();
-        var name = request.getImageDefinitionName();
-        var version = request.getImageDefinitionVersion();
-        var type = request.getImageDefinitionType();
+        if (!(request.getSource() instanceof InternalImageSource internalSource)) {
+            return Optional.empty();
+        }
+
+        var id = internalSource.imageDefinitionId();
+        var name = internalSource.imageDefinitionName();
+        var version = internalSource.imageDefinitionVersion();
+        var type = internalSource.imageDefinitionType();
 
         if (id != null) {
             var definition = imageDefinitionService.getImageDefinition(id)
@@ -329,10 +342,12 @@ public class DeploymentService {
     }
 
     private void setDeploymentImageDefinitionRef(Deployment deployment, ImageDefinition imageDefinition) {
-        deployment.setImageDefinitionId(imageDefinition.getId());
-        deployment.setImageDefinitionType(getImageDefinitionType(imageDefinition));
-        deployment.setImageDefinitionName(imageDefinition.getName());
-        deployment.setImageDefinitionVersion(imageDefinition.getVersion());
+        deployment.setSource(new InternalImageSource(
+                imageDefinition.getId(),
+                getImageDefinitionType(imageDefinition),
+                imageDefinition.getName(),
+                imageDefinition.getVersion()
+        ));
     }
 
     private static ImageType getImageDefinitionType(ImageDefinition imageDefinition) {
@@ -354,10 +369,9 @@ public class DeploymentService {
     }
 
     private void requireImageBuiltForDeployment(Deployment deployment) {
-        if (deployment.getImageDefinitionId() == null) {
-            return;
+        if (deployment.getSource() instanceof InternalImageSource internalSource) {
+            loadImageDefinitionOrThrow(internalSource.imageDefinitionId());
         }
-        loadImageDefinitionOrThrow(deployment.getImageDefinitionId());
     }
 
     private static List<SimpleEnvVar> toSimpleEnvs(Map<String, EnvVarValue> envs) {
@@ -397,6 +411,24 @@ public class DeploymentService {
         }
     }
 
+    private static void validateSourceForDeploymentType(CreateDeployment request) {
+        Source source = request.getSource();
+        if (source == null) {
+            throw new IllegalArgumentException("Deployment '%s' source must not be null".formatted(request.getId()));
+        }
+
+        boolean valid = switch (request) {
+            case CreateNimDeployment ignored -> source instanceof NgcRegistrySource;
+            case CreateInferenceDeployment ignored -> source instanceof HuggingFaceSource;
+            default -> source instanceof InternalImageSource || source instanceof ImageReferenceSource;
+        };
+
+        if (!valid) {
+            throw new IllegalArgumentException("Invalid source type '%s' for deployment '%s' of type '%s'"
+                    .formatted(source.getClass().getSimpleName(), request.getId(), request.getClass().getSimpleName()));
+        }
+    }
+
     private static boolean isApplicableForRollingUpdate(Deployment existing, Deployment updated, boolean envsAreChanged) {
         // 1. Check specialized deployment types using pattern matching
         boolean specializedUpdate = switch (existing) {
@@ -413,7 +445,7 @@ public class DeploymentService {
         // 2. Check general deployment fields (and env changes)
         return envsAreChanged
                 || specializedUpdate
-                || !Objects.equals(existing.getImageDefinitionId(), updated.getImageDefinitionId())
+                || !Objects.equals(existing.getSource(), updated.getSource())
                 || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
                 || !Objects.equals(existing.getScaling(), updated.getScaling())
                 || !Objects.equals(existing.getResources(), updated.getResources());

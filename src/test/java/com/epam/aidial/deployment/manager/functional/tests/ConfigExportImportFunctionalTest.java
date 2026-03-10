@@ -33,13 +33,13 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDepl
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentSource;
+import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
@@ -243,9 +243,7 @@ public abstract class ConfigExportImportFunctionalTest {
 
         var mcpDep = CreateMcpDeployment.builder()
                 .id(MCP_DEP_ID)
-                .imageDefinitionType(ImageType.MCP)
-                .imageDefinitionName(MCP_IMAGE_NAME)
-                .imageDefinitionVersion(VERSION)
+                .source(new InternalImageSource(null, ImageType.MCP, MCP_IMAGE_NAME, VERSION))
                 .displayName("MCP deployment export test")
                 .description("MCP deployment for import test")
                 .metadata(mcpDeploymentMetadata())
@@ -261,9 +259,7 @@ public abstract class ConfigExportImportFunctionalTest {
 
         var adapterDep = CreateAdapterDeployment.builder()
                 .id(ADAPTER_DEP_ID)
-                .imageDefinitionType(ImageType.ADAPTER)
-                .imageDefinitionName(ADAPTER_IMAGE_NAME)
-                .imageDefinitionVersion(VERSION)
+                .source(new InternalImageSource(null, ImageType.ADAPTER, ADAPTER_IMAGE_NAME, VERSION))
                 .displayName("Adapter deployment export test")
                 .description("Adapter deployment for import test")
                 .metadata(adapterDeploymentMetadata())
@@ -275,9 +271,7 @@ public abstract class ConfigExportImportFunctionalTest {
 
         var interceptorDep = CreateInterceptorDeployment.builder()
                 .id(INTERCEPTOR_DEP_ID)
-                .imageDefinitionType(ImageType.INTERCEPTOR)
-                .imageDefinitionName(INTERCEPTOR_IMAGE_NAME)
-                .imageDefinitionVersion(VERSION)
+                .source(new InternalImageSource(null, ImageType.INTERCEPTOR, INTERCEPTOR_IMAGE_NAME, VERSION))
                 .displayName("Interceptor deployment export test")
                 .description("Interceptor deployment for import test")
                 .metadata(interceptorDeploymentMetadata())
@@ -298,7 +292,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 .probeProperties(nimProbe)
                 .containerPort(8000)
                 .allowedDomains(List.of())
-                .source(new NimDeploymentNgcRegistrySource("nvcr.io/nim/test-model:latest"))
+                .source(new NgcRegistrySource("nvcr.io/nim/test-model:latest"))
                 .containerGrpcPort(50051)
                 .build();
 
@@ -313,7 +307,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 .probeProperties(inferenceProbe)
                 .containerPort(8080)
                 .allowedDomains(List.of())
-                .source(new InferenceDeploymentHuggingFaceSource("test-org/export-test-model"))
+                .source(new HuggingFaceSource("test-org/export-test-model"))
                 .build();
 
         return List.of(mcpDep, adapterDep, interceptorDep, nimDep, inferenceDep);
@@ -474,9 +468,11 @@ public abstract class ConfigExportImportFunctionalTest {
                 expected.getMetadata() != null ? expected.getMetadata().getEnvs() : null,
                 actual.getMetadata() != null ? actual.getMetadata().getEnvs() : null);
 
-        if (expected.getImageDefinitionName() != null || actual.getImageDefinitionName() != null) {
-            Assertions.assertEquals(expected.getImageDefinitionName(), actual.getImageDefinitionName(), "imageDefinitionName");
-            Assertions.assertEquals(expected.getImageDefinitionVersion(), actual.getImageDefinitionVersion(), "imageDefinitionVersion");
+        if (expected.getSource() instanceof InternalImageSource expSource) {
+            Assertions.assertInstanceOf(InternalImageSource.class, actual.getSource(), "source should be InternalImageSource");
+            InternalImageSource actSource = (InternalImageSource) actual.getSource();
+            Assertions.assertEquals(expSource.imageDefinitionName(), actSource.imageDefinitionName(), "imageDefinitionName");
+            Assertions.assertEquals(expSource.imageDefinitionVersion(), actSource.imageDefinitionVersion(), "imageDefinitionVersion");
         }
 
         switch (expected) {
@@ -539,16 +535,16 @@ public abstract class ConfigExportImportFunctionalTest {
         }
     }
 
-    private static void assertNimSourceEquals(NimDeploymentSource expected, NimDeploymentSource actual) {
-        if (expected instanceof NimDeploymentNgcRegistrySource(String ref) && actual instanceof NimDeploymentNgcRegistrySource(String imageRef)) {
+    private static void assertNimSourceEquals(Source expected, Source actual) {
+        if (expected instanceof NgcRegistrySource(String ref) && actual instanceof NgcRegistrySource(String imageRef)) {
             Assertions.assertEquals(ref, imageRef, "source.imageRef");
         } else {
             Assertions.assertEquals(expected, actual, "source");
         }
     }
 
-    private static void assertInferenceSourceEquals(InferenceDeploymentSource expected, InferenceDeploymentSource actual) {
-        if (expected instanceof InferenceDeploymentHuggingFaceSource(String modelName) && actual instanceof InferenceDeploymentHuggingFaceSource(String name)) {
+    private static void assertInferenceSourceEquals(Source expected, Source actual) {
+        if (expected instanceof HuggingFaceSource(String modelName) && actual instanceof HuggingFaceSource(String name)) {
             Assertions.assertEquals(modelName, name, "source.modelName");
         } else {
             Assertions.assertEquals(expected, actual, "source");

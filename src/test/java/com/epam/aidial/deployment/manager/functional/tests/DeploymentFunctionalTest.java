@@ -15,6 +15,7 @@ import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentManagerProvider;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
@@ -120,9 +121,11 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(1, deployments.size());
         Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
         Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
-        Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
-        Assertions.assertEquals(imageDefinitionName, deployment.getImageDefinitionName());
-        Assertions.assertEquals(imageDefinitionVersion, deployment.getImageDefinitionVersion());
+        Assertions.assertInstanceOf(InternalImageSource.class, deployment.getSource());
+        var deploymentSource = (InternalImageSource) deployment.getSource();
+        Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), deploymentSource.imageDefinitionId());
+        Assertions.assertEquals(imageDefinitionName, deploymentSource.imageDefinitionName());
+        Assertions.assertEquals(imageDefinitionVersion, deploymentSource.imageDefinitionVersion());
         Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
@@ -147,9 +150,11 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(1, deployments.size());
         Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
         Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
-        Assertions.assertEquals(createDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
-        Assertions.assertEquals(adapterImageDef.getName(), deployment.getImageDefinitionName());
-        Assertions.assertEquals(adapterImageDef.getVersion(), deployment.getImageDefinitionVersion());
+        Assertions.assertInstanceOf(InternalImageSource.class, deployment.getSource());
+        var adapterDeploymentSource = (InternalImageSource) deployment.getSource();
+        Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), adapterDeploymentSource.imageDefinitionId());
+        Assertions.assertEquals(adapterImageDef.getName(), adapterDeploymentSource.imageDefinitionName());
+        Assertions.assertEquals(adapterImageDef.getVersion(), adapterDeploymentSource.imageDefinitionVersion());
         Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
@@ -177,7 +182,7 @@ public abstract class DeploymentFunctionalTest {
         // Given
         var nonExistingImageDefinitionId = UUID.randomUUID();
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        createDeployment.setImageDefinitionId(nonExistingImageDefinitionId);
+        createDeployment.setSource(new InternalImageSource(nonExistingImageDefinitionId, null, null, null));
 
         // When & Then
         var exception = assertThrows(
@@ -268,9 +273,11 @@ public abstract class DeploymentFunctionalTest {
         Deployment retrievedDeployment = maybeDeployment.get();
         Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
         Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getImageDefinitionId(), retrievedDeployment.getImageDefinitionId());
-        Assertions.assertEquals(imageDefinitionName, retrievedDeployment.getImageDefinitionName());
-        Assertions.assertEquals(imageDefinitionVersion, retrievedDeployment.getImageDefinitionVersion());
+        Assertions.assertInstanceOf(InternalImageSource.class, retrievedDeployment.getSource());
+        var retrievedSource = (InternalImageSource) retrievedDeployment.getSource();
+        Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(), retrievedSource.imageDefinitionId());
+        Assertions.assertEquals(imageDefinitionName, retrievedSource.imageDefinitionName());
+        Assertions.assertEquals(imageDefinitionVersion, retrievedSource.imageDefinitionVersion());
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
     }
 
@@ -289,7 +296,8 @@ public abstract class DeploymentFunctionalTest {
         Deployment retrievedDeployment = maybeDeployment.get();
         Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
         Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getImageDefinitionId(), retrievedDeployment.getImageDefinitionId());
+        Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(),
+                ((InternalImageSource) retrievedDeployment.getSource()).imageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
     }
 
@@ -401,7 +409,7 @@ public abstract class DeploymentFunctionalTest {
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setImageDefinitionId(newImageDefinitionId);
+        updateRequest.setSource(new InternalImageSource(newImageDefinitionId, null, null, null));
         updateRequest.setDisplayName("updated-deployment");
 
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
@@ -409,7 +417,7 @@ public abstract class DeploymentFunctionalTest {
         // Then
         Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
-        Assertions.assertEquals(newImageDefinitionId, updatedDeployment.getImageDefinitionId());
+        Assertions.assertEquals(newImageDefinitionId, ((InternalImageSource) updatedDeployment.getSource()).imageDefinitionId());
         Assertions.assertEquals(DeploymentStatus.PENDING, updatedDeployment.getStatus());
 
         verify(resource, times(1)).update();
@@ -555,7 +563,7 @@ public abstract class DeploymentFunctionalTest {
         deploymentRepository.update(savedDeployment1.getId(), savedDeployment1);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        updateRequest.setImageDefinitionId(newImageDefinitionId);
+        updateRequest.setSource(new InternalImageSource(newImageDefinitionId, null, null, null));
         updateRequest.setDisplayName("updated-deployment");
 
         var deploymentIds = List.of(savedDeployment1.getId(), savedDeployment2.getId());
@@ -682,7 +690,8 @@ public abstract class DeploymentFunctionalTest {
         // Then
         Assertions.assertEquals(savedDeployment.getId(), deployment.getId());
         Assertions.assertEquals(savedDeployment.getDisplayName(), deployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getImageDefinitionId(), deployment.getImageDefinitionId());
+        Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(),
+                ((InternalImageSource) deployment.getSource()).imageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
     }
 
@@ -831,7 +840,8 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertNotEquals(originalDeployment.getId(), clonedDeployment.getId());
         Assertions.assertEquals("cloned-deployment", clonedDeployment.getDisplayName());
         Assertions.assertEquals(originalDeployment.getDescription(), clonedDeployment.getDescription());
-        Assertions.assertEquals(originalDeployment.getImageDefinitionId(), clonedDeployment.getImageDefinitionId());
+        Assertions.assertEquals(((InternalImageSource) originalDeployment.getSource()).imageDefinitionId(),
+                ((InternalImageSource) clonedDeployment.getSource()).imageDefinitionId());
         Assertions.assertEquals(originalDeployment.getResources(), clonedDeployment.getResources());
         Assertions.assertEquals(originalDeployment.getContainerPort(), clonedDeployment.getContainerPort());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, clonedDeployment.getStatus());

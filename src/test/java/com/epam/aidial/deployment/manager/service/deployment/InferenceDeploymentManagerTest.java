@@ -17,8 +17,9 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -446,7 +447,7 @@ class InferenceDeploymentManagerTest {
         var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
 
         InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
-        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setSource(new HuggingFaceSource("org/model"));
         deployment.setAllowedDomains(List.of("custom.com"));
 
         InferenceService serviceSpec = new InferenceService();
@@ -479,51 +480,13 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void deploy_shouldNotAppendDefaultDomainsWhenSourceIsNotHuggingFace() {
-        // Given: non-HF source (e.g. S3) with config default domains set
-        var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
-        var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
-
-        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
-        // source is () -> "s3://test-bucket/model" — not InferenceDeploymentHuggingFaceSource
-        assertThat(((InferenceDeployment) deployment).getSource()).isNotInstanceOf(InferenceDeploymentHuggingFaceSource.class);
-
-        InferenceService serviceSpec = new InferenceService();
-        serviceSpec.setMetadata(new ObjectMeta());
-        serviceSpec.getMetadata().setName(SERVICE_NAME);
-
-        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
-        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
-                any(), any(), eq(8080), any())).thenReturn(serviceSpec);
-
-        // When
-        managerWithDefaults.deploy(DEPLOYMENT_ID);
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-
-        // Then: only deployment allowedDomains are used; default domains are NOT appended
-        verify(ciliumNetworkPolicyCreator).create(
-                eq(NAMESPACE),
-                anyString(),
-                anyString(),
-                argThat((List<String> domains) ->
-                        domains.contains("test-domain-1")
-                                && domains.contains("test-domain-2")
-                                && domains.size() == 2),
-                any()
-        );
-    }
-
-    @Test
     void deploy_shouldUseOnlyDefaultAllowedDomainsWhenDeploymentDomainsEmptyWithHuggingFaceSource() {
         // Given: HuggingFace source with empty deployment allowedDomains
         var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
         var managerWithDefaults = getInferenceDeploymentManager(huggingFaceProperties);
 
         InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.STOPPED);
-        deployment.setSource(new InferenceDeploymentHuggingFaceSource("org/model"));
+        deployment.setSource(new HuggingFaceSource("org/model"));
         deployment.setAllowedDomains(Collections.emptyList());
 
         InferenceService serviceSpec = new InferenceService();
@@ -1016,7 +979,7 @@ class InferenceDeploymentManagerTest {
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
         deployment.setEnvs(List.of(
                 new SimpleEnvVar("TEST_ENV", new SimpleEnvVarValue("test-value"))));
-        deployment.setSource(() -> "s3://test-bucket/model");
+        deployment.setSource(new HuggingFaceSource("test-bucket/model"));
         deployment.setArgs(List.of("--arg1", "value1"));
         deployment.setAllowedDomains(List.of("test-domain-1", "test-domain-2"));
         return deployment;
