@@ -79,10 +79,10 @@
 
 ### Database Migration
 
-- [ ] T035 Create abstract base migration `V1_49__UnifyDeploymentSourceBase` with common migration logic (migrate NIM sources, Inference sources, internal image sources; drop old columns) in `src/main/java/db/migration/common/V1_49__UnifyDeploymentSourceBase.java`
-- [ ] T036 [P] Create H2-specific migration `V1_49__UnifyDeploymentSource` extending base in `src/main/java/db/migration/H2/V1_49__UnifyDeploymentSource.java`
-- [ ] T037 [P] Create PostgreSQL-specific migration `V1_49__UnifyDeploymentSource` extending base in `src/main/java/db/migration/POSTGRES/V1_49__UnifyDeploymentSource.java`
-- [ ] T038 [P] Create MSSQL-specific migration `V1_49__UnifyDeploymentSource` with `isjson` check constraint, extending base in `src/main/java/db/migration/MS_SQL_SERVER/V1_49__UnifyDeploymentSource.java`
+- [ ] T035 Create abstract base migration `V1_50__UnifyDeploymentSourceBase` with common migration logic (migrate NIM sources, Inference sources, internal image sources; drop old columns) in `src/main/java/db/migration/common/V1_50__UnifyDeploymentSourceBase.java`
+- [ ] T036 [P] Create H2-specific migration `V1_50__UnifyDeploymentSource` extending base in `src/main/java/db/migration/H2/V1_50__UnifyDeploymentSource.java`
+- [ ] T037 [P] Create PostgreSQL-specific migration `V1_50__UnifyDeploymentSource` extending base in `src/main/java/db/migration/POSTGRES/V1_50__UnifyDeploymentSource.java`
+- [ ] T038 [P] Create MSSQL-specific migration `V1_50__UnifyDeploymentSource` with `isjson` check constraint, extending base in `src/main/java/db/migration/MS_SQL_SERVER/V1_50__UnifyDeploymentSource.java`
 
 **Checkpoint**: Foundation ready — all layers (domain, persistence, DTO, mapper, migration) support the unified Source model. User story implementation can now begin.
 
@@ -138,7 +138,7 @@
 
 **Goal**: Existing deployments are automatically migrated to the unified source format on upgrade with zero manual intervention.
 
-**Independent Test**: Populate database with pre-migration data, run V1.49 migration, verify all deployments accessible with correct source JSON.
+**Independent Test**: Populate database with pre-migration data, run V1.50 migration, verify all deployments accessible with correct source JSON.
 
 ### Tests for User Story 3
 

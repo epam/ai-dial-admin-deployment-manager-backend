@@ -19,7 +19,7 @@ The deployment source model has been unified. Previously, Knative deployments (M
 | Mapper | `web/mapper/DeploymentDtoMapper.java` (source mapping via `@AfterMapping`) |
 | Persistence | `dao/entity/deployment/PersistenceSource.java`, `DeploymentEntity.java` (source JSON column) |
 | Service | `service/deployment/DeploymentService.java` (`validateSourceForDeploymentType`), `KnativeDeploymentManager.java` (`resolveImageName`) |
-| Migration | `db/migration/common/V1_49__UnifyDeploymentSourceBase.java` |
+| Migration | `db/migration/common/V1_50__UnifyDeploymentSourceBase.java` |
 | Export | `configuration/export/InternalImageSourceExportMixIn.java` |
 
 ## How to Test

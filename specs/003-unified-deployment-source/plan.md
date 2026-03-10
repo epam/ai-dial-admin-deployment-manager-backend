@@ -33,7 +33,7 @@ Unify deployment source handling across all deployment types by introducing a `S
 | Naming Conventions | PASS | All new classes follow established patterns: `*Source` (domain), `Persistence*Source` (entity), `*SourceDto` / `*SourceRequestDto` (DTO), `*DtoMapper` (mapper) |
 | Code Style | PASS | Google Java Style enforced; records used for immutable value objects; `var` for obvious types |
 | Testing Conventions | PASS | Tests follow `should*()` / `shouldFail*_when*()` naming; functional tests cover all DB vendors |
-| Multi-Vendor Database Pattern | PASS | Migration V1.49 uses Java-based migration with common base + vendor subclasses |
+| Multi-Vendor Database Pattern | PASS | Migration V1.50 uses Java-based migration with common base + vendor subclasses |
 | Anti-Patterns | PASS | No business logic in entities; no silent exception swallowing; no K8s calls from service layer |
 
 **Post-Phase 1 Re-check**: All gates remain PASS. The design uses established patterns (JSON column storage, sealed interface polymorphism, MapStruct `@SubclassMapping`, Java-based Flyway migration with common base).
@@ -103,13 +103,13 @@ src/main/java/com/epam/aidial/deployment/manager/
 
 src/main/java/db/migration/
 ├── common/
-│   └── V1_49__UnifyDeploymentSourceBase.java  # NEW: abstract base migration
+│   └── V1_50__UnifyDeploymentSourceBase.java  # NEW: abstract base migration
 ├── H2/
-│   └── V1_49__UnifyDeploymentSource.java      # NEW: H2 migration
+│   └── V1_50__UnifyDeploymentSource.java      # NEW: H2 migration
 ├── POSTGRES/
-│   └── V1_49__UnifyDeploymentSource.java      # NEW: Postgres migration
+│   └── V1_50__UnifyDeploymentSource.java      # NEW: Postgres migration
 └── MS_SQL_SERVER/
-    └── V1_49__UnifyDeploymentSource.java      # NEW: MSSQL migration
+    └── V1_50__UnifyDeploymentSource.java      # NEW: MSSQL migration
 
 src/test/java/...
 ├── dao/repository/DeploymentRepositoryTest.java           # MODIFIED

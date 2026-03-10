@@ -134,11 +134,11 @@ NIM and Inference deployment DTOs retain their existing separate source type int
 - `NimDeploymentSourceDto` / `NimDeploymentNgcRegistrySourceDto`
 - `InferenceDeploymentSourceDto` / `InferenceDeploymentHuggingFaceSourceDto`
 
-## Database Migration V1.49
+## Database Migration V1.50
 
 **Migration type**: Java-based (complex JSON data transformation)
-**Version**: V1.49
-**Class hierarchy**: `V1_49__UnifyDeploymentSourceBase` (abstract) → vendor-specific subclasses
+**Version**: V1.50
+**Class hierarchy**: `V1_50__UnifyDeploymentSourceBase` (abstract) → vendor-specific subclasses
 
 ### Migration steps:
 

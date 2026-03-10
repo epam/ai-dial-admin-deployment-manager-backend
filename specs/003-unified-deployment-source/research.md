@@ -37,11 +37,11 @@ Unifying into a single `Source` interface enables: (a) adding `ImageReferenceSou
 **Alternatives considered**:
 - Single unified `SourceDto` across all deployment types — rejected because it produces worse Swagger API documentation (all source types shown for all deployment types, confusing consumers)
 
-## Decision 4: Java-Based Migration V1.49
+## Decision 4: Java-Based Migration V1.50
 
-**Decision**: Use Java-based Flyway migration (`V1_49__UnifyDeploymentSource`) with a common abstract base class and vendor-specific subclasses for H2, PostgreSQL, and SQL Server.
+**Decision**: Use Java-based Flyway migration (`V1_50__UnifyDeploymentSource`) with a common abstract base class and vendor-specific subclasses for H2, PostgreSQL, and SQL Server.
 
-**Rationale**: The migration involves reading JSON from one column, transforming it, and writing to another — this logic is complex enough to warrant Java rather than raw SQL. A common base class (`V1_49__UnifyDeploymentSourceBase`) avoids code duplication; vendor-specific subclasses override only DDL operations (ADD COLUMN, DROP COLUMN) that differ across database dialects.
+**Rationale**: The migration involves reading JSON from one column, transforming it, and writing to another — this logic is complex enough to warrant Java rather than raw SQL. A common base class (`V1_50__UnifyDeploymentSourceBase`) avoids code duplication; vendor-specific subclasses override only DDL operations (ADD COLUMN, DROP COLUMN) that differ across database dialects.
 
 **Alternatives considered**:
 - Pure SQL migration — rejected because JSON manipulation varies significantly across H2/Postgres/MSSQL and would require three completely separate migration scripts with duplicated transformation logic
