@@ -8,8 +8,9 @@ Status: **Implemented**
 ## Key Terms
 - **Deployment**: A persistent configuration record representing a deployed (or deployable) AI component in Kubernetes, identified by a UUID.
 - **`name`**: The stable, immutable string identifier for a deployment (2–36 chars, `^[a-z0-9-]+`). Used as the Kubernetes resource name and in API paths that reference a deployment by name. Separate from `displayName`.
-- **Image-based deployment**: A deployment type (MCP, Interceptor, Adapter) that references an `ImageDefinition` to determine the container image. Carries `imageDefinitionId`, `imageDefinitionName`, `imageDefinitionVersion`, `imageDefinitionType`. The image definition can be referenced either by UUID (`imageDefinitionId`) or by type + name + version triple.
-- **Model-source deployment**: A deployment type (Inference, NIM) that references a model source (HuggingFace repo or NGC registry) directly, without an `ImageDefinition`.
+- **Source**: A polymorphic typed object (`$type` discriminator) representing where a deployment's container image or model comes from. All deployment types carry a `source` field. Four variants exist: `InternalImageSource` (`$type: "internal_image"` — references a managed image definition), `ImageReferenceSource` (`$type: "image_reference"` — direct Docker image URI), `HuggingFaceSource` (`$type: "huggingface"` — HuggingFace model), `NgcRegistrySource` (`$type: "ngc_registry"` — NVIDIA NGC image).
+- **Image-based deployment (Knative)**: A deployment type (MCP, Interceptor, Adapter) that runs on KNative. Accepts two source types: `internal_image` (referencing an image definition by ID or type+name+version triple) or `image_reference` (direct Docker image name, no image definition required).
+- **Model-source deployment**: A deployment type (Inference, NIM) that references a model source directly. Inference uses `HuggingFaceSource`; NIM uses `NgcRegistrySource`.
 - **Deploy / Undeploy**: Activating or deactivating the Kubernetes resources for a deployment, while preserving the configuration record.
 - **Reconciliation**: Process run at startup to align actual Kubernetes state with the desired state stored in the database.
 - **`DeploymentMetadataDto`**: A container object holding the deployment's environment variable definitions (`envs`).
@@ -74,17 +75,25 @@ The system SHALL create a new deployment of the specified subtype. New deploymen
 
 Status: **Implemented**
 
-#### Scenario: Create image-based deployment by ID
-- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER` and a valid `imageDefinitionId`
-- **THEN** a new deployment is persisted in `NOT_DEPLOYED` status with the `imageDefinitionId` reference; HTTP 201 is returned
+#### Scenario: Create image-based deployment with internal_image source (by ID)
+- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER` and `source: { "$type": "internal_image", "imageDefinitionId": "<uuid>" }`
+- **THEN** a new deployment is persisted in `NOT_DEPLOYED` status with the `internal_image` source; HTTP 201 is returned
 
-#### Scenario: Create image-based deployment by type + name + version
-- **WHEN** `POST /api/v1/deployments` is called with `imageDefinitionType`, `imageDefinitionName`, and `imageDefinitionVersion` (without `imageDefinitionId`)
+#### Scenario: Create image-based deployment with internal_image source (by type + name + version)
+- **WHEN** `POST /api/v1/deployments` is called with `source: { "$type": "internal_image", "imageDefinitionType": "...", "imageDefinitionName": "...", "imageDefinitionVersion": "..." }`
 - **THEN** the image definition is resolved by type + name + version and the deployment is persisted; HTTP 201 is returned
 
-#### Scenario: Incomplete image reference rejected
-- **WHEN** `POST /api/v1/deployments` is called for an image-based type without `imageDefinitionId` AND without a complete `(imageDefinitionType, imageDefinitionName, imageDefinitionVersion)` triple
+#### Scenario: Create image-based deployment with image_reference source
+- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER` and `source: { "$type": "image_reference", "imageReference": "<docker-image>" }`
+- **THEN** a new deployment is persisted in `NOT_DEPLOYED` status using the direct image reference (no image definition required); HTTP 201 is returned
+
+#### Scenario: Incomplete internal_image source rejected
+- **WHEN** `POST /api/v1/deployments` is called with an `internal_image` source missing both `imageDefinitionId` AND a complete `(imageDefinitionType, imageDefinitionName, imageDefinitionVersion)` triple
 - **THEN** the system responds with 400 (`@AssertTrue` validation on `isValidImageReference()`)
+
+#### Scenario: Incompatible source type rejected
+- **WHEN** `POST /api/v1/deployments` is called with a source type that does not match the deployment type (e.g., `ngc_registry` for an MCP deployment, or `image_reference` for an Inference deployment)
+- **THEN** the system responds with 400 with a source type validation error
 
 #### Scenario: Create model-source deployment
 - **WHEN** `POST /api/v1/deployments` is called with `type: INFERENCE|NIM` and a model source reference
@@ -321,17 +330,26 @@ The entity and DTO layers use different inheritance structures:
 **DTO layer** (two-tier for image-based types):
 ```
 DeploymentDto (abstract)
-├── ImageBasedDeploymentDto (abstract) — adds imageDefinitionId, imageDefinitionName, imageDefinitionVersion, imageDefinitionType
+├── ImageBasedDeploymentDto (abstract) — adds source: DeploymentSourceDto (internal_image | image_reference)
 │   ├── McpDeploymentDto
 │   ├── InterceptorDeploymentDto
 │   └── AdapterDeploymentDto
-├── InferenceDeploymentDto
-└── NimDeploymentDto
+├── InferenceDeploymentDto — source: InferenceDeploymentSourceDto (huggingface)
+└── NimDeploymentDto — source: NimDeploymentSourceDto (ngc_registry)
+```
+
+**Domain model** — unified `Source` sealed interface:
+```
+Source (sealed interface, $type discriminator)
+├── InternalImageSource (internal_image) — imageDefinitionId, imageDefinitionType, imageDefinitionName, imageDefinitionVersion
+├── ImageReferenceSource (image_reference) — imageReference
+├── HuggingFaceSource (huggingface) — modelName
+└── NgcRegistrySource (ngc_registry) — imageRef
 ```
 
 **Entity layer** (flat — all extend base directly):
 ```
-DeploymentEntity (@Inheritance JOINED)
+DeploymentEntity (@Inheritance JOINED) — source: PersistenceSource (JSON), imageDefinitionId: UUID
 ├── McpDeploymentEntity
 ├── InterceptorDeploymentEntity
 ├── AdapterDeploymentEntity
@@ -339,7 +357,7 @@ DeploymentEntity (@Inheritance JOINED)
 └── NimDeploymentEntity
 ```
 
-There is no `ImageBasedDeploymentEntity`. The `imageDefinitionId`, `imageDefinitionName`, and `imageDefinitionVersion` fields live on the base `DeploymentEntity` (shared by all types at the DB level). The image-based vs model-source split is enforced only in the DTO/API layer via `ImageBasedDeploymentDto`.
+The `source` JSON column lives on the base `DeploymentEntity`, storing a `PersistenceSource` (sealed interface mirroring the domain `Source` hierarchy). The `imageDefinitionId` is retained as a separate indexed column for efficient query filtering. The `imageDefinitionType`, `imageDefinitionName`, `imageDefinitionVersion` columns have been removed from the entity (moved into `PersistenceInternalImageSource` within the JSON). NIM and Inference subtype entities no longer carry their own `source` columns.
 
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.DeploymentController`
@@ -364,4 +382,17 @@ There is no `ImageBasedDeploymentEntity`. The `imageDefinitionId`, `imageDefinit
 - Domain scaling model: `com.epam.aidial.deployment.manager.model.Scaling`, `com.epam.aidial.deployment.manager.model.ScalingStrategy`, `com.epam.aidial.deployment.manager.model.ScalingStrategyType`
 - Probe properties DTO: `com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto`
 - Probe handlers: `HttpGetProbeDto` (path + port), `TcpSocketProbeDto` (port)
+- Source response DTO (Knative): `com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentSourceDto` (sealed interface, `$type` discriminator)
+  - `InternalImageDeploymentSourceDto` (`$type: "internal_image"`) — imageDefinitionId, imageDefinitionName, imageDefinitionVersion
+  - `ImageReferenceDeploymentSourceDto` (`$type: "image_reference"`) — imageReference
+- Source request DTO (Knative): `com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentSourceRequestDto` (sealed interface)
+  - `CreateInternalImageDeploymentSourceRequestDto` — imageDefinitionId or (imageDefinitionType + imageDefinitionName + imageDefinitionVersion)
+  - `CreateImageReferenceDeploymentSourceRequestDto` — imageReference (`@ValidDockerImageName`)
+- Domain source model: `com.epam.aidial.deployment.manager.model.deployment.Source` (sealed interface)
+  - `InternalImageSource`, `ImageReferenceSource`, `HuggingFaceSource`, `NgcRegistrySource`
+- Persistence source model: `com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceSource` (sealed interface, stored as JSON)
+  - `PersistenceInternalImageSource`, `PersistenceImageReferenceSource`, `PersistenceHuggingFaceSource`, `PersistenceNgcRegistrySource`
+- Source validation: `DeploymentService.validateSourceForDeploymentType()` — enforces source-to-deployment-type compatibility
+- Image resolution: `KnativeDeploymentManager.resolveImageName()` — pattern-matches on Source variant
+- Export mix-in: `com.epam.aidial.deployment.manager.configuration.export.InternalImageSourceExportMixIn` — excludes `imageDefinitionId` from config export
 - URL resolution: `AbstractDeploymentManager.resolveServiceUrl()` — populated on RUNNING, cleared on undeploy
