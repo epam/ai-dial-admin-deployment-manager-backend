@@ -10,6 +10,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.freeze.FreezingArchRule;
+import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
@@ -104,7 +105,7 @@ class ArchitectureTest {
             .and().haveSimpleNameNotEndingWith("MapperImpl")
             .and().haveSimpleNameNotEndingWith("Properties")
             .and().resideOutsideOfPackage("..configuration..")
-            .and().doNotHaveSimpleName("RepositoryDatabaseExceptionAspect")
+            .and().areNotAnnotatedWith(Aspect.class)
             .should().beAnnotatedWith(LogExecution.class)
             .because("@LogExecution must be placed on every @Component class");
 
