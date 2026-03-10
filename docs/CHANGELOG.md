@@ -1,6 +1,6 @@
 # Infra Task Changelog
 
-Tracks infrastructure changes requested via GitHub Issues and completed by devops team.
+Tracks infrastructure changes requested via GitHub Issues and completed by DevOps team.
 
 ---
 
