@@ -1,9 +1,8 @@
 package com.epam.aidial.deployment.manager.model.deployment;
 
-public record InferenceDeploymentHuggingFaceSource(
+public record HuggingFaceSource(
         String modelName
-) implements InferenceDeploymentSource {
-    @Override
+) implements Source {
     public String getStorageUri() {
         return "hf://" + modelName;
     }

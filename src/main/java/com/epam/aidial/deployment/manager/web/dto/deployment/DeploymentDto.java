@@ -64,4 +64,8 @@ public abstract class DeploymentDto {
     private List<String> allowedDomains;
     @Nullable
     private List<String> topics;
+    @Nullable
+    private String command;
+    @Nullable
+    private String args;
 }

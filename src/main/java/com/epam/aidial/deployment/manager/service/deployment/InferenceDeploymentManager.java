@@ -12,8 +12,8 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -92,6 +92,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
     @Override
     protected InferenceService prepareServiceSpec(InferenceDeployment deployment) {
+        if (!(deployment.getSource() instanceof HuggingFaceSource huggingFaceSource)) {
+            throw new IllegalArgumentException("Inference deployment source should be HuggingFace. Deployment: '%s'"
+                    .formatted(deployment.getId()));
+        }
+
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
         var userDefinedSimpleEnvs = filterEnvsByExactType(deployment, SimpleEnvVar.class);
 
@@ -100,7 +105,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getModelFormat(),
-                deployment.getSource().getStorageUri(),
+                huggingFaceSource.getStorageUri(),
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
@@ -239,7 +244,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     protected List<String> getEffectiveDeploymentAllowedDomains(InferenceDeployment deployment) {
         List<String> allowedDomains = super.getEffectiveDeploymentAllowedDomains(deployment);
 
-        if (!(deployment.getSource() instanceof InferenceDeploymentHuggingFaceSource)
+        if (!(deployment.getSource() instanceof HuggingFaceSource)
                 || CollectionUtils.isEmpty(defaultAllowedDomains)) {
             return allowedDomains;
         }

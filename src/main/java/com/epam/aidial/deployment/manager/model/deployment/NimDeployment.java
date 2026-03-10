@@ -16,6 +16,5 @@ import lombok.experimental.SuperBuilder;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class NimDeployment extends Deployment {
-    private NimDeploymentSource source;
     private Integer containerGrpcPort;
 }

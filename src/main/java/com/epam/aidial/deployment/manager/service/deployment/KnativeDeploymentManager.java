@@ -14,7 +14,9 @@ import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
@@ -102,8 +104,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
     @Override
     protected Service prepareServiceSpec(Deployment deployment) {
-        var imageDefinition = imageDefinitionService.getImageDefinition(deployment.getImageDefinitionId())
-                .orElseThrow(notFound("ImageDefinition", deployment.getImageDefinitionId()));
+        var imageName = resolveImageName(deployment);
 
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
         var userDefinedSensitiveFileEnvs = filterEnvsByExactType(deployment, SensitiveFileEnvVar.class);
@@ -116,11 +117,28 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
-                imageDefinition.getImageName(),
+                imageName,
                 deployment.getScaling(),
                 deployment.getResources(),
                 containerPort,
-                deployment.getProbeProperties());
+                deployment.getProbeProperties(),
+                deployment.getCommand(),
+                deployment.getArgs());
+    }
+
+    private String resolveImageName(Deployment deployment) {
+        return switch (deployment.getSource()) {
+            case ImageReferenceSource(String imageReference) -> imageReference;
+            case InternalImageSource internalSource ->
+                    imageDefinitionService.getImageDefinition(internalSource.imageDefinitionId())
+                            .orElseThrow(notFound("ImageDefinition", internalSource.imageDefinitionId()))
+                            .getImageName();
+            case null -> throw new IllegalArgumentException(
+                    "Deployment '%s' does not define an image source".formatted(deployment.getId()));
+            default -> throw new IllegalArgumentException(
+                    "Unsupported source type for Knative deployment '%s': %s".formatted(
+                            deployment.getId(), deployment.getSource().getClass().getName()));
+        };
     }
 
     @Override

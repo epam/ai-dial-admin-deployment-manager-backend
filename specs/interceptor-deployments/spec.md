@@ -7,40 +7,48 @@ Status: **Implemented**
 
 ## Key Terms
 - **Interceptor deployment**: A deployment of type `INTERCEPTOR` that runs a DIAL interceptor container. Fully defined by the image-based contract.
-- **Image-based contract**: The set of fields inherited from `ImageBasedDeploymentDto`: `imageDefinitionId` (nullable), `imageDefinitionName` (nullable), `imageDefinitionVersion` (nullable), `imageDefinitionType` (`ImageTypeDto` — ADAPTER/MCP/INTERCEPTOR; `@NotNull` in response), plus all base deployment fields. The image definition is referenced either by `imageDefinitionId` alone, or by the (`imageDefinitionType`, `imageDefinitionName`, `imageDefinitionVersion`) triple.
+- **Image-based contract**: The set of fields inherited from `ImageBasedDeploymentDto`: a `source` field of type `DeploymentSourceDto` (polymorphic, `$type` discriminator) plus all base deployment fields. Two source types are supported: `internal_image` (references a managed image definition by ID or type+name+version triple) and `image_reference` (direct Docker image URI, no image definition required).
 
 ## Requirements
 
 ### Requirement: Interceptor deployment has no additional fields beyond the image-based contract
-An interceptor deployment SHALL carry exactly the image-based contract fields (all base deployment fields plus `imageDefinitionId`, `imageDefinitionName`, `imageDefinitionVersion`, `imageDefinitionType`) and nothing more. There are no interceptor-specific configuration fields.
+An interceptor deployment SHALL carry exactly the image-based contract fields (including the `source` field) and nothing more. There are no interceptor-specific configuration fields.
 
 Status: **Implemented**
 
-#### Scenario: Create interceptor deployment
-- **WHEN** `POST /api/v1/deployments` is called with `type: INTERCEPTOR` and a valid `imageDefinitionId`
+#### Scenario: Create interceptor deployment with internal_image source
+- **WHEN** `POST /api/v1/deployments` is called with `type: INTERCEPTOR` and `source: { "$type": "internal_image", "imageDefinitionId": "<uuid>" }`
 - **THEN** an interceptor deployment is created with only the image-based contract fields
+
+#### Scenario: Create interceptor deployment with image_reference source
+- **WHEN** `POST /api/v1/deployments` is called with `type: INTERCEPTOR` and `source: { "$type": "image_reference", "imageReference": "<docker-image>" }`
+- **THEN** an interceptor deployment is created using the direct image reference (no image definition required)
 
 #### Scenario: Retrieve interceptor deployment
 - **WHEN** `GET /api/v1/deployments/{id}` is called for an INTERCEPTOR deployment
-- **THEN** the response body contains the image-based fields and no additional type-specific fields
+- **THEN** the response body contains the image-based fields including `source` and no additional type-specific fields
 
-### Requirement: Interceptor deployment must reference an interceptor image definition
-An interceptor deployment SHALL reference an image definition via one of two mutually exclusive paths:
-1. **By ID**: supply `imageDefinitionId` (UUID).
-2. **By type + name + version**: supply `imageDefinitionType` (`INTERCEPTOR`), `imageDefinitionName`, and `imageDefinitionVersion` — all three are required together. The response always includes `imageDefinitionType` (`@NotNull`).
+### Requirement: Interceptor deployment must provide a valid source
+An interceptor deployment SHALL provide a `source` object with one of two types:
+1. **`internal_image`**: References an image definition by `imageDefinitionId` (UUID) OR by `(imageDefinitionType, imageDefinitionName, imageDefinitionVersion)` triple.
+2. **`image_reference`**: Provides a direct Docker image URI via `imageReference` (validated by `@ValidDockerImageName`). No image definition required.
 
 Status: **Implemented**
 
-#### Scenario: Image definition linked by ID
-- **WHEN** an interceptor deployment is created with a valid `imageDefinitionId`
-- **THEN** the deployment is linked to the specified interceptor image definition and `imageDefinitionType` is populated in the response
+#### Scenario: Internal image source linked by ID
+- **WHEN** an interceptor deployment is created with `source.$type: "internal_image"` and a valid `imageDefinitionId`
+- **THEN** the deployment is linked to the specified interceptor image definition
 
-#### Scenario: Image definition linked by type + name + version
-- **WHEN** an interceptor deployment is created with `imageDefinitionType: INTERCEPTOR`, `imageDefinitionName`, and `imageDefinitionVersion` (no `imageDefinitionId`)
+#### Scenario: Internal image source linked by type + name + version
+- **WHEN** an interceptor deployment is created with `source.$type: "internal_image"`, `imageDefinitionType: INTERCEPTOR`, `imageDefinitionName`, and `imageDefinitionVersion`
 - **THEN** the image definition is resolved by type + name + version and the deployment is created successfully
 
-#### Scenario: Incomplete image reference rejected
-- **WHEN** `POST /api/v1/deployments` is called with `type: INTERCEPTOR` without a complete image reference (no `imageDefinitionId` and missing one or more of `imageDefinitionType`/`imageDefinitionName`/`imageDefinitionVersion`)
+#### Scenario: Image reference source
+- **WHEN** an interceptor deployment is created with `source.$type: "image_reference"` and a valid `imageReference`
+- **THEN** the deployment is created with the direct Docker image reference
+
+#### Scenario: Incomplete internal_image source rejected
+- **WHEN** `POST /api/v1/deployments` is called with `type: INTERCEPTOR` and an `internal_image` source missing both `imageDefinitionId` and a complete type+name+version triple
 - **THEN** the system responds with 400
 
 ### Requirement: Interceptor deployment requires KNative enabled

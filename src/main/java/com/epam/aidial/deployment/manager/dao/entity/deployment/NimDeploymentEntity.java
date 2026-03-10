@@ -8,8 +8,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
@@ -20,9 +18,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class NimDeploymentEntity extends DeploymentEntity {
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    private PersistenceNimDeploymentSource source;
 
     @Column(name = "container_grpc_port")
     private Integer containerGrpcPort;

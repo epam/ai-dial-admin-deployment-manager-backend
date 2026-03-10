@@ -56,7 +56,9 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer containerGrpcPort,
             @Nullable ProbeProperties probeProperties,
             boolean useExternalUrl,
-            @Nullable String clusterHost
+            @Nullable String clusterHost,
+            @Nullable List<String> command,
+            @Nullable List<String> args
     ) {
         if (useExternalUrl && StringUtils.isBlank(clusterHost)) {
             throw new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured");
@@ -88,6 +90,13 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyExposeService(exposeChain, containerPort, containerGrpcPort);
         if (useExternalUrl) {
             applyExposeIngress(exposeChain, nimServiceName, clusterHost, containerPort);
+        }
+
+        if (command != null) {
+            specChain.data().setCommand(command);
+        }
+        if (args != null) {
+            specChain.data().setArgs(args);
         }
 
         applyStartupProbe(name, specChain, probeProperties);

@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto;
 
+import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentSourceDto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -10,10 +11,7 @@ import java.util.UUID;
 
 public record DeploymentInfoDto(
         @NotNull String name,
-        @Nullable UUID imageDefinitionId,
-        @Nullable ImageTypeDto imageDefinitionType,
-        @Nullable String imageDefinitionName,
-        @Nullable String imageDefinitionVersion,
+        @Nullable DeploymentSourceDto source,
         @JsonProperty("$type")
         @NotNull DeploymentTypeDto type,
         @NotNull String displayName,

@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-03-06T11:16:25.615748Z
+> Generated at: 2026-03-10T13:15:19.162476800Z
 
 ## Tables
 
@@ -57,13 +57,13 @@
 | UPDATED_AT_MS | BIGINT | No |  |  |
 | AUTHOR | VARCHAR(1000000000) | Yes |  |  |
 | METADATA | JSON | Yes |  |  |
-| IMAGE_DEFINITION_NAME | VARCHAR(255) | Yes |  |  |
-| IMAGE_DEFINITION_VERSION | VARCHAR(255) | Yes |  |  |
 | CONTAINER_PORT | INTEGER | Yes |  |  |
 | ALLOWED_DOMAINS | JSON | No | JSON '[]' |  |
 | PROBE_PROPERTIES | JSON | Yes |  |  |
-| IMAGE_DEFINITION_TYPE | VARCHAR(20) | Yes |  |  |
 | SCALING | JSON | Yes |  |  |
+| COMMAND | JSON | Yes |  |  |
+| ARGS | JSON | Yes |  |  |
+| SOURCE | JSON | Yes |  |  |
 
 **Indexes:**
 
@@ -144,10 +144,7 @@
 | Column | Type | Nullable | Default | Key |
 |--------|------|----------|---------|-----|
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
-| ARGS | JSON | Yes |  |  |
 | MODEL_FORMAT | VARCHAR(32) | No |  |  |
-| SOURCE | JSON | No |  |  |
-| COMMAND | JSON | Yes |  |  |
 
 ## INTERCEPTOR_DEPLOYMENT
 
@@ -182,5 +179,4 @@
 |--------|------|----------|---------|-----|
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
 | CONTAINER_GRPC_PORT | INTEGER | Yes |  |  |
-| SOURCE | JSON | No |  |  |
 

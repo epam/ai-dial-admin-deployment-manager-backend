@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 @Component
+@LogExecution
 @RequiredArgsConstructor
 public class McpEndpointPathResolver {
 

@@ -15,8 +15,9 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
+import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeploymentNgcRegistrySource;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -272,6 +273,8 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(Boolean.class),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -316,6 +319,8 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(Boolean.class),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -363,7 +368,7 @@ class NimDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any()
+                any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any()
         )).thenThrow(new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured"));
 
         // When/Then: generator receives useExternalUrl=true and blank clusterHost, throws IllegalArgumentException
@@ -372,7 +377,7 @@ class NimDeploymentManagerTest {
                 .hasMessageContaining("Failed to deploy service")
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("External NIM URL is enabled but cluster host is not configured");
-        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any());
+        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any());
     }
 
     @Test
@@ -392,7 +397,9 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 eq(true),
-                eq(CLUSTER_HOST)
+                eq(CLUSTER_HOST),
+                any(),
+                any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
@@ -412,7 +419,9 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 eq(true),
-                eq(CLUSTER_HOST));
+                eq(CLUSTER_HOST),
+                any(),
+                any());
     }
 
     @Test
@@ -430,7 +439,7 @@ class NimDeploymentManagerTest {
     void deploy_shouldThrowExceptionWhenSourceIsNull() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
-        ((NimDeployment) deployment).setSource(null);
+        deployment.setSource(null);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
 
@@ -460,6 +469,8 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(Boolean.class),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -681,7 +692,7 @@ class NimDeploymentManagerTest {
     private Deployment createDeployment(DeploymentStatus status) {
         var deployment = new NimDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setImageDefinitionId(IMAGE_DEFINITION_ID);
+        deployment.setSource(new InternalImageSource(IMAGE_DEFINITION_ID, null, null, null));
         deployment.setStatus(status);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -690,7 +701,7 @@ class NimDeploymentManagerTest {
         ));
         deployment.setContainerGrpcPort(50052);
         deployment.setAllowedDomains(List.of("test-domain-1", "test-domain-2"));
-        deployment.setSource(new NimDeploymentNgcRegistrySource(IMAGE_NAME));
+        deployment.setSource(new NgcRegistrySource(IMAGE_NAME));
         return deployment;
     }
 

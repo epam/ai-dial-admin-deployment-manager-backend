@@ -1,17 +1,21 @@
 package com.epam.aidial.deployment.manager.dao.repository;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
+import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.AdapterDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInternalImageSource;
 import com.epam.aidial.deployment.manager.dao.jpa.DeploymentJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class DeploymentRepository {
 
@@ -157,9 +162,16 @@ public class DeploymentRepository {
     }
 
     @Transactional(isolation = Isolation.REPEATABLE_READ)
-    public void updateImageDefinitionForDeployments(ImageDefinition imageDefinition, List<String> deploymentIds) {
-        deploymentJpaRepository.updateImageDefinitionIdForDeployments(imageDefinition.getId(), imageDefinition.getName(),
-                imageDefinition.getVersion(), deploymentIds);
+    public void updateImageDefinitionForDeployments(ImageDefinition imageDefinition,
+                                                    ImageType imageType,
+                                                    List<String> deploymentIds) {
+        var source = new PersistenceInternalImageSource(
+                imageDefinition.getId(),
+                PersistenceImageType.valueOf(imageType.name()),
+                imageDefinition.getName(),
+                imageDefinition.getVersion());
+        deploymentJpaRepository.updateImageDefinitionAndSourceForDeployments(
+                imageDefinition.getId(), source, deploymentIds);
         log.debug("Image definition updated for deployments: {}", deploymentIds);
     }
 

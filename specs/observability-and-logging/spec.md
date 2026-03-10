@@ -63,8 +63,9 @@ Status: **Implemented**
 - **THEN** the invocation is logged with method name and execution outcome (success or exception) via the configured `CustomizableTraceInterceptor` messages
 
 #### Scenario: All Spring components must carry @LogExecution
-- **WHEN** a new Spring component class is created (`@RestController`, `@Service`, `@Repository`, `@Component`, `@Configuration`)
+- **WHEN** a new Spring component class is created (`@RestController`, `@Service`, `@Repository`, `@Component`)
 - **THEN** it SHALL be annotated with `@LogExecution` at the class level
+- **NOTE**: Precise exclusions and known legacy gaps are codified in `ArchitectureTest` and enforced automatically on every build.
 
 #### Scenario: CustomizableTraceInterceptor conditionally enabled
 - **WHEN** `app.customizable-trace-interceptor.enabled` is set to `true`

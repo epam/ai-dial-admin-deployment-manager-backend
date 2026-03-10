@@ -13,9 +13,12 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategy;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
+import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
@@ -30,6 +33,7 @@ import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DuplicateDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.EnvVarDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenceDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
@@ -56,6 +60,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -102,6 +107,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor;
     @Captor
     private ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor;
+    @Captor
+    private ArgumentCaptor<CreateDeployment> createDeploymentCaptor;
 
     @Test
     void testGetAllDeployments() throws Exception {
@@ -125,7 +132,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
         var deployId = model.getId();
-        var imageDefinitionId = model.getImageDefinitionId();
+        var imageDefinitionId = ((InternalImageSource) model.getSource()).imageDefinitionId();
 
         var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
@@ -242,6 +249,46 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
+    void testCreateDeployment_withImageReference() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+        var imageReference = "ghcr.io/modelcontextprotocol/servers/fetch:latest";
+        requestDto.setSource(new CreateImageReferenceDeploymentSourceRequestDto(imageReference));
+
+        var requestJson = objectMapper.writeValueAsString(requestDto);
+
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpDeployment.class);
+        model.setSource(new ImageReferenceSource(imageReference));
+
+        when(deploymentService.createDeployment(any())).thenReturn(model);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.source.$type").value("image_reference"))
+                .andExpect(jsonPath("$.source.imageReference").value(imageReference))
+                .andExpect(jsonPath("$.imageDefinitionId").doesNotExist());
+
+        verify(deploymentService).createDeployment(any());
+    }
+
+    @Test
+    void testCreateDeployment_withoutImageSource() throws Exception {
+        var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+        var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
+        requestDto.setSource(null);
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requestDto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString(
+                        "Field [source]: must not be null")));
+    }
+
+    @Test
     void testDuplicateDeployment() throws Exception {
         var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/duplicate_deployment_request.json");
         var requestDto = objectMapper.readValue(requestDtoJson, DuplicateDeploymentRequestDto.class);
@@ -255,7 +302,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
         var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
 
-        when(imageDefinitionService.getImageDefinition(model.getImageDefinitionId())).thenReturn(Optional.of(imageModel));
+        when(imageDefinitionService.getImageDefinition(((InternalImageSource) model.getSource()).imageDefinitionId())).thenReturn(Optional.of(imageModel));
         when(deploymentService.duplicateDeployment(requestDto.sourceDeploymentName(), requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName())).thenReturn(model);
 
@@ -267,6 +314,64 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         verify(deploymentService).duplicateDeployment(requestDto.sourceDeploymentName(), requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName());
+    }
+
+    @Test
+    void testCreateMcpDeployment_withCommandAndArgs() throws Exception {
+        // Given
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_mcp_deployment_request_with_command_args.json");
+
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpDeployment.class);
+        model.setCommand(List.of("python", "server.py", "--port", "8082"));
+        model.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
+
+        var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
+        var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
+
+        when(imageDefinitionService.getImageDefinition(any())).thenReturn(Optional.of(imageModel));
+        when(deploymentService.createDeployment(any())).thenReturn(model);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.command").value("python server.py --port 8082"))
+                .andExpect(jsonPath("$.args").value("--config config.json --log-level DEBUG"));
+
+        verify(deploymentService).createDeployment(createDeploymentCaptor.capture());
+        var createDeployment = createDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "server.py", "--port", "8082"));
+        assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config.json", "--log-level", "DEBUG"));
+    }
+
+    @Test
+    void testCreateMcpDeployment_withNullCommandAndArgs() throws Exception {
+        // Given — the existing create_deployment_request.json has no command/args fields
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpDeployment.class);
+
+        var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
+        var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
+
+        when(imageDefinitionService.getImageDefinition(any())).thenReturn(Optional.of(imageModel));
+        when(deploymentService.createDeployment(any())).thenReturn(model);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.command").doesNotExist())
+                .andExpect(jsonPath("$.args").doesNotExist());
+
+        verify(deploymentService).createDeployment(createDeploymentCaptor.capture());
+        var createDeployment = createDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isNull();
+        assertThat(createDeployment.getArgs()).isNull();
     }
 
     @Test
@@ -651,7 +756,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         deployment.setId(id);
         deployment.setDisplayName("Test Inference Deployment");
         deployment.setModelFormat("huggingface");
-        deployment.setSource(new InferenceDeploymentHuggingFaceSource("test-user/test-model"));
+        deployment.setSource(new HuggingFaceSource("test-user/test-model"));
         deployment.setMetadata(new DeploymentMetadata(new ArrayList<>()));
         deployment.setStatus(DeploymentStatus.NOT_DEPLOYED);
         deployment.setUrl("http://test-url");

@@ -9,6 +9,7 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
@@ -57,7 +58,7 @@ public abstract class FullWorkflowFunctionalTest {
         UUID imageId = waitForImageBuild(image.getId());
 
         // Create deployment
-        deployment.setImageDefinitionId(imageId);
+        deployment.setSource(new InternalImageSource(imageId, null, null, null));
         var createdDeployment = deploymentService.createDeployment(deployment);
 
         // Deploy

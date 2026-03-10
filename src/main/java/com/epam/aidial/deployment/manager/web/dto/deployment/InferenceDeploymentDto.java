@@ -19,8 +19,4 @@ public class InferenceDeploymentDto extends DeploymentDto {
     private String modelFormat;
     @NotNull @Valid
     private InferenceDeploymentSourceDto source;
-    @Nullable
-    private String command;
-    @Nullable
-    private String args;
 }

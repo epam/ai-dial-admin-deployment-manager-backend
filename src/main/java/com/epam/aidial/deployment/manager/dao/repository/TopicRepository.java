@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.dao.repository;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class TopicRepository {
 

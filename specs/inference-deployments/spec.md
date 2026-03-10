@@ -7,7 +7,7 @@ Status: **Implemented**
 
 ## Key Terms
 - **Inference deployment**: A deployment of type `INFERENCE` that serves an AI model using KServe as the backend runtime.
-- **Model source**: The origin of the model to serve. Currently the only supported subtype is `InferenceDeploymentHuggingFaceSourceDto` (`$type: "huggingface"`).
+- **Model source**: The origin of the model to serve. Uses the unified `Source` sealed interface; the only supported variant for inference is `HuggingFaceSource` (`$type: "huggingface"`). The source is stored as a JSON column on the base `deployment` table.
 - **KServe**: Kubernetes-native model serving framework used as the inference deployment backend.
 - **Scaling strategy**: An auto-scaling configuration that specifies the scaling trigger type and threshold.
 
@@ -53,9 +53,9 @@ Status: **Implemented**
 - **THEN** `modelFormat` is persisted and included in all deployment responses
 
 ### Requirement: Inference deployment supports custom command and arguments
-An inference deployment SHALL optionally carry `command` and `args` fields to override the container entrypoint and arguments.
+An inference deployment uses the base-level `command` and `args` fields (see `deployments` spec) to override the container entrypoint and arguments. These fields were consolidated from the Inference-specific level to the base Deployment level to enable all deployment types to use them.
 
-Status: **Implemented**
+Status: **Implemented** (consolidated to base level)
 
 #### Scenario: Command and args stored
 - **WHEN** an inference deployment is created with `command` or `args` values
@@ -85,15 +85,16 @@ Status: **Implemented**
 
 ## Implementation Notes
 - Domain model: `com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment`
-  - Fields: `modelFormat` (String), `source` (InferenceDeploymentSource), `command` (nullable List\<String\>), `args` (nullable List\<String\>)
-- Source domain model (interface): `com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentSource` (`$type` discriminator, subtype: `huggingface`)
-- HuggingFace source domain model: `com.epam.aidial.deployment.manager.model.deployment.InferenceDeploymentHuggingFaceSource`
+  - Fields: `modelFormat` (String). Note: `source`, `command`, and `args` are inherited from the base `Deployment` model.
+- Source domain model: `com.epam.aidial.deployment.manager.model.deployment.Source` (unified sealed interface; inference uses `HuggingFaceSource` variant)
+- HuggingFace source domain model: `com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource`
 - Request DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.CreateInferenceDeploymentRequestDto`
-  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `command` (nullable String), `args` (nullable String)
+  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`). Note: `command` and `args` are inherited from the base request DTO.
 - Response DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto`
-  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `command` (nullable String), `args` (nullable String)
+  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`). Note: `command` and `args` are inherited from the base response DTO.
 - Source DTO (interface): `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentSourceDto` (`$type` discriminator)
 - HuggingFace source DTO (record): `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentHuggingFaceSourceDto` (`modelName` with `@NotNull @ValidHuggingFaceModelName`)
+- Persistence source: stored as `PersistenceHuggingFaceSource` within the unified `PersistenceSource` JSON column on base `DeploymentEntity`
 - Probe converter: `com.epam.aidial.deployment.manager.service.manifest.KserveProbeConverter`
 - Deployment manager: `com.epam.aidial.deployment.manager.service.deployment.InferenceDeploymentManager` (active when `app.kserve.enabled=true`)
 - Manifest generator: `com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator`
