@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.dao.repository;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.DomainWhitelistEntity;
 import com.epam.aidial.deployment.manager.dao.jpa.DomainWhitelistJpaRepository;
 import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class GlobalDomainWhitelistRepository {
 

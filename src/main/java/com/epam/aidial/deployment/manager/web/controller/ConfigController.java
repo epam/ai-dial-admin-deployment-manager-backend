@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.ConfigExportProperties;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.config.ExportRequest;
 import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
@@ -23,6 +24,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 @RestController
 @RequestMapping("/api/v1/configs")
+@LogExecution
 @RequiredArgsConstructor
 public class ConfigController {
 

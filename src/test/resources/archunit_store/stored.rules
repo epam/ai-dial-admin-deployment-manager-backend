@@ -1,0 +1,5 @@
+#
+#Mon Mar 09 13:41:51 EET 2026
+no\ classes\ that\ reside\ in\ a\ package\ '..dao..'\ should\ access\ classes\ that\ reside\ in\ a\ package\ '..web..',\ because\ the\ dao\ layer\ must\ not\ depend\ on\ the\ web\ layer\ \u2014\ dependency\ direction\ is\ web\ \u2192\ service\ \u2192\ dao=29386af3-8f95-4deb-b905-fdb36d5aa2f0
+no\ classes\ that\ reside\ in\ a\ package\ '..kubernetes..'\ should\ access\ classes\ that\ reside\ in\ a\ package\ '..service..',\ because\ the\ kubernetes\ layer\ must\ not\ depend\ on\ the\ service\ layer\ \u2014\ dependency\ direction\ is\ service\ \u2192\ kubernetes=bd84223a-e646-43f4-a2bb-1ca1c7505013
+no\ classes\ that\ reside\ in\ a\ package\ '..web..'\ should\ access\ classes\ that\ reside\ in\ a\ package\ '..kubernetes..',\ because\ the\ web\ layer\ must\ not\ directly\ access\ the\ kubernetes\ layer\ \u2014\ use\ the\ service\ layer\ instead=114b4200-85e7-4d5b-a650-f3eb5c031204

@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.cleanup.resource;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@LogExecution
 @RequiredArgsConstructor
 public class DisposableResourceScheduledCleaner {
 

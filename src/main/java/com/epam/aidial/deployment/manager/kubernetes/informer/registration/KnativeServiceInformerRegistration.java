@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.registration;
 
 import com.epam.aidial.deployment.manager.configuration.KnativeDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.informer.handler.KnativeServiceEventHandler;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
 import io.fabric8.knative.serving.v1.Service;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@LogExecution
 @ConditionalOnProperty(name = "app.knative.enabled", havingValue = "true")
 public class KnativeServiceInformerRegistration extends AbstractInformerRegistration<Service> {
 

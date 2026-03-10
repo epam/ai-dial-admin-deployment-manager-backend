@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.function.Predicate;
 
 @Slf4j
 @Service
+@LogExecution
 @RequiredArgsConstructor
 public class DeploymentStateScheduledReconciler {
 

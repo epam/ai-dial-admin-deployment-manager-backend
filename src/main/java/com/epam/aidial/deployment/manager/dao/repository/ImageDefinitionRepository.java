@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.dao.repository;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.AdapterImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Repository
+@LogExecution
 @RequiredArgsConstructor
 public class ImageDefinitionRepository {
 
