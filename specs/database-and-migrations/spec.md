@@ -40,7 +40,7 @@ Status: **Implemented**
 
 Note: Java class names cannot contain `.`, so the dot separator between major and minor is replaced with `_` in Java migration class names. Both refer to the same logical version.
 
-Current schema version: **V1.46**
+Current schema version: **V1.49**
 
 ## Requirements
 
