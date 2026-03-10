@@ -1,10 +1,6 @@
 # Infra Task Changelog
 
-<<<<<<< HEAD
 Tracks infrastructure changes requested via GitHub Issues and completed by DevOps team.
-=======
-Tracks infrastructure changes requested via GitHub Issues and completed by devops team.
->>>>>>> cd497d13938425f0b5691b7d6653011a29322e3f
 
 ---
 
