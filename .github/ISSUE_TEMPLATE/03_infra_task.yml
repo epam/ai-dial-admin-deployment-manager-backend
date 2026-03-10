@@ -13,9 +13,10 @@ body:
     attributes:
       label: Type of change
       options:
-        - env variable
-        - config change
+        - environment variable
         - secret
+        - config change
+        - extra configuration
         - other
     validations:
       required: true
@@ -25,8 +26,7 @@ body:
       label: Target environment
       options:
         - development
-        - tst
-        - staging
+        - uat
         - production
         - all
     validations:
