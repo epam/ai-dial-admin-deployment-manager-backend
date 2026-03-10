@@ -33,4 +33,6 @@ public abstract class CreateDeployment {
     private String author;
     private List<String> allowedDomains;
     private List<String> topics;
+    private List<String> command;
+    private List<String> args;
 }

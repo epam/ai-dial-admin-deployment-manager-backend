@@ -1,0 +1,22 @@
+{
+  "$type": "mcp",
+  "name": "deploy00-0000-4000-a000-000000000000",
+  "imageDefinitionId": "decade00-0000-4000-a000-000000000010",
+  "displayName": "example deployment 1",
+  "description": "Description of example deployment 1",
+  "metadata": {
+    "envs": []
+  },
+  "transport": "sse",
+  "containerPort": 8082,
+  "command": "python server.py --port 8082",
+  "args": "--config config.json --log-level DEBUG",
+  "resources": {
+    "limits": {
+      "limit1": "some-value-1"
+    },
+    "requests": {
+      "request1": "some-rvalue-1"
+    }
+  }
+}

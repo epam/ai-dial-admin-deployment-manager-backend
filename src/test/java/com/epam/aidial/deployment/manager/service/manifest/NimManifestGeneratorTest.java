@@ -78,7 +78,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null
+                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null, null, null
         );
 
         // Then
@@ -100,7 +100,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                false, null
+                false, null, null, null
         );
 
         // Then
@@ -122,7 +122,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
-                customGrpcPort, null, false, null
+                customGrpcPort, null, false, null, null, null
         );
 
         // Then
@@ -145,7 +145,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                false, null
+                false, null, null, null
         );
 
         // Then
@@ -170,7 +170,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                httpPort, null, null, true, clusterHost
+                httpPort, null, null, true, clusterHost, null, null
         );
 
         // Then: expose.ingress is set with host, tls secret, backend
@@ -206,7 +206,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, true, clusterHost
+                8000, null, null, true, clusterHost, null, null
         );
 
         // Then: expose.ingress has annotations from nim-service-expose-ingress-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
@@ -229,7 +229,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null
+                8000, null, null, false, null, null, null
         );
 
         // Then: expose.ingress is not set
@@ -250,7 +250,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, probeProperties, false, null
+                8000, null, probeProperties, false, null, null, null
         );
 
         // Then: spec has startup probe with expected enabled, path, port and timing
@@ -265,6 +265,63 @@ class NimManifestGeneratorTest {
         assertThat(startupProbe.getProbe().getPeriodSeconds()).isEqualTo(10);
         assertThat(startupProbe.getProbe().getTimeoutSeconds()).isEqualTo(3);
         assertThat(startupProbe.getProbe().getFailureThreshold()).isEqualTo(2);
+    }
+
+    @Test
+    void testServiceConfig_withCommandAndArgs_setsCommandAndArgsOnSpec() {
+        // Given
+        var deploymentName = "cmd-args-nim-app";
+        var imageName = "my-registry.io/custom/my-model:v1";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var command = List.of("/bin/sh", "-c");
+        var args = List.of("echo hello");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, false, null, command, args
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getCommand()).containsExactly("/bin/sh", "-c");
+        assertThat(generatedService.getSpec().getArgs()).containsExactly("echo hello");
+    }
+
+    @Test
+    void testServiceConfig_withCommandOnly_setsCommandOnSpec() {
+        // Given
+        var deploymentName = "cmd-only-nim-app";
+        var imageName = "my-registry.io/custom/my-model:v1";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var command = List.of("python3");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, false, null, command, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getCommand()).containsExactly("python3");
+        assertThat(generatedService.getSpec().getArgs()).isNull();
+    }
+
+    @Test
+    void testServiceConfig_withNullCommandAndArgs_doesNotSetCommandOrArgs() {
+        // Given
+        var deploymentName = "no-cmd-nim-app";
+        var imageName = "my-registry.io/custom/my-model:v1";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, false, null, null, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getCommand()).isNull();
+        assertThat(generatedService.getSpec().getArgs()).isNull();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

@@ -304,6 +304,8 @@ class KnativeDeploymentManagerTest {
                 any(),
                 eq(deployment.getResources()),
                 eq(containerPort),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -380,7 +382,7 @@ class KnativeDeploymentManagerTest {
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
