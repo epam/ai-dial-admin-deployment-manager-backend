@@ -1,11 +1,11 @@
 package db.migration.MS_SQL_SERVER;
 
-import db.migration.common.V1_49__UnifyDeploymentSourceBase;
+import db.migration.common.V1_50__UnifyDeploymentSourceBase;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
-public class V1_49__UnifyDeploymentSource extends V1_49__UnifyDeploymentSourceBase {
+public class V1_50__UnifyDeploymentSource extends V1_50__UnifyDeploymentSourceBase {
 
     @Override
     protected void addSourceColumn(Statement statement) throws Exception {

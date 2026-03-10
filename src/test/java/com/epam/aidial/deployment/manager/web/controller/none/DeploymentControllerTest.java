@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategy;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
+import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
@@ -106,6 +107,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor;
     @Captor
     private ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor;
+    @Captor
+    private ArgumentCaptor<CreateDeployment> createDeploymentCaptor;
 
     @Test
     void testGetAllDeployments() throws Exception {
@@ -311,6 +314,64 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         verify(deploymentService).duplicateDeployment(requestDto.sourceDeploymentName(), requestDto.newDeploymentName(),
                 requestDto.newDeploymentDisplayName());
+    }
+
+    @Test
+    void testCreateMcpDeployment_withCommandAndArgs() throws Exception {
+        // Given
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_mcp_deployment_request_with_command_args.json");
+
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpDeployment.class);
+        model.setCommand(List.of("python", "server.py", "--port", "8082"));
+        model.setArgs(List.of("--config", "config.json", "--log-level", "DEBUG"));
+
+        var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
+        var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
+
+        when(imageDefinitionService.getImageDefinition(any())).thenReturn(Optional.of(imageModel));
+        when(deploymentService.createDeployment(any())).thenReturn(model);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.command").value("python server.py --port 8082"))
+                .andExpect(jsonPath("$.args").value("--config config.json --log-level DEBUG"));
+
+        verify(deploymentService).createDeployment(createDeploymentCaptor.capture());
+        var createDeployment = createDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isEqualTo(List.of("python", "server.py", "--port", "8082"));
+        assertThat(createDeployment.getArgs()).isEqualTo(List.of("--config", "config.json", "--log-level", "DEBUG"));
+    }
+
+    @Test
+    void testCreateMcpDeployment_withNullCommandAndArgs() throws Exception {
+        // Given — the existing create_deployment_request.json has no command/args fields
+        var requestJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
+
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpDeployment.class);
+
+        var imageModelJson = ResourceUtils.readResource("/mcp/image/image_by_id_for_deployment.json");
+        var imageModel = objectMapper.readValue(imageModelJson, McpImageDefinition.class);
+
+        when(imageDefinitionService.getImageDefinition(any())).thenReturn(Optional.of(imageModel));
+        when(deploymentService.createDeployment(any())).thenReturn(model);
+
+        // When/Then
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.command").doesNotExist())
+                .andExpect(jsonPath("$.args").doesNotExist());
+
+        verify(deploymentService).createDeployment(createDeploymentCaptor.capture());
+        var createDeployment = createDeploymentCaptor.getValue();
+        assertThat(createDeployment.getCommand()).isNull();
+        assertThat(createDeployment.getArgs()).isNull();
     }
 
     @Test

@@ -70,4 +70,8 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     @ValidTopics
     private List<String> topics;
+    @Nullable
+    private String command;
+    @Nullable
+    private String args;
 }

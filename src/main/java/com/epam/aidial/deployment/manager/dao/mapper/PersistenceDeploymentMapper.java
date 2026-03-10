@@ -130,6 +130,8 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
         existingEntity.setScaling(updatedEntity.getScaling());
         existingEntity.setTopics(updatedEntity.getTopics());
+        existingEntity.setCommand(updatedEntity.getCommand());
+        existingEntity.setArgs(updatedEntity.getArgs());
 
         if (existingEntity instanceof McpDeploymentEntity existingMcp
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {
@@ -145,8 +147,6 @@ public abstract class PersistenceDeploymentMapper {
         if (existingEntity instanceof InferenceDeploymentEntity existingInference
                 && updatedEntity instanceof InferenceDeploymentEntity updatedInference) {
             existingInference.setModelFormat(updatedInference.getModelFormat());
-            existingInference.setCommand(updatedInference.getCommand());
-            existingInference.setArgs(updatedInference.getArgs());
         }
     }
 

@@ -20,9 +20,5 @@ public class CreateInferenceDeploymentRequestDto extends CreateDeploymentRequest
     private String modelFormat;
     @NotNull @Valid
     private InferenceDeploymentSourceDto source;
-    @Nullable
-    private String command;
-    @Nullable
-    private String args;
 
 }

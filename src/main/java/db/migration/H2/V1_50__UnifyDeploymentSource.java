@@ -1,20 +1,20 @@
-package db.migration.POSTGRES;
+package db.migration.H2;
 
-import db.migration.common.V1_49__UnifyDeploymentSourceBase;
+import db.migration.common.V1_50__UnifyDeploymentSourceBase;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 
-public class V1_49__UnifyDeploymentSource extends V1_49__UnifyDeploymentSourceBase {
+public class V1_50__UnifyDeploymentSource extends V1_50__UnifyDeploymentSourceBase {
 
     @Override
     protected void addSourceColumn(Statement statement) throws Exception {
-        statement.execute("ALTER TABLE deployment ADD COLUMN source jsonb");
+        statement.execute("ALTER TABLE deployment ADD COLUMN source JSON");
     }
 
     @Override
     protected String getUpdateQuery() {
-        return "UPDATE deployment SET source = CAST(? AS jsonb) WHERE id = ?";
+        return "UPDATE deployment SET source = CAST(? AS JSON) WHERE id = ?";
     }
 
     @Override

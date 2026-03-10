@@ -64,6 +64,8 @@
 | PROBE_PROPERTIES | JSON | Yes |  |  |
 | IMAGE_DEFINITION_TYPE | VARCHAR(20) | Yes |  |  |
 | SCALING | JSON | Yes |  |  |
+| COMMAND | JSON | Yes |  |  |
+| ARGS | JSON | Yes |  |  |
 
 **Indexes:**
 
@@ -144,10 +146,8 @@
 | Column | Type | Nullable | Default | Key |
 |--------|------|----------|---------|-----|
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
-| ARGS | JSON | Yes |  |  |
 | MODEL_FORMAT | VARCHAR(32) | No |  |  |
 | SOURCE | JSON | No |  |  |
-| COMMAND | JSON | Yes |  |  |
 
 ## INTERCEPTOR_DEPLOYMENT
 

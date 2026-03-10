@@ -7,9 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 @Getter
 @Setter
@@ -20,8 +17,4 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class InferenceDeployment extends Deployment {
     private String modelFormat;
-    @Nullable
-    private List<String> command;
-    @Nullable
-    private List<String> args;
 }

@@ -95,4 +95,10 @@ public class DeploymentEntity {
     @Column(name = "topic_name")
     private List<String> topics;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> command;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> args;
+
 }
