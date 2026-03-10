@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service.config;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
+@LogExecution
 @RequiredArgsConstructor
 public class ExportSanitizer {
 

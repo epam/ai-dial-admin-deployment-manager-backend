@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.util.AopTestUtils;
 
 import java.time.Instant;
 
@@ -60,10 +61,12 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDefinitionId = imageDef.getId();
 
         // Mock ImageCopyPipeline.run to not execute actual logic
+        // Unwrap the AOP proxy to access the real ImageBuildRunner target
         ImageCopyPipeline mockCopyPipeline = mock(ImageCopyPipeline.class);
-        var imageCopyPipelineField = imageBuildRunner.getClass().getDeclaredField("imageCopyPipeline");
+        var targetRunner = AopTestUtils.getTargetObject(imageBuildRunner);
+        var imageCopyPipelineField = targetRunner.getClass().getDeclaredField("imageCopyPipeline");
         imageCopyPipelineField.setAccessible(true);
-        imageCopyPipelineField.set(imageBuildRunner, mockCopyPipeline);
+        imageCopyPipelineField.set(targetRunner, mockCopyPipeline);
         Mockito.doNothing().when(mockCopyPipeline).run(imageDefinitionId);
 
         // When

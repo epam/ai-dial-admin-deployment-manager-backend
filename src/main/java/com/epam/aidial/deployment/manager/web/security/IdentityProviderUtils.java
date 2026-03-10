@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.security;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -16,6 +17,7 @@ import java.util.Set;
 
 @Slf4j
 @Component
+@LogExecution
 @ConditionalOnProperty(value = "config.rest.security.mode", havingValue = "oidc", matchIfMissing = true)
 public class IdentityProviderUtils {
 

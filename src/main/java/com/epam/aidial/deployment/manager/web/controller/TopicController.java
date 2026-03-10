@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.controller;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.TopicService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.util.MimeTypeUtils;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/topics")
+@LogExecution
 @RequiredArgsConstructor
 public class TopicController {
 
