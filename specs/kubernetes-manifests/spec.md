@@ -20,7 +20,7 @@ Status: **Implemented**
 ### Requirement: KNative manifest generated for image-based deployments
 When KNative is enabled, the system SHALL generate a KNative Service manifest for MCP, Interceptor, and Adapter deployments. The manifest includes:
 
-- **Container**: image name, container port, resource limits/requests, startup probe (when `probeProperties.enabled`)
+- **Container**: image name, container port, resource limits/requests, startup probe (when `probeProperties.enabled`), custom `command`/`args` (when provided)
 - **Environment variables**: plain env vars set directly; sensitive env vars via Kubernetes Secret references (`SecretKeyRef`); file-based secrets via volume mounts (at configurable path, default: `/etc/secrets`)
 - **Scaling annotations** on RevisionTemplate metadata (from `Scaling` config): `autoscaling.knative.dev/initial-scale` (computed as `max(minReplicas, 1)`), `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`, `autoscaling.knative.dev/scale-to-zero-pod-retention-period` (when `scaleToZeroDelaySeconds` set), `autoscaling.knative.dev/target` (when `ACTIVE_REQUESTS` strategy). `containerConcurrency` is set on RevisionSpec when strategy is `ACTIVE_REQUESTS`.
 - **Progress deadline annotation**: `serving.knative.dev/progress-deadline` set automatically on RevisionTemplate metadata when a startup probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe))
@@ -81,6 +81,7 @@ Status: **Implemented**
 When NIM is enabled, the system SHALL generate NIM-specific Kubernetes resources for NIM deployments. The manifest includes:
 
 - **Image**: repository and tag parsed from the NGC `imageRef`
+- **Container overrides**: custom `command`/`args` (when provided)
 - **Environment variables**: plain + sensitive via Secret references
 - **Resources**: limits/requests; default 1 NVIDIA GPU (`nvidia.com/gpu`) added to limits
 - **Service expose**: standard port (default: 8000), optional gRPC port, service type `ClusterIP`

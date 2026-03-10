@@ -174,6 +174,8 @@ All deployment types SHALL carry these fields:
 | `allowedDomains` | List\<String\> | No | Runtime network policy — see `domain-whitelist` spec. |
 | `containerPort` | Integer | No | 1–65535. Container port override. |
 | `scaling` | ScalingDto | No | Scaling configuration — replicas, strategy, scale-to-zero. See structure below. |
+| `command` | String | No | Container entrypoint override. Parsed into a list of tokens using shell-like parsing (handling quoted strings, spaces, special characters). Applied to container spec in generated manifests. |
+| `args` | String | No | Container arguments override. Same parsing as `command`. Applied to container spec in generated manifests. |
 | `status` | DeploymentStatusDto | Yes (response) | Current lifecycle status (see status lifecycle above). |
 | `url` | String | No (response only) | Auto-generated service URL. Set when deployment becomes RUNNING; cleared on undeploy/stop. Not user-supplied. |
 | `author` | String | No | |

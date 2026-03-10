@@ -47,12 +47,23 @@ Consolidate `command` and `args` fields from the Inference-specific level to the
 specs/002-deployment-command-args/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output
-├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/           # Phase 1 output
 │   └── api-changes.md   # API contract changes
 └── tasks.md             # Phase 2 output (/speckit.tasks command)
 ```
+
+### Data Model Changes
+
+**Entity layer**: `command` (List\<String\>, nullable, `@JdbcTypeCode(SqlTypes.JSON)`) and `args` (same) added to `DeploymentEntity` (base); removed from `InferenceDeploymentEntity`.
+
+**Domain model layer**: `command` and `args` (List\<String\>, nullable) added to `Deployment` and `CreateDeployment` (base); removed from `InferenceDeployment` and `CreateInferenceDeployment`.
+
+**DTO layer**: `command` and `args` (String, nullable) added to `CreateDeploymentRequestDto` and `DeploymentDto` (base); removed from `CreateInferenceDeploymentRequestDto` and `InferenceDeploymentDto`.
+
+**Type conversion**: API String → `CommandLineUtils.parseCommandline()` → domain List\<String\> → entity List\<String\> → DB JSONB array. Reverse: `CommandLineUtils.quoteArgument()` + join.
+
+**Database migration** (`V1.49__MoveCommandArgsToDeploymentTable.sql`): Add `command`/`args` columns to `deployment` table, migrate existing data from `inference_deployment`, drop old columns and constraints.
 
 ### Source Code (repository root)
 
