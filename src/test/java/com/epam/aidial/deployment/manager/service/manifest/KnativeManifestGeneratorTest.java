@@ -69,7 +69,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, simpleEnvs, sensitiveEnvs, Collections.emptyList(), imageName,
-                null, resources, null, null
+                null, resources, null, null, null, null
         );
 
         // Then
@@ -88,7 +88,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                scaling, new Resources(), null, null
+                scaling, new Resources(), null, null, null, null
         );
 
         // Then
@@ -110,7 +110,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, resources, null, null
+                null, resources, null, null, null, null
         );
 
         // Then
@@ -129,7 +129,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), containerPort, null
+                null, new Resources(), containerPort, null, null, null
         );
 
         // Then
@@ -152,7 +152,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null
+                null, new Resources(), null, null, null, null
         );
 
         // Then
@@ -174,7 +174,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, probeProperties
+                null, new Resources(), null, probeProperties, null, null
         );
 
         // Then
@@ -191,7 +191,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null
+                null, new Resources(), null, null, null, null
         );
 
         // Then
@@ -212,7 +212,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, probeProperties
+                null, new Resources(), null, probeProperties, null, null
         );
 
         // Then: container has startup probe with expected path, port and timing
@@ -226,6 +226,63 @@ class KnativeManifestGeneratorTest {
         assertThat(startupProbe.getPeriodSeconds()).isEqualTo(10);
         assertThat(startupProbe.getTimeoutSeconds()).isEqualTo(3);
         assertThat(startupProbe.getFailureThreshold()).isEqualTo(2);
+    }
+
+    @Test
+    void testServiceConfig_withCommandAndArgs_setsCommandAndArgsOnContainer() {
+        // Given
+        var deploymentName = "cmd-args-app";
+        var imageName = "my-registry/cmd-args-image:v1";
+        var command = List.of("/bin/sh", "-c");
+        var args = List.of("echo hello");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, command, args
+        );
+
+        // Then
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
+        assertThat(container.getCommand()).containsExactly("/bin/sh", "-c");
+        assertThat(container.getArgs()).containsExactly("echo hello");
+    }
+
+    @Test
+    void testServiceConfig_withCommandOnly_setsCommandOnContainer() {
+        // Given
+        var deploymentName = "cmd-only-app";
+        var imageName = "my-registry/cmd-only-image:v1";
+        var command = List.of("python3");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, command, null
+        );
+
+        // Then
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
+        assertThat(container.getCommand()).containsExactly("python3");
+        assertThat(container.getArgs()).isNullOrEmpty();
+    }
+
+    @Test
+    void testServiceConfig_withNullCommandAndArgs_doesNotSetCommandOrArgs() {
+        // Given
+        var deploymentName = "no-cmd-app";
+        var imageName = "my-registry/no-cmd-image:v1";
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, null, null
+        );
+
+        // Then
+        var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
+        assertThat(container.getCommand()).isNullOrEmpty();
+        assertThat(container.getArgs()).isNullOrEmpty();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

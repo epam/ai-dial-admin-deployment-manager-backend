@@ -272,6 +272,8 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(Boolean.class),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -316,6 +318,8 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(Boolean.class),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -363,7 +367,7 @@ class NimDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any()
+                any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any()
         )).thenThrow(new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured"));
 
         // When/Then: generator receives useExternalUrl=true and blank clusterHost, throws IllegalArgumentException
@@ -372,7 +376,7 @@ class NimDeploymentManagerTest {
                 .hasMessageContaining("Failed to deploy service")
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("External NIM URL is enabled but cluster host is not configured");
-        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any());
+        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any());
     }
 
     @Test
@@ -392,7 +396,9 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 eq(true),
-                eq(CLUSTER_HOST)
+                eq(CLUSTER_HOST),
+                any(),
+                any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
@@ -412,7 +418,9 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 eq(true),
-                eq(CLUSTER_HOST));
+                eq(CLUSTER_HOST),
+                any(),
+                any());
     }
 
     @Test
@@ -460,6 +468,8 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(Boolean.class),
+                any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);

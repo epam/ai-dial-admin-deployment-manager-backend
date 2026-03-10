@@ -62,7 +62,9 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             @Nullable Scaling scaling,
             Resources resources,
             @Nullable Integer containerPort,
-            @Nullable ProbeProperties probeProperties
+            @Nullable ProbeProperties probeProperties,
+            @Nullable List<String> command,
+            @Nullable List<String> args
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneKnativeServiceConfig,
@@ -107,6 +109,13 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             var port = new ContainerPort();
             port.setContainerPort(containerPort);
             portsList.add(port);
+        }
+
+        if (command != null) {
+            containerChain.data().setCommand(command);
+        }
+        if (args != null) {
+            containerChain.data().setArgs(args);
         }
 
         applyStartupProbe(name, containerChain, probeProperties);

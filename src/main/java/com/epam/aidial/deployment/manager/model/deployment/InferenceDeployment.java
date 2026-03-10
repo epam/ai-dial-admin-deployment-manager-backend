@@ -21,8 +21,4 @@ import java.util.List;
 public class InferenceDeployment extends Deployment {
     private String modelFormat;
     private InferenceDeploymentSource source;
-    @Nullable
-    private List<String> command;
-    @Nullable
-    private List<String> args;
 }
