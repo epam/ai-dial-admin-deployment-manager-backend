@@ -1,6 +1,8 @@
 -- Add command and args columns to base deployment table
 ALTER TABLE deployment ADD command VARCHAR(MAX);
 ALTER TABLE deployment ADD args VARCHAR(MAX);
+go
+
 ALTER TABLE deployment
     ADD CONSTRAINT chk_deployment_command_is_json CHECK (command IS NULL OR isjson(command) > 0);
 ALTER TABLE deployment
