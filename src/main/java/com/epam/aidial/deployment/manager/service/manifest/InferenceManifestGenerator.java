@@ -8,7 +8,6 @@ import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.IntOrString;
@@ -45,6 +44,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
     public InferenceService serviceConfig(
             String name,
+            String serviceName,
             String modelFormat,
             String storageUri,
             List<SimpleEnvVar> envs,
@@ -59,7 +59,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
                 chain -> chain.get(InferenceMappers.SERVICE_METADATA_FIELD),
-                K8sNamingUtils.generateName(name)
+                serviceName
         );
 
         var specChain = config.get(InferenceMappers.SERVICE_SPEC_FIELD);

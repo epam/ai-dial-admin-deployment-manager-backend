@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.service.deployment.NimDeploymentManager;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,9 +28,10 @@ public class NimServiceEventHandler extends AbstractResourceEventHandler<NIMServ
 
     public NimServiceEventHandler(
             NimDeploymentManager nimDeploymentManager,
+            DeploymentRepository deploymentRepository,
             @Qualifier("k8s-service-readiness-checker") ExecutorService executorService
     ) {
-        super(RESOURCE_TYPE, K8sNamingUtils::extractMcpPrefixedId, executorService);
+        super(RESOURCE_TYPE, deploymentRepository, executorService);
         this.nimDeploymentManager = nimDeploymentManager;
     }
 

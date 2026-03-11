@@ -23,7 +23,6 @@ import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthC
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -84,11 +83,6 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected String getServiceName(String id) {
-        return K8sNamingUtils.generateMcpPrefixedName(id);
-    }
-
-    @Override
     protected Optional<Deployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id).map(deployment -> {
             if (deployment instanceof McpDeployment
@@ -114,6 +108,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         return knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
+                deployment.getServiceName(),
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 userDefinedSensitiveFileEnvs,
@@ -192,13 +187,13 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected void saveDisposableResource(String id, String namespace) {
-        disposableResourceManager.saveKnativeServiceResource(id, namespace);
+    protected void saveDisposableResource(String id, String serviceName, String namespace) {
+        disposableResourceManager.saveKnativeServiceResource(id, serviceName, namespace);
     }
 
     @Override
-    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace) {
-        return disposableResourceManager.markKnativeServiceResourceForCleanup(id, namespace);
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String serviceName, String namespace) {
+        return disposableResourceManager.markKnativeServiceResourceForCleanup(id, serviceName, namespace);
     }
 
     @Override
