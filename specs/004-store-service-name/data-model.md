@@ -28,6 +28,8 @@ createDeployment()     → serviceName = null (NOT_DEPLOYED)
 deploy()               → serviceName = generateName(id) [if null] or reuse existing
 undeploy()             → serviceName preserved (immutable)
 redeploy after undeploy → serviceName reused from previous deploy
+updateDeployment()     → serviceName preserved from existing record
+config import OVERWRITE → serviceName preserved from existing record
 migration (active)     → serviceName = derived from current prefix + type convention
 migration (inactive)   → serviceName = null (NOT_DEPLOYED/STOPPED)
 ```
@@ -85,12 +87,18 @@ Note: SQL Server requires a filtered index to allow multiple NULLs in a unique i
 
 ```java
 Optional<DeploymentEntity> findByServiceName(String serviceName);
+
+@Modifying
+@Query("UPDATE DeploymentEntity d SET d.serviceName = :serviceName WHERE d.id = :id")
+void updateServiceName(@Param("id") String id, @Param("serviceName") String serviceName);
 ```
 
 ### DeploymentRepository
 
 ```java
 Optional<Deployment> getByServiceName(String serviceName);
+
+void updateServiceName(String id, String serviceName);
 ```
 
 ## Affected Mappers
@@ -102,6 +110,9 @@ Optional<Deployment> getByServiceName(String serviceName);
 
 ### DeploymentMapper
 - `toDeployment(CreateDeployment)`: `serviceName` defaults to null (not set from request)
+
+### DeploymentExportMixIn
+- `@JsonIgnore` on `getServiceName()` — excludes serviceName from config export
 
 ### DeploymentDtoMapper
 - No changes needed — service name is an internal concern, not exposed via API

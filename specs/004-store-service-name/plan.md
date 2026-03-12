@@ -55,21 +55,29 @@ specs/004-store-service-name/
 src/main/java/com/epam/aidial/deployment/manager/
 ├── dao/
 │   ├── entity/deployment/DeploymentEntity.java          # ADD serviceName field
-│   ├── jpa/DeploymentJpaRepository.java                 # ADD findByServiceName query
-│   └── repository/DeploymentRepository.java             # ADD getByServiceName wrapper
+│   ├── jpa/DeploymentJpaRepository.java                 # ADD findByServiceName, updateServiceName queries
+│   ├── repository/DeploymentRepository.java             # ADD getByServiceName, updateServiceName wrappers
+│   └── mapper/PersistenceDeploymentMapper.java          # MAP serviceName field
 ├── service/deployment/
-│   ├── AbstractDeploymentManager.java                   # MOVE getServiceName here (reads stored serviceName), handle deploy/undeploy/reconcile
+│   ├── AbstractDeploymentManager.java                   # MOVE getServiceName here (reads stored serviceName), generate + persist in deploy()
+│   ├── DeploymentService.java                           # PRESERVE existing serviceName on updateDeployment()
 │   ├── KnativeDeploymentManager.java                    # REMOVE getServiceName override (now inherited)
 │   ├── NimDeploymentManager.java                        # REMOVE getServiceName override (now inherited)
 │   └── InferenceDeploymentManager.java                  # REMOVE getServiceName override (now inherited)
+├── service/manifest/
+│   ├── KnativeManifestGenerator.java                    # ACCEPT serviceName parameter for K8s resource naming
+│   ├── NimManifestGenerator.java                        # ACCEPT serviceName parameter for K8s resource naming
+│   └── InferenceManifestGenerator.java                  # ACCEPT serviceName parameter for K8s resource naming
 ├── kubernetes/informer/
 │   ├── handler/AbstractResourceEventHandler.java        # CHANGE to look up by service name instead of IdExtractor
 │   ├── handler/KnativeServiceEventHandler.java          # REMOVE IdExtractor dependency
 │   ├── handler/NimServiceEventHandler.java              # REMOVE IdExtractor dependency
 │   └── handler/InferenceServiceEventHandler.java        # REMOVE IdExtractor dependency
-├── cleanup/resource/DisposableResourceManager.java      # USE stored serviceName
-├── utils/K8sNamingUtils.java                            # REMOVE extractMcpPrefixedId, extractId, generateMcpPrefixedName
-└── dao/mapper/PersistenceDeploymentMapper.java          # MAP serviceName field
+├── specification/CiliumNetworkPolicyCreator.java        # USE stored serviceName for policy naming
+├── configuration/export/DeploymentExportMixIn.java      # EXCLUDE serviceName from config export
+├── mapper/DeploymentMapper.java                         # IGNORE serviceName in toDeployment (defaults to null)
+├── cleanup/resource/DisposableResourceManager.java      # USE stored serviceName (accept as parameter, remove generateServiceName)
+└── utils/K8sNamingUtils.java                            # REMOVE extractMcpPrefixedId, extractId, generateMcpPrefixedName
 
 src/main/resources/db/migration/
 ├── H2/V1.52__AddServiceNameColumn.sql                   # DDL: add column + unique index

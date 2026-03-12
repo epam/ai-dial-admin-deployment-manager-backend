@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-store-service-name`
 **Created**: 2026-03-11
-**Status**: Draft
+**Status**: Implemented
 **Input**: User description: "Currently, we often rely on our naming conventions (K8sNamingUtils and IdExtractor) to define deployment by K8s objects and vice versa - it becomes a problem when 'resourceNamePrefix' changes, since existing K8s resources become lost. Deployment service (Knative/NIM/Kserve) name should be stored per each deployment (in deployment table) and used instead of id extraction."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -25,7 +25,7 @@ An operator changes the `resourceNamePrefix` configuration value and restarts th
 
 ### User Story 2 - New Deployments Persist Service Name (Priority: P1)
 
-When a new deployment is created, the system generates the Kubernetes service name using a unified naming convention (`generateName`) and stores that name in the deployment record. This replaces the legacy split where Knative/NIM used a separate MCP-prefixed convention (`generateMcpPrefixedName`) and Inference used the standard convention. Going forward, all new deployments regardless of type use the same unified naming convention. All subsequent operations (status checks, updates, deletions) use the stored name.
+When a new deployment is first deployed, the system generates the Kubernetes service name using a unified naming convention (`generateName`) and stores that name in the deployment record. This replaces the legacy split where Knative/NIM used a separate MCP-prefixed convention (`generateMcpPrefixedName`) and Inference used the standard convention. Going forward, all new deployments regardless of type use the same unified naming convention. All subsequent operations (status checks, updates, deletions) use the stored name.
 
 **Why this priority**: Equally critical - this ensures every new deployment captures its service name at creation time, preventing future orphaning. It also simplifies the naming by eliminating the legacy MCP-prefix distinction.
 
@@ -110,4 +110,6 @@ When the system receives Kubernetes resource events (add, update, delete), it ma
 - The `resourceNamePrefix` configured at migration time matches the prefix that was used when the existing Kubernetes resources were originally created. If the prefix was changed before the migration, the derived service names will not match the actual K8s resource names.
 - The service name is immutable once assigned - it does not change even if the naming convention or prefix changes later.
 - The `DisposableResourceManager` (which also tracks K8s resources by generated names) will be updated to use stored service names consistently.
-- The legacy `generateMcpPrefixedName` method can be deprecated after this feature, as new deployments all use `generateName` and existing deployments have their names stored in the database.
+- The legacy `generateMcpPrefixedName` method is removed (not just deprecated) after this feature, as new deployments all use `generateName` and existing deployments have their names stored in the database.
+- When a deployment is updated (via API or config import), the stored service name is preserved from the existing record — it is never overwritten by update operations.
+- Manifest generators (`KnativeManifestGenerator`, `NimManifestGenerator`, `InferenceManifestGenerator`) and `CiliumNetworkPolicyCreator` receive the stored service name as a parameter for K8s resource naming.
