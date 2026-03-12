@@ -16,5 +16,6 @@
   "imageName": "registry/echo-mcp:1.0.0",
   "builtAt": 1745996228431,
   "transportType": "local",
-  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"]
+  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"],
+  "imageBuilder": "buildkit"
 }

@@ -10,5 +10,6 @@
   "license": "MIT",
   "topics": ["test"],
   "transportType": "local",
-  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"]
+  "allowedDomains": ["first-test-domain.com", "second-test-domain.io"],
+  "imageBuilder": "buildkit"
 }
