@@ -24,6 +24,8 @@ COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+RUN apk add --no-cache zlib=1.3.2-r0 
+
 USER appuser
 
 EXPOSE 8080 9464
