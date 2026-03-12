@@ -18,6 +18,7 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.networknt.schema.utils.StringUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.knative.client.KnativeClient;
 import io.fabric8.knative.serving.v1.RevisionSpec;
@@ -151,7 +152,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         var expectedJobSpec = expectedJobSpecProvider.apply(image.getId().toString());
         Assertions.assertEquals(expectedJobSpec, jobSpec.getJob().getSpec());
 
-        var jobSecret = jobSpec.getSecrets().get(0);
+        var jobSecret = jobSpec.getSecrets().getFirst();
         var expectedJobSecret = createJobSecret(getAuthValueFromSecret(jobSecret), jobSecret.getMetadata().getName());
         Assertions.assertEquals(List.of(expectedJobSecret), jobSpec.getSecrets());
 
@@ -181,6 +182,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // When - Create deployment
         var createdDeployment = deploymentService.createDeployment(deployment);
+        //deploymentRepository.updateServiceName(createdDeployment.getId(), K8sNamingUtils.generateName(createdDeployment.getId()));
 
         // Then - Create deployment
         var secret = secretCaptor.getValue();
@@ -210,7 +212,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // Then - Deploy
         var service = serviceCaptor.getValue();
         var serviceName = service.getMetadata().getName();
-        var imageName = service.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
+        var imageName = service.getSpec().getTemplate().getSpec().getContainers().getFirst().getImage();
         var expectedService = createKnativeService(serviceName, imageName, secretName);
         Assertions.assertEquals(expectedService, service);
 
@@ -221,6 +223,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         Assertions.assertEquals(Serialization.asYaml(expectedCiliumNetworkPolicy), Serialization.asYaml(ciliumNetworkPolicy));
 
         Assertions.assertNotNull(deployedDeployment);
+        Assertions.assertTrue(StringUtils.isNotBlank(deployedDeployment.getServiceName()));
     }
 
     private static Stream<Arguments> getFullWorkflowParams() {

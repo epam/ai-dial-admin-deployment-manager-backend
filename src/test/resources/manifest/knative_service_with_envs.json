@@ -2,7 +2,7 @@
   "apiVersion" : "serving.knative.dev/v1",
   "kind" : "Service",
   "metadata" : {
-    "name" : "mcp-basic-app"
+    "name" : "dm-basic-app"
   },
   "spec" : {
     "template" : {
