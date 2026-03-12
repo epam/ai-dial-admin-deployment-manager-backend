@@ -141,7 +141,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.14') {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.18') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
