@@ -53,6 +53,6 @@ public abstract class ImageDefinitionRequestDto {
     @Nullable
     @ValidDomainList
     private List<String> allowedDomains = new ArrayList<>();
-    @Nullable
+    @NotNull
     private ImageBuilderDto imageBuilder;
 }
