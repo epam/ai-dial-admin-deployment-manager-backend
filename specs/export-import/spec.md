@@ -9,7 +9,7 @@ Status: **Implemented**
 - **ExportConfig**: The root export structure. Contains maps of all exportable components keyed by name.
 - **ExportConfigComponentType**: The enum of exportable entity types: `MCP_IMAGE_DEFINITION`, `ADAPTER_IMAGE_DEFINITION`, `INTERCEPTOR_IMAGE_DEFINITION`, `MCP_DEPLOYMENT`, `ADAPTER_DEPLOYMENT`, `INTERCEPTOR_DEPLOYMENT`, `NIM_DEPLOYMENT`, `INFERENCE_DEPLOYMENT`.
 - **ConflictResolutionPolicy**: Controls what happens when an imported entity already exists: `OVERWRITE` (replace) or `KEEP_EXISTING` (skip).
-- **ExportSanitizer**: Service that removes or masks sensitive environment variable values before export, ensuring exported ZIPs are safe to share or commit.
+- **ExportSanitizer**: Service that removes or masks sensitive environment variable values before export, ensuring exported ZIPs are safe to share or commit. System-managed deployment fields (`serviceName`, `url`, `status`, `author`, `createdAt`, `updatedAt`, `imageDefinitionId`) are also excluded via `DeploymentExportMixIn`.
 - **Import order**: Image definitions are always imported before deployments to satisfy foreign-key constraints; global domain whitelist follows.
 - **Dependency auto-inclusion**: When a deployment is selected for export, its referenced image definition is automatically included in the export bundle even if not explicitly selected.
 
@@ -52,7 +52,7 @@ Status: **Implemented**
 
 #### Scenario: Import with OVERWRITE policy
 - **WHEN** `POST /api/v1/configs/import` is called with a valid ZIP and `conflictResolutionPolicy=OVERWRITE`
-- **THEN** any existing entity with the same name is replaced with the imported version
+- **THEN** any existing entity with the same name is replaced with the imported version; for deployments, system-managed fields (`serviceName`, `url`, `status`) are preserved from the existing record
 
 #### Scenario: Import with KEEP_EXISTING policy
 - **WHEN** `POST /api/v1/configs/import` is called with a valid ZIP and `conflictResolutionPolicy=KEEP_EXISTING`

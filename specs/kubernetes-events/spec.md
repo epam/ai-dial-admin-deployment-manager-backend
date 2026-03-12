@@ -22,7 +22,7 @@ Status: **Implemented**
 
 #### Scenario: Informer reacts to state changes
 - **WHEN** a Kubernetes resource changes state (pod created, pod failed, etc.)
-- **THEN** the informer notifies subscribers and the change is reflected in deployment status updates
+- **THEN** the informer notifies subscribers; the deployment is matched by looking up the stored `serviceName` in the database (not by extracting an ID from the resource name), and the status change is reflected accordingly
 
 #### Scenario: Informer survives transient API server errors
 - **WHEN** the Kubernetes API server is temporarily unreachable

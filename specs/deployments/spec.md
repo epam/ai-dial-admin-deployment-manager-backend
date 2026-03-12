@@ -150,7 +150,7 @@ Status: **Implemented**
 
 #### Scenario: Successful deploy
 - **WHEN** `POST /api/v1/deployments/{id}/deploy` is called
-- **THEN** Kubernetes resources are created and the status transitions from `NOT_DEPLOYED` or `STOPPED` to `PENDING`
+- **THEN** if no `serviceName` is stored, one is generated via `K8sNamingUtils.generateName()` and persisted; Kubernetes resources are created using the stored service name and the status transitions from `NOT_DEPLOYED` or `STOPPED` to `PENDING`
 
 #### Scenario: Deploy already-running deployment (rolling update)
 - **WHEN** `POST /api/v1/deployments/{id}/deploy` is called on a `RUNNING` deployment
@@ -187,6 +187,7 @@ All deployment types SHALL carry these fields:
 | `args` | String | No | Container arguments override. Same parsing as `command`. Applied to container spec in generated manifests. |
 | `status` | DeploymentStatusDto | Yes (response) | Current lifecycle status (see status lifecycle above). |
 | `url` | String | No (response only) | Auto-generated service URL. Set when deployment becomes RUNNING; cleared on undeploy/stop. Not user-supplied. |
+| `serviceName` | String | No (internal) | Kubernetes service name. Generated at first deploy via `K8sNamingUtils.generateName()`, persisted in DB, and used for all subsequent K8s operations. Immutable once assigned. Not exposed via API; excluded from config export. NULL for NOT_DEPLOYED deployments that have never been deployed. |
 | `author` | String | No | |
 | `createdAt` | Instant | Yes (response) | Set on creation. |
 | `updatedAt` | Instant | Yes (response) | Updated on modification. |
@@ -317,13 +318,13 @@ Status: **Implemented**
 - **THEN** the full deployment record is returned (same shape as the public API); the endpoint requires no authentication
 
 ### Requirement: Startup reconciliation
-The system SHALL reconcile all deployments against actual Kubernetes state on application startup, correcting any drift caused by restarts.
+The system SHALL reconcile all deployments against actual Kubernetes state on application startup, correcting any drift caused by restarts. Reconciliation uses the stored `serviceName` to locate Kubernetes resources, so it remains correct even if `resourceNamePrefix` has changed since the deployment was created.
 
 Status: **Implemented**
 
 #### Scenario: Reconcile on startup
 - **WHEN** the application starts
-- **THEN** deployments with `RUNNING` or `PENDING` status are reconciled against actual Kubernetes state and status is corrected if needed
+- **THEN** deployments with `RUNNING` or `PENDING` status are reconciled against actual Kubernetes state using stored service names; status is corrected if needed
 
 ## Entity vs DTO Hierarchy
 
