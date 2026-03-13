@@ -40,6 +40,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     private final NimManifestGenerator nimManifestGenerator;
     private final K8sNimClient k8sNimClient;
     private final NimDeployProperties nimDeployProperties;
+    private final PodStatusInspector podStatusInspector;
 
     public NimDeploymentManager(
             K8sClient k8sClient,
@@ -58,6 +59,12 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         this.nimManifestGenerator = nimManifestGenerator;
         this.k8sNimClient = k8sNimClient;
         this.nimDeployProperties = nimDeployProperties;
+        this.podStatusInspector = new PodStatusInspector(
+                this::getServiceName,
+                serviceName -> getServicePods(namespace, serviceName),
+                pod -> isPodReady(pod.getStatus()),
+                this::getContainerName
+        );
     }
 
     @Override
@@ -214,4 +221,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         return SERVICE_NAME_LABEL;
     }
 
+    @Override
+    public PodStatusInspector getPodStatusInspector() {
+        return podStatusInspector;
+    }
 }

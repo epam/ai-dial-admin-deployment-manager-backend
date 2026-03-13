@@ -67,4 +67,8 @@ public class DeploymentManagerProvider {
         return deploymentManager;
     }
 
+    public PodStatusInspector providePodInspector(String deploymentId) {
+        return ((AbstractDeploymentManager<?, ?>) provide(deploymentId)).getPodStatusInspector();
+    }
+
 }
