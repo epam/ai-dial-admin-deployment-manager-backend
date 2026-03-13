@@ -5,6 +5,8 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
+import com.epam.aidial.deployment.manager.service.SafeAutoCloseable;
+import com.epam.aidial.deployment.manager.service.hubble.HubbleRelayService;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -30,6 +32,7 @@ public class JobRunner {
     private final GlobalDomainWhitelistService globalDomainWhitelistService;
     private final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
     private final DisposableResourceManager disposableResourceManager;
+    private final HubbleRelayService hubbleRelayService;
     private final K8sClient k8sClient;
     private final PodLogReader logReader;
 
@@ -65,60 +68,82 @@ public class JobRunner {
             createCiliumNetworkPolicy(groupId, allowedDomains, jobId, namespace, client);
         }
 
-        var job = jobSpecification.getJob();
-        disposableResourceManager.saveK8sResources(List.of(job), K8sResourceKind.JOB, groupId, namespace);
-        client.createJob(namespace, job);
-        log.info("Created build job. jobId: '{}'", jobId);
-        jobCallback.onJobPhaseChange(JobPhase.CREATED);
-
-        log.debug("Waiting for job to start. jobId: '{}'", jobId);
-        Predicate<Job> jobIsRunning = j -> JobPhase.fromJob(j)
-                .map(s -> s == JobPhase.RUNNING || s.isFinal())
-                .orElse(false);
-        var runningJob = client.waitJob(namespace, job, jobIsRunning, imageBuildTimeoutSec);
-        log.info("Job has started. jobId: '{}'", jobId);
-        jobCallback.onJobPhaseChange(JobPhase.RUNNING);
-
-        var jobName = runningJob.getMetadata().getName();
-        var pods = client.getJobPods(namespace, jobName);
-        var pod = pods.getItems().getFirst();
-
-        log.debug("Waiting for pod to start. jobId: '{}'", jobId);
-        Predicate<Pod> podIsRunning = p -> PodPhase.fromPod(p)
-                .map(s -> s == PodPhase.RUNNING || s.isFinal())
-                .orElse(false);
-        client.waitPod(namespace, pod, podIsRunning, imageBuildTimeoutSec);
-        log.info("Pod has started. jobId: '{}'", jobId);
-
-        var podName = pod.getMetadata().getName();
-
-        for (String containerName : containerNames) {
+        SafeAutoCloseable hubbleStream = null;
+        if (ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             try {
-                log.debug("Reading logs from container '{}'. jobId: '{}'", containerName, jobId);
-                var containerResource = client.getPodResource(namespace, podName).inContainer(containerName);
-                logReader.readLogs(containerResource, jobCallback::onNewLog);
-                log.debug("Finished reading logs from container '{}'. jobId: '{}'", containerName, jobId);
+                String podNamePrefix = K8sNamingUtils.generateName(jobId);
+                hubbleStream = hubbleRelayService.streamAndCollectDomains(groupId, namespace, podNamePrefix);
+                log.debug("Started Hubble domain stream for jobId: '{}'", jobId);
             } catch (Exception e) {
-                log.warn("Failed to read logs from container '{}'. jobId: '{}'. Error: {}", containerName, jobId, e.getMessage(), e);
-                jobCallback.onNewLog(List.of("Warning: Failed to read logs from container '" + containerName + "'. Error: " + e.getMessage()));
+                log.warn("Failed to start Hubble stream for jobId '{}': {}", jobId, e.getMessage());
             }
         }
 
-        log.debug("Waiting for job to finish. jobId: '{}'", jobId);
-        Predicate<Job> jobIsFinished = j -> JobPhase.fromJob(j)
-                .map(JobPhase::isFinal)
-                .orElse(false);
-        var finishedJob = client.waitJob(namespace, job, jobIsFinished, imageBuildTimeoutSec);
-        var finishedState = JobPhase.fromJobStrictly(finishedJob);
-        if (finishedState == JobPhase.SUCCEEDED) {
-            log.info("Job has finished successfully. jobId: '{}'", jobId);
-            jobCallback.onJobPhaseChange(JobPhase.SUCCEEDED);
-        } else {
-            log.warn("Job has finished with error. jobId: '{}'", jobId);
-            jobCallback.onJobPhaseChange(JobPhase.FAILED);
-        }
+        try {
+            var job = jobSpecification.getJob();
+            disposableResourceManager.saveK8sResources(List.of(job), K8sResourceKind.JOB, groupId, namespace);
+            client.createJob(namespace, job);
+            log.info("Created build job. jobId: '{}'", jobId);
+            jobCallback.onJobPhaseChange(JobPhase.CREATED);
 
-        return finishedState == JobPhase.SUCCEEDED;
+            log.debug("Waiting for job to start. jobId: '{}'", jobId);
+            Predicate<Job> jobIsRunning = j -> JobPhase.fromJob(j)
+                    .map(s -> s == JobPhase.RUNNING || s.isFinal())
+                    .orElse(false);
+            var runningJob = client.waitJob(namespace, job, jobIsRunning, imageBuildTimeoutSec);
+            log.info("Job has started. jobId: '{}'", jobId);
+            jobCallback.onJobPhaseChange(JobPhase.RUNNING);
+
+            var jobName = runningJob.getMetadata().getName();
+            var pods = client.getJobPods(namespace, jobName);
+            var pod = pods.getItems().getFirst();
+
+            log.debug("Waiting for pod to start. jobId: '{}'", jobId);
+            Predicate<Pod> podIsRunning = p -> PodPhase.fromPod(p)
+                    .map(s -> s == PodPhase.RUNNING || s.isFinal())
+                    .orElse(false);
+            client.waitPod(namespace, pod, podIsRunning, imageBuildTimeoutSec);
+            log.info("Pod has started. jobId: '{}'", jobId);
+
+            var podName = pod.getMetadata().getName();
+
+            for (String containerName : containerNames) {
+                try {
+                    log.debug("Reading logs from container '{}'. jobId: '{}'", containerName, jobId);
+                    var containerResource = client.getPodResource(namespace, podName).inContainer(containerName);
+                    logReader.readLogs(containerResource, jobCallback::onNewLog);
+                    log.debug("Finished reading logs from container '{}'. jobId: '{}'", containerName, jobId);
+                } catch (Exception e) {
+                    log.warn("Failed to read logs from container '{}'. jobId: '{}'. Error: {}", containerName, jobId, e.getMessage(), e);
+                    jobCallback.onNewLog(List.of("Warning: Failed to read logs from container '" + containerName + "'. Error: " + e.getMessage()));
+                }
+            }
+
+            log.debug("Waiting for job to finish. jobId: '{}'", jobId);
+            Predicate<Job> jobIsFinished = j -> JobPhase.fromJob(j)
+                    .map(JobPhase::isFinal)
+                    .orElse(false);
+            var finishedJob = client.waitJob(namespace, job, jobIsFinished, imageBuildTimeoutSec);
+            var finishedState = JobPhase.fromJobStrictly(finishedJob);
+            if (finishedState == JobPhase.SUCCEEDED) {
+                log.info("Job has finished successfully. jobId: '{}'", jobId);
+                jobCallback.onJobPhaseChange(JobPhase.SUCCEEDED);
+            } else {
+                log.warn("Job has finished with error. jobId: '{}'", jobId);
+                jobCallback.onJobPhaseChange(JobPhase.FAILED);
+            }
+
+            return finishedState == JobPhase.SUCCEEDED;
+        } finally {
+            if (hubbleStream != null) {
+                try {
+                    hubbleStream.close();
+                    log.debug("Stopped Hubble domain stream for jobId: '{}'", jobId);
+                } catch (Exception e) {
+                    log.warn("Error closing Hubble stream for jobId '{}': {}", jobId, e.getMessage());
+                }
+            }
+        }
     }
 
     private void createCiliumNetworkPolicy(@NotNull UUID groupId,

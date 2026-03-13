@@ -18,11 +18,13 @@ import org.mapstruct.SubclassMapping;
 
 @Mapper(
         componentModel = "spring",
-        uses = {PersistenceImageSourceMapper.class, PersistenceEnvVarValueMapper.class, PersistenceTimestampMapper.class},
+        uses = {PersistenceImageSourceMapper.class, PersistenceEnvVarValueMapper.class, PersistenceTimestampMapper.class,
+                PersistenceAccessedDomainMapper.class},
         subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION
 )
 public interface PersistenceImageDefinitionMapper {
 
+    @org.mapstruct.Mapping(target = "accessedDomains", source = "accessedDomains", qualifiedByName = "toDomainList")
     @SubclassMapping(source = AdapterImageDefinitionEntity.class, target = AdapterImageDefinition.class)
     @SubclassMapping(source = InterceptorImageDefinitionEntity.class, target = InterceptorImageDefinition.class)
     @SubclassMapping(source = McpImageDefinitionEntity.class, target = McpImageDefinition.class)
@@ -31,6 +33,7 @@ public interface PersistenceImageDefinitionMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "type", source = "domain", qualifiedByName = "getTypeFromClass")
+    @Mapping(target = "accessedDomains", source = "accessedDomains", qualifiedByName = "toEntityList")
     @SubclassMapping(source = AdapterImageDefinition.class, target = AdapterImageDefinitionEntity.class)
     @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionEntity.class)
     @SubclassMapping(source = McpImageDefinition.class, target = McpImageDefinitionEntity.class)

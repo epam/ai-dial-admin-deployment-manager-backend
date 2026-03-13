@@ -32,6 +32,7 @@ public interface ImageDefinitionDtoMapper {
     @Mapping(target = "buildStatus", ignore = true)
     @Mapping(target = "buildLogs", ignore = true)
     @Mapping(target = "builtAt", ignore = true)
+    @Mapping(target = "accessedDomains", ignore = true)
     @SubclassMapping(source = McpImageDefinitionRequestDto.class, target = McpImageDefinition.class)
     @SubclassMapping(source = AdapterImageDefinitionRequestDto.class, target = AdapterImageDefinition.class)
     @SubclassMapping(source = InterceptorImageDefinitionRequestDto.class, target = InterceptorImageDefinition.class)

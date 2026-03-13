@@ -58,6 +58,14 @@ public interface ImageDefinitionJpaRepository extends JpaRepository<ImageDefinit
             """)
     int resetBuildLogs(@Param("id") UUID id);
 
+    @Modifying
+    @Query("""
+            UPDATE ImageDefinitionEntity i
+                SET i.accessedDomains = null
+                WHERE i.id = :id
+            """)
+    int resetAccessedDomains(@Param("id") UUID id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ImageDefinitionEntity> findForUpdateById(UUID id);
 

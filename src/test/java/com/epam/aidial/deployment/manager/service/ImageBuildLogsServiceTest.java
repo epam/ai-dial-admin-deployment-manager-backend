@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -82,7 +83,7 @@ class ImageBuildLogsServiceTest {
                 (Function<SseEmitter, SafeAutoCloseable>) any(Function.class)
         )).thenReturn(sseEmitter);
 
-        when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID))
+        lenient().when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID))
                 .thenReturn(Optional.of(testImageDefinition));
 
         capturedSafeAutoCloseable = null;
@@ -136,6 +137,18 @@ class ImageBuildLogsServiceTest {
 
         // Verify that ImageDefinitionService was called to get build logs
         verify(imageDefinitionService, times(1)).getImageDefinition(IMAGE_DEFINITION_ID);
+    }
+
+    @Test
+    void streamAccessedDomains_shouldCreateEmitterWithCorrectKey() {
+        SseEmitter result = imageBuildLogsService.streamAccessedDomains(IMAGE_DEFINITION_ID);
+
+        assertThat(result).isEqualTo(sseEmitter);
+        verify(sseEmitterFactory).createEmitter(
+                eq(IMAGE_DEFINITION_ID.toString()),
+                eq("ImageBuild-accessed-domains"),
+                emitterConsumerCaptor.capture()
+        );
     }
 
     @Test

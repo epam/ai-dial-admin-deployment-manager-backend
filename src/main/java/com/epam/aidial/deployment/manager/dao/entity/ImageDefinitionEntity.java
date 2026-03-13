@@ -87,4 +87,8 @@ public class ImageDefinitionEntity {
     @Column(name = "image_builder")
     @Enumerated(value = EnumType.STRING)
     private PersistenceImageBuilder imageBuilder;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "accessed_domains")
+    private List<PersistenceAccessedDomain> accessedDomains;
 }

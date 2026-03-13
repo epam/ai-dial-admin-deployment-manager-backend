@@ -89,6 +89,7 @@ public class ImageBuildRunner {
         imageDefinition.setBuildStatus(buildStatus);
         imageDefinitionService.updateBuildStatus(imageDefinition.getId(), buildStatus);
         imageDefinitionService.resetBuildLogs(imageDefinition.getId());
+        imageDefinitionService.resetAccessedDomains(imageDefinition.getId());
         imageDefinitionService.addBuildLog(imageDefinition.getId(), "Image build started");
 
         executorService.execute(() -> pipeline.accept(imageDefinition.getId()));

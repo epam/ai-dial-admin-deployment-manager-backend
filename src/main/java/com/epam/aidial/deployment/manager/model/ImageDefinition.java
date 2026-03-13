@@ -44,4 +44,6 @@ public abstract class ImageDefinition {
 
     private List<String> allowedDomains;
     private ImageBuilder imageBuilder;
+
+    private List<AccessedDomain> accessedDomains;
 }

@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceMan
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
+import com.epam.aidial.deployment.manager.service.hubble.HubbleRelayService;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -39,6 +40,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,6 +66,8 @@ class JobRunnerTest {
     @Mock
     private DisposableResourceManager disposableResourceManager;
     @Mock
+    private HubbleRelayService hubbleRelayService;
+    @Mock
     private K8sClient k8sClient;
     @Mock
     private PodLogReader podLogReader;
@@ -80,11 +84,14 @@ class JobRunnerTest {
     @BeforeEach
     void setUp() {
         jobRunner = new JobRunner(globalDomainWhitelistService, ciliumNetworkPolicyCreator, disposableResourceManager,
-                k8sClient, podLogReader);
+                hubbleRelayService, k8sClient, podLogReader);
         groupId = UUID.randomUUID();
 
         when(jobSpecification.getJobId()).thenReturn(LABEL_VALUE);
         when(jobSpecification.getNamespace()).thenReturn(NAMESPACE);
+
+        lenient().when(hubbleRelayService.streamAndCollectDomains(any(UUID.class), anyString(), anyString()))
+                .thenReturn(() -> {});
 
         List<String> allowedDomains = new ArrayList<>(ALLOWED_DOMAINS);
         allowedDomains.addAll(GLOBAL_ALLOWED_DOMAINS);

@@ -5,6 +5,8 @@ import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.service.ImageBuildLogsService;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.ImageBuildController;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
@@ -24,6 +26,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
@@ -46,6 +49,8 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private ImageBuildController imageBuildController;
 
     @MockitoBean
     private ImageDefinitionService imageDefinitionService;
@@ -53,6 +58,8 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
     private ImageBuildLogsService imageBuildLogsService;
     @MockitoBean
     private ImageBuildRunner imageBuildRunner;
+    @MockitoBean
+    private CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
 
     @Test
     void buildImage() throws Exception {
@@ -138,6 +145,32 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
                         .contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
         verify(imageBuildLogsService).streamLogs(id);
+    }
+
+    @Test
+    void subscribeToAccessedDomains_whenCiliumEnabled_returnsStream() throws Exception {
+        var id = UUID.randomUUID();
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(imageBuildLogsService.streamAccessedDomains(id)).thenReturn(completedEmitter());
+
+        var result = mockMvc.perform(get("/api/v1/images/builds/{id}/accessed-domains", id)
+                        .accept(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
+
+        verify(imageBuildLogsService).streamAccessedDomains(id);
+    }
+
+    @Test
+    void subscribeToAccessedDomains_whenCiliumDisabled_throwsEntityNotFoundException() {
+        var id = UUID.randomUUID();
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class, () -> imageBuildController.subscribeToAccessedDomains(id));
     }
 
     private static SseEmitter completedEmitter() {

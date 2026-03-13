@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.model.AccessedDomain;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -11,6 +12,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -46,6 +49,94 @@ public class ImageBuildLogsService {
                 "ImageBuild-status",
                 emitter -> startStatusStreaming(imageDefinitionId, emitter)
         );
+    }
+
+    public SseEmitter streamAccessedDomains(UUID imageDefinitionId) {
+        return sseEmitterFactory.createEmitter(
+                String.valueOf(imageDefinitionId),
+                "ImageBuild-accessed-domains",
+                emitter -> startAccessedDomainsStreaming(imageDefinitionId, emitter)
+        );
+    }
+
+    private SafeAutoCloseable startAccessedDomainsStreaming(UUID imageDefinitionId, SseEmitter emitter) {
+        var domainIndex = new AtomicInteger(0);
+        var lastStatus = new AtomicInteger(-1);
+        var startTime = Instant.now();
+
+        Future<?> future = executorService.submit(() -> {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)
+                            .orElseThrow(() -> new EntityNotFoundException("ImageDefinition not found: %s".formatted(imageDefinitionId)));
+
+                    List<AccessedDomain> domains = imageDefinition.getAccessedDomains();
+                    if (domains != null) {
+                        while (domainIndex.get() < domains.size()) {
+                            AccessedDomain d = domains.get(domainIndex.getAndIncrement());
+                            if (d != null && d.getDomain() != null) {
+                                try {
+                                    Map<String, String> payload = Map.of(
+                                            "domain", d.getDomain(),
+                                            "verdict", d.getVerdict() != null ? d.getVerdict().name() : "BLOCKED"
+                                    );
+                                    emitter.send(SseEmitter.event()
+                                            .name("accessed-domains")
+                                            .data(payload));
+                                } catch (IOException e) {
+                                    log.error("Failed to send accessed domain for image definition {}", imageDefinitionId, e);
+                                    emitter.completeWithError(e);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                    var buildStatus = imageDefinition.getBuildStatus();
+                    if (buildStatus != null) {
+                        int statusOrdinal = buildStatus.ordinal();
+                        if (lastStatus.getAndSet(statusOrdinal) != statusOrdinal) {
+                            try {
+                                emitter.send(SseEmitter.event()
+                                        .name("status")
+                                        .data(buildStatus.name()));
+                            } catch (IOException e) {
+                                log.error("Failed to send status for image definition {}", imageDefinitionId, e);
+                                emitter.completeWithError(e);
+                                return;
+                            }
+                        }
+
+                        if (buildStatus.isFinal()) {
+                            if (domains == null || domains.isEmpty()) {
+                                try {
+                                    emitter.send(SseEmitter.event()
+                                            .name("no-domain-access")
+                                            .data(""));
+                                } catch (IOException e) {
+                                    log.debug("Failed to send no-domain-access for image definition {}", imageDefinitionId, e);
+                                }
+                            }
+                            if (startTime.plusMillis(minStreamingIntervalMs).isAfter(Instant.now())) {
+                                Thread.sleep(minStreamingIntervalMs);
+                            }
+                            emitter.complete();
+                            return;
+                        }
+                    }
+
+                    Thread.sleep(pollIntervalMs);
+                }
+            } catch (InterruptedException e) {
+                log.debug("Accessed domains streaming thread interrupted for image definition {}", imageDefinitionId);
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                log.error("Failed to stream accessed domains for image definition {}", imageDefinitionId, e);
+                emitter.completeWithError(e);
+            }
+        });
+
+        return () -> future.cancel(true);
     }
 
     private SafeAutoCloseable startLogStreaming(UUID imageDefinitionId, SseEmitter emitter) {

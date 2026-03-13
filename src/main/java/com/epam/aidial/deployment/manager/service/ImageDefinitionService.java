@@ -4,6 +4,8 @@ import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupServ
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.model.AccessVerdict;
+import com.epam.aidial.deployment.manager.model.AccessedDomain;
 import com.epam.aidial.deployment.manager.model.ComponentRemoval;
 import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -131,6 +133,21 @@ public class ImageDefinitionService {
     @Transactional
     public void resetBuildLogs(UUID id) {
         imageDefinitionRepository.resetBuildLogs(id);
+    }
+
+    @Transactional
+    public void resetAccessedDomains(UUID id) {
+        imageDefinitionRepository.resetAccessedDomains(id);
+    }
+
+    @Transactional
+    public void addAccessedDomain(UUID id, String domain, AccessVerdict verdict) {
+        addAccessedDomains(id, List.of(new AccessedDomain(domain, verdict)));
+    }
+
+    @Transactional
+    public void addAccessedDomains(UUID id, List<AccessedDomain> domains) {
+        imageDefinitionRepository.addAccessedDomains(id, domains);
     }
 
     public void deleteImageDefinitionAsync(UUID id) {

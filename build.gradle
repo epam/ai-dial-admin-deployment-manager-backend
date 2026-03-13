@@ -17,6 +17,7 @@ buildscript {
 plugins {
     id 'java'
     id 'checkstyle'
+    id 'com.google.protobuf' version '0.9.4'
     id 'io.freefair.lombok' version '8.10'
     id 'org.springframework.boot' version '3.5.10'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
@@ -103,6 +104,10 @@ dependencies {
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
     implementation 'org.hibernate.validator:hibernate-validator:8.0.2.Final'
 
+    implementation 'com.google.protobuf:protobuf-java:3.25.3'
+    implementation 'io.grpc:grpc-protobuf:1.75.0'
+    implementation 'io.grpc:grpc-stub:1.75.0'
+    implementation "io.grpc:grpc-netty-shaded:1.75.0"
     implementation "io.fabric8:kubernetes-client:${fabric8_kubernetes_client_version}"
     implementation "io.fabric8:knative-client:${fabric8_kubernetes_client_version}"
     implementation "io.fabric8:generator-annotations:${fabric8_kubernetes_client_version}"
@@ -204,6 +209,24 @@ tasks.register('generateDbSchema', JavaExec) {
 tasks.withType(JavaCompile).configureEach {
     dependsOn(crd2java)
     options.compilerArgs += "-Werror"
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.25.3'
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.75.0'
+        }
+    }
+    generateProtoTasks {
+        ofSourceSet('main').configureEach { task ->
+            task.plugins {
+                grpc {}
+            }
+        }
+    }
 }
 
 sourceSets {

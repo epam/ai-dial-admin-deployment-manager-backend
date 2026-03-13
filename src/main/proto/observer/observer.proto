@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright Authors of Hubble
+
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import public "flow/flow.proto";
+import "relay/relay.proto";
+
+package observer;
+
+option go_package = "github.com/cilium/cilium/api/v1/observer";
+
+// Observer returns a stream of Flows depending on which filter the user want
+// to observe.
+service Observer {
+  // GetFlows returning structured data, meant to eventually obsolete GetLastNFlows.
+  rpc GetFlows(GetFlowsRequest) returns (stream GetFlowsResponse) {}
+}
+
+message GetFlowsRequest {
+  uint64 number = 1;
+  bool first = 9;
+  bool follow = 3;
+  repeated flow.FlowFilter blacklist = 5;
+  repeated flow.FlowFilter whitelist = 6;
+  google.protobuf.Timestamp since = 7;
+  google.protobuf.Timestamp until = 8;
+  google.protobuf.FieldMask field_mask = 10;
+}
+
+message GetFlowsResponse {
+  oneof response_types {
+    flow.Flow flow = 1;
+    relay.NodeStatusEvent node_status = 2;
+    flow.LostEvent lost_events = 3;
+  }
+  string node_name = 1000;
+  google.protobuf.Timestamp time = 1001;
+}

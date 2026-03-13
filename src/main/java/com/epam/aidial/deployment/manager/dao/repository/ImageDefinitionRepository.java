@@ -5,10 +5,13 @@ import com.epam.aidial.deployment.manager.dao.entity.AdapterImageDefinitionEntit
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.McpImageDefinitionEntity;
+import com.epam.aidial.deployment.manager.dao.entity.PersistenceAccessedDomain;
 import com.epam.aidial.deployment.manager.dao.jpa.ImageDefinitionJpaRepository;
+import com.epam.aidial.deployment.manager.dao.mapper.PersistenceAccessedDomainMapper;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionMapper;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionViewMapper;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.model.AccessedDomain;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
@@ -35,6 +38,7 @@ public class ImageDefinitionRepository {
     private final ImageDefinitionJpaRepository imageDefinitionJpaRepository;
     private final PersistenceImageDefinitionViewMapper viewMapper;
     private final PersistenceImageDefinitionMapper mapper;
+    private final PersistenceAccessedDomainMapper persistenceAccessedDomainMapper;
 
     @Value("${app.image-build-logs-size-limit}")
     private final int buildLogsSizeLimit;
@@ -125,6 +129,46 @@ public class ImageDefinitionRepository {
     public void resetBuildLogs(UUID id) {
         imageDefinitionJpaRepository.resetBuildLogs(id);
         log.debug("Build logs reset for image definition '{}'", id);
+    }
+
+    public void resetAccessedDomains(UUID id) {
+        imageDefinitionJpaRepository.resetAccessedDomains(id);
+        log.debug("Accessed domains reset for image definition '{}'", id);
+    }
+
+    public void addAccessedDomains(UUID id, List<AccessedDomain> domains) {
+        if (domains == null || domains.isEmpty()) {
+            return;
+        }
+        var entity = imageDefinitionJpaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+
+        var currentMap = new java.util.LinkedHashMap<String, PersistenceAccessedDomain>();
+        List<PersistenceAccessedDomain> current = entity.getAccessedDomains();
+        if (current != null) {
+            for (PersistenceAccessedDomain p : current) {
+                if (p != null && p.getDomain() != null) {
+                    currentMap.put(p.getDomain(), p);
+                }
+            }
+        }
+        for (AccessedDomain d : domains) {
+            if (d == null || org.apache.commons.lang3.StringUtils.isBlank(d.getDomain())) {
+                continue;
+            }
+            String verdict = d.getVerdict() != null ? d.getVerdict().name() : "BLOCKED";
+            PersistenceAccessedDomain existing = currentMap.get(d.getDomain());
+            if (existing != null) {
+                if ("ALLOWED".equals(verdict)) {
+                    existing.setVerdict("ALLOWED");
+                }
+            } else {
+                currentMap.put(d.getDomain(), new PersistenceAccessedDomain(d.getDomain(), verdict));
+            }
+        }
+        entity.setAccessedDomains(new ArrayList<>(currentMap.values()));
+        imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Accessed domains added for image definition '{}', {} distinct entries", id, currentMap.size());
     }
 
     public void addBuildLogs(UUID id, List<String> logs) {
