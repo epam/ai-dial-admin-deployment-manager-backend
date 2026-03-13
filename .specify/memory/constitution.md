@@ -1,10 +1,10 @@
 <!-- Sync Impact Report
-Version change: 1.1.0 → 1.2.0 (MINOR: added docs/db-schema.md reference and regeneration requirements)
-Modified sections: Multi-Vendor Database Pattern (added Schema Documentation subsection), Tooling Commands (added generateDbSchema command)
-Added: Mandatory db-schema.md regeneration step for migration tasks; Claude Code hook reference; speckit flow guidance
+Version change: 1.2.0 → 1.2.1 (PATCH: added docs/configuration.md maintenance requirement to Key Patterns)
+Modified sections: Key Patterns (added Configuration documentation note)
+Added: Mandatory docs/configuration.md update task for speckit plans that introduce new/changed config properties or env vars
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
-  ✅ No template changes needed — speckit reads constitution directly for migration task requirements
+  ✅ No template changes needed — speckit reads constitution directly for documentation requirements
   ✅ No [PLACEHOLDER] tokens remain
 Follow-up TODOs: none
 -->
@@ -158,6 +158,13 @@ records where no inheritance is needed).
 | Image build pipeline | Multi-step `service/pipeline/step/` chain | `service/pipeline/` |
 | Resource lifecycle/cleanup | `cleanup/` package with `@Component` registrations | `cleanup/` |
 
+**Configuration documentation** — `docs/configuration.md` is manually maintained. It MUST be
+updated whenever a feature adds new `@ConfigurationProperties` fields, new environment variables,
+or changes to existing `application.yml` entries. **Speckit flow**: any feature spec that
+introduces or modifies application configuration MUST include a task to update
+`docs/configuration.md` with the affected properties — env var name, default value, and
+description.
+
 ## Multi-Vendor Database Pattern
 
 Database vendor is selected at runtime via the `DATASOURCE_VENDOR` environment variable:
@@ -239,4 +246,4 @@ This constitution is the authoritative source of architectural truth for the DIA
 
 **Compliance review**: All PRs MUST be checked against this constitution. Automated checks (Checkstyle, `-Werror`) enforce code style sections; architectural sections are enforced via PR review.
 
-**Version**: 1.2.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-13
+**Version**: 1.2.1 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-13
