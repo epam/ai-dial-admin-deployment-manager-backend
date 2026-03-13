@@ -211,13 +211,42 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += "-Werror"
 }
 
+// Copy gRPC codegen plugin to build dir and make executable so it works when Gradle cache
+// is on a noexec mount (e.g. Docker). The plugin is then used via path= instead of artifact=.
+def grpcPluginDir = layout.buildDirectory.dir('protoc-plugins').get().asFile
+def grpcPluginPath = new File(grpcPluginDir, 'protoc-gen-grpc-java')
+
+def grpcPluginClassifier = {
+    def os = System.getProperty('os.name').toLowerCase()
+    def arch = System.getProperty('os.arch').toLowerCase().replace('amd64', 'x86_64')
+    if (os.contains('win')) return 'windows-x86_64'
+    if (os.contains('mac')) return 'osx-' + (arch == 'aarch64' ? 'aarch_64' : 'x86_64')
+    return 'linux-' + arch
+}()
+
+configurations {
+    create('grpcPlugin')
+}
+dependencies {
+    grpcPlugin "io.grpc:protoc-gen-grpc-java:1.75.0:${grpcPluginClassifier}@exe"
+}
+
+tasks.register('prepareGrpcPlugin', Copy) {
+    from configurations.grpcPlugin
+    into grpcPluginDir
+    rename { _ -> 'protoc-gen-grpc-java' }
+    doLast {
+        grpcPluginPath.setExecutable(true, false)
+    }
+}
+
 protobuf {
     protoc {
         artifact = 'com.google.protobuf:protoc:3.25.3'
     }
     plugins {
         grpc {
-            artifact = 'io.grpc:protoc-gen-grpc-java:1.75.0'
+            path = grpcPluginPath.absolutePath
         }
     }
     generateProtoTasks {
@@ -225,21 +254,7 @@ protobuf {
             task.plugins {
                 grpc {}
             }
-        }
-    }
-}
-
-// In Docker/Linux the cached protoc-gen-grpc-java binary may lack execute permission or have wrong extension.
-// Ensure the plugin binary is executable before generateProto runs.
-tasks.named('generateProto').configure {
-    doFirst {
-        def grpcPluginCache = file("${gradle.gradleUserHomeDir}/caches/modules-2/files-2.1/io.grpc/protoc-gen-grpc-java/1.75.0")
-        if (grpcPluginCache.exists()) {
-            grpcPluginCache.eachFileRecurse { f ->
-                if (f.isFile() && f.name.contains('protoc-gen-grpc-java')) {
-                    f.setExecutable(true, false)
-                }
-            }
+            task.dependsOn(prepareGrpcPlugin)
         }
     }
 }
