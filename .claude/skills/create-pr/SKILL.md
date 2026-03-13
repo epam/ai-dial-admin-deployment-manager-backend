@@ -25,8 +25,6 @@ If `$ARGUMENTS` is provided, use it as the base branch. Otherwise, default to th
    - `feat: ...` for new features
    - `fix: ...` for bug fixes
    - `chore: ...` for maintenance
-   - `docs: ...` for documentation
-   - `refactor: ...` for refactoring
    - `test: ...` for tests
    - Add `!` after the type for breaking changes (e.g. `feat!: ...`)
    - Add a scope if appropriate (e.g. `feat(auth): ...`)
