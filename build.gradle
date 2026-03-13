@@ -229,6 +229,21 @@ protobuf {
     }
 }
 
+// In Docker/Linux the cached protoc-gen-grpc-java binary may lack execute permission or have wrong extension.
+// Ensure the plugin binary is executable before generateProto runs.
+tasks.named('generateProto').configure {
+    doFirst {
+        def grpcPluginCache = file("${gradle.gradleUserHomeDir}/caches/modules-2/files-2.1/io.grpc/protoc-gen-grpc-java/1.75.0")
+        if (grpcPluginCache.exists()) {
+            grpcPluginCache.eachFileRecurse { f ->
+                if (f.isFile() && f.name.contains('protoc-gen-grpc-java')) {
+                    f.setExecutable(true, false)
+                }
+            }
+        }
+    }
+}
+
 sourceSets {
     main {
         java {
