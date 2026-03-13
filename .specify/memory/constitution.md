@@ -195,6 +195,10 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 9. **Polling loops for K8s state** — Use Fabric8 informers.
 10. **`ddl-auto` values other than `validate`** — Flyway owns schema; JPA must not create or update tables.
 
+## spec-kit Workflow Rules
+
+- **No per-feature checklists**: Do NOT generate `checklists/requirements.md` inside individual feature directories via `/speckit.checklist`. The generic checklist adds no per-feature value and creates redundant files. If a project-wide checklist is needed, maintain a single one in `specs/`.
+
 ## Tooling Commands
 
 | Command | Purpose |
