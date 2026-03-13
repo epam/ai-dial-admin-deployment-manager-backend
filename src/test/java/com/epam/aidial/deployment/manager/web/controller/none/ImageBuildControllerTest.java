@@ -1,11 +1,11 @@
 package com.epam.aidial.deployment.manager.web.controller.none;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
+import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.service.ImageBuildLogsService;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
-import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.ImageBuildController;
