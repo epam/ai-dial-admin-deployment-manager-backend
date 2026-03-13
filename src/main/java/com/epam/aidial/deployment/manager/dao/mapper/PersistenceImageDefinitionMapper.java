@@ -62,6 +62,7 @@ public interface PersistenceImageDefinitionMapper {
         existingEntity.setVersion(updatedEntity.getVersion());
         existingEntity.setAuthor(updatedEntity.getAuthor());
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
+        existingEntity.setImageBuilder(updatedEntity.getImageBuilder());
 
         // resetting build status on update
         existingEntity.setBuildStatus(PersistenceImageStatus.NOT_BUILT);
