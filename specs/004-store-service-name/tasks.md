@@ -17,7 +17,7 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete.
 
-- [x] T001 [P] Add `serviceName` field to `DeploymentEntity` in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/deployment/DeploymentEntity.java` — add `@Column(name = "service_name", length = 255, unique = true) private String serviceName;`
+- [x] T001 [P] Add `serviceName` field to `DeploymentEntity` in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/deployment/DeploymentEntity.java` — add `@Column(name = "service_name", length = 63, unique = true) private String serviceName;`
 - [x] T002 [P] Add `serviceName` field to `Deployment` domain model in `src/main/java/com/epam/aidial/deployment/manager/model/deployment/Deployment.java` (and verify Lombok `@SuperBuilder` propagates to subclasses)
 - [x] T003 [P] Update `PersistenceDeploymentMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceDeploymentMapper.java` — ensure `serviceName` is mapped in `toDomain`, `toEntity`, and `updateEntityFromDomain`
 - [x] T004 Add `findByServiceName(String serviceName)` query to `DeploymentJpaRepository` in `src/main/java/com/epam/aidial/deployment/manager/dao/jpa/DeploymentJpaRepository.java`
@@ -35,9 +35,9 @@
 
 ### Implementation for User Story 3
 
-- [x] T006 [P] [US3] Create SQL migration `src/main/resources/db/migration/H2/V1.52__AddServiceNameColumn.sql` — `ALTER TABLE deployment ADD COLUMN service_name VARCHAR(255);` + `CREATE UNIQUE INDEX idx_deployment_service_name ON deployment(service_name);`
+- [x] T006 [P] [US3] Create SQL migration `src/main/resources/db/migration/H2/V1.52__AddServiceNameColumn.sql` — `ALTER TABLE deployment ADD COLUMN service_name VARCHAR(63);` + `CREATE UNIQUE INDEX idx_deployment_service_name ON deployment(service_name);`
 - [x] T007 [P] [US3] Create SQL migration `src/main/resources/db/migration/POSTGRES/V1.52__AddServiceNameColumn.sql` — same DDL as H2
-- [x] T008 [P] [US3] Create SQL migration `src/main/resources/db/migration/MS_SQL_SERVER/V1.52__AddServiceNameColumn.sql` — `ALTER TABLE deployment ADD service_name VARCHAR(255);` + filtered unique index `WHERE service_name IS NOT NULL`
+- [x] T008 [P] [US3] Create SQL migration `src/main/resources/db/migration/MS_SQL_SERVER/V1.52__AddServiceNameColumn.sql` — `ALTER TABLE deployment ADD service_name VARCHAR(63);` + filtered unique index `WHERE service_name IS NOT NULL`
 - [x] T009 [US3] Create Java migration base class `src/main/java/db/migration/common/V1_53__BackfillServiceNameBase.java` — extends `BaseJavaMigration`, reads `RESOURCE_NAME_PREFIX` via `System.getenv()`, queries deployments with status NOT IN ('NOT_DEPLOYED', 'STOPPED') AND service_name IS NULL, determines type by checking subtable existence (mcp_deployment/adapter_deployment/interceptor_deployment → MCP prefix, nim_deployment → MCP prefix, inference_deployment → DM prefix), generates `{prefix}-{deploymentId}` and batch updates
 - [x] T010 [P] [US3] Create H2-specific migration `src/main/java/db/migration/H2/V1_53__BackfillServiceName.java` — extends `V1_53__BackfillServiceNameBase`
 - [x] T011 [P] [US3] Create Postgres-specific migration `src/main/java/db/migration/POSTGRES/V1_53__BackfillServiceName.java` — extends `V1_53__BackfillServiceNameBase`

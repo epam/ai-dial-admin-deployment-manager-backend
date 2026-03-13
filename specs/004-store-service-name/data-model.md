@@ -8,11 +8,11 @@
 
 | Column | Type | Nullable | Constraint | Notes |
 |--------|------|----------|------------|-------|
-| `service_name` | VARCHAR(255) | YES | UNIQUE (allows NULLs) | New column. Stores the K8s service name. NULL for NOT_DEPLOYED/STOPPED deployments that have never been deployed. |
+| `service_name` | VARCHAR(63) | YES | UNIQUE (allows NULLs) | New column. Stores the K8s service name. NULL for NOT_DEPLOYED/STOPPED deployments that have never been deployed. |
 
 **JPA Field**:
 ```java
-@Column(name = "service_name", length = 255, unique = true)
+@Column(name = "service_name")
 private String serviceName;
 ```
 
@@ -40,19 +40,19 @@ migration (inactive)   → serviceName = null (NOT_DEPLOYED/STOPPED)
 
 **H2**:
 ```sql
-ALTER TABLE deployment ADD COLUMN service_name VARCHAR(255);
+ALTER TABLE deployment ADD COLUMN service_name VARCHAR(63);
 CREATE UNIQUE INDEX idx_deployment_service_name ON deployment(service_name);
 ```
 
 **PostgreSQL**:
 ```sql
-ALTER TABLE deployment ADD COLUMN service_name VARCHAR(255);
+ALTER TABLE deployment ADD COLUMN service_name VARCHAR(63);
 CREATE UNIQUE INDEX idx_deployment_service_name ON deployment(service_name);
 ```
 
 **SQL Server**:
 ```sql
-ALTER TABLE deployment ADD service_name VARCHAR(255);
+ALTER TABLE deployment ADD service_name VARCHAR(63);
 CREATE UNIQUE NONCLUSTERED INDEX idx_deployment_service_name
     ON deployment(service_name)
     WHERE service_name IS NOT NULL;
