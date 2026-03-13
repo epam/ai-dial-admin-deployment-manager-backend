@@ -296,7 +296,7 @@ public class DeploymentService {
         });
 
         // Validate base64 encoding for sensitive file content
-        sensFile.forEach((key, value) -> validateBase64Encoding(key, value.getValue()));
+        sensFile.forEach(DeploymentService::validateBase64Encoding);
 
         // Return the original sensFile content for secret creation (not the _FILE suffix versions)
         return new EnvPartition(sens, nonSens, sensFile);
@@ -391,13 +391,13 @@ public class DeploymentService {
         }
     }
 
-    private static void validateBase64Encoding(String name, String value) {
-        if (value == null) {
+    private static void validateBase64Encoding(String name, EnvVarValue envVarValue) {
+        if (envVarValue == null || envVarValue.getValue() == null) {
             return;
         }
-        if (!isBase64Encoded(value)) {
+        if (!isBase64Encoded(envVarValue.getValue())) {
             throw new IllegalArgumentException("Env variable '%s' should contain base64-encoded file content. Actual content: %s"
-                    .formatted(name, value));
+                    .formatted(name, envVarValue.getValue()));
         }
     }
 
