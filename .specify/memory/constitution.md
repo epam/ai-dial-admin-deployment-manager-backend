@@ -1,10 +1,10 @@
 <!-- Sync Impact Report
-Version change: 1.0.0 → 1.1.0 (MINOR: new sections + Key Patterns expansion)
-Added sections: Multi-Vendor Database Pattern, Tooling Commands
-Modified sections: Key Patterns (expanded @LogExecution known gaps, MapStruct settings, Lombok patterns, Records; fixed migration paths)
-Fixed: Key Patterns table listed src/main/java/db/migration/ for SQL files — corrected to src/main/resources/db/migration/; java-based migrations path clarified
+Version change: 1.2.0 → 1.2.1 (PATCH: added docs/configuration.md maintenance requirement to Key Patterns)
+Modified sections: Key Patterns (added Configuration documentation note)
+Added: Mandatory docs/configuration.md update task for speckit plans that introduce new/changed config properties or env vars
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
+  ✅ No template changes needed — speckit reads constitution directly for documentation requirements
   ✅ No [PLACEHOLDER] tokens remain
 Follow-up TODOs: none
 -->
@@ -158,6 +158,13 @@ records where no inheritance is needed).
 | Image build pipeline | Multi-step `service/pipeline/step/` chain | `service/pipeline/` |
 | Resource lifecycle/cleanup | `cleanup/` package with `@Component` registrations | `cleanup/` |
 
+**Configuration documentation** — `docs/configuration.md` is manually maintained. It MUST be
+updated whenever a feature adds new `@ConfigurationProperties` fields, new environment variables,
+or changes to existing `application.yml` entries. **Speckit flow**: any feature spec that
+introduces or modifies application configuration MUST include a task to update
+`docs/configuration.md` with the affected properties — env var name, default value, and
+description.
+
 ## Multi-Vendor Database Pattern
 
 Database vendor is selected at runtime via the `DATASOURCE_VENDOR` environment variable:
@@ -179,6 +186,18 @@ Database vendor is selected at runtime via the `DATASOURCE_VENDOR` environment v
 
 When adding a migration, create the corresponding file in all applicable vendor directories
 (H2, POSTGRES, MS_SQL_SERVER) unless the migration is vendor-specific by design.
+
+**Schema documentation** — `docs/db-schema.md` is auto-generated from H2 Flyway
+migrations via `./gradlew generateDbSchema`. This file MUST NOT be edited manually.
+
+- A Claude Code hook (`.claude/hooks/generate-db-schema.sh`) auto-triggers regeneration
+  when migration files are edited or written during a Claude Code session.
+- For non-Claude workflows (manual development, CI), run `./gradlew generateDbSchema`
+  after adding or modifying any migration.
+- **Speckit flow**: Any feature plan or task list that includes database migrations
+  MUST include a final step to run `./gradlew generateDbSchema` and commit the
+  updated `docs/db-schema.md`. This ensures the schema doc stays in sync with
+  the actual migration state.
 
 ## Anti-Patterns
 
@@ -204,6 +223,7 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 | `./gradlew checkstyleMain checkstyleTest` | Run Checkstyle on main and test sources |
 | `./gradlew clean build` | Full clean build (tests + Checkstyle) |
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
+| `./gradlew generateDbSchema` | Regenerate `docs/db-schema.md` from H2 Flyway migrations — run after any migration change |
 | `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.13-jdk21-alpine` → `amazoncorretto:21-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
@@ -226,4 +246,4 @@ This constitution is the authoritative source of architectural truth for the DIA
 
 **Compliance review**: All PRs MUST be checked against this constitution. Automated checks (Checkstyle, `-Werror`) enforce code style sections; architectural sections are enforced via PR review.
 
-**Version**: 1.1.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-04
+**Version**: 1.2.1 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-13
