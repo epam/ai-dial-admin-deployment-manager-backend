@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-03-13
-**Last Updated**: 2026-03-13 (v2 — scope narrowed to general sources only, polymorphism decision documented)
+**Last Updated**: 2026-03-14 (post-clarification session — all critical design decisions resolved)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -32,8 +32,10 @@
 
 ## Notes
 
-All checklist items pass. Key scope decisions encoded in spec:
-- `externalRegistryRef` targets general/functional sources only (`DockerImageSource`, `GitDockerfileImageSource`, `ImageReferenceSource`)
-- Registry-bound sources (`HuggingFaceSource`, `NgcRegistrySource`) and `InternalImageSource` are explicitly excluded
-- Flat (non-polymorphic) structure chosen — rationale documented in Assumptions
-- Spec is ready for `/speckit.clarify` or `/speckit.plan`
+All checklist items pass. Key decisions encoded in spec (Session 2026-03-14):
+1. `ExternalRegistryRef` is polymorphic with `GenericRef` fallback (not flat open-type)
+2. Inline exposure of registry ref for `InternalImageSource` deployments is deferred to follow-up
+3. Validation is non-empty only; format constraints are documented conventions
+4. `externalRegistryRef` is included in export/import payloads
+
+Spec is ready for `/speckit.plan`.
