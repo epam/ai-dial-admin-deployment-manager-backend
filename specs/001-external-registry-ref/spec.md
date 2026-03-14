@@ -7,7 +7,7 @@
 
 ## Background
 
-Several source types in the system are **functionally defined**: they tell the system *how* to obtain or build a container image (a Docker URI, a Git repository + Dockerfile path), but they say nothing about what the artifact *represents* in the wider software ecosystem. A Git dockerfile source for an MCP server has a git URL but no link to its MCP registry card. A direct image reference for a deployment has a Docker URI but no link to the model page on HuggingFace.
+Several source types in the system are **functionally defined**: they tell the system *how* to obtain or build a container image (a Docker URI, a Git repository + Dockerfile path), but they say nothing about what the artifact *represents* in the wider software ecosystem. A Git dockerfile source for an MCP server has a git URL but no link to its MCP registry card. A direct image reference for a deployment has a Docker URI but no link to a GitHub repository or other catalog page.
 
 Some sources are already **registry-bound**: `HuggingFaceSource` carries a `modelName` that is itself a HuggingFace registry identifier, and `NgcRegistrySource` carries an `imageRef` that is an NGC identifier. These sources already embed their catalog context and are outside the scope of this feature.
 
@@ -19,14 +19,15 @@ This feature adds an optional `externalRegistryRef` field to the **general/funct
 
 - Q: Should `ExternalRegistryRef` follow the project's polymorphic OOP pattern (typed subtype per known registry + `GenericRef` fallback) or remain a flat open-type with a free-form string discriminator? → A: Polymorphic with `GenericRef` fallback (Option C).
 - Q: Should the deployment API expose the ImageDefinition's `externalRegistryRef` inline (read-only) for `InternalImageSource` deployments, or require clients to fetch the ImageDefinition separately? → A: Out of scope for this iteration; deferred to a follow-up feature.
-- Q: Should typed subtype fields (e.g., `HuggingFaceRef.modelId`, `GenericRef.url`) be strictly validated against expected formats (regex/URL), or should the system accept any non-empty string? → A: Non-empty only; expected formats are documented conventions, not enforced constraints.
+- Q: Should typed subtype fields (e.g., `GitHubRef.repo`, `GenericRef.url`) be strictly validated against expected formats (regex/URL), or should the system accept any non-empty string? → A: Non-empty only; expected formats are documented conventions, not enforced constraints.
 - Q: Should `externalRegistryRef` be included when deployments/image definitions are exported? → A: Included — treated as part of the source definition; preserved in export and restored on import.
+- Q: Should `HuggingFaceRef` be included as a typed subtype? → A: No — HuggingFace deployments only support `HuggingFaceSource` (already registry-bound); no general source is used for HuggingFace deployments. Operators referencing HuggingFace from a general source use `GenericRef`.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Attach an External Registry Reference When Defining a General Source (Priority: P1)
 
-An operator creates or updates an image definition whose source is a Docker image or a Git repository. To help clients understand what the image represents in the broader ecosystem, the operator optionally attaches an external registry reference — for example, indicating that this Docker image corresponds to a specific MCP registry card, or that this Git-built adapter is available on a model hub.
+An operator creates or updates an image definition whose source is a Docker image or a Git repository. To help clients understand what the image represents in the broader ecosystem, the operator optionally attaches an external registry reference — for example, indicating that this Git-built MCP server corresponds to a specific MCP registry card, or that this Docker image source has a canonical GitHub repository.
 
 **Why this priority**: This is the core write path. Without it no reference is ever stored and the feature has no effect.
 
@@ -35,8 +36,8 @@ An operator creates or updates an image definition whose source is a Docker imag
 **Acceptance Scenarios**:
 
 1. **Given** an image definition with a Git dockerfile source, **When** the operator includes an `externalRegistryRef` of type `McpRegistryRef` (e.g., package name `my-mcp-server`), **Then** the system persists the typed reference and returns it in subsequent reads.
-2. **Given** an image definition with a Docker image source, **When** the operator includes an `externalRegistryRef` of type `HuggingFaceRef` (e.g., model ID `mistralai/Mistral-7B-v0.1`), **Then** the system persists the typed reference and returns it in subsequent reads.
-3. **Given** an image definition with any general source, **When** the operator includes a `GenericRef` with a fully-qualified URL pointing to an unlisted registry, **Then** the system accepts and persists the reference.
+2. **Given** an image definition with a Docker image source, **When** the operator includes an `externalRegistryRef` of type `GitHubRef` (e.g., repo `owner/my-project`), **Then** the system persists the typed reference and returns it in subsequent reads.
+3. **Given** an image definition with any general source, **When** the operator includes a `GenericRef` with a URL pointing to an unlisted registry, **Then** the system accepts and persists the reference.
 4. **Given** an image definition with any general source, **When** the operator omits `externalRegistryRef`, **Then** the system creates the record without any reference and no validation error is raised.
 5. **Given** an existing image definition with an `externalRegistryRef`, **When** the operator sends an update request with a different typed reference (including a change of type), **Then** the new reference replaces the old one in subsequent reads.
 
@@ -48,12 +49,12 @@ An operator creates a deployment whose source is a direct Docker image reference
 
 **Why this priority**: `ImageReferenceSource` is the other primary general source type targeted by this feature. This story ensures deployments without an `ImageDefinition` chain can also carry registry context.
 
-**Independent Test**: Create a deployment with `ImageReferenceSource` and a `HuggingFaceRef`. Retrieve the deployment. Assert the typed reference is present in the source object of the response with the correct `modelId`.
+**Independent Test**: Create a deployment with `ImageReferenceSource` and a `GitHubRef`. Retrieve the deployment. Assert the typed reference is present in the source object of the response with the correct `repo`.
 
 **Acceptance Scenarios**:
 
-1. **Given** a deployment with a direct image reference source, **When** the operator includes a `HuggingFaceRef` (e.g., `mistralai/Mistral-7B-v0.1`), **Then** the typed reference is persisted on the deployment record.
-2. **Given** a deployment with a direct image reference source, **When** the operator includes a `GenericRef` with a fully-qualified URL, **Then** the reference is persisted and returned correctly.
+1. **Given** a deployment with a direct image reference source, **When** the operator includes a `McpRegistryRef` (e.g., package name `my-mcp-server`), **Then** the typed reference is persisted on the deployment record.
+2. **Given** a deployment with a direct image reference source, **When** the operator includes a `GenericRef` with a URL, **Then** the reference is persisted and returned correctly.
 3. **Given** a deployment with a direct image reference source, **When** the operator omits `externalRegistryRef`, **Then** the deployment is created without a reference and behaves identically to today.
 
 ---
@@ -64,13 +65,13 @@ A client application lists or fetches image definitions and deployments. For rec
 
 **Why this priority**: This is the consumer-facing read path. Its correctness is as critical as the write path.
 
-**Independent Test**: Seed records with typed external references (`McpRegistryRef`, `HuggingFaceRef`, `GenericRef`) and without. Call the list and single-fetch endpoints. Assert each record's external reference is returned with its correct type discriminator and typed fields. Assert records without references have the field absent.
+**Independent Test**: Seed records with typed external references (`McpRegistryRef`, `GitHubRef`, `GenericRef`) and without. Call the list and single-fetch endpoints. Assert each record's external reference is returned with its correct type discriminator and typed fields. Assert records without references have the field absent.
 
 **Acceptance Scenarios**:
 
 1. **Given** an image definition with a `McpRegistryRef` external reference, **When** a client calls `GET /api/v1/images/definitions/{id}`, **Then** the response includes the `externalRegistryRef` as a `McpRegistryRef` with the correct `packageName`.
 2. **Given** a list of image definitions, some with typed references and some without, **When** a client calls `GET /api/v1/images/definitions`, **Then** each record correctly includes or omits the field with no errors.
-3. **Given** a deployment with `ImageReferenceSource` carrying a `HuggingFaceRef`, **When** a client calls `GET /api/v1/deployments/{id}`, **Then** the source object in the response includes the `HuggingFaceRef` with the correct `modelId`.
+3. **Given** a deployment with `ImageReferenceSource` carrying a `GitHubRef`, **When** a client calls `GET /api/v1/deployments/{id}`, **Then** the source object in the response includes the `GitHubRef` with the correct `repo`.
 4. **Given** a record with a `GenericRef`, **When** the record is fetched, **Then** the response includes the `GenericRef` with the stored URL.
 
 ---
@@ -92,10 +93,10 @@ An operator needs to clear an external registry reference from a source (e.g., t
 ### Edge Cases
 
 - What happens when the operator sends a `GenericRef` with a non-URL string (e.g., a plain name instead of a URL)? The system accepts it — `GenericRef.url` requires only a non-empty string; URL format is a documented convention, not enforced.
-- What happens when a typed subtype field is empty or blank (e.g., `HuggingFaceRef { modelId: "" }`)? The system must reject the request with a clear validation error.
+- What happens when a typed subtype field is empty or blank (e.g., `McpRegistryRef { packageName: "" }`)? The system must reject the request with a clear validation error.
 - What happens when an operator attempts to set `externalRegistryRef` on a registry-bound source (`HuggingFaceSource`, `NgcRegistrySource`)? The system must reject such a request — these sources are out of scope for this field.
 - What happens when a legacy record (created before this feature) is read? The field is absent from the response; no error is raised.
-- What happens when the operator sends an unknown type discriminator (not one of the defined subtypes)? The system should reject it — unknown discriminators are not forwarded; the `GenericRef` with a URL is the intended extensibility path.
+- What happens when the operator sends an unknown type discriminator (not one of the defined subtypes)? The system should reject it — unknown discriminators are not forwarded; `GenericRef` is the intended extensibility path.
 
 ## Requirements *(mandatory)*
 
@@ -106,11 +107,10 @@ An operator needs to clear an external registry reference from a source (e.g., t
 - **FR-003**: The system MUST support an optional `externalRegistryRef` field on `ImageReferenceSource` (used in deployments that reference a Docker image directly, without an image definition).
 - **FR-004**: The `externalRegistryRef` MUST NOT be accepted on registry-bound source types (`HuggingFaceSource`, `NgcRegistrySource`). Requests that include it on these types MUST be rejected with a validation error.
 - **FR-005**: The `externalRegistryRef` MUST be a **polymorphic discriminated value**. The system MUST support the following typed subtypes, each with its own named field(s):
-  - **`HuggingFaceRef`**: `{ modelId: String }` — identifies a model on the HuggingFace model hub (expected format: `org/model-name`).
   - **`McpRegistryRef`**: `{ packageName: String }` — identifies a package/card in the MCP registry.
   - **`GitHubRef`**: `{ repo: String }` — identifies a GitHub repository (expected format: `owner/repo`).
-  - **`GenericRef`**: `{ url: String }` — a fully-qualified URL pointing to any registry or catalog not covered by a typed subtype. This is the extensibility path for registries that do not yet have a dedicated subtype.
-- **FR-006**: For all typed subtypes, the identifying field MUST be a non-empty string; the system MUST reject requests where it is blank. No further format validation is applied — expected formats (e.g., `org/model-name` for `HuggingFaceRef.modelId`, `owner/repo` for `GitHubRef.repo`, a fully-qualified URL for `GenericRef.url`) are documented conventions enforced by clients, not by the system.
+  - **`GenericRef`**: `{ url: String }` — a URL pointing to any registry or catalog not covered by a typed subtype. This is the extensibility path for registries that do not yet have a dedicated subtype, including HuggingFace when referenced from a general source.
+- **FR-006**: For all typed subtypes, the identifying field MUST be a non-empty string; the system MUST reject requests where it is blank. No further format validation is applied — expected formats (e.g., `owner/repo` for `GitHubRef.repo`, a fully-qualified URL for `GenericRef.url`) are documented conventions enforced by clients, not by the system.
 - **FR-007**: The system MUST reject requests that send an unknown or unrecognised type discriminator for `externalRegistryRef`. Operators MUST use `GenericRef` to reference registries not yet represented by a typed subtype.
 - **FR-008**: The `externalRegistryRef` MUST be returned in all API responses that include affected source types (GET single, GET list, POST and PUT responses), preserving the original type discriminator and all typed fields.
 - **FR-009**: The `externalRegistryRef` MUST be optional. Omitting it is valid for all in-scope source types. No default value is applied.
@@ -121,7 +121,6 @@ An operator needs to clear an external registry reference from a source (e.g., t
 ### Key Entities
 
 - **ExternalRegistryRef** (abstract, polymorphic): A discriminated informational value attached to a general source, identifying the source artifact's entry in an external catalog or registry. Subtypes:
-  - **`HuggingFaceRef`**: Field `modelId` (String, non-empty; format `org/model-name`) — identifies a HuggingFace model hub entry.
   - **`McpRegistryRef`**: Field `packageName` (String, non-empty) — identifies an MCP registry package or tool card.
   - **`GitHubRef`**: Field `repo` (String, non-empty; format `owner/repo`) — identifies a GitHub repository used as the canonical catalog or documentation reference.
   - **`GenericRef`**: Field `url` (String, non-empty; conventionally a fully-qualified URL) — catch-all for any registry not covered by a typed subtype; enables reference of new registries without system code changes.
@@ -136,7 +135,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 - **SC-001**: An operator can associate a typed external registry reference with any in-scope source in a single API call with no additional steps.
 - **SC-002**: 100% of API responses for image definitions and deployments that carry an external registry reference include the complete typed reference (discriminator and all typed fields).
 - **SC-003**: The presence or absence of an external registry reference has zero impact on deployment behavior — all existing records continue to function without modification.
-- **SC-004**: Operators can reference any external registry without system code changes by using `GenericRef` with a fully-qualified URL.
+- **SC-004**: Operators can reference any external registry without system code changes by using `GenericRef`.
 - **SC-005**: The feature introduces no regression in existing image definition or deployment CRUD scenarios, as verified by the full test suite.
 - **SC-006**: Attempting to set `externalRegistryRef` on a registry-bound source type (`HuggingFaceSource`, `NgcRegistrySource`) results in a clear rejection, preventing silent data inconsistency.
 - **SC-007**: Attempting to set an unknown type discriminator results in a clear validation error; `GenericRef` is the documented path for unlisted registries.
@@ -144,7 +143,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 ## Assumptions
 
 **On scope (which sources are in scope):**
-`HuggingFaceSource` and `NgcRegistrySource` are excluded because they are already intrinsically registry-bound — `modelName` on `HuggingFaceSource` and `imageRef` on `NgcRegistrySource` ARE the external identifiers. Adding a separate `externalRegistryRef` to these types would create redundant, potentially conflicting data. `InternalImageSource` is excluded from carrying a settable `externalRegistryRef`: it points to an `ImageDefinition`, which itself (via its underlying `DockerImageSource` or `GitDockerfileImageSource`) now carries the `externalRegistryRef`. The registry context is accessible without duplication. Exposing the ImageDefinition's `externalRegistryRef` inline in deployment API responses for `InternalImageSource` deployments is explicitly deferred to a follow-up feature — clients needing the ref for such deployments must fetch the referenced ImageDefinition separately in this iteration.
+`HuggingFaceSource` and `NgcRegistrySource` are excluded because they are already intrinsically registry-bound — `modelName` on `HuggingFaceSource` and `imageRef` on `NgcRegistrySource` ARE the external identifiers. Adding a separate `externalRegistryRef` to these types would create redundant, potentially conflicting data. Furthermore, HuggingFace deployments only support `HuggingFaceSource` (a registry-bound type); general sources are never used for HuggingFace deployments, making a dedicated `HuggingFaceRef` subtype a dead code path. Operators who need to reference HuggingFace from a general source (e.g., a Docker image that packages an HF model) use `GenericRef` instead. `InternalImageSource` is excluded from carrying a settable `externalRegistryRef`: it points to an `ImageDefinition`, which itself (via its underlying `DockerImageSource` or `GitDockerfileImageSource`) now carries the `externalRegistryRef`. The registry context is accessible without duplication. Exposing the ImageDefinition's `externalRegistryRef` inline in deployment API responses for `InternalImageSource` deployments is explicitly deferred to a follow-up feature — clients needing the ref for such deployments must fetch the referenced ImageDefinition separately in this iteration.
 
 **On structure (polymorphic, not flat):**
 `ExternalRegistryRef` is modelled as a polymorphic discriminated type, consistent with all other polymorphic types in the project (`Source`, `ImageSource`, `Deployment`). Each known registry type gets a named typed subtype with fields that match the registry's identity model. `GenericRef { url }` is the designated escape hatch for registries that do not yet have a typed subtype — this preserves extensibility without requiring an open-string discriminator that clients cannot reliably interpret. An earlier flat model (`registryType: String`, `itemId: String`) was considered and rejected: it conflates structurally distinct identifiers into a single opaque field and introduces a normalisation problem (free-form discriminator strings with no canonical values).
@@ -159,4 +158,4 @@ The `externalRegistryRef` will be stored as part of the existing JSON column use
 No database migration is required for existing rows. The field defaults to absent/null for all pre-existing records.
 
 **On initial registry type set:**
-The four initial subtypes (`HuggingFaceRef`, `McpRegistryRef`, `GitHubRef`, `GenericRef`) cover the primary use cases identified. Additional typed subtypes (e.g., `DockerHubRef`, `NpmRef`) can be introduced in future iterations without breaking existing records or clients that use `GenericRef`.
+The three initial subtypes (`McpRegistryRef`, `GitHubRef`, `GenericRef`) cover the primary use cases identified. Additional typed subtypes can be introduced in future iterations without breaking existing records or clients that use `GenericRef`.
