@@ -44,7 +44,7 @@ import org.mapstruct.SubclassMapping;
 
 @Mapper(componentModel = "spring",
         uses = {PersistenceEnvVarValueMapper.class, PersistenceTimestampMapper.class, PersistenceEnvVarDefinitionMapper.class,
-                PersistenceProbePropertiesMapper.class},
+                PersistenceProbePropertiesMapper.class, PersistenceExternalRegistryRefMapper.class},
         subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
 public abstract class PersistenceDeploymentMapper {
 

@@ -11,10 +11,16 @@ import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarMountType;
 import com.epam.aidial.deployment.manager.model.FileEnvVarValue;
+import com.epam.aidial.deployment.manager.model.GenericRef;
+import com.epam.aidial.deployment.manager.model.GitHubRef;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.McpRegistryRef;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
+import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentManagerProvider;
@@ -897,6 +903,161 @@ public abstract class DeploymentFunctionalTest {
                 throw new IllegalStateException(errorMessage);
             }
             Thread.sleep(pollIntervalMs);
+        }
+    }
+
+    @Test
+    public void shouldCreateDeploymentWithMcpRegistryRef() {
+        var createDeployment = CreateMcpDeployment.builder()
+                .id("deploy-mcp-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server")))
+                .displayName("Deployment with MCP ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
+
+        Assertions.assertInstanceOf(ImageReferenceSource.class, fetched.getSource());
+        var source = (ImageReferenceSource) fetched.getSource();
+        Assertions.assertEquals("registry.test/image:1.0", source.imageReference());
+        Assertions.assertInstanceOf(McpRegistryRef.class, source.externalRegistryRef());
+        Assertions.assertEquals("my-server", ((McpRegistryRef) source.externalRegistryRef()).packageName());
+    }
+
+    @Test
+    public void shouldCreateDeploymentWithGenericRef() {
+        var createDeployment = CreateMcpDeployment.builder()
+                .id("deploy-generic-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", new GenericRef("https://example.com/pkg")))
+                .displayName("Deployment with generic ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
+
+        var source = (ImageReferenceSource) fetched.getSource();
+        Assertions.assertInstanceOf(GenericRef.class, source.externalRegistryRef());
+        Assertions.assertEquals("https://example.com/pkg", ((GenericRef) source.externalRegistryRef()).url());
+    }
+
+    @Test
+    public void shouldCreateDeploymentWithoutExternalRef() {
+        var createDeployment = CreateMcpDeployment.builder()
+                .id("deploy-no-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", null))
+                .displayName("Deployment without ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
+
+        var source = (ImageReferenceSource) fetched.getSource();
+        Assertions.assertNull(source.externalRegistryRef());
+    }
+
+    @Test
+    public void shouldUpdateDeploymentExternalRef() {
+        var createDeployment = CreateMcpDeployment.builder()
+                .id("deploy-update-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("old-pkg")))
+                .displayName("Deployment to update ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        deploymentService.createDeployment(createDeployment);
+
+        var updateRequest = CreateMcpDeployment.builder()
+                .id("deploy-update-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", new GitHubRef("new/repo")))
+                .displayName("Deployment to update ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+        deploymentService.updateDeployment("deploy-update-ref", updateRequest);
+
+        var fetched = deploymentService.getDeployment("deploy-update-ref").orElseThrow();
+        var source = (ImageReferenceSource) fetched.getSource();
+        Assertions.assertInstanceOf(GitHubRef.class, source.externalRegistryRef());
+        Assertions.assertEquals("new/repo", ((GitHubRef) source.externalRegistryRef()).repo());
+    }
+
+    @Test
+    public void shouldClearDeploymentExternalRef() {
+        var createDeployment = CreateMcpDeployment.builder()
+                .id("deploy-clear-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-pkg")))
+                .displayName("Deployment to clear ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        deploymentService.createDeployment(createDeployment);
+
+        var clearRequest = CreateMcpDeployment.builder()
+                .id("deploy-clear-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", null))
+                .displayName("Deployment to clear ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+        deploymentService.updateDeployment("deploy-clear-ref", clearRequest);
+
+        var fetched = deploymentService.getDeployment("deploy-clear-ref").orElseThrow();
+        var source = (ImageReferenceSource) fetched.getSource();
+        Assertions.assertNull(source.externalRegistryRef());
+    }
+
+    @Test
+    public void shouldListDeployments_withMixedExternalRefs() {
+        var dep1 = CreateMcpDeployment.builder()
+                .id("deploy-list-ref")
+                .source(new ImageReferenceSource("registry.test/img1:1.0", new McpRegistryRef("pkg-1")))
+                .displayName("Dep with ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        var dep2 = CreateMcpDeployment.builder()
+                .id("deploy-list-noref")
+                .source(new ImageReferenceSource("registry.test/img2:1.0", null))
+                .displayName("Dep without ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        deploymentService.createDeployment(dep1);
+        deploymentService.createDeployment(dep2);
+
+        var allDeployments = deploymentService.getAllDeployments();
+        // Filter to only ImageReferenceSource deployments (BeforeEach creates one with InternalImageSource)
+        var imageRefDeployments = allDeployments.stream()
+                .filter(d -> d.getSource() instanceof ImageReferenceSource)
+                .toList();
+        Assertions.assertEquals(2, imageRefDeployments.size());
+
+        for (var dep : imageRefDeployments) {
+            var source = (ImageReferenceSource) dep.getSource();
+            if ("deploy-list-ref".equals(dep.getId())) {
+                Assertions.assertInstanceOf(McpRegistryRef.class, source.externalRegistryRef());
+            } else {
+                Assertions.assertNull(source.externalRegistryRef());
+            }
         }
     }
 

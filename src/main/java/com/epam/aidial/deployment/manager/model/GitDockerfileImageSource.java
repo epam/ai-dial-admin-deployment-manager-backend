@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -21,4 +22,6 @@ public class GitDockerfileImageSource extends ImageSource {
     private String sha;
     private String baseDirectory;
     private List<String> entrypoint;
+    @Nullable
+    private ExternalRegistryRef externalRegistryRef;
 }

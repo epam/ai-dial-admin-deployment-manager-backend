@@ -37,7 +37,7 @@ public class WrapperImageBuildStep {
 
         var wrapperImageJobName = "wrapper-" + imageDefinition.getId();
         var wrapperImageName = registryService.fullImageName(wrapperImageJobName, imageDefinition.getVersion());
-        var dockerImageSource = new DockerImageSource(baseImageName, entrypoint);
+        var dockerImageSource = new DockerImageSource(baseImageName, entrypoint, null);
 
         disposableResourceManager.saveContainerRegistryResource(wrapperImageName, imageDefinition.getId(), ResourceLifecycleState.STABLE);
 

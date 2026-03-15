@@ -33,7 +33,7 @@ import java.util.UUID;
 public class FunctionalTestHelper {
 
     public static McpImageDefinition createMcpImageDefinition() {
-        var source = new DockerImageSource("http://test-uri", List.of("entry1"));
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), null);
         return McpImageDefinition.builder()
                 .version("1.0.0")
                 .name("mcpImage")
@@ -49,7 +49,7 @@ public class FunctionalTestHelper {
     }
 
     public static ImageDefinition createInterceptorImageDefinition() {
-        var source = new DockerImageSource("http://test-uri-1", List.of("entry2"));
+        var source = new DockerImageSource("http://test-uri-1", List.of("entry2"), null);
         return InterceptorImageDefinition.builder()
                 .name("interceptorImage")
                 .version("1.0.0")
@@ -64,7 +64,7 @@ public class FunctionalTestHelper {
     }
 
     public static ImageDefinition createRealInterceptorImageDefinition(String imageUri) {
-        var source = new DockerImageSource(imageUri, List.of());
+        var source = new DockerImageSource(imageUri, List.of(), null);
         return InterceptorImageDefinition.builder()
                 .name("interceptor-example-test")
                 .version("1.0.0")
@@ -80,7 +80,7 @@ public class FunctionalTestHelper {
     public static ImageDefinition createRealMcpDockerStdioImageDefinition(String imageUri) {
         // Image is not MCP, but it doesn't matter for tests
         var source = new DockerImageSource(imageUri,
-                List.of("/docker_entrypoint.sh", "/bin/sh", "-c", "uvicorn aidial_interceptors_sdk.examples.app:app --host 0.0.0.0 --port 8080"));
+                List.of("/docker_entrypoint.sh", "/bin/sh", "-c", "uvicorn aidial_interceptors_sdk.examples.app:app --host 0.0.0.0 --port 8080"), null);
 
         return McpImageDefinition.builder()
                 .name("mcp-docker-stdio-test")
@@ -130,7 +130,7 @@ public class FunctionalTestHelper {
     }
 
     public static ImageDefinition createAdapterImageDefinition() {
-        var source = new DockerImageSource("http://test-uri-adapter", List.of("entry-adapter"));
+        var source = new DockerImageSource("http://test-uri-adapter", List.of("entry-adapter"), null);
         return AdapterImageDefinition.builder()
                 .name("adapterImage")
                 .version("1.0.0")

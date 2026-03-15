@@ -377,7 +377,7 @@ class KnativeDeploymentManagerTest {
         // Given
         var deployment = new McpDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE, null));
         deployment.setStatus(DeploymentStatus.STOPPED);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -420,7 +420,7 @@ class KnativeDeploymentManagerTest {
         // Given
         var deployment = new AdapterDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE, null));
         deployment.setStatus(DeploymentStatus.STOPPED);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));
@@ -463,7 +463,7 @@ class KnativeDeploymentManagerTest {
         // Given
         var deployment = new InterceptorDeployment();
         deployment.setId(DEPLOYMENT_ID);
-        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE));
+        deployment.setSource(new ImageReferenceSource(MCP_IMAGE_REFERENCE, null));
         deployment.setStatus(DeploymentStatus.STOPPED);
         deployment.setMetadata(new DeploymentMetadata());
         deployment.setResources(new Resources(Collections.emptyMap(), Collections.emptyMap()));

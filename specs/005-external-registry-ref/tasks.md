@@ -16,7 +16,7 @@
 
 No new packages or project structure needed — all new files go into existing packages.
 
-- [ ] T001 Read `specs/005-external-registry-ref/plan.md`, `data-model.md`, and `contracts/` to load the full implementation context before starting
+- [x] T001 Read `specs/005-external-registry-ref/plan.md`, `data-model.md`, and `contracts/` to load the full implementation context before starting
 
 ---
 
@@ -26,32 +26,32 @@ No new packages or project structure needed — all new files go into existing p
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T002 [P] Create `ExternalRegistryRef` interface and its three model subtypes in `src/main/java/com/epam/aidial/deployment/manager/model/`:
+- [x] T002 [P] Create `ExternalRegistryRef` interface and its three model subtypes in `src/main/java/com/epam/aidial/deployment/manager/model/`:
   - `ExternalRegistryRef.java` — interface with `@JsonTypeInfo(use = NAME, property = "$type")` and `@JsonSubTypes` for `McpRegistryRef` (`"mcp-registry"`), `GitHubRef` (`"github"`), `GenericRef` (`"generic"`)
   - `McpRegistryRef.java` — `public record McpRegistryRef(String packageName) implements ExternalRegistryRef {}`
   - `GitHubRef.java` — `public record GitHubRef(String repo) implements ExternalRegistryRef {}`
   - `GenericRef.java` — `public record GenericRef(String url) implements ExternalRegistryRef {}`
 
-- [ ] T003 [P] Create `PersistenceExternalRegistryRef` interface and its three persistence subtypes in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/`:
+- [x] T003 [P] Create `PersistenceExternalRegistryRef` interface and its three persistence subtypes in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/`:
   - `PersistenceExternalRegistryRef.java` — interface with same `@JsonTypeInfo`/`@JsonSubTypes` pattern as T002 (matching discriminator values)
   - `PersistenceMcpRegistryRef.java` — `public record PersistenceMcpRegistryRef(String packageName) implements PersistenceExternalRegistryRef {}`
   - `PersistenceGitHubRef.java` — `public record PersistenceGitHubRef(String repo) implements PersistenceExternalRegistryRef {}`
   - `PersistenceGenericRef.java` — `public record PersistenceGenericRef(String url) implements PersistenceExternalRegistryRef {}`
 
-- [ ] T004 [P] Create `ExternalRegistryRefDto` interface and its three DTO subtypes in `src/main/java/com/epam/aidial/deployment/manager/web/dto/`:
+- [x] T004 [P] Create `ExternalRegistryRefDto` interface and its three DTO subtypes in `src/main/java/com/epam/aidial/deployment/manager/web/dto/`:
   - `ExternalRegistryRefDto.java` — interface with same `@JsonTypeInfo`/`@JsonSubTypes` pattern (matching discriminator values)
   - `McpRegistryRefDto.java` — `public record McpRegistryRefDto(@NotBlank String packageName) implements ExternalRegistryRefDto {}`
   - `GitHubRefDto.java` — `public record GitHubRefDto(@NotBlank String repo) implements ExternalRegistryRefDto {}`
   - `GenericRefDto.java` — `public record GenericRefDto(@NotBlank String url) implements ExternalRegistryRefDto {}`
 
-- [ ] T005 Create `ExternalRegistryRefDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ExternalRegistryRefDtoMapper.java`:
+- [x] T005 Create `ExternalRegistryRefDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ExternalRegistryRefDtoMapper.java`:
   - `@Mapper(componentModel = "spring", subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)`
   - `@SubclassMapping` for all three DTO→model directions: `McpRegistryRefDto→McpRegistryRef`, `GitHubRefDto→GitHubRef`, `GenericRefDto→GenericRef`
   - `@SubclassMapping` for all three model→DTO directions
   - Bidirectional methods: `ExternalRegistryRef toModel(ExternalRegistryRefDto dto)` and `ExternalRegistryRefDto toDto(ExternalRegistryRef model)`
   - Depends on T002, T004
 
-- [ ] T006 Create `PersistenceExternalRegistryRefMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceExternalRegistryRefMapper.java`:
+- [x] T006 Create `PersistenceExternalRegistryRefMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceExternalRegistryRefMapper.java`:
   - `@Mapper(componentModel = "spring", subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)`
   - `@SubclassMapping` for all three model→persistence directions and reverse
   - Bidirectional methods: `PersistenceExternalRegistryRef toEntity(ExternalRegistryRef model)` and `ExternalRegistryRef toDomain(PersistenceExternalRegistryRef entity)`
