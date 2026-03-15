@@ -67,36 +67,36 @@ No new packages or project structure needed — all new files go into existing p
 
 **Independent Test**: Create an image definition with `$type: "git"` source including `externalRegistryRef: { $type: "mcp-registry", packageName: "my-server" }`. Read it back via `GET /api/v1/images/definitions/{id}`. Assert the source contains the typed reference. Then update with a `GitHubRef`. Then update without the field. Verify the three states in sequence.
 
-- [ ] T007 [P] [US1] Modify `DockerImageSource` in `src/main/java/com/epam/aidial/deployment/manager/model/DockerImageSource.java`:
+- [x] T007 [P] [US1] Modify `DockerImageSource` in `src/main/java/com/epam/aidial/deployment/manager/model/DockerImageSource.java`:
   - Add `@Nullable private ExternalRegistryRef externalRegistryRef;` field (Lombok `@Data` will generate getter/setter)
   - Depends on T002
 
-- [ ] T008 [P] [US1] Modify `GitDockerfileImageSource` in `src/main/java/com/epam/aidial/deployment/manager/model/GitDockerfileImageSource.java`:
+- [x] T008 [P] [US1] Modify `GitDockerfileImageSource` in `src/main/java/com/epam/aidial/deployment/manager/model/GitDockerfileImageSource.java`:
   - Add `@Nullable private ExternalRegistryRef externalRegistryRef;` field
   - Depends on T002
 
-- [ ] T009 [P] [US1] Modify persistence records in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/`:
+- [x] T009 [P] [US1] Modify persistence records in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/`:
   - `PersistenceDockerImageSource.java` — add `PersistenceExternalRegistryRef externalRegistryRef` as the last record component (nullable — no annotation needed for Jackson)
   - `PersistenceGitDockerfileImageSource.java` — same addition
   - Depends on T003
 
-- [ ] T010 [P] [US1] Modify DTO records in `src/main/java/com/epam/aidial/deployment/manager/web/dto/`:
+- [x] T010 [P] [US1] Modify DTO records in `src/main/java/com/epam/aidial/deployment/manager/web/dto/`:
   - `DockerImageSourceDto.java` — add `@Nullable @Valid ExternalRegistryRefDto externalRegistryRef` as the last record component
   - `GitDockerfileImageSourceDto.java` — same addition
   - Depends on T004
 
-- [ ] T011 [US1] Update `ImageSourceDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ImageSourceDtoMapper.java`:
+- [x] T011 [US1] Update `ImageSourceDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ImageSourceDtoMapper.java`:
   - Add `ExternalRegistryRefDtoMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present)
   - MapStruct will auto-map `externalRegistryRef` by field name — no explicit `@Mapping` needed
   - Verify `toImageSource(ImageSourceDto)` and `toImageSourceDto(ImageSource)` both compile and handle the new field
   - Depends on T005, T007, T008, T010
 
-- [ ] T012 [US1] Update `PersistenceImageSourceMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceImageSourceMapper.java`:
+- [x] T012 [US1] Update `PersistenceImageSourceMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceImageSourceMapper.java`:
   - Add `PersistenceExternalRegistryRefMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present)
   - Verify bidirectional mappings compile with new field
   - Depends on T006, T007, T008, T009
 
-- [ ] T013 [US1] Add functional test scenarios to `src/test/java/com/epam/aidial/deployment/manager/functional/h2/ImageDefinitionFunctionalTest.java` (and mirror in Postgres/SQL Server test classes if they exist):
+- [x] T013 [US1] Add functional test scenarios to `src/test/java/com/epam/aidial/deployment/manager/functional/h2/ImageDefinitionFunctionalTest.java` (and mirror in Postgres/SQL Server test classes if they exist):
   - `shouldCreateImageDefinitionWithMcpRegistryRef()` — POST git source with McpRegistryRef, GET back, assert ref present with correct packageName
   - `shouldCreateImageDefinitionWithGitHubRef()` — POST docker source with GitHubRef, GET back, assert ref present
   - `shouldCreateImageDefinitionWithGenericRef()` — POST with GenericRef, GET back, assert ref present
@@ -117,22 +117,22 @@ No new packages or project structure needed — all new files go into existing p
 
 **Independent Test**: Create a deployment with `$type: "image_reference"` source including `externalRegistryRef: { $type: "mcp-registry", packageName: "my-server" }`. Read it back via `GET /api/v1/deployments/{id}`. Assert the source contains the typed reference.
 
-- [ ] T014 [P] [US2] Modify `ImageReferenceSource` record in `src/main/java/com/epam/aidial/deployment/manager/model/deployment/ImageReferenceSource.java`:
+- [x] T014 [P] [US2] Modify `ImageReferenceSource` record in `src/main/java/com/epam/aidial/deployment/manager/model/deployment/ImageReferenceSource.java`:
   - Change to: `public record ImageReferenceSource(String imageReference, @Nullable ExternalRegistryRef externalRegistryRef) implements Source {}`
   - Update all construction sites — primarily in `DeploymentDtoMapper` where `new ImageReferenceSource(imageReference)` is called; pass `null` as the second argument until T016 is done
   - Also update any test fixtures in `src/test/` that construct `ImageReferenceSource` — pass `null` as the second argument
   - Depends on T002
 
-- [ ] T015 [P] [US2] Modify `PersistenceImageReferenceSource` record in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/deployment/PersistenceImageReferenceSource.java`:
+- [x] T015 [P] [US2] Modify `PersistenceImageReferenceSource` record in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/deployment/PersistenceImageReferenceSource.java`:
   - Change to: `public record PersistenceImageReferenceSource(String imageReference, PersistenceExternalRegistryRef externalRegistryRef) implements PersistenceSource {}`
   - Depends on T003
 
-- [ ] T016 [P] [US2] Modify deployment source DTOs in `src/main/java/com/epam/aidial/deployment/manager/web/dto/deployment/`:
+- [x] T016 [P] [US2] Modify deployment source DTOs in `src/main/java/com/epam/aidial/deployment/manager/web/dto/deployment/`:
   - `ImageReferenceDeploymentSourceDto.java` — add `@Nullable @Valid ExternalRegistryRefDto externalRegistryRef` as the last record component
   - `CreateImageReferenceDeploymentSourceRequestDto.java` — same addition
   - Depends on T004
 
-- [ ] T017 [US2] Update `DeploymentDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/DeploymentDtoMapper.java`:
+- [x] T017 [US2] Update `DeploymentDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/DeploymentDtoMapper.java`:
   - Add `ExternalRegistryRefDtoMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present), or inject `ExternalRegistryRefDtoMapper` via `@Autowired`
   - Update the `toDeploymentSourceDto` manual switch for `ImageReferenceSource`:
     ```java
@@ -143,12 +143,12 @@ No new packages or project structure needed — all new files go into existing p
   - Update `applyCreateImageSource` (or equivalent method) to pass `externalRegistryRef` from `CreateImageReferenceDeploymentSourceRequestDto` when constructing `ImageReferenceSource`
   - Depends on T005, T014, T016
 
-- [ ] T018 [US2] Update `PersistenceDeploymentMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceDeploymentMapper.java`:
+- [x] T018 [US2] Update `PersistenceDeploymentMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceDeploymentMapper.java`:
   - Add `PersistenceExternalRegistryRefMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present)
   - Verify `@SubclassMapping` for `PersistenceImageReferenceSource ↔ ImageReferenceSource` still resolves — MapStruct will auto-map `externalRegistryRef` via the added mapper
   - Depends on T006, T014, T015
 
-- [ ] T019 [US2] Add functional test scenarios to `src/test/java/com/epam/aidial/deployment/manager/functional/h2/DeploymentFunctionalTest.java` (and mirror in Postgres/SQL Server test classes):
+- [x] T019 [US2] Add functional test scenarios to `src/test/java/com/epam/aidial/deployment/manager/functional/h2/DeploymentFunctionalTest.java` (and mirror in Postgres/SQL Server test classes):
   - `shouldCreateDeploymentWithMcpRegistryRef()` — POST `image_reference` source with McpRegistryRef, GET back, assert ref present
   - `shouldCreateDeploymentWithGenericRef()` — POST with GenericRef, GET back, assert ref present
   - `shouldCreateDeploymentWithoutExternalRef()` — POST without ref, GET back, assert ref absent/null
@@ -169,11 +169,11 @@ No new packages or project structure needed — all new files go into existing p
 
 **Independent Test**: Seed multiple image definitions and deployments with varying refs. Call the list endpoints. Assert each record has the correct ref. Export config including a record with a ref. Import it. Assert the ref survived the round-trip.
 
-- [ ] T020 [US3] Add list-read test scenarios to `ImageDefinitionFunctionalTest`:
+- [x] T020 [US3] Add list-read test scenarios to `ImageDefinitionFunctionalTest`:
   - `shouldListImageDefinitions_withMixedExternalRefs()` — create three image definitions (McpRegistryRef, GenericRef, no ref), GET `api/v1/images/definitions`, assert each record shows correct/absent ref
   - Depends on T013
 
-- [ ] T021 [US3] Add export/import round-trip test to verify FR-012 (externalRegistryRef preserved through export/import):
+- [x] T021 [US3] Add export/import round-trip test to verify FR-012 (externalRegistryRef preserved through export/import):
   - Add `shouldPreserveExternalRefThroughExportImport()` to `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ConfigExportImportFunctionalTest.java`
   - Create image definition or deployment with a ref, export config, import to a clean state, assert ref is present after import
   - Depends on T013, T019
@@ -182,11 +182,11 @@ No new packages or project structure needed — all new files go into existing p
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T022 Run `./gradlew checkstyleMain checkstyleTest` and fix any style violations across all new and modified files
+- [x] T022 Run `./gradlew checkstyleMain checkstyleTest` and fix any style violations across all new and modified files
 
-- [ ] T023 Run `./gradlew testFast` (H2 full suite) — all tests must pass
+- [x] T023 Run `./gradlew testFast` (H2 full suite) — all tests must pass
 
-- [ ] T024 Run `./gradlew test` (full suite including Postgres and SQL Server via Testcontainers) — all tests must pass across all three vendors
+- [x] T024 Run `./gradlew test` (full suite including Postgres and SQL Server via Testcontainers) — all tests must pass across all three vendors
 
 ---
 
