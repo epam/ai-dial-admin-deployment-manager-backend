@@ -14,11 +14,11 @@ File:    model/ExternalRegistryRef.java
 
 Polymorphic discriminated interface. Discriminator: `$type`.
 
-| Subtype | Discriminator value | Field | Validation |
-|---------|---------------------|-------|------------|
-| `McpRegistryRef` | `"mcp-registry"` | `packageName: String` | `@NotBlank` |
-| `GitHubRef` | `"github"` | `repo: String` | `@NotBlank` |
-| `GenericRef` | `"generic"` | `url: String` | `@NotBlank` |
+| Subtype | Discriminator value | Field | Semantic constraint |
+|---------|---------------------|-------|---------------------|
+| `McpRegistryRef` | `"mcp-registry"` | `packageName: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
+| `GitHubRef` | `"github"` | `repo: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
+| `GenericRef` | `"generic"` | `url: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
 
 All subtypes are Java records.
 
@@ -129,7 +129,7 @@ Package: com.epam.aidial.deployment.manager.dao.entity.deployment
 ```java
 public record PersistenceImageReferenceSource(
     String imageReference,
-    PersistenceExternalRegistryRef externalRegistryRef
+    PersistenceExternalRegistryRef externalRegistryRef  // nullable — no annotation needed for Jackson
 ) implements PersistenceSource {}
 ```
 

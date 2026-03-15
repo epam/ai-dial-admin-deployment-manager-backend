@@ -86,13 +86,13 @@ No new packages or project structure needed — all new files go into existing p
   - Depends on T004
 
 - [ ] T011 [US1] Update `ImageSourceDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ImageSourceDtoMapper.java`:
-  - Add `uses = {ExternalRegistryRefDtoMapper.class}` to the `@Mapper` annotation
+  - Add `ExternalRegistryRefDtoMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present)
   - MapStruct will auto-map `externalRegistryRef` by field name — no explicit `@Mapping` needed
   - Verify `toImageSource(ImageSourceDto)` and `toImageSourceDto(ImageSource)` both compile and handle the new field
   - Depends on T005, T007, T008, T010
 
 - [ ] T012 [US1] Update `PersistenceImageSourceMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceImageSourceMapper.java`:
-  - Add `uses = {PersistenceExternalRegistryRefMapper.class}` to the `@Mapper` annotation
+  - Add `PersistenceExternalRegistryRefMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present)
   - Verify bidirectional mappings compile with new field
   - Depends on T006, T007, T008, T009
 
@@ -104,6 +104,7 @@ No new packages or project structure needed — all new files go into existing p
   - `shouldUpdateImageDefinitionExternalRef()` — create with McpRegistryRef, PUT with GitHubRef, GET back, assert updated
   - `shouldClearImageDefinitionExternalRef()` — create with ref, PUT without ref, GET back, assert ref absent
   - `shouldFailCreateImageDefinition_whenExternalRefFieldBlank()` — POST with `{ "$type": "mcp-registry", "packageName": "" }`, assert HTTP 400
+  - `shouldFailCreateImageDefinition_whenUnknownExternalRefType()` — POST with `{ "$type": "unknown-registry", "key": "value" }` on `externalRegistryRef`, assert HTTP 400 (Jackson rejects unknown discriminator)
   - Depends on T011, T012
 
 **Checkpoint**: `./gradlew testFast --tests "*.ImageDefinitionFunctionalTest"` must pass. User Story 1 independently validated.
@@ -119,6 +120,7 @@ No new packages or project structure needed — all new files go into existing p
 - [ ] T014 [P] [US2] Modify `ImageReferenceSource` record in `src/main/java/com/epam/aidial/deployment/manager/model/deployment/ImageReferenceSource.java`:
   - Change to: `public record ImageReferenceSource(String imageReference, @Nullable ExternalRegistryRef externalRegistryRef) implements Source {}`
   - Update all construction sites — primarily in `DeploymentDtoMapper` where `new ImageReferenceSource(imageReference)` is called; pass `null` as the second argument until T016 is done
+  - Also update any test fixtures in `src/test/` that construct `ImageReferenceSource` — pass `null` as the second argument
   - Depends on T002
 
 - [ ] T015 [P] [US2] Modify `PersistenceImageReferenceSource` record in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/deployment/PersistenceImageReferenceSource.java`:
@@ -131,7 +133,7 @@ No new packages or project structure needed — all new files go into existing p
   - Depends on T004
 
 - [ ] T017 [US2] Update `DeploymentDtoMapper` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/DeploymentDtoMapper.java`:
-  - Add `uses = {ExternalRegistryRefDtoMapper.class}` to the `@Mapper` annotation (or inject `ExternalRegistryRefDtoMapper` via `@Autowired`)
+  - Add `ExternalRegistryRefDtoMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present), or inject `ExternalRegistryRefDtoMapper` via `@Autowired`
   - Update the `toDeploymentSourceDto` manual switch for `ImageReferenceSource`:
     ```java
     case ImageReferenceSource(String imageReference, ExternalRegistryRef externalRegistryRef) ->
@@ -142,7 +144,7 @@ No new packages or project structure needed — all new files go into existing p
   - Depends on T005, T014, T016
 
 - [ ] T018 [US2] Update `PersistenceDeploymentMapper` in `src/main/java/com/epam/aidial/deployment/manager/dao/mapper/PersistenceDeploymentMapper.java`:
-  - Add `uses = {PersistenceExternalRegistryRefMapper.class}` to the `@Mapper` annotation
+  - Add `PersistenceExternalRegistryRefMapper.class` to the existing `uses` list in the `@Mapper` annotation (preserve any mappers already present)
   - Verify `@SubclassMapping` for `PersistenceImageReferenceSource ↔ ImageReferenceSource` still resolves — MapStruct will auto-map `externalRegistryRef` via the added mapper
   - Depends on T006, T014, T015
 
@@ -153,6 +155,7 @@ No new packages or project structure needed — all new files go into existing p
   - `shouldUpdateDeploymentExternalRef()` — create with McpRegistryRef, PUT with GitHubRef, GET back, assert updated
   - `shouldClearDeploymentExternalRef()` — create with ref, PUT without ref, GET back, assert ref absent
   - `shouldFailCreateDeployment_whenExternalRefFieldBlank()` — POST with blank `url` on GenericRef, assert HTTP 400
+  - `shouldFailCreateDeployment_whenUnknownExternalRefType()` — POST with `{ "$type": "unknown-registry", "key": "value" }` on `externalRegistryRef`, assert HTTP 400 (Jackson rejects unknown discriminator)
   - `shouldListDeployments_withMixedExternalRefs()` — create two deployments (one with ref, one without), GET list, assert correct per-record presence
   - Depends on T017, T018
 
@@ -171,7 +174,7 @@ No new packages or project structure needed — all new files go into existing p
   - Depends on T013
 
 - [ ] T021 [US3] Add export/import round-trip test to verify FR-012 (externalRegistryRef preserved through export/import):
-  - Add `shouldPreserveExternalRefThroughExportImport()` to the appropriate config export/import functional test class
+  - Add `shouldPreserveExternalRefThroughExportImport()` to `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ConfigExportImportFunctionalTest.java`
   - Create image definition or deployment with a ref, export config, import to a clean state, assert ref is present after import
   - Depends on T013, T019
 

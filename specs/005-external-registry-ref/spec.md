@@ -94,7 +94,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 
 - What happens when the operator sends a `GenericRef` with a non-URL string (e.g., a plain name instead of a URL)? The system accepts it — `GenericRef.url` requires only a non-empty string; URL format is a documented convention, not enforced.
 - What happens when a typed subtype field is empty or blank (e.g., `McpRegistryRef { packageName: "" }`)? The system must reject the request with a clear validation error.
-- What happens when an operator attempts to set `externalRegistryRef` on a registry-bound source (`HuggingFaceSource`, `NgcRegistrySource`)? The system must reject such a request — these sources are out of scope for this field.
+- What happens when an operator attempts to set `externalRegistryRef` on a registry-bound source (`HuggingFaceSource`, `NgcRegistrySource`)? The field is silently discarded — these source DTOs do not declare it, so Jackson's default `ignoreUnknown` behavior drops it. No error is raised; no data is stored.
 - What happens when a legacy record (created before this feature) is read? The field is absent from the response; no error is raised.
 - What happens when the operator sends an unknown type discriminator (not one of the defined subtypes)? The system should reject it — unknown discriminators are not forwarded; `GenericRef` is the intended extensibility path.
 
@@ -105,7 +105,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 - **FR-001**: The system MUST support an optional `externalRegistryRef` field on `DockerImageSource` (used in image definitions with a pre-built container image as source).
 - **FR-002**: The system MUST support an optional `externalRegistryRef` field on `GitDockerfileImageSource` (used in image definitions built from a Git repository and Dockerfile).
 - **FR-003**: The system MUST support an optional `externalRegistryRef` field on `ImageReferenceSource` (used in deployments that reference a Docker image directly, without an image definition).
-- **FR-004**: The `externalRegistryRef` MUST NOT be accepted on registry-bound source types (`HuggingFaceSource`, `NgcRegistrySource`). Requests that include it on these types MUST be rejected with a validation error.
+- **FR-004**: The `externalRegistryRef` field MUST NOT exist on registry-bound source types (`HuggingFaceSource`, `NgcRegistrySource`). These types use separate DTO hierarchies that do not declare the field; if a client includes it in a request payload, the field is silently discarded by the deserializer (standard Jackson `ignoreUnknown` behavior). No explicit rejection or validation error is raised — the field simply has no effect.
 - **FR-005**: The `externalRegistryRef` MUST be a **polymorphic discriminated value**. The system MUST support the following typed subtypes, each with its own named field(s):
   - **`McpRegistryRef`**: `{ packageName: String }` — identifies a package/card in the MCP registry.
   - **`GitHubRef`**: `{ repo: String }` — identifies a GitHub repository (expected format: `owner/repo`).
@@ -137,7 +137,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 - **SC-003**: The presence or absence of an external registry reference has zero impact on deployment behavior — all existing records continue to function without modification.
 - **SC-004**: Operators can reference any external registry without system code changes by using `GenericRef`.
 - **SC-005**: The feature introduces no regression in existing image definition or deployment CRUD scenarios, as verified by the full test suite.
-- **SC-006**: Attempting to set `externalRegistryRef` on a registry-bound source type (`HuggingFaceSource`, `NgcRegistrySource`) results in a clear rejection, preventing silent data inconsistency.
+- **SC-006**: Registry-bound source types (`HuggingFaceSource`, `NgcRegistrySource`) do not declare the `externalRegistryRef` field. If a client includes it, the value is silently discarded — no data is stored, preventing data inconsistency.
 - **SC-007**: Attempting to set an unknown type discriminator results in a clear validation error; `GenericRef` is the documented path for unlisted registries.
 
 ## Assumptions
