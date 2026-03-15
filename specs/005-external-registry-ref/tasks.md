@@ -209,9 +209,9 @@ Phase 1 (T001) → Phase 2 (T002–T006) → Phase 3 (T007–T013) ─┐
 
 ```
 T002 [P]─┐
-T003 [P]─┤→ T005 (dao mapper: T002+T003)
-T004 [P]─┤→ T006 (web mapper: T002+T004)  (note: T005/T006 labels are in plan as reversed — verify)
-         └→ T005
+T003 [P]─┤→ T006 (dao mapper: T002+T003)
+T004 [P]─┤→ T005 (web mapper: T002+T004)
+         └→ T006
 ```
 
 T002, T003, T004 fully parallel. T005 (ExternalRegistryRefDtoMapper) needs T002+T004. T006 (PersistenceExternalRegistryRefMapper) needs T002+T003.

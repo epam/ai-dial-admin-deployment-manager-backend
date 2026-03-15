@@ -228,9 +228,9 @@ Same structure. `@SubclassMapping` for all three bidirectional mappings.
 
 | Mapper | Change |
 |--------|--------|
-| `ImageSourceDtoMapper` | Add `uses = {ExternalRegistryRefDtoMapper.class}`; MapStruct auto-maps `externalRegistryRef` field |
-| `PersistenceImageSourceMapper` | Add `uses = {PersistenceExternalRegistryRefMapper.class}` |
-| `PersistenceDeploymentMapper` | Add `uses = {PersistenceExternalRegistryRefMapper.class}` |
+| `ImageSourceDtoMapper` | Add `ExternalRegistryRefDtoMapper.class` to existing `uses` list; MapStruct auto-maps `externalRegistryRef` field |
+| `PersistenceImageSourceMapper` | Add `PersistenceExternalRegistryRefMapper.class` to existing `uses` list |
+| `PersistenceDeploymentMapper` | Add `PersistenceExternalRegistryRefMapper.class` to existing `uses` list |
 | `DeploymentDtoMapper` | Update `ImageReferenceSource` pattern-match branch to include `externalRegistryRef` component; map via `ExternalRegistryRefDtoMapper` |
 
 ---
