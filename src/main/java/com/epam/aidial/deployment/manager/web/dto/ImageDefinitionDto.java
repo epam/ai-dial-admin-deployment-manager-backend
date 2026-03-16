@@ -54,6 +54,6 @@ public abstract class ImageDefinitionDto {
 
     @NotNull
     private List<String> allowedDomains;
-    @Nullable
+    @NotNull
     private ImageBuilderDto imageBuilder;
 }
