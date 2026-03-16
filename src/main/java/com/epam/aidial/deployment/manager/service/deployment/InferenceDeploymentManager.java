@@ -69,8 +69,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.podStatusInspector = new PodStatusInspector(
                 this::getServiceName,
                 serviceName -> getServicePods(namespace, serviceName),
-                pod -> isPodReady(pod.getStatus()),
-                this::getContainerName
+                pod -> isPodReady(pod.getStatus())
         );
     }
 

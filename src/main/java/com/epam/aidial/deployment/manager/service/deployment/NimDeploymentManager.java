@@ -62,8 +62,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         this.podStatusInspector = new PodStatusInspector(
                 this::getServiceName,
                 serviceName -> getServicePods(namespace, serviceName),
-                pod -> isPodReady(pod.getStatus()),
-                this::getContainerName
+                pod -> isPodReady(pod.getStatus())
         );
     }
 

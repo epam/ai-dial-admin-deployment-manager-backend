@@ -39,8 +39,7 @@ class PodStatusInspectorTest {
                     }
                     return status.getContainerStatuses().stream()
                             .anyMatch(cs -> cs.getState() != null && cs.getState().getRunning() != null);
-                },
-                pod -> CONTAINER_NAME
+                }
         );
     }
 

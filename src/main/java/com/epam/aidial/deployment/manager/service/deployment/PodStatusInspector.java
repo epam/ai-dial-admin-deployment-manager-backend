@@ -18,26 +18,23 @@ import java.util.function.Predicate;
  * with strategy lambdas — not a Spring-managed bean.
  */
 @Slf4j
-class PodStatusInspector {
+public class PodStatusInspector {
 
     private final ServiceNameResolver serviceNameResolver;
     private final ServicePodsProvider servicePodsProvider;
     private final PodReadinessChecker podReadinessChecker;
-    private final ContainerNameResolver containerNameResolver;
 
     PodStatusInspector(ServiceNameResolver serviceNameResolver,
                        ServicePodsProvider servicePodsProvider,
-                       PodReadinessChecker podReadinessChecker,
-                       ContainerNameResolver containerNameResolver) {
+                       PodReadinessChecker podReadinessChecker) {
         this.serviceNameResolver = serviceNameResolver;
         this.servicePodsProvider = servicePodsProvider;
         this.podReadinessChecker = podReadinessChecker;
-        this.containerNameResolver = containerNameResolver;
     }
 
     List<PodInfo> getActiveInstances(String deploymentId) {
         log.debug("getActiveInstances: deploymentId='{}'", deploymentId);
-        return getInstances(deploymentId, pod -> podReadinessChecker.isReady(pod));
+        return getInstances(deploymentId, podReadinessChecker::isReady);
     }
 
     List<PodInfo> getInstances(String deploymentId) {
