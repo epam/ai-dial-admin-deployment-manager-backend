@@ -12,10 +12,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity, String> {
+
+    Optional<DeploymentEntity> findByServiceName(String serviceName);
 
     List<DeploymentEntity> findAllByImageDefinitionId(UUID imageDefinitionId);
 
@@ -42,6 +45,10 @@ public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity,
     @Modifying
     @Query("UPDATE DeploymentEntity d SET d.status = :status WHERE d.id = :id")
     void updateStatus(@Param("id") String id, @Param("status") PersistenceDeploymentStatus status);
+
+    @Modifying
+    @Query("UPDATE DeploymentEntity d SET d.serviceName = :serviceName WHERE d.id = :id")
+    void updateServiceName(@Param("id") String id, @Param("serviceName") String serviceName);
 
     @Modifying
     @Query("UPDATE DeploymentEntity d SET d.imageDefinitionId = :imageDefinitionId, d.source = :source WHERE d.id IN :deploymentIds")

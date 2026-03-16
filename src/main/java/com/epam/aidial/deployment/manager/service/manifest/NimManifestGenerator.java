@@ -6,7 +6,6 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
 import com.google.cloud.tools.jib.api.ImageReference;
@@ -48,6 +47,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     @SneakyThrows
     public NIMService serviceConfig(
             String name,
+            String serviceName,
             List<SimpleEnvVar> envs,
             List<SensitiveEnvVar> sensitiveEnv,
             Resources resources,
@@ -64,11 +64,10 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             throw new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured");
         }
 
-        var nimServiceName = K8sNamingUtils.generateMcpPrefixedName(name);
         var config = createBaseManifestChain(
                 appConfig::cloneNimServiceConfig,
                 chain -> chain.get(NimMappers.SERVICE_METADATA_FIELD),
-                nimServiceName
+                serviceName
         );
 
         var specChain = config.get(NimMappers.SERVICE_SPEC_FIELD);
@@ -89,7 +88,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
         applyExposeService(exposeChain, containerPort, containerGrpcPort);
         if (useExternalUrl) {
-            applyExposeIngress(exposeChain, nimServiceName, clusterHost, containerPort);
+            applyExposeIngress(exposeChain, serviceName, clusterHost, containerPort);
         }
 
         if (command != null) {

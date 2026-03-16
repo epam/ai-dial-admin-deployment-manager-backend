@@ -94,7 +94,7 @@ Status: **Implemented**
 - Controller: `com.epam.aidial.deployment.manager.web.controller.DisposableResourceController`
   - `POST /api/v1/disposable/clean`
 - Cleanup components (in `com.epam.aidial.deployment.manager.cleanup`):
-  - `DisposableResourceManager`           — JPA-backed resource state management (save, mark, delete, query by lifecycle state and group)
+  - `DisposableResourceManager`           — JPA-backed resource state management (save, mark, delete, query by lifecycle state and group). Accepts the stored `serviceName` as a parameter for resource tracking (no longer generates service names internally).
   - `DisposableResourceCleaner`           — dispatches physical deletion per resource type; deletion order: KNATIVE_SERVICE → NIM_SERVICE → INFERENCE_SERVICE → JOB → CONFIGMAP → SECRET → CILIUM_NETWORK_POLICY → IMAGE
   - `DisposableResourceScheduledCleaner`  — `@Scheduled` + `@SchedulerLock` wrapper
   - `ContextRefreshedEventBasedDisposableResourceCleaner` — triggers cleanup on application startup

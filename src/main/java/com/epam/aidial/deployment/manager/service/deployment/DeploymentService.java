@@ -170,6 +170,7 @@ public class DeploymentService {
 
         var deployment = deploymentMapper.toDeployment(request, envs);
         deployment.setUrl(existingDeployment.getUrl());
+        deployment.setServiceName(existingDeployment.getServiceName());
 
         var status = existingStatus == DeploymentStatus.STOPPED ? DeploymentStatus.NOT_DEPLOYED : existingStatus;
         deployment.setStatus(status);
@@ -310,14 +311,9 @@ public class DeploymentService {
     }
 
     private Optional<ImageDefinition> resolveImageDefinition(CreateDeployment request) {
-        if (!(request.getSource() instanceof InternalImageSource internalSource)) {
+        if (!(request.getSource() instanceof InternalImageSource(UUID id, ImageType type, String name, String version))) {
             return Optional.empty();
         }
-
-        var id = internalSource.imageDefinitionId();
-        var name = internalSource.imageDefinitionName();
-        var version = internalSource.imageDefinitionVersion();
-        var type = internalSource.imageDefinitionType();
 
         if (id != null) {
             var definition = imageDefinitionService.getImageDefinition(id)

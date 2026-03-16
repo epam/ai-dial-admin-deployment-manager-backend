@@ -18,7 +18,6 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -79,13 +78,12 @@ class InferenceDeploymentManagerTest {
     private static final String DEPLOYMENT_ID = String.valueOf(UUID.randomUUID());
     private static final int STARTUP_TIMEOUT = 60;
     private static final String NAMESPACE = "test-namespace";
-    private static final String SERVICE_NAME = "service-" + DEPLOYMENT_ID;
+    private static final String SERVICE_NAME = "dm-" + DEPLOYMENT_ID;
     private static final String CONTAINER_NAME = "test-container";
     private static final String POD_NAME = "test-pod";
     private static final String SERVICE_URL = "http://service-name.test.com";
     private static final String INTERNAL_SERVICE_URL = "http://service-name.test-namespace.svc.cluster.local";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
-    private static final String GENERATED_SERVICE_NAME = "dm-" + DEPLOYMENT_ID;
 
     @Mock
     private DisposableResourceManager disposableResourceManager;
@@ -149,7 +147,8 @@ class InferenceDeploymentManagerTest {
         var notReadyPod = createPod("not-ready-pod", false);
         podList.setItems(List.of(readyPod, notReadyPod));
 
-        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
         var result = inferenceDeploymentManager.getActiveInstances(DEPLOYMENT_ID);
@@ -165,7 +164,8 @@ class InferenceDeploymentManagerTest {
         var emptyPodList = new PodList();
         emptyPodList.setItems(Collections.emptyList());
 
-        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(emptyPodList);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(emptyPodList);
 
         // When
         var result = inferenceDeploymentManager.getActiveInstances(DEPLOYMENT_ID);
@@ -187,7 +187,8 @@ class InferenceDeploymentManagerTest {
         pod.setStatus(status);
         podList.setItems(List.of(pod));
 
-        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When/Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getActiveInstances(DEPLOYMENT_ID))
@@ -202,7 +203,8 @@ class InferenceDeploymentManagerTest {
         var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
         podList.setItems(List.of(pod));
 
-        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
         var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
@@ -224,7 +226,8 @@ class InferenceDeploymentManagerTest {
         var pod = createPod("pod-no-restarts", true);
         podList.setItems(List.of(pod));
 
-        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
         var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
@@ -246,7 +249,8 @@ class InferenceDeploymentManagerTest {
         var pod = createPodWithMultipleContainers("pod-multi-container", 3, 2);
         podList.setItems(List.of(pod));
 
-        when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
         var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
@@ -265,7 +269,8 @@ class InferenceDeploymentManagerTest {
         pod.getStatus().getContainerStatuses().getFirst()
                 .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
@@ -274,7 +279,7 @@ class InferenceDeploymentManagerTest {
 
         // Then
         assertThat(result).isEqualTo(containerResource);
-        verify(k8sKserveClient).getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME);
+        verify(k8sKserveClient).getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME);
         verify(k8sClient).getPodResource(NAMESPACE, POD_NAME);
         verify(podResource).inContainer(CONTAINER_NAME);
     }
@@ -282,7 +287,8 @@ class InferenceDeploymentManagerTest {
     @Test
     void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
@@ -298,7 +304,8 @@ class InferenceDeploymentManagerTest {
         pod.setSpec(new PodSpec());
         pod.getSpec().setContainers(Collections.emptyList());
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
@@ -312,7 +319,8 @@ class InferenceDeploymentManagerTest {
         Pod pod = createPod(POD_NAME, true);
         pod.getStatus().setContainerStatuses(Collections.emptyList());
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
@@ -326,7 +334,8 @@ class InferenceDeploymentManagerTest {
         Pod pod = createPod(POD_NAME, true);
         pod.getStatus().getContainerStatuses().getFirst().setName("other-container");
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
@@ -339,7 +348,8 @@ class InferenceDeploymentManagerTest {
         // Given
         Pod pod = createPod(POD_NAME, false); // waiting state
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
@@ -354,7 +364,8 @@ class InferenceDeploymentManagerTest {
         pod.getStatus().getContainerStatuses().getFirst()
                 .setState(new ContainerStateBuilder().withNewTerminated().endTerminated().build());
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
@@ -369,7 +380,8 @@ class InferenceDeploymentManagerTest {
         pod.getStatus().getContainerStatuses().getFirst()
                 .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
         assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true))
@@ -385,7 +397,8 @@ class InferenceDeploymentManagerTest {
         containerStatus.setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
         containerStatus.setLastState(new ContainerStateBuilder().withNewTerminated().endTerminated().build());
 
-        when(k8sKserveClient.getServicePod(NAMESPACE, GENERATED_SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
@@ -400,6 +413,7 @@ class InferenceDeploymentManagerTest {
     void deploy_shouldDeployInferenceService() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(null);
         InferenceService serviceSpec = new InferenceService();
         serviceSpec.setMetadata(new ObjectMeta());
         serviceSpec.getMetadata().setName(SERVICE_NAME);
@@ -409,8 +423,8 @@ class InferenceDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(containerPort), any())).thenReturn(serviceSpec);
 
         // When
@@ -422,16 +436,18 @@ class InferenceDeploymentManagerTest {
         // Then
         assertThat(result).isEqualTo(deployment);
         assertThat(result.getStatus()).isEqualTo(DeploymentStatus.PENDING);
+        assertThat(result.getServiceName()).isEqualTo(SERVICE_NAME);
 
-        verify(disposableResourceManager).saveInferenceServiceResource(DEPLOYMENT_ID, NAMESPACE);
+        verify(disposableResourceManager).saveInferenceServiceResource(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
         verify(k8sKserveClient).createService(eq(NAMESPACE), eq(serviceSpec));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+        verify(deploymentRepository).updateServiceName(eq(DEPLOYMENT_ID), eq(SERVICE_NAME));
 
         // Cilium policy created with deployment domains list (no default domains)
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
-                anyString(),
+                eq(SERVICE_NAME),
                 argThat((List<String> domains) ->
                     domains.contains("test-domain-1")
                         && domains.contains("test-domain-2")
@@ -457,8 +473,8 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any())).thenReturn(serviceSpec);
 
         // When
@@ -469,7 +485,7 @@ class InferenceDeploymentManagerTest {
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
-                anyString(),
+                eq(SERVICE_NAME),
                 argThat((List<String> domains) ->
                         domains.contains("custom.com")
                                 && domains.contains("huggingface.co")
@@ -496,8 +512,8 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any())).thenReturn(serviceSpec);
 
         // When
@@ -508,7 +524,7 @@ class InferenceDeploymentManagerTest {
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
-                anyString(),
+                eq(SERVICE_NAME),
                 argThat((List<String> domains) ->
                         domains.contains("huggingface.co")
                                 && domains.contains("cdn.huggingface.co")
@@ -549,6 +565,7 @@ class InferenceDeploymentManagerTest {
         assertThat(result).isEqualTo(deployment);
         verify(k8sKserveClient, never()).createService(anyString(), any());
         verify(deploymentRepository, never()).updateStatus(any(), any());
+        verify(deploymentRepository, never()).updateServiceName(any(), any());
     }
 
     @Test
@@ -573,7 +590,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(inferenceManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
         doThrow(new RuntimeException("Test exception")).when(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), any());
 
         // When/Then
@@ -581,7 +598,7 @@ class InferenceDeploymentManagerTest {
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("Failed to deploy service");
 
-        verify(disposableResourceManager).markInferenceServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE);
+        verify(disposableResourceManager).markInferenceServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
     }
 
     @Test
@@ -592,7 +609,7 @@ class InferenceDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markInferenceServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markInferenceServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
 
         // When
@@ -606,7 +623,7 @@ class InferenceDeploymentManagerTest {
         assertThat(result.getStatus()).isEqualTo(DeploymentStatus.STOPPING);
 
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
-        verify(k8sKserveClient).deleteService(eq(NAMESPACE), eq(GENERATED_SERVICE_NAME));
+        verify(k8sKserveClient).deleteService(eq(NAMESPACE), eq(SERVICE_NAME));
         verify(disposableResourceManager).deleteAll(List.of(disposableResource));
     }
 
@@ -660,10 +677,9 @@ class InferenceDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markInferenceServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markInferenceServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
-        doThrow(new RuntimeException("Test exception")).when(k8sKserveClient).deleteService(NAMESPACE,
-                GENERATED_SERVICE_NAME);
+        doThrow(new RuntimeException("Test exception")).when(k8sKserveClient).deleteService(NAMESPACE, SERVICE_NAME);
 
         // When
         inferenceDeploymentManager.undeploy(DEPLOYMENT_ID);
@@ -692,7 +708,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), any(), any(), any(), any(), any(), any(),
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(containerPort), any())).thenReturn(serviceSpec);
 
         // When
@@ -704,6 +720,7 @@ class InferenceDeploymentManagerTest {
         // Then
         verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+        verify(deploymentRepository, never()).updateServiceName(any(), any());
     }
 
     @Test
@@ -732,7 +749,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(inferenceManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(serviceSpec);
         doThrow(new RuntimeException("Test exception")).when(k8sKserveClient).updateService(eq(NAMESPACE), any());
 
         // When
@@ -755,7 +772,7 @@ class InferenceDeploymentManagerTest {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.PENDING);
         InferenceService service = createInferenceServiceWithStatus(
-                GENERATED_SERVICE_NAME,
+                SERVICE_NAME,
                 SERVICE_URL,
                 null,
                 true, // hasModelStatus
@@ -786,7 +803,7 @@ class InferenceDeploymentManagerTest {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.PENDING);
         InferenceService service = createInferenceServiceWithStatus(
-                GENERATED_SERVICE_NAME,
+                SERVICE_NAME,
                 null,
                 INTERNAL_SERVICE_URL,
                 true, // hasModelStatus
@@ -836,7 +853,7 @@ class InferenceDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.NOT_DEPLOYED);
         InferenceService service = mock(InferenceService.class);
         ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(GENERATED_SERVICE_NAME);
+        metadata.setName(SERVICE_NAME);
         when(service.getMetadata()).thenReturn(metadata);
         when(service.getStatus()).thenReturn(null);
 
@@ -858,7 +875,7 @@ class InferenceDeploymentManagerTest {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.CRASHED);
         InferenceService service = createInferenceServiceWithStatus(
-                GENERATED_SERVICE_NAME,
+                SERVICE_NAME,
                 SERVICE_URL,
                 null,
                 false, // no modelStatus
@@ -884,7 +901,7 @@ class InferenceDeploymentManagerTest {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.PENDING);
         InferenceService service = createInferenceServiceWithStatus(
-                GENERATED_SERVICE_NAME,
+                SERVICE_NAME,
                 null, // null URL
                 null,
                 true, // hasModelStatus
@@ -915,7 +932,7 @@ class InferenceDeploymentManagerTest {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.PENDING);
         InferenceService service = createInferenceServiceWithStatus(
-                GENERATED_SERVICE_NAME,
+                SERVICE_NAME,
                 "", // empty URL
                 null,
                 true, // hasModelStatus
@@ -947,7 +964,7 @@ class InferenceDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
         InferenceService service = mock(InferenceService.class);
         ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(GENERATED_SERVICE_NAME);
+        metadata.setName(SERVICE_NAME);
         metadata.setDeletionTimestamp(Instant.now().toString());
         when(service.getMetadata()).thenReturn(metadata);
 
@@ -982,6 +999,7 @@ class InferenceDeploymentManagerTest {
         deployment.setSource(new HuggingFaceSource("test-bucket/model"));
         deployment.setArgs(List.of("--arg1", "value1"));
         deployment.setAllowedDomains(List.of("test-domain-1", "test-domain-2"));
+        deployment.setServiceName(SERVICE_NAME);
         return deployment;
     }
 

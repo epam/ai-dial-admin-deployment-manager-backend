@@ -1,11 +1,10 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
-import com.epam.aidial.deployment.manager.kubernetes.informer.IdExtractor;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.concurrent.ExecutorService;
 
@@ -25,7 +24,7 @@ public abstract class AbstractResourceEventHandler<T extends HasMetadata> implem
     protected static final String EVENT_DELETED = "deleted";
 
     private final String resourceTypeName;
-    private final IdExtractor idExtractor;
+    private final DeploymentRepository deploymentRepository;
     protected final ExecutorService executorService;
 
     @Override
@@ -49,12 +48,13 @@ public abstract class AbstractResourceEventHandler<T extends HasMetadata> implem
 
         log.debug("Received {} event for {} resource '{}/{}'", eventTypeName, resourceTypeName, resourceNamespace, resourceName);
         try {
-            String deploymentId = idExtractor.extract(resourceName);
-            if (StringUtils.isBlank(deploymentId)) {
-                log.warn("Skipping {} '{}' - resource name does not contain a valid deployment ID", resourceTypeName, resourceName);
+            var deploymentOptional = deploymentRepository.getByServiceName(resourceName);
+            if (deploymentOptional.isEmpty()) {
+                log.warn("Skipping {} '{}' - no deployment found for service name", resourceTypeName, resourceName);
                 return;
             }
 
+            var deploymentId = deploymentOptional.get().getId();
             triggerReconcile(deploymentId, resource, isDeleted);
 
             log.debug("Processed {} {}: '{}'", eventTypeName, resourceTypeName, resourceName);
