@@ -11,6 +11,7 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -18,15 +19,15 @@ import java.util.function.Predicate;
  * with strategy lambdas — not a Spring-managed bean.
  */
 @Slf4j
-public class PodStatusInspector {
+public class PodInfoProvider {
 
-    private final ServiceNameResolver serviceNameResolver;
-    private final ServicePodsProvider servicePodsProvider;
-    private final PodReadinessChecker podReadinessChecker;
+    private final Function<String, String> serviceNameResolver;
+    private final Function<String, List<Pod>> servicePodsProvider;
+    private final Predicate<Pod> podReadinessChecker;
 
-    PodStatusInspector(ServiceNameResolver serviceNameResolver,
-                       ServicePodsProvider servicePodsProvider,
-                       PodReadinessChecker podReadinessChecker) {
+    PodInfoProvider(Function<String, String> serviceNameResolver,
+                       Function<String, List<Pod>> servicePodsProvider,
+                       Predicate<Pod> podReadinessChecker) {
         this.serviceNameResolver = serviceNameResolver;
         this.servicePodsProvider = servicePodsProvider;
         this.podReadinessChecker = podReadinessChecker;
@@ -34,7 +35,7 @@ public class PodStatusInspector {
 
     List<PodInfo> getActiveInstances(String deploymentId) {
         log.debug("getActiveInstances: deploymentId='{}'", deploymentId);
-        return getInstances(deploymentId, podReadinessChecker::isReady);
+        return getInstances(deploymentId, podReadinessChecker);
     }
 
     List<PodInfo> getInstances(String deploymentId) {
@@ -43,8 +44,8 @@ public class PodStatusInspector {
     }
 
     private List<PodInfo> getInstances(String deploymentId, Predicate<? super Pod> filter) {
-        var serviceName = serviceNameResolver.resolve(deploymentId);
-        var podList = servicePodsProvider.getPods(serviceName);
+        var serviceName = serviceNameResolver.apply(deploymentId);
+        var podList = servicePodsProvider.apply(serviceName);
         var podsStream = podList.stream();
         if (filter != null) {
             podsStream = podsStream.filter(filter);
@@ -127,5 +128,14 @@ public class PodStatusInspector {
         }
 
         return t2.isAfter(t1) ? candidate : currentBest;
+    }
+
+    private record ContainerInfo(
+            int restartCount,
+            String lastTerminationReason,
+            Integer lastExitCode,
+            Integer lastSignal,
+            Instant lastFinishedAt
+    ) {
     }
 }

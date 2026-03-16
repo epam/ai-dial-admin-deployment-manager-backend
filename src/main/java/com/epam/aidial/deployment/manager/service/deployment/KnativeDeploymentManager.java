@@ -53,7 +53,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     private final HealthCheckProvider healthCheckProvider;
 
     private final String serviceContainer;
-    private final PodStatusInspector podStatusInspector;
+    private final PodInfoProvider podInfoProvider;
 
     public KnativeDeploymentManager(
             K8sClient k8sClient,
@@ -77,7 +77,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         this.healthCheckProvider = healthCheckProvider;
         this.k8sKnativeClient = k8sKnativeClient;
         this.serviceContainer = serviceContainer;
-        this.podStatusInspector = new PodStatusInspector(
+        this.podInfoProvider = new PodInfoProvider(
                 this::getServiceName,
                 serviceName -> getServicePods(namespace, serviceName),
                 pod -> isPodReady(pod.getStatus())
@@ -294,7 +294,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    public PodStatusInspector getPodStatusInspector() {
-        return podStatusInspector;
+    public PodInfoProvider getPodInfoProvider() {
+        return podInfoProvider;
     }
 }

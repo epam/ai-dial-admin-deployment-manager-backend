@@ -17,19 +17,19 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class PodStatusInspectorTest {
+class PodInfoProviderTest {
 
     private static final String DEPLOYMENT_ID = "test-deployment";
     private static final String SERVICE_NAME = "test-service";
     private static final String CONTAINER_NAME = "main";
 
-    private PodStatusInspector podStatusInspector;
+    private PodInfoProvider podInfoProvider;
     private List<Pod> podList;
 
     @BeforeEach
     void setUp() {
         podList = Collections.emptyList();
-        podStatusInspector = new PodStatusInspector(
+        podInfoProvider = new PodInfoProvider(
                 deploymentId -> SERVICE_NAME,
                 serviceName -> podList,
                 pod -> {
@@ -49,7 +49,7 @@ class PodStatusInspectorTest {
         var notReadyPod = createPod("not-ready-pod", false);
         podList = List.of(readyPod, notReadyPod);
 
-        List<PodInfo> result = podStatusInspector.getActiveInstances(DEPLOYMENT_ID);
+        List<PodInfo> result = podInfoProvider.getActiveInstances(DEPLOYMENT_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().getName()).isEqualTo("ready-pod");
@@ -61,7 +61,7 @@ class PodStatusInspectorTest {
         var notReadyPod = createPod("not-ready-pod", false);
         podList = List.of(readyPod, notReadyPod);
 
-        List<PodInfo> result = podStatusInspector.getInstances(DEPLOYMENT_ID);
+        List<PodInfo> result = podInfoProvider.getInstances(DEPLOYMENT_ID);
 
         assertThat(result).hasSize(2);
     }
@@ -71,7 +71,7 @@ class PodStatusInspectorTest {
         var pod = createPodWithTermination("restarting-pod", 3, "OOMKilled", 137, 9);
         podList = List.of(pod);
 
-        List<PodInfo> result = podStatusInspector.getInstances(DEPLOYMENT_ID);
+        List<PodInfo> result = podInfoProvider.getInstances(DEPLOYMENT_ID);
 
         assertThat(result).hasSize(1);
         var podInfo = result.getFirst();
@@ -88,7 +88,7 @@ class PodStatusInspectorTest {
         var pod = createPodWithMultipleTerminations("multi-term-pod");
         podList = List.of(pod);
 
-        List<PodInfo> result = podStatusInspector.getInstances(DEPLOYMENT_ID);
+        List<PodInfo> result = podInfoProvider.getInstances(DEPLOYMENT_ID);
 
         assertThat(result).hasSize(1);
         var podInfo = result.getFirst();
@@ -100,7 +100,7 @@ class PodStatusInspectorTest {
     void shouldReturnEmptyListWhenNoPods() {
         podList = Collections.emptyList();
 
-        List<PodInfo> result = podStatusInspector.getActiveInstances(DEPLOYMENT_ID);
+        List<PodInfo> result = podInfoProvider.getActiveInstances(DEPLOYMENT_ID);
 
         assertThat(result).isEmpty();
     }

@@ -45,7 +45,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     private final K8sKserveClient k8sKserveClient;
     private final boolean useClusterInternalUrl;
     private final List<String> defaultAllowedDomains;
-    private final PodStatusInspector podStatusInspector;
+    private final PodInfoProvider podInfoProvider;
 
     public InferenceDeploymentManager(
             K8sClient k8sClient,
@@ -66,7 +66,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.k8sKserveClient = k8sKserveClient;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
         this.defaultAllowedDomains = huggingFaceProperties.getDefaultAllowedDomains();
-        this.podStatusInspector = new PodStatusInspector(
+        this.podInfoProvider = new PodInfoProvider(
                 this::getServiceName,
                 serviceName -> getServicePods(namespace, serviceName),
                 pod -> isPodReady(pod.getStatus())
@@ -280,7 +280,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    public PodStatusInspector getPodStatusInspector() {
-        return podStatusInspector;
+    public PodInfoProvider getPodInfoProvider() {
+        return podInfoProvider;
     }
 }

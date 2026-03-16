@@ -169,7 +169,7 @@ class KnativeDeploymentManagerTest {
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = knativeDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID);
+        var result = knativeDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -185,7 +185,7 @@ class KnativeDeploymentManagerTest {
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(emptyPodList);
 
         // When
-        var result = knativeDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID);
+        var result = knativeDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).isEmpty();
@@ -205,7 +205,7 @@ class KnativeDeploymentManagerTest {
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When/Then
-        assertThatThrownBy(() -> knativeDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID))
+        assertThatThrownBy(() -> knativeDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container " + SERVICE_CONTAINER + " is missing in service pod");
     }
@@ -220,7 +220,7 @@ class KnativeDeploymentManagerTest {
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = knativeDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = knativeDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -242,7 +242,7 @@ class KnativeDeploymentManagerTest {
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = knativeDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = knativeDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);

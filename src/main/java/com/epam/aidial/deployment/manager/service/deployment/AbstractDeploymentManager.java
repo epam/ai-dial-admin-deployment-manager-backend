@@ -700,5 +700,4 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    public abstract PodStatusInspector getPodStatusInspector();
 }

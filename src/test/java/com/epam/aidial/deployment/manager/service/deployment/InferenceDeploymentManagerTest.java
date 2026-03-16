@@ -152,7 +152,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = inferenceDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID);
+        var result = inferenceDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -168,7 +168,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(emptyPodList);
 
         // When
-        var result = inferenceDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID);
+        var result = inferenceDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).isEmpty();
@@ -190,7 +190,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
 
         // When/Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("A container is missing in the service pod");
     }
@@ -205,7 +205,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = inferenceDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = inferenceDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -227,7 +227,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = inferenceDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = inferenceDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -249,7 +249,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePods(NAMESPACE, GENERATED_SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = inferenceDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = inferenceDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);

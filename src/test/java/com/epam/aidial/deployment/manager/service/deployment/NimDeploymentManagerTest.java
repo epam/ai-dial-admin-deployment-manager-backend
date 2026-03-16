@@ -141,7 +141,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = nimDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID);
+        var result = nimDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -157,7 +157,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(emptyPodList);
 
         // When
-        var result = nimDeploymentManager.getPodStatusInspector().getActiveInstances(DEPLOYMENT_ID);
+        var result = nimDeploymentManager.getPodInfoProvider().getActiveInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).isEmpty();
@@ -173,7 +173,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = nimDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = nimDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);
@@ -195,7 +195,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
-        var result = nimDeploymentManager.getPodStatusInspector().getInstances(DEPLOYMENT_ID);
+        var result = nimDeploymentManager.getPodInfoProvider().getInstances(DEPLOYMENT_ID);
 
         // Then
         assertThat(result).hasSize(1);

@@ -47,4 +47,6 @@ public interface DeploymentManager<S> {
     void cleanupSecrets(String deploymentId, List<EnvVar> currentEnvs);
 
     Deployment resolveSecrets(Deployment deployment);
+
+    PodInfoProvider getPodInfoProvider();
 }
