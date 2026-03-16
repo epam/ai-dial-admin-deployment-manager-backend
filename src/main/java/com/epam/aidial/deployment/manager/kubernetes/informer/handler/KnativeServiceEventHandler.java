@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.service.deployment.KnativeDeploymentManager;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.knative.serving.v1.Service;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,9 +26,10 @@ public class KnativeServiceEventHandler extends AbstractResourceEventHandler<Ser
 
     public KnativeServiceEventHandler(
             KnativeDeploymentManager knativeDeploymentManager,
+            DeploymentRepository deploymentRepository,
             @Qualifier("k8s-service-readiness-checker") ExecutorService executorService
     ) {
-        super(RESOURCE_TYPE, K8sNamingUtils::extractMcpPrefixedId, executorService);
+        super(RESOURCE_TYPE, deploymentRepository, executorService);
         this.knativeDeploymentManager = knativeDeploymentManager;
     }
 

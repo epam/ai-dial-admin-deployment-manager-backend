@@ -17,6 +17,9 @@ public abstract class DeploymentExportMixIn {
     abstract Object getStatus();
 
     @JsonIgnore
+    abstract String getServiceName();
+
+    @JsonIgnore
     abstract String getAuthor();
 
     @JsonIgnore

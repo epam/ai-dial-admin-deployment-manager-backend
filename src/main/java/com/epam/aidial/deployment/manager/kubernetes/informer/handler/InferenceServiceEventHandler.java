@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.service.deployment.InferenceDeploymentManager;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.kserve.serving.v1beta1.InferenceService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,9 +28,10 @@ public class InferenceServiceEventHandler extends AbstractResourceEventHandler<I
 
     public InferenceServiceEventHandler(
             InferenceDeploymentManager inferenceDeploymentManager,
+            DeploymentRepository deploymentRepository,
             @Qualifier("k8s-service-readiness-checker") ExecutorService executorService
     ) {
-        super(RESOURCE_TYPE, K8sNamingUtils::extractId, executorService);
+        super(RESOURCE_TYPE, deploymentRepository, executorService);
         this.inferenceDeploymentManager = inferenceDeploymentManager;
     }
 

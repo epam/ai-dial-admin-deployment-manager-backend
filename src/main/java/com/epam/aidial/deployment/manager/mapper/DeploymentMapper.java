@@ -30,6 +30,7 @@ public abstract class DeploymentMapper {
 
     @Mapping(target = "url", ignore = true)
     @Mapping(target = "envs", ignore = true)
+    @Mapping(target = "serviceName", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "status", constant = "NOT_DEPLOYED")

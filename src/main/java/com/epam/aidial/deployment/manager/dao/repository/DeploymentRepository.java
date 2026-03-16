@@ -115,6 +115,11 @@ public class DeploymentRepository {
                 .map(mapper::toDomain);
     }
 
+    public Optional<Deployment> getByServiceName(String serviceName) {
+        return deploymentJpaRepository.findByServiceName(serviceName)
+                .map(mapper::toDomain);
+    }
+
     @Transactional(isolation = Isolation.REPEATABLE_READ)
     public Deployment save(Deployment deployment) {
         var entity = mapper.toEntity(deployment);
@@ -179,6 +184,12 @@ public class DeploymentRepository {
     public void updateStatus(String id, DeploymentStatus status) {
         deploymentJpaRepository.updateStatus(id, PersistenceDeploymentStatus.valueOf(status.name()));
         log.debug("Status updated for deployment '{}' to: {}", id, status);
+    }
+
+    @Transactional
+    public void updateServiceName(String id, String serviceName) {
+        deploymentJpaRepository.updateServiceName(id, serviceName);
+        log.debug("Service name updated for deployment '{}' to: {}", id, serviceName);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

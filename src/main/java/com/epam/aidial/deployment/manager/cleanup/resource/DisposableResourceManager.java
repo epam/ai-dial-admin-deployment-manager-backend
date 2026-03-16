@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -67,18 +68,30 @@ public class DisposableResourceManager {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<DisposableResource> markKnativeServiceResourceForCleanup(String id, String namespace) {
-        return markServiceResourceForCleanup(id, namespace, K8sResourceKind.KNATIVE_SERVICE);
+    public List<DisposableResource> markKnativeServiceResourceForCleanup(String id, String serviceName, String namespace) {
+        return markServiceResourceForCleanup(id, serviceName, namespace, K8sResourceKind.KNATIVE_SERVICE);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<DisposableResource> markNimServiceResourceForCleanup(String id, String namespace) {
-        return markServiceResourceForCleanup(id, namespace, K8sResourceKind.NIM_SERVICE);
+    public List<DisposableResource> markNimServiceResourceForCleanup(String id, String serviceName, String namespace) {
+        return markServiceResourceForCleanup(id, serviceName, namespace, K8sResourceKind.NIM_SERVICE);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<DisposableResource> markInferenceServiceResourceForCleanup(String id, String namespace) {
-        return markServiceResourceForCleanup(id, namespace, K8sResourceKind.INFERENCE_SERVICE);
+    public List<DisposableResource> markInferenceServiceResourceForCleanup(String id, String serviceName, String namespace) {
+        return markServiceResourceForCleanup(id, serviceName, namespace, K8sResourceKind.INFERENCE_SERVICE);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<String> findCiliumNetworkPolicyName(String groupId, String namespace) {
+        return getAllByGroupId(groupId).stream()
+                .map(DisposableResource::getReference)
+                .filter(K8sResourceReference.class::isInstance)
+                .map(K8sResourceReference.class::cast)
+                .filter(ref -> ref.getKind() == K8sResourceKind.CILIUM_NETWORK_POLICY
+                        && namespace.equals(ref.getNamespace()))
+                .map(K8sResourceReference::getName)
+                .findFirst();
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -154,18 +167,18 @@ public class DisposableResourceManager {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveKnativeServiceResource(String id, String namespace) {
-        saveServiceResource(id, namespace, K8sResourceKind.KNATIVE_SERVICE);
+    public void saveKnativeServiceResource(String id, String serviceName, String namespace) {
+        saveServiceResource(id, serviceName, namespace, K8sResourceKind.KNATIVE_SERVICE);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveNimServiceResource(String id, String namespace) {
-        saveServiceResource(id, namespace, K8sResourceKind.NIM_SERVICE);
+    public void saveNimServiceResource(String id, String serviceName, String namespace) {
+        saveServiceResource(id, serviceName, namespace, K8sResourceKind.NIM_SERVICE);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveInferenceServiceResource(String id, String namespace) {
-        saveServiceResource(id, namespace, K8sResourceKind.INFERENCE_SERVICE);
+    public void saveInferenceServiceResource(String id, String serviceName, String namespace) {
+        saveServiceResource(id, serviceName, namespace, K8sResourceKind.INFERENCE_SERVICE);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -191,35 +204,27 @@ public class DisposableResourceManager {
         resourceRepository.delete(resource);
     }
 
-    private List<DisposableResource> markServiceResourceForCleanup(String id, String namespace, K8sResourceKind kind) {
-        var reference = buildServiceReference(id, namespace, kind);
+    private List<DisposableResource> markServiceResourceForCleanup(String id, String serviceName, String namespace, K8sResourceKind kind) {
+        var reference = buildServiceReference(serviceName, namespace, kind);
         return changeResourceLifecycleInternal(id, reference, ResourceLifecycleState.TO_CLEANUP);
     }
 
-    private void saveServiceResource(String id, String namespace, K8sResourceKind kind) {
+    private void saveServiceResource(String id, String serviceName, String namespace, K8sResourceKind kind) {
         var serviceResource = DisposableResource.builder()
                 .groupId(id)
-                .reference(buildServiceReference(id, namespace, kind))
+                .reference(buildServiceReference(serviceName, namespace, kind))
                 .lifecycleState(ResourceLifecycleState.STABLE)
                 .createdAt(Instant.now())
                 .build();
         resourceRepository.save(serviceResource);
     }
 
-    private K8sResourceReference buildServiceReference(String id, String namespace, K8sResourceKind kind) {
+    private K8sResourceReference buildServiceReference(String serviceName, String namespace, K8sResourceKind kind) {
         return K8sResourceReference.builder()
                 .kind(kind)
                 .namespace(namespace)
-                .name(generateServiceName(id, kind))
+                .name(serviceName)
                 .build();
-    }
-
-    private String generateServiceName(String id, K8sResourceKind kind) {
-        return switch (kind) {
-            case INFERENCE_SERVICE -> K8sNamingUtils.generateName(id);
-            case KNATIVE_SERVICE, NIM_SERVICE -> K8sNamingUtils.generateMcpPrefixedName(id);
-            default -> throw new IllegalArgumentException("Unsupported service kind: " + kind);
-        };
     }
 
 }
