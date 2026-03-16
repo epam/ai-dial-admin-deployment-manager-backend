@@ -11,6 +11,7 @@ import com.epam.aidial.deployment.manager.web.controller.ImageDefinitionControll
 import com.epam.aidial.deployment.manager.web.dto.DockerImageSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.GitDockerfileImageSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.McpRegistryRefDto;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapperImpl;
@@ -269,6 +270,12 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
                                 new GitDockerfileImageSourceDto("test.com", null, null, "invalid/baseDirectory/", null, null))),
                         "Field [source.baseDirectory]: Path must not start or end with '/'\n"
+                ),
+                Arguments.of(
+                        "docker source.externalRegistryRef.packageName is blank",
+                        (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
+                                new DockerImageSourceDto("host.com/image:tag", null, new McpRegistryRefDto("")))),
+                        "Field [source.externalRegistryRef.packageName]: must not be blank\n"
                 )
         );
     }

@@ -35,7 +35,6 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -224,61 +223,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 "Whitelist should contain %s, got: %s".formatted(EXPORT_WHITELIST, whitelist));
     }
 
-    @Test
-    void shouldPreserveExternalRefThroughExportImport() throws Exception {
-        // Create image definition with externalRegistryRef
-        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
-        imageDef.setName("ref-roundtrip");
-        imageDef.setVersion("1.0.0");
-        imageDef.setSource(new DockerImageSource("registry.test/ref-test:1.0", List.of("entry"), new McpRegistryRef("roundtrip-pkg")));
-        var created = imageDefinitionService.createImageDefinition(imageDef);
-
-        // Create deployment with externalRegistryRef
-        var createDep = CreateMcpDeployment.builder()
-                .id("dep-ref-roundtrip")
-                .source(new ImageReferenceSource("registry.test/dep-ref:1.0", new McpRegistryRef("dep-roundtrip-pkg")))
-                .displayName("Dep ref roundtrip")
-                .metadata(new DeploymentMetadata())
-                .resources(new Resources(Map.of(), Map.of()))
-                .allowedDomains(List.of())
-                .build();
-        deploymentService.createDeployment(createDep);
-
-        // Export
-        var request = new SelectedItemsExportRequest();
-        request.setComponents(List.of(
-                new ExportConfigComponent(created.getId().toString(), ExportConfigComponentType.MCP_IMAGE_DEFINITION),
-                new ExportConfigComponent("dep-ref-roundtrip", ExportConfigComponentType.MCP_DEPLOYMENT)
-        ));
-        var stream = configTransferService.exportConfig(request);
-        var baos = new ByteArrayOutputStream();
-        stream.writeTo(baos);
-        byte[] zipBytes = baos.toByteArray();
-
-        // Extract JSON from ZIP, import into clean state
-        String json = extractFirstEntryFromZip(zipBytes, configExportProperties.getFileName());
-        byte[] importZip = ConfigExportImportTestHelper.buildZipFromJson(configExportProperties.getFileName(), json);
-        MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile("roundtrip.zip", importZip);
-        configTransferService.importConfig(multipartFile, ConflictResolutionPolicy.OVERWRITE);
-
-        // Verify image definition ref survived
-        var fetchedDef = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(
-                ImageType.MCP, "ref-roundtrip", "1.0.0").orElseThrow();
-        Assertions.assertInstanceOf(DockerImageSource.class, fetchedDef.getSource());
-        var fetchedSource = (DockerImageSource) fetchedDef.getSource();
-        Assertions.assertNotNull(fetchedSource.getExternalRegistryRef(), "externalRegistryRef should survive export/import");
-        Assertions.assertInstanceOf(McpRegistryRef.class, fetchedSource.getExternalRegistryRef());
-        Assertions.assertEquals("roundtrip-pkg", ((McpRegistryRef) fetchedSource.getExternalRegistryRef()).packageName());
-
-        // Verify deployment ref survived
-        var fetchedDep = deploymentService.getDeployment("dep-ref-roundtrip").orElseThrow();
-        Assertions.assertInstanceOf(ImageReferenceSource.class, fetchedDep.getSource());
-        var depSource = (ImageReferenceSource) fetchedDep.getSource();
-        Assertions.assertNotNull(depSource.externalRegistryRef(), "deployment externalRegistryRef should survive export/import");
-        Assertions.assertInstanceOf(McpRegistryRef.class, depSource.externalRegistryRef());
-        Assertions.assertEquals("dep-roundtrip-pkg", ((McpRegistryRef) depSource.externalRegistryRef()).packageName());
-    }
-
     private ExportTestData createExportTestData() {
         List<ImageDefinition> imageDefs = buildExportImageDefinitions();
         var mcpCreated = imageDefinitionService.createImageDefinition(imageDefs.get(0));
@@ -375,7 +319,7 @@ public abstract class ConfigExportImportFunctionalTest {
         mcp1.setName(MCP_IMAGE_NAME);
         mcp1.setVersion(VERSION);
         mcp1.setDescription("MCP for export/import test");
-        mcp1.setSource(new DockerImageSource("test-registry/mcp-exp:1.0", List.of(), null));
+        mcp1.setSource(new DockerImageSource("test-registry/mcp-exp:1.0", List.of(), new McpRegistryRef("export-test-pkg")));
         mcp1.setImageBuilder(ImageBuilder.BUILDKIT);
         mcp1.setLicense("MIT");
         mcp1.setTopics(List.of("topic1"));
@@ -499,9 +443,11 @@ public abstract class ConfigExportImportFunctionalTest {
         if (expected instanceof DockerImageSource expDocker && actual instanceof DockerImageSource actDocker) {
             Assertions.assertEquals(expDocker.getImageUri(), actDocker.getImageUri(), "source.imageUri");
             Assertions.assertEquals(expDocker.getEntrypoint(), actDocker.getEntrypoint(), "source.entrypoint");
+            Assertions.assertEquals(expDocker.getExternalRegistryRef(), actDocker.getExternalRegistryRef(), "source.externalRegistryRef");
         } else if (expected instanceof GitDockerfileImageSource expGit && actual instanceof GitDockerfileImageSource actGit) {
             Assertions.assertEquals(expGit.getUrl(), actGit.getUrl(), "source.url");
             Assertions.assertEquals(expGit.getBranchName(), actGit.getBranchName(), "source.branchName");
+            Assertions.assertEquals(expGit.getExternalRegistryRef(), actGit.getExternalRegistryRef(), "source.externalRegistryRef");
         } else {
             Assertions.fail("Source type mismatch: expected=%s, actual=%s"
                     .formatted(expected.getClass().getSimpleName(), actual.getClass().getSimpleName()));
