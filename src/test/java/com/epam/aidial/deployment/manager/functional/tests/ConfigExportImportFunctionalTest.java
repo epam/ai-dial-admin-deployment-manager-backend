@@ -51,6 +51,8 @@ import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
+import com.epam.aidial.deployment.manager.web.dto.config.ExportComponentInfoDto;
+import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -123,6 +125,8 @@ public abstract class ConfigExportImportFunctionalTest {
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
     private DeploymentMapper deploymentMapper;
+    @Autowired
+    private ExportConfigMapper exportConfigMapper;
 
     private final AtomicReference<String> lastSecretName = new AtomicReference<>();
 
@@ -220,6 +224,46 @@ public abstract class ConfigExportImportFunctionalTest {
         List<String> whitelist = globalDomainWhitelistService.getDomainWhitelist();
         Assertions.assertTrue(whitelist.containsAll(EXPORT_WHITELIST),
                 "Whitelist should contain %s, got: %s".formatted(EXPORT_WHITELIST, whitelist));
+    }
+
+    @Test
+    void previewConfig_returnsCorrectComponentInfoDtos_whenValidSelectionProvided() {
+        var data = createExportTestData();
+        var request = getSelectedItemsExportRequest(data);
+
+        var config = configTransferService.getExportConfig(request);
+        var preview = exportConfigMapper.toExportConfigPreviewDto(config);
+
+        Assertions.assertEquals(EXPORT_WHITELIST, preview.globalImageBuildDomainWhitelist());
+
+        var imageDefIds = preview.imageDefinitions().stream().map(ExportComponentInfoDto::id).toList();
+        Assertions.assertTrue(imageDefIds.contains(data.firstMcpImageDefId().toString()), "should contain first MCP image def");
+        Assertions.assertTrue(imageDefIds.contains(data.secondMcpImageDefId().toString()), "should contain second MCP image def");
+        Assertions.assertTrue(imageDefIds.contains(data.adapterImageDefId().toString()), "should contain adapter image def");
+        Assertions.assertTrue(imageDefIds.contains(data.interceptorImageDefId().toString()), "should contain interceptor image def");
+
+        var deploymentIds = preview.deployments().stream().map(ExportComponentInfoDto::id).toList();
+        Assertions.assertTrue(deploymentIds.containsAll(List.of(MCP_DEP_ID, ADAPTER_DEP_ID, INTERCEPTOR_DEP_ID, NIM_DEP_ID, INFERENCE_DEP_ID)),
+                "deployments should contain all selected deployment ids");
+
+        preview.deployments().forEach(d ->
+                Assertions.assertNull(d.version(), "deployment version should be null"));
+        preview.imageDefinitions().forEach(d ->
+                Assertions.assertNotNull(d.version(), "image definition version should not be null"));
+    }
+
+    @Test
+    void previewConfig_returnsEmptyLists_whenEmptySelectionProvided() {
+        var request = new SelectedItemsExportRequest();
+        request.setAddGlobalImageBuildDomainWhitelist(false);
+        request.setComponents(List.of());
+
+        var config = configTransferService.getExportConfig(request);
+        var preview = exportConfigMapper.toExportConfigPreviewDto(config);
+
+        Assertions.assertTrue(preview.globalImageBuildDomainWhitelist().isEmpty(), "whitelist should be empty");
+        Assertions.assertTrue(preview.imageDefinitions().isEmpty(), "imageDefinitions should be empty");
+        Assertions.assertTrue(preview.deployments().isEmpty(), "deployments should be empty");
     }
 
     private ExportTestData createExportTestData() {
