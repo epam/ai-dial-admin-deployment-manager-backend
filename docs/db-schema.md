@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-03-10T13:15:19.162476800Z
+> Generated at: 2026-03-13T10:48:49.090740Z
 
 ## Tables
 
@@ -64,9 +64,11 @@
 | COMMAND | JSON | Yes |  |  |
 | ARGS | JSON | Yes |  |  |
 | SOURCE | JSON | Yes |  |  |
+| SERVICE_NAME | VARCHAR(63) | Yes |  |  |
 
 **Indexes:**
 
+- `UNIQUE IDX_DEPLOYMENT_SERVICE_NAME` on (SERVICE_NAME)
 - `IDX_DEPLOYMENT_IMAGE_DEFINITION_ID` on (IMAGE_DEFINITION_ID)
 
 ## DEPLOYMENT_TOPICS

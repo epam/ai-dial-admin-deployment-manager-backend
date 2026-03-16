@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.mapping.KnativeMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.ListMapper;
 import com.epam.aidial.deployment.manager.utils.mapping.Mappers;
@@ -55,6 +54,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
 
     public Service serviceConfig(
             String name,
+            String serviceName,
             List<SimpleEnvVar> envs,
             List<SensitiveEnvVar> sensitiveEnv,
             List<SensitiveFileEnvVar> sensitiveFileEnvs,
@@ -69,7 +69,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         var config = createBaseManifestChain(
                 appConfig::cloneKnativeServiceConfig,
                 chain -> chain.get(KnativeMappers.SERVICE_METADATA_FIELD),
-                K8sNamingUtils.generateMcpPrefixedName(name)
+                serviceName
         );
 
         var template = config.get(KnativeMappers.SERVICE_SPEC_FIELD)

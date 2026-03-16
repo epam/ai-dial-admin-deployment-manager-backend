@@ -2,7 +2,7 @@
   "apiVersion": "serving.knative.dev/v1",
   "kind": "Service",
   "metadata": {
-    "name": "mcp-resource-app"
+    "name": "dm-resource-app"
   },
   "spec": {
     "template": {

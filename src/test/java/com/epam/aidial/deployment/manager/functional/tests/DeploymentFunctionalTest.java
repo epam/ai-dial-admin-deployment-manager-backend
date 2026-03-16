@@ -26,6 +26,7 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentManagerProvider;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.knative.client.KnativeClient;
@@ -136,6 +137,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
         Assertions.assertNotNull(deployment.getId());
+        Assertions.assertNull(deployment.getServiceName());
     }
 
     @Test
@@ -165,6 +167,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
         Assertions.assertNotNull(deployment.getId());
+        Assertions.assertNull(deployment.getServiceName());
     }
 
     @Test
@@ -203,7 +206,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldFailCreateDeploymentWhenDisposableResourcesFound() {
         // Given
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
-        disposableResourceManager.saveKnativeServiceResource(createDeployment.getId(), "some-namespace");
+        disposableResourceManager.saveKnativeServiceResource(createDeployment.getId(), "some-service", "some-namespace");
 
         // When & Then
         var exception = assertThrows(
@@ -285,6 +288,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(imageDefinitionName, retrievedSource.imageDefinitionName());
         Assertions.assertEquals(imageDefinitionVersion, retrievedSource.imageDefinitionVersion());
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
+        Assertions.assertNull(retrievedDeployment.getServiceName());
     }
 
     @Test
@@ -341,6 +345,7 @@ public abstract class DeploymentFunctionalTest {
         // When
         savedDeployment.setStatus(DeploymentStatus.RUNNING);
         savedDeployment.setUrl("http://test.com");
+        savedDeployment.setServiceName("saved-service-name");
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
@@ -353,6 +358,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
         Assertions.assertEquals(DeploymentStatus.RUNNING, updatedDeployment.getStatus());
         Assertions.assertEquals("http://test.com", updatedDeployment.getUrl());
+        Assertions.assertEquals("saved-service-name", updatedDeployment.getServiceName());
     }
 
     @Test
@@ -458,6 +464,7 @@ public abstract class DeploymentFunctionalTest {
 
         // When
         savedDeployment.setStatus(DeploymentStatus.RUNNING);
+        savedDeployment.setServiceName("some-service");
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var allowedDomains = List.of("domain1.com", "domain2.com");
@@ -509,6 +516,7 @@ public abstract class DeploymentFunctionalTest {
 
         // When
         savedDeployment.setStatus(DeploymentStatus.CRASHED);
+        savedDeployment.setServiceName("some-service");
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
@@ -696,6 +704,7 @@ public abstract class DeploymentFunctionalTest {
         // Then
         Assertions.assertEquals(savedDeployment.getId(), deployment.getId());
         Assertions.assertEquals(savedDeployment.getDisplayName(), deployment.getDisplayName());
+        Assertions.assertEquals(K8sNamingUtils.generateName(savedDeployment.getId()), deployment.getServiceName());
         Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(),
                 ((InternalImageSource) deployment.getSource()).imageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
@@ -727,6 +736,7 @@ public abstract class DeploymentFunctionalTest {
         var savedDeployment = deploymentService.createDeployment(createDeployment);
 
         savedDeployment.setStatus(DeploymentStatus.RUNNING);
+        savedDeployment.setServiceName("some-service");
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -851,6 +861,7 @@ public abstract class DeploymentFunctionalTest {
         Assertions.assertEquals(originalDeployment.getResources(), clonedDeployment.getResources());
         Assertions.assertEquals(originalDeployment.getContainerPort(), clonedDeployment.getContainerPort());
         Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, clonedDeployment.getStatus());
+        Assertions.assertNull(clonedDeployment.getServiceName());
         assertEnvsAreEqual(expectedEnvVars, clonedDeployment.getEnvs());
     }
 

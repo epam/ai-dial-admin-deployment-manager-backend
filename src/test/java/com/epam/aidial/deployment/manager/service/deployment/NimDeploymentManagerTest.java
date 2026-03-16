@@ -74,7 +74,7 @@ class NimDeploymentManagerTest {
     private static final int STARTUP_TIMEOUT = 60;
     private static final int DEFAULT_NIM_SERVICE_PORT = 8000;
     private static final String NAMESPACE = "test-namespace";
-    private static final String SERVICE_NAME = "mcp-" + DEPLOYMENT_ID;
+    private static final String SERVICE_NAME = "dm-" + DEPLOYMENT_ID;
     private static final String CONTAINER_NAME = "test-container";
     private static final String IMAGE_NAME = "test-image:latest";
     private static final String POD_NAME = "test-pod";
@@ -138,6 +138,7 @@ class NimDeploymentManagerTest {
         var notReadyPod = createPod("not-ready-pod", false);
         podList.setItems(List.of(readyPod, notReadyPod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
@@ -154,6 +155,7 @@ class NimDeploymentManagerTest {
         var emptyPodList = new PodList();
         emptyPodList.setItems(Collections.emptyList());
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(emptyPodList);
 
         // When
@@ -170,6 +172,7 @@ class NimDeploymentManagerTest {
         var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
         podList.setItems(List.of(pod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
@@ -192,6 +195,7 @@ class NimDeploymentManagerTest {
         var pod = createPod("pod-no-restarts", true);
         podList.setItems(List.of(pod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
@@ -214,6 +218,7 @@ class NimDeploymentManagerTest {
         pod.getStatus().getContainerStatuses().getFirst()
                 .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
@@ -231,6 +236,7 @@ class NimDeploymentManagerTest {
     @Test
     void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
         // When / Then
@@ -247,6 +253,7 @@ class NimDeploymentManagerTest {
         pod.setSpec(new PodSpec());
         pod.getSpec().setContainers(Collections.emptyList());
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
@@ -259,12 +266,14 @@ class NimDeploymentManagerTest {
     void deploy_shouldDeployNimService() {
         // Given
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(null);
         NIMService serviceSpec = new NIMService();
         serviceSpec.getMetadata().setName(SERVICE_NAME);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -278,7 +287,7 @@ class NimDeploymentManagerTest {
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
 
         // When
         Deployment result = nimDeploymentManager.deploy(DEPLOYMENT_ID);
@@ -290,8 +299,9 @@ class NimDeploymentManagerTest {
         assertThat(result).isEqualTo(deployment);
         assertThat(result.getStatus()).isEqualTo(DeploymentStatus.PENDING);
 
-        verify(disposableResourceManager).saveNimServiceResource(eq(DEPLOYMENT_ID), eq(NAMESPACE));
+        verify(disposableResourceManager).saveNimServiceResource(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
         verify(k8sNimClient).createService(eq(NAMESPACE), eq(serviceSpec));
+        verify(deploymentRepository).updateServiceName(eq(DEPLOYMENT_ID), eq(SERVICE_NAME));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
     }
 
@@ -311,6 +321,7 @@ class NimDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -324,7 +335,7 @@ class NimDeploymentManagerTest {
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), ciliumPortsCaptor.capture()))
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), ciliumPortsCaptor.capture()))
                 .thenReturn(ciliumNetworkPolicy);
 
         // When
@@ -332,7 +343,7 @@ class NimDeploymentManagerTest {
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
         // Then
-        verify(ciliumNetworkPolicyCreator).create(eq(NAMESPACE), anyString(), anyString(), anyList(), any());
+        verify(ciliumNetworkPolicyCreator).create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any());
         Set<Integer> portsPassedToCilium = ciliumPortsCaptor.getValue();
         assertThat(portsPassedToCilium).containsExactlyInAnyOrder(DEFAULT_NIM_SERVICE_PORT, containerPort, containerGrpcPort);
     }
@@ -350,6 +361,7 @@ class NimDeploymentManagerTest {
         // Then
         assertThat(result).isEqualTo(deployment);
         verify(k8sNimClient, never()).createService(anyString(), any());
+        verify(deploymentRepository, never()).updateServiceName(any(), any());
         verify(deploymentRepository, never()).updateStatus(any(), any());
     }
 
@@ -368,7 +380,7 @@ class NimDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any()
         )).thenThrow(new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured"));
 
         // When/Then: generator receives useExternalUrl=true and blank clusterHost, throws IllegalArgumentException
@@ -377,7 +389,7 @@ class NimDeploymentManagerTest {
                 .hasMessageContaining("Failed to deploy service")
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("External NIM URL is enabled but cluster host is not configured");
-        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any());
+        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any());
     }
 
     @Test
@@ -389,6 +401,7 @@ class NimDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -402,7 +415,7 @@ class NimDeploymentManagerTest {
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
 
         // When
         nimDeploymentManager.deploy(DEPLOYMENT_ID);
@@ -411,6 +424,7 @@ class NimDeploymentManagerTest {
         // Then: generator is called with (useExternalUrl=true, CLUSTER_HOST)
         verify(nimManifestGenerator).serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -461,6 +475,7 @@ class NimDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -474,7 +489,7 @@ class NimDeploymentManagerTest {
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
         doThrow(new RuntimeException("Test exception")).when(k8sClient).createCiliumNetworkPolicy(eq(NAMESPACE), any());
 
         // When
@@ -491,7 +506,7 @@ class NimDeploymentManagerTest {
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("Failed to deploy service");
 
-        verify(disposableResourceManager).markNimServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE);
+        verify(disposableResourceManager).markNimServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
     }
 
     @Test
@@ -501,7 +516,7 @@ class NimDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markNimServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markNimServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
 
         // When
@@ -553,7 +568,7 @@ class NimDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markNimServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markNimServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
         doThrow(new RuntimeException("Test exception")).when(k8sNimClient).deleteService(NAMESPACE, SERVICE_NAME);
 
@@ -702,6 +717,7 @@ class NimDeploymentManagerTest {
         deployment.setContainerGrpcPort(50052);
         deployment.setAllowedDomains(List.of("test-domain-1", "test-domain-2"));
         deployment.setSource(new NgcRegistrySource(IMAGE_NAME));
+        deployment.setServiceName(SERVICE_NAME);
         return deployment;
     }
 

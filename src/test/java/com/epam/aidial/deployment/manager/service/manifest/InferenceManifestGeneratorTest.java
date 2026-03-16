@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 class InferenceManifestGeneratorTest {
 
     private static final String MODEL_FORMAT = "huggingface";
+    private static final String DM_PREFIX = "dm-";
 
     @Mock
     private AppProperties appconfig;
@@ -69,7 +70,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
                 null, null, null, null, null
         );
 
@@ -91,7 +92,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
                 null, null, null, null, null
         );
 
@@ -113,7 +114,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
                 scaling, null, null, null, null
         );
 
@@ -134,7 +135,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
                 scaling, null, null, null, null
         );
 
@@ -155,7 +156,7 @@ class InferenceManifestGeneratorTest {
 
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
                 scaling, null, null, null, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -173,7 +174,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
                 null, null, null, containerPort, null
         );
 
@@ -194,7 +195,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
                 null, null, args, null, null
         );
 
@@ -213,7 +214,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
                 null, null, args, null, null
         );
 
@@ -233,7 +234,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
                 null, null, args, null, null
         );
 
@@ -253,7 +254,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
                 null, command, Collections.emptyList(), null, null
         );
 
@@ -276,7 +277,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
                 null, null, null, null, probeProperties
         );
 
@@ -293,7 +294,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
                 null, null, null, null, null
         );
 
@@ -316,7 +317,7 @@ class InferenceManifestGeneratorTest {
 
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
-                deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
                 null, null, null, null, probeProperties
         );
 

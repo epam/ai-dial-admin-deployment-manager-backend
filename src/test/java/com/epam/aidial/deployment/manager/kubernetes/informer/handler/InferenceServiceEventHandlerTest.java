@@ -1,6 +1,8 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.deployment.InferenceDeploymentManager;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.kserve.serving.v1beta1.InferenceService;
@@ -11,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
@@ -35,6 +38,8 @@ class InferenceServiceEventHandlerTest {
     @Mock
     private InferenceDeploymentManager inferenceDeploymentManager;
     @Mock
+    private DeploymentRepository deploymentRepository;
+    @Mock
     private ExecutorService executorService;
 
     @InjectMocks
@@ -53,6 +58,7 @@ class InferenceServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "dm-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         InferenceService service = mockInferenceService(serviceName);
 
         eventHandler.onAdd(service);
@@ -73,6 +79,7 @@ class InferenceServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "dm-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         InferenceService service = mockInferenceService(serviceName);
 
         eventHandler.onUpdate(service, service);
@@ -85,6 +92,7 @@ class InferenceServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "dm-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         InferenceService service = mockInferenceService(serviceName);
 
         eventHandler.onAdd(service);
@@ -97,6 +105,7 @@ class InferenceServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "dm-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         InferenceService service = mockInferenceService(serviceName);
 
         eventHandler.onDelete(service, false);
@@ -106,6 +115,7 @@ class InferenceServiceEventHandlerTest {
 
     @Test
     void testHandleResourceWithInvalidNameDoesNothing() {
+        when(deploymentRepository.getByServiceName("invalid-name")).thenReturn(Optional.empty());
         InferenceService service = mockInferenceService("invalid-name");
 
         eventHandler.onAdd(service);
@@ -121,6 +131,12 @@ class InferenceServiceEventHandlerTest {
         meta.setNamespace(TEST_NAMESPACE);
         when(service.getMetadata()).thenReturn(meta);
         return service;
+    }
+
+    private void stubDeploymentLookup(String serviceName, String deploymentId) {
+        var deployment = mock(Deployment.class);
+        when(deployment.getId()).thenReturn(deploymentId);
+        when(deploymentRepository.getByServiceName(serviceName)).thenReturn(Optional.of(deployment));
     }
 }
 

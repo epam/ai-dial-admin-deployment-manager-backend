@@ -166,6 +166,7 @@ class KnativeDeploymentManagerTest {
         var notReadyPod = createPod("not-ready-pod", false);
         podList.setItems(List.of(readyPod, notReadyPod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
@@ -182,6 +183,7 @@ class KnativeDeploymentManagerTest {
         var emptyPodList = new PodList();
         emptyPodList.setItems(Collections.emptyList());
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(emptyPodList);
 
         // When
@@ -202,6 +204,7 @@ class KnativeDeploymentManagerTest {
         pod.getStatus().getContainerStatuses().getFirst().setName("wrong-container-name");
         podList.setItems(List.of(pod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When/Then
@@ -217,6 +220,7 @@ class KnativeDeploymentManagerTest {
         var pod = createPodWithRestartInfo("pod-with-restarts", 5, "OOMKilled", 137, 9);
         podList.setItems(List.of(pod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
@@ -239,6 +243,7 @@ class KnativeDeploymentManagerTest {
         var pod = createPod("pod-no-restarts", true);
         podList.setItems(List.of(pod));
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
 
         // When
@@ -261,6 +266,7 @@ class KnativeDeploymentManagerTest {
         pod.getStatus().getContainerStatuses().getFirst()
                 .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
 
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
         when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
         when(podResource.inContainer(SERVICE_CONTAINER)).thenReturn(containerResource);
@@ -278,6 +284,7 @@ class KnativeDeploymentManagerTest {
     @Test
     void getContainerResourceForLogs_shouldThrowExceptionWhenPodNotFound() {
         // Given
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
         when(k8sKnativeClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
         // When / Then
@@ -296,12 +303,14 @@ class KnativeDeploymentManagerTest {
         serviceSpec.getMetadata().setName(SERVICE_NAME);
         Integer containerPort = 8080;
         deployment.setContainerPort(containerPort);
+        deployment.setServiceName(null);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -314,7 +323,7 @@ class KnativeDeploymentManagerTest {
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
 
         // When
         Deployment result = knativeDeploymentManager.deploy(DEPLOYMENT_ID);
@@ -326,8 +335,9 @@ class KnativeDeploymentManagerTest {
         assertThat(result).isEqualTo(deployment);
         assertThat(result.getStatus()).isEqualTo(DeploymentStatus.PENDING);
 
-        verify(disposableResourceManager).saveKnativeServiceResource(DEPLOYMENT_ID, NAMESPACE);
+        verify(disposableResourceManager).saveKnativeServiceResource(eq(DEPLOYMENT_ID), anyString(), eq(NAMESPACE));
         verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+        verify(deploymentRepository).updateServiceName(eq(DEPLOYMENT_ID), eq(SERVICE_NAME));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
     }
 
@@ -344,6 +354,7 @@ class KnativeDeploymentManagerTest {
         // Then
         assertThat(result).isEqualTo(deployment);
         verify(k8sKnativeClient, never()).createService(anyString(), any());
+        verify(deploymentRepository, never()).updateServiceName(any(), any());
         verify(deploymentRepository, never()).updateStatus(any(), any());
     }
 
@@ -384,6 +395,7 @@ class KnativeDeploymentManagerTest {
         deployment.setEnvs(List.of(new SimpleEnvVar("TEST_ENV", new SimpleEnvVarValue("test-value"))));
         deployment.setAllowedDomains(List.of("test-domain-1"));
         deployment.setContainerPort(8080);
+        deployment.setServiceName(SERVICE_NAME);
 
         var serviceSpec = new Service();
         serviceSpec.setMetadata(new ObjectMeta());
@@ -393,6 +405,7 @@ class KnativeDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(8080);
         when(knativeManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -413,6 +426,9 @@ class KnativeDeploymentManagerTest {
         // Then
         verify(imageDefinitionService, never()).getImageDefinition(any());
         verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+
+        // Should not update serviceName since it is set in existing deployment
+        verify(deploymentRepository, never()).updateServiceName(any(), any());
     }
 
     @Test
@@ -436,6 +452,7 @@ class KnativeDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(8080);
         when(knativeManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -479,6 +496,7 @@ class KnativeDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(8080);
         when(knativeManifestGenerator.serviceConfig(
                 eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
                 any(),
                 any(),
                 any(),
@@ -516,7 +534,7 @@ class KnativeDeploymentManagerTest {
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
@@ -536,7 +554,7 @@ class KnativeDeploymentManagerTest {
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("Failed to deploy service");
 
-        verify(disposableResourceManager).markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE);
+        verify(disposableResourceManager).markKnativeServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
     }
 
     @Test
@@ -547,7 +565,7 @@ class KnativeDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
 
         // When
@@ -599,7 +617,7 @@ class KnativeDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
         doThrow(new RuntimeException("Test exception")).when(k8sKnativeClient)
                 .deleteServiceAndAllRunningPods(NAMESPACE, SERVICE_NAME);
@@ -626,7 +644,7 @@ class KnativeDeploymentManagerTest {
         DisposableResource disposableResource = mock(DisposableResource.class);
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(disposableResourceManager.markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, NAMESPACE))
+        when(disposableResourceManager.markKnativeServiceResourceForCleanup(DEPLOYMENT_ID, SERVICE_NAME, NAMESPACE))
                 .thenReturn(List.of(disposableResource));
 
         // When
@@ -683,6 +701,7 @@ class KnativeDeploymentManagerTest {
                 new SimpleEnvVar("TEST_ENV", new SimpleEnvVarValue("test-value"))
         ));
         deployment.setAllowedDomains(List.of("test-domain-1", "test-domain-2"));
+        deployment.setServiceName(SERVICE_NAME);
         return deployment;
     }
 

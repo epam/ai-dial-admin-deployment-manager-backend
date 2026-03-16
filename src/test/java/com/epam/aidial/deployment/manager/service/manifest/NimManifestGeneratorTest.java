@@ -33,6 +33,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class NimManifestGeneratorTest {
 
+    private static final String DM_PREFIX = "dm-";
+
     @Mock
     private AppProperties appconfig;
     @Mock
@@ -78,7 +80,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null, null, null
         );
 
         // Then
@@ -99,7 +101,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
                 false, null, null, null
         );
 
@@ -121,7 +123,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
                 customGrpcPort, null, false, null, null, null
         );
 
@@ -144,13 +146,13 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
                 false, null, null, null
         );
 
         // Then
         var jsonOutput = serialize(generatedService);
-        
+
         // Verify the default port from template is preserved (8000)
         var service = objectMapper.readValue(jsonOutput, NIMService.class);
         assertThat(service.getSpec().getExpose().getService().getPort()).isEqualTo(8000);
@@ -169,7 +171,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
                 httpPort, null, null, true, clusterHost, null, null
         );
 
@@ -181,14 +183,14 @@ class NimManifestGeneratorTest {
         assertThat(ingress.getEnabled()).isTrue();
         var spec = ingress.getSpec();
         assertThat(spec).isNotNull();
-        var nimServiceName = "mcp-" + deploymentName;
+        var nimServiceName = DM_PREFIX + deploymentName;
         assertThat(spec.getIngressClassName()).isEqualTo("nginx");
         assertThat(spec.getTls()).hasSize(1);
-        assertThat(spec.getTls().get(0).getHosts()).containsExactly(nimServiceName + "." + clusterHost);
-        assertThat(spec.getTls().get(0).getSecretName()).isEqualTo(nimServiceName + "-tls-secret");
+        assertThat(spec.getTls().getFirst().getHosts()).containsExactly(nimServiceName + "." + clusterHost);
+        assertThat(spec.getTls().getFirst().getSecretName()).isEqualTo(nimServiceName + "-tls-secret");
         assertThat(spec.getRules()).hasSize(1);
-        assertThat(spec.getRules().get(0).getHost()).isEqualTo(nimServiceName + "." + clusterHost);
-        var backendService = spec.getRules().get(0).getHttp().getPaths().get(0).getBackend().getService();
+        assertThat(spec.getRules().getFirst().getHost()).isEqualTo(nimServiceName + "." + clusterHost);
+        var backendService = spec.getRules().getFirst().getHttp().getPaths().getFirst().getBackend().getService();
         assertThat(backendService.getName()).isEqualTo(nimServiceName);
         assertThat(backendService.getPort().getNumber()).isEqualTo(httpPort);
     }
@@ -205,7 +207,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
                 8000, null, null, true, clusterHost, null, null
         );
 
@@ -228,7 +230,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
                 8000, null, null, false, null, null, null
         );
 
@@ -249,7 +251,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
                 8000, null, probeProperties, false, null, null, null
         );
 
@@ -278,7 +280,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
                 8000, null, null, false, null, command, args
         );
 
@@ -297,7 +299,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
                 8000, null, null, false, null, command, null
         );
 
@@ -315,7 +317,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
                 8000, null, null, false, null, null, null
         );
 

@@ -95,6 +95,9 @@ public class DeploymentEntity {
     @Column(name = "topic_name")
     private List<String> topics;
 
+    @Column(name = "service_name")
+    private String serviceName;
+
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> command;
 

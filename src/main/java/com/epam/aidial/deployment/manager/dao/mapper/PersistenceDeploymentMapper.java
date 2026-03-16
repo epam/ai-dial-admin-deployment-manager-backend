@@ -130,6 +130,7 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setAllowedDomains(updatedEntity.getAllowedDomains());
         existingEntity.setScaling(updatedEntity.getScaling());
         existingEntity.setTopics(updatedEntity.getTopics());
+        existingEntity.setServiceName(updatedEntity.getServiceName());
         existingEntity.setCommand(updatedEntity.getCommand());
         existingEntity.setArgs(updatedEntity.getArgs());
 

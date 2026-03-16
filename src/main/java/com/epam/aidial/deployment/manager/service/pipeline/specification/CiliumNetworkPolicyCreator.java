@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.service.pipeline.specification;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.CiliumNetworkPolicySpec;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
@@ -58,7 +57,7 @@ public class CiliumNetworkPolicyCreator {
                                       @Nullable Set<Integer> ports) {
         // Metadata
         ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(getPolicyName(matchLabelValue));
+        metadata.setName(matchLabelValue); // policy name re-uses service name
         metadata.setNamespace(namespace);
 
         // EndpointSelector
@@ -219,9 +218,5 @@ public class CiliumNetworkPolicyCreator {
         toPortsIngressRule.setToPorts(List.of(ingressToPorts));
 
         return List.of(fromEndpointsIngressRule, toPortsIngressRule);
-    }
-
-    public static String getPolicyName(String matchLabelValue) {
-        return K8sNamingUtils.generateName(matchLabelValue);
     }
 }
