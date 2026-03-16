@@ -25,7 +25,7 @@ When KNative is enabled, the system SHALL generate a KNative Service manifest fo
 - **Scaling annotations** on RevisionTemplate metadata (from `Scaling` config): `autoscaling.knative.dev/initial-scale` (computed as `max(minReplicas, 1)`), `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`, `autoscaling.knative.dev/scale-to-zero-pod-retention-period` (when `scaleToZeroDelaySeconds` set), `autoscaling.knative.dev/target` (when `ACTIVE_REQUESTS` strategy). `containerConcurrency` is set on RevisionSpec when strategy is `ACTIVE_REQUESTS`.
 - **Progress deadline annotation**: `serving.knative.dev/progress-deadline` set automatically on RevisionTemplate metadata when a startup probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe))
 - **Volumes**: Secret volumes for `SECURE_FILE` mount type env vars
-- **Naming**: Resources named via `K8sNamingUtils.generateMcpPrefixedName()`
+- **Naming**: Resources named using the stored `serviceName` from the deployment record (generated via `K8sNamingUtils.generateName()` at first deploy; unified convention for all types)
 
 Status: **Implemented**
 
@@ -60,7 +60,7 @@ When KServe is enabled, the system SHALL generate a KServe InferenceService mani
 - **Scaling**: `minReplicas` and `maxReplicas` on predictor (from base `Scaling` config); `autoscaling.knative.dev/initial-scale` annotation on service metadata; scale metric (`CONCURRENCY` for `ACTIVE_REQUESTS` strategy); `autoscaling.knative.dev/scale-to-zero-pod-retention-period` for scale-to-zero delay
 - **Progress deadline annotation**: `serving.knative.dev/progress-deadline` set on service metadata when a startup probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe))
 - **Model name argument**: `--model_name` automatically added to args if not already present
-- **Naming**: Resources named via `K8sNamingUtils.generateName()`
+- **Naming**: Resources named using the stored `serviceName` from the deployment record
 - **Startup probe**: converted from domain `ProbeProperties` to KServe `StartupProbe` by `KserveProbeConverter`
 
 Status: **Implemented**

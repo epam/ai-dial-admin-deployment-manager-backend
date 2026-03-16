@@ -104,21 +104,28 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
 
         try {
+            if (StringUtils.isBlank(deployment.getServiceName())) {
+                var serviceName = K8sNamingUtils.generateName(id);
+                deployment.setServiceName(serviceName);
+                deploymentRepository.updateServiceName(id, serviceName);
+            }
+
             var serviceSpec = prepareServiceSpec(deployment);
 
-            saveDisposableResource(id, namespace);
+            saveDisposableResource(id, deployment.getServiceName(), namespace);
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
                     try {
-                        createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment), getCiliumIngressPorts(deployment));
+                        createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+                                getCiliumIngressPorts(deployment), deployment.getServiceName());
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
                         log.warn(errorMessage, e);
-                        markDisposableResourcesForCleanup(id, namespace);
+                        markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
                         throw new DeploymentException(errorMessage, e);
                     }
                 }
@@ -130,7 +137,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         } catch (Exception e) {
             var errorMessage = "Failed to deploy service '%s'".formatted(id);
             log.warn(errorMessage, e);
-            markDisposableResourcesForCleanup(id, namespace);
+            markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
             throw new DeploymentException(errorMessage, e);
         }
     }
@@ -146,8 +153,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         try {
             var serviceName = getServiceName(id);
-            var cnpName = CiliumNetworkPolicyCreator.getPolicyName(serviceName);
-            var disposableResources = markDisposableResourcesForCleanup(id, namespace);
+            var cnpName = resolveCiliumNetworkPolicyName(id, serviceName);
+            var disposableResources = markDisposableResourcesForCleanup(id, namespace, serviceName, cnpName);
             deploymentRepository.updateStatus(id, DeploymentStatus.STOPPING);
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -279,10 +286,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     return false;
                 }
 
-                var serviceName = getServiceName(deploymentId);
-
                 log.info("{}: deployment '{}' appears RUNNING in K8s (service '{}'), scheduling readiness check after commit to set URL",
-                        initiator, deploymentId, serviceName);
+                        initiator, deploymentId, deployment.getServiceName());
                 var serviceUrl = resolveServiceUrl(service, deployment);
 
                 TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -312,18 +317,27 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             log.trace("stopOnServiceNotFound. Deployment ID: {}", id);
         }
 
-        var serviceName = getServiceName(id);
-        var service = getService(namespace, serviceName);
-        var deploymentOptional = getDeploymentOptional(id);
+        var deployment = getDeployment(id);
 
-        if (deploymentOptional.isPresent() && service == null) {
-            var deployment = deploymentOptional.get();
-            log.info("Reconciliation: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
-                    id, deployment.getStatus());
-            deployment.setUrl(null);
-            deployment.setStatus(DeploymentStatus.STOPPED);
-            deploymentRepository.update(id, deployment);
+        var serviceName = deployment.getServiceName();
+        if (StringUtils.isBlank(serviceName)) {
+            log.warn("stopOnServiceNotFound. Deployment '{}' has no service name", id);
+            markDeploymentAsStopped(deployment);
+            return;
         }
+
+        var service = getService(namespace, serviceName);
+        if (service == null) {
+            markDeploymentAsStopped(deployment);
+        }
+    }
+
+    private void markDeploymentAsStopped(Deployment deployment) {
+        log.info("Reconciliation: deployment '{}' not found in Kubernetes but marked as {} in DB. Updating to STOPPED",
+                deployment.getId(), deployment.getStatus());
+        deployment.setUrl(null);
+        deployment.setStatus(DeploymentStatus.STOPPED);
+        deploymentRepository.update(deployment.getId(), deployment);
     }
 
     @Override
@@ -613,7 +627,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return k8sClient.getAllEventsBase(namespace);
     }
 
-    protected abstract String getServiceName(String id);
+    protected String getServiceName(String id) {
+        return getDeploymentOptional(id)
+                .map(Deployment::getServiceName)
+                .filter(StringUtils::isNotBlank)
+                .orElseThrow(() -> new EntityNotFoundException("Service name not found for deployment: " + id));
+    }
 
     protected abstract Optional<D> getDeploymentOptional(String id);
 
@@ -641,9 +660,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     protected abstract String getServiceNameLabel();
 
-    protected abstract void saveDisposableResource(String id, String namespace);
+    protected abstract void saveDisposableResource(String id, String serviceName, String namespace);
 
-    protected abstract List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace);
+    protected abstract List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String serviceName, String namespace);
 
     protected abstract DeploymentStatus mapStatus(S service);
 
@@ -691,15 +710,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return () -> new EntityNotFoundException(String.format("%s not found: %s", what, id));
     }
 
-    private List<DisposableResource> markDisposableResourcesForCleanup(String id, String namespace) {
-        log.trace("markDisposableResourcesForCleanup. id='{}', namespace='{}'", id, namespace);
-        var serviceDisposableResources = markServiceDisposableResourcesForCleanup(id, namespace);
+    private List<DisposableResource> markDisposableResourcesForCleanup(String id, String namespace, String serviceName, String cnpName) {
+        log.trace("markDisposableResourcesForCleanup. id='{}', namespace='{}', serviceName='{}', cnpName='{}'", id, namespace, serviceName, cnpName);
+        var serviceDisposableResources = markServiceDisposableResourcesForCleanup(id, serviceName, namespace);
         log.debug("Service disposable resources marked for cleanup: {}", serviceDisposableResources);
 
         List<DisposableResource> disposableResources = new ArrayList<>(serviceDisposableResources);
-
-        var cnpName = CiliumNetworkPolicyCreator.getPolicyName(getServiceName(id));
-        log.trace("markDisposableResourcesForCleanup. Cilium Network Policy name resolved: '{}'", cnpName);
 
         var cnpDisposableResources = disposableResourceManager.markCiliumNetworkPolicyResourceForCleanup(id, namespace, cnpName);
         log.debug("Cilium Network Policy disposable resources marked for cleanup: {}", cnpDisposableResources);
@@ -709,18 +725,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return disposableResources;
     }
 
-    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
-        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
+    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, String name) {
+        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, name={}", groupId, allowedDomains, ports, name);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
             return;
         }
         var serviceNameLabel = getServiceNameLabel();
-        var serviceName = getServiceName(groupId);
-        var cnpName = CiliumNetworkPolicyCreator.getPolicyName(serviceName);
-        log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
+        log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, name);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
+        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, name, allowedDomains, ports);
 
         disposableResourceManager.saveK8sResources(List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
         log.trace("createCiliumNetworkPolicy. Saved Cilium Network Policy as disposable resource for groupId='{}' in namespace='{}'", groupId, namespace);
@@ -730,7 +744,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         disposableResourceManager.changeResourceLifecycleByGroupId(
                 groupId,
-                new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, cnpName),
+                new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, name),
                 ResourceLifecycleState.STABLE
         );
     }
@@ -757,9 +771,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
         var serviceNameLabel = getServiceNameLabel();
         var serviceName = getServiceName(groupId);
-        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, serviceName);
+        var cnpName = resolveCiliumNetworkPolicyName(groupId, serviceName);
+        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}', cnpName='{}'",
+                serviceNameLabel, serviceName, cnpName);
 
         var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
+        ciliumNetworkPolicy.getMetadata().setName(cnpName);
 
         k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
@@ -780,6 +797,23 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 log.debug("{}. Cilium Network Policies are disabled", message);
             }
         }
+    }
+
+    /**
+     * Resolves the actual CiliumNetworkPolicy resource name for a deployment.
+     *
+     * <p>This method exists for backward compatibility. Before migration V1.53, CiliumNetworkPolicy
+     * names were derived via {@code K8sNamingUtils.generateName(serviceName)}, producing a
+     * prefix-wrapped name (e.g. {@code dm-dm-abc123}). After the migration, new deployments use
+     * {@code serviceName} directly as the CNP name (e.g. {@code dm-abc123}).
+     *
+     * <p>The actual CNP name is looked up from the disposable resource table, which stores the name
+     * that was used at creation time. Falls back to {@code serviceName} if no disposable resource
+     * entry exists (shouldn't happen in practice, but is safe).
+     */
+    private String resolveCiliumNetworkPolicyName(String deploymentId, String serviceName) {
+        return disposableResourceManager.findCiliumNetworkPolicyName(deploymentId, namespace)
+                .orElse(serviceName);
     }
 
     protected Set<Integer> getCiliumIngressPorts(D deployment) {

@@ -17,7 +17,6 @@ import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
@@ -66,11 +65,6 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected String getServiceName(String id) {
-        return K8sNamingUtils.generateMcpPrefixedName(id);
-    }
-
-    @Override
     protected Optional<NimDeployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id).map(deployment -> {
             if (deployment instanceof NimDeployment nimDeployment) {
@@ -105,6 +99,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
         return nimManifestGenerator.serviceConfig(
                 deployment.getId(),
+                deployment.getServiceName(),
                 userDefinedSimpleEnvs,
                 userDefinedSensitiveEnvs,
                 deployment.getResources(),
@@ -149,13 +144,13 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected void saveDisposableResource(String id, String namespace) {
-        disposableResourceManager.saveNimServiceResource(id, namespace);
+    protected void saveDisposableResource(String id, String serviceName, String namespace) {
+        disposableResourceManager.saveNimServiceResource(id, serviceName, namespace);
     }
 
     @Override
-    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace) {
-        return disposableResourceManager.markNimServiceResourceForCleanup(id, namespace);
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String serviceName, String namespace) {
+        return disposableResourceManager.markNimServiceResourceForCleanup(id, serviceName, namespace);
     }
 
     @Override

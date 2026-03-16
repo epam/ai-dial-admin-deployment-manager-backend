@@ -17,7 +17,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
-import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
@@ -73,11 +72,6 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected String getServiceName(String id) {
-        return K8sNamingUtils.generateName(id);
-    }
-
-    @Override
     protected Optional<InferenceDeployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id)
                 .map(deployment -> {
@@ -104,6 +98,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         return inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
+                deployment.getServiceName(),
                 deployment.getModelFormat(),
                 huggingFaceSource.getStorageUri(),
                 userDefinedSimpleEnvs,
@@ -147,13 +142,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected void saveDisposableResource(String id, String namespace) {
-        disposableResourceManager.saveInferenceServiceResource(id, namespace);
+    protected void saveDisposableResource(String id, String serviceName, String namespace) {
+        disposableResourceManager.saveInferenceServiceResource(id, serviceName, namespace);
     }
 
     @Override
-    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String namespace) {
-        return disposableResourceManager.markInferenceServiceResourceForCleanup(id, namespace);
+    protected List<DisposableResource> markServiceDisposableResourcesForCleanup(String id, String serviceName, String namespace) {
+        return disposableResourceManager.markInferenceServiceResourceForCleanup(id, serviceName, namespace);
     }
 
     @Override

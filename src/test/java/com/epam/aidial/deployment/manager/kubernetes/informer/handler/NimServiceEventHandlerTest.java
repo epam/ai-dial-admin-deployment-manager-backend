@@ -1,7 +1,9 @@
 package com.epam.aidial.deployment.manager.kubernetes.informer.handler;
 
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.ServiceState;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.deployment.NimDeploymentManager;
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -14,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
@@ -38,6 +41,8 @@ class NimServiceEventHandlerTest {
     @Mock
     private NimDeploymentManager nimDeploymentManager;
     @Mock
+    private DeploymentRepository deploymentRepository;
+    @Mock
     private ExecutorService executorService;
 
     @InjectMocks
@@ -56,6 +61,7 @@ class NimServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "mcp-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         NIMService service = mockNimService(serviceName, ServiceState.READY);
 
         eventHandler.onAdd(service);
@@ -76,6 +82,7 @@ class NimServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "mcp-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         NIMService service = mockNimService(serviceName, ServiceState.FAILED);
 
         eventHandler.onUpdate(service, service);
@@ -88,6 +95,7 @@ class NimServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "mcp-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         NIMService service = mockNimService(serviceName, ServiceState.NOT_READY);
 
         eventHandler.onAdd(service);
@@ -100,6 +108,7 @@ class NimServiceEventHandlerTest {
         setupExecutorServiceToRunSynchronously();
         UUID deploymentId = UUID.randomUUID();
         String serviceName = "mcp-" + deploymentId;
+        stubDeploymentLookup(serviceName, deploymentId.toString());
         NIMService service = mockNimService(serviceName, ServiceState.READY);
 
         eventHandler.onDelete(service, false);
@@ -109,6 +118,7 @@ class NimServiceEventHandlerTest {
 
     @Test
     void testHandleResourceWithInvalidNameDoesNothing() {
+        when(deploymentRepository.getByServiceName("invalid-name")).thenReturn(Optional.empty());
         NIMService service = mockNimService("invalid-name", ServiceState.READY);
 
         eventHandler.onAdd(service);
@@ -140,5 +150,11 @@ class NimServiceEventHandlerTest {
         when(service.getMetadata()).thenReturn(meta);
 
         return service;
+    }
+
+    private void stubDeploymentLookup(String serviceName, String deploymentId) {
+        var deployment = mock(Deployment.class);
+        when(deployment.getId()).thenReturn(deploymentId);
+        when(deploymentRepository.getByServiceName(serviceName)).thenReturn(Optional.of(deployment));
     }
 }
