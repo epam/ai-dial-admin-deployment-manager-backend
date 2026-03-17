@@ -10,7 +10,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.SubclassExhaustiveStrategy;
 import org.mapstruct.SubclassMapping;
 
-@Mapper(componentModel = "spring", subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
+@Mapper(componentModel = "spring", uses = {PersistenceExternalRegistryRefMapper.class},
+        subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION)
 public interface PersistenceImageSourceMapper {
 
     @SubclassMapping(source = PersistenceDockerImageSource.class, target = DockerImageSource.class)

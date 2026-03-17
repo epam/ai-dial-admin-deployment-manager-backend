@@ -45,7 +45,7 @@ class ImageBuildRunnerTest {
                 .id(imageDefinitionId)
                 .buildStatus(ImageStatus.NOT_BUILT)
                 .transportType(McpTransportType.REMOTE)
-                .source(new DockerImageSource("dummy", Collections.emptyList()))
+                .source(new DockerImageSource("dummy", Collections.emptyList(), null))
                 .version("1.0.0")
                 .build();
 

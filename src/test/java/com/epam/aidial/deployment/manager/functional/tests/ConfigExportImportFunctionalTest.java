@@ -16,6 +16,7 @@ import com.epam.aidial.deployment.manager.model.ImageSource;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
+import com.epam.aidial.deployment.manager.model.McpRegistryRef;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -362,7 +363,7 @@ public abstract class ConfigExportImportFunctionalTest {
         mcp1.setName(MCP_IMAGE_NAME);
         mcp1.setVersion(VERSION);
         mcp1.setDescription("MCP for export/import test");
-        mcp1.setSource(new DockerImageSource("test-registry/mcp-exp:1.0", List.of()));
+        mcp1.setSource(new DockerImageSource("test-registry/mcp-exp:1.0", List.of(), new McpRegistryRef("export-test-pkg")));
         mcp1.setImageBuilder(ImageBuilder.BUILDKIT);
         mcp1.setLicense("MIT");
         mcp1.setTopics(List.of("topic1"));
@@ -387,7 +388,7 @@ public abstract class ConfigExportImportFunctionalTest {
         adapter.setName(ADAPTER_IMAGE_NAME);
         adapter.setVersion(VERSION);
         adapter.setDescription("Adapter for export/import test");
-        adapter.setSource(new DockerImageSource("test-registry/adapter-exp:1.0", List.of()));
+        adapter.setSource(new DockerImageSource("test-registry/adapter-exp:1.0", List.of(), null));
         adapter.setImageBuilder(ImageBuilder.BUILDKIT);
         adapter.setLicense("");
         adapter.setTopics(List.of());
@@ -397,7 +398,7 @@ public abstract class ConfigExportImportFunctionalTest {
         interceptor.setName(INTERCEPTOR_IMAGE_NAME);
         interceptor.setVersion(VERSION);
         interceptor.setDescription("Interceptor for export/import test");
-        interceptor.setSource(new DockerImageSource("test-registry/interceptor-exp:1.0", List.of()));
+        interceptor.setSource(new DockerImageSource("test-registry/interceptor-exp:1.0", List.of(), null));
         interceptor.setImageBuilder(ImageBuilder.BUILDKIT);
         interceptor.setLicense("");
         interceptor.setTopics(List.of());
@@ -486,9 +487,11 @@ public abstract class ConfigExportImportFunctionalTest {
         if (expected instanceof DockerImageSource expDocker && actual instanceof DockerImageSource actDocker) {
             Assertions.assertEquals(expDocker.getImageUri(), actDocker.getImageUri(), "source.imageUri");
             Assertions.assertEquals(expDocker.getEntrypoint(), actDocker.getEntrypoint(), "source.entrypoint");
+            Assertions.assertEquals(expDocker.getExternalRegistryRef(), actDocker.getExternalRegistryRef(), "source.externalRegistryRef");
         } else if (expected instanceof GitDockerfileImageSource expGit && actual instanceof GitDockerfileImageSource actGit) {
             Assertions.assertEquals(expGit.getUrl(), actGit.getUrl(), "source.url");
             Assertions.assertEquals(expGit.getBranchName(), actGit.getBranchName(), "source.branchName");
+            Assertions.assertEquals(expGit.getExternalRegistryRef(), actGit.getExternalRegistryRef(), "source.externalRegistryRef");
         } else {
             Assertions.fail("Source type mismatch: expected=%s, actual=%s"
                     .formatted(expected.getClass().getSimpleName(), actual.getClass().getSimpleName()));

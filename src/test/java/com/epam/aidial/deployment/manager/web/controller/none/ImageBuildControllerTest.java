@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.ImageBuildController;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageBuildDetailsDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageSourceDtoMapperImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JsonMapperConfiguration.class,
         ImageBuildDetailsDtoMapperImpl.class,
         ImageSourceDtoMapperImpl.class,
+        ExternalRegistryRefDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class
 })
 class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
