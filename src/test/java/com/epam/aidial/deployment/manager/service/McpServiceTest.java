@@ -9,6 +9,7 @@ import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.utils.TestException;
 import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.client.transport.McpHttpClientTransportAuthorizationException;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -179,6 +181,30 @@ class McpServiceTest {
         var exception = assertThrows(McpClientException.class, () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
 
         assertThat(exception).hasMessageContaining("Failed to connect to MCP server");
+        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+
+        verify(deploymentService).getDeployment(DEPLOYMENT_ID);
+        verify(mcpClientFactory).create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE);
+        verify(mcpSyncClient).initialize();
+        verify(mcpSyncClient).close();
+    }
+
+    @Test
+    void testGetTools_clientClosedAfterUnauthorizedException() {
+        // Given
+        var deployment = createDeployment();
+        String endpointPath = "/sse";
+        deployment.setMcpEndpointPath(endpointPath);
+        deployment.setTransport(McpTransport.SSE);
+        when(deploymentService.getDeployment(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(mcpClientFactory.create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE)).thenReturn(mcpSyncClient);
+        Mockito.doThrow(new McpHttpClientTransportAuthorizationException("Test exception", null)).when(mcpSyncClient).initialize();
+
+        // When/Then
+        var exception = assertThrows(McpClientException.class, () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
+
+        assertThat(exception).hasMessageContaining("Failed to connect to MCP server");
+        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
 
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verify(mcpClientFactory).create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE);

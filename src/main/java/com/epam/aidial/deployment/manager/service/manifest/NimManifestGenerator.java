@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
 import com.google.cloud.tools.jib.api.ImageReference;
-import com.networknt.schema.utils.StringUtils;
 import com.nvidia.apps.v1alpha1.NIMService;
 import com.nvidia.apps.v1alpha1.NIMServiceSpec;
 import com.nvidia.apps.v1alpha1.nimservicespec.Env;
@@ -26,6 +25,7 @@ import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.pa
 import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 

@@ -7,13 +7,16 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.client.transport.McpHttpClientTransportAuthorizationException;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -57,9 +60,12 @@ public class McpService {
             var root = ExceptionUtils.getRootCause(e);
             String reason = root != null ? root.getMessage() : e.getMessage();
             String message = "Failed to %s MCP server. Deployment id: %s. Transport: '%s'. Path: '%s'"
-                    .formatted(operationName, deploymentId, deployment.getTransport(), deployment.getMcpEndpointPath());
+                    .formatted(operationName, deploymentId, deployment.getTransport(), Optional.ofNullable(deployment.getMcpEndpointPath()).orElse(""));
+            HttpStatus status = root instanceof McpHttpClientTransportAuthorizationException
+                    ? HttpStatus.UNAUTHORIZED
+                    : HttpStatus.INTERNAL_SERVER_ERROR;
             log.warn("{}. Reason: {}", message, reason);
-            throw new McpClientException(message, e);
+            throw new McpClientException(message, status, e);
         }
     }
 
