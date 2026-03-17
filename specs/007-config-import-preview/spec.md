@@ -145,8 +145,11 @@ The `next` field in each `ImportComponentDto` represents the raw deserialized en
 - `url`, `serviceName` — preserved from existing entity on update.
 - `source.imageDefinitionId` (for `InternalImageSource`) — resolved from DB by (type, name, version).
 - `k8sSecretName`, `k8sSecretKey` on sensitive env vars — newly provisioned K8s secrets during real import.
-- `metadata.envs[*].value` — present in preview but **nullified** in the persisted entity after K8s secret provisioning.
 - Real import may also trigger side effects (K8s rolling update, Cilium policy changes) that the preview does not predict.
+
+**Deployment env var values in preview:**
+- `prev`: K8s secrets are resolved (`resolveSecrets=true`), so `metadata.envs[*].value` includes both plain and sensitive env var values for comparison.
+- `next`: env var values are sourced from `metadata.envs[*].value` in the deserialized export (via `DeploymentDtoMapper` fallback). Sensitive values will be `null` if the export was created with `addSecrets=false`.
 
 This is accepted behaviour: the preview is intended to show the *incoming data and conflict resolution action*, not to fully simulate the import pipeline.
 

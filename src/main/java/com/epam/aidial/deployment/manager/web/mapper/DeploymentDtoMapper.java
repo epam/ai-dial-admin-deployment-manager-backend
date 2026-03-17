@@ -52,13 +52,11 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.ImageBasedDeploymen
 import com.epam.aidial.deployment.manager.web.dto.deployment.ImageReferenceDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentHuggingFaceSourceDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InterceptorDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InternalImageDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentNgcRegistrySourceDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.AdapterDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.DeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.InferenceDeploymentInternalDto;
@@ -225,8 +223,12 @@ public abstract class DeploymentDtoMapper {
     }
 
     private EnvVarDefinitionDto toEnvVarDefinitionDto(EnvVarDefinition envDef, EnvVar envValue) {
+        EnvVarValueDto valueDto = getValueIfPresent(envValue);
+        if (valueDto == null && envDef.getValue() != null) {
+            valueDto = envVarValueDtoMapper.toDto(envDef.getValue());
+        }
         return new EnvVarDefinitionDto(envDef.getName(),
-                getValueIfPresent(envValue),
+                valueDto,
                 toEnvVarMountTypeDto(envDef.getMountType()),
                 envDef.getDescription());
     }

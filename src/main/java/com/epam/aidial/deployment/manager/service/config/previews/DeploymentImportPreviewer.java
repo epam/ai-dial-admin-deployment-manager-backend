@@ -69,7 +69,7 @@ public class DeploymentImportPreviewer {
     @SuppressWarnings("unchecked")
     private <T extends Deployment> ImportComponent<T> previewOne(T imported, ConflictResolutionPolicy policy) {
         String id = imported.getId();
-        Optional<Deployment> existingOpt = deploymentService.getDeployment(id, false);
+        Optional<Deployment> existingOpt = deploymentService.getDeployment(id, true);
 
         if (existingOpt.isEmpty()) {
             return new ImportComponent<>(ImportAction.CREATE, null, imported);
