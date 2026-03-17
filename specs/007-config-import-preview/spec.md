@@ -127,6 +127,29 @@ An administrator accidentally uploads a non-ZIP file or a ZIP that lacks the exp
 
 - Q: Should the `globalImageBuildDomainWhitelist` preview be a single `ImportComponentDto<List<String>>` for the entire list, or per-entry `ImportComponentDto<String>` for each domain string? → A: Single `ImportComponentDto<List<String>>` for the whole list (prev = current list, next = incoming list).
 
+## Known Limitations
+
+### `next` value is an approximation of the actual import result
+
+The `next` field in each `ImportComponentDto` represents the raw deserialized entity from the export ZIP, not the exact entity that would be persisted after a real import. Several fields are excluded by Jackson export mixins (`ImageDefinitionExportMixIn`, `DeploymentExportMixIn`, `InternalImageSourceExportMixIn`, `SensitiveEnvVarExportMixIn`) and will appear as `null` in `next`, whereas the real import pipeline populates them with server-derived values.
+
+**Image definitions** — fields `null` in preview but set during real import:
+- `id`, `createdAt`, `updatedAt` — assigned by DB.
+- `buildStatus` — set to `NOT_BUILT` on create.
+- `author` — set to current user on create; preserved from existing entity on update (via `mergeForOverwrite`).
+- `imageName`, `buildLogs`, `builtAt` — remain `null` (same as preview) on create; retain existing DB values on update.
+
+**Deployments** — fields `null` in preview but set during real import:
+- `status` — set to `NOT_DEPLOYED` on create; derived from existing status on update (e.g. `STOPPED` → `NOT_DEPLOYED`).
+- `author` — set to current user on create.
+- `url`, `serviceName` — preserved from existing entity on update.
+- `source.imageDefinitionId` (for `InternalImageSource`) — resolved from DB by (type, name, version).
+- `k8sSecretName`, `k8sSecretKey` on sensitive env vars — newly provisioned K8s secrets during real import.
+- `metadata.envs[*].value` — present in preview but **nullified** in the persisted entity after K8s secret provisioning.
+- Real import may also trigger side effects (K8s rolling update, Cilium policy changes) that the preview does not predict.
+
+This is accepted behaviour: the preview is intended to show the *incoming data and conflict resolution action*, not to fully simulate the import pipeline.
+
 ## Assumptions
 
 - The preview endpoint reuses the same ZIP-parsing and config deserialisation logic as the real `/import` endpoint; no duplication.

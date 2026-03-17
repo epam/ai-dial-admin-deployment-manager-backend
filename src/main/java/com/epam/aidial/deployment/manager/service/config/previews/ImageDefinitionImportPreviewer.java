@@ -20,6 +20,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Builds import preview components for image definitions by comparing incoming
+ * (deserialized from export ZIP) entities against existing DB state.
+ *
+ * <p><b>Known limitation — {@code next} differs from actual import result.</b>
+ * The {@code next} value in each {@link ImportComponent} is the raw deserialized
+ * object from the export ZIP. Fields excluded by {@code ImageDefinitionExportMixIn}
+ * ({@code id}, {@code imageName}, {@code buildStatus}, {@code buildLogs},
+ * {@code builtAt}, {@code author}, {@code createdAt}, {@code updatedAt}) will be
+ * {@code null} in {@code next}, whereas the real import pipeline populates them:
+ * <ul>
+ *   <li><b>CREATE</b>: {@code buildStatus} → {@code NOT_BUILT}, {@code author} →
+ *       current user (from security context), {@code id}/{@code createdAt}/{@code updatedAt}
+ *       → assigned by DB.</li>
+ *   <li><b>UPDATE</b>: {@code author} → preserved from existing entity (via
+ *       {@code mergeForOverwrite}), other mixin-excluded fields retain their existing
+ *       DB values.</li>
+ * </ul>
+ */
 @Slf4j
 @Component
 @LogExecution

@@ -16,6 +16,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Builds import preview components for deployments by comparing incoming
+ * (deserialized from export ZIP) entities against existing DB state.
+ *
+ * <p><b>Known limitation — {@code next} differs from actual import result.</b>
+ * The {@code next} value in each {@link ImportComponent} is the raw deserialized
+ * object. Fields excluded by export mixins are {@code null} in {@code next}, whereas
+ * the real import pipeline populates them:
+ * <ul>
+ *   <li>{@code DeploymentExportMixIn}-excluded: {@code url}, {@code status},
+ *       {@code serviceName}, {@code author}, {@code createdAt}, {@code updatedAt}.</li>
+ *   <li>{@code InternalImageSourceExportMixIn}-excluded: {@code imageDefinitionId}
+ *       — resolved from DB by (type, name, version) during real import.</li>
+ *   <li>{@code SensitiveEnvVarExportMixIn}-excluded: {@code k8sSecretName},
+ *       {@code k8sSecretKey} — provisioned as new K8s secrets during real import.</li>
+ * </ul>
+ * Additionally, during real import:
+ * <ul>
+ *   <li><b>CREATE</b>: {@code status} → {@code NOT_DEPLOYED}, {@code author} →
+ *       current user, env var values nullified in DB after K8s secret provisioning.</li>
+ *   <li><b>UPDATE</b>: {@code status} derived from existing (e.g. STOPPED → NOT_DEPLOYED),
+ *       {@code url}/{@code serviceName} preserved from existing entity, may trigger
+ *       K8s rolling update or Cilium policy changes.</li>
+ * </ul>
+ */
 @Slf4j
 @Component
 @LogExecution
