@@ -5,7 +5,9 @@ import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.config.ExportRequest;
+import com.epam.aidial.deployment.manager.model.config.ImportConfigPreview;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
+import com.epam.aidial.deployment.manager.service.config.previews.ConfigImportPreviewer;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +43,8 @@ class ConfigTransferServiceTest {
     private ConfigExporter configExporter;
     @Mock
     private ConfigImporter configImporter;
+    @Mock
+    private ConfigImportPreviewer configImportPreviewer;
 
     private JsonMapper jsonMapper;
     private ConfigTransferService configTransferService;
@@ -58,6 +62,7 @@ class ConfigTransferServiceTest {
                 properties,
                 configExporter,
                 configImporter,
+                configImportPreviewer,
                 exportJsonMapper,
                 jsonMapper
         );
@@ -183,6 +188,50 @@ class ConfigTransferServiceTest {
         assertThatThrownBy(() -> configTransferService.exportConfig(new OtherExportRequest()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported export request type");
+    }
+
+    @Test
+    void getImportConfigPreview_validZip_callsPreviewerWithParsedConfig() throws IOException {
+        // Given
+        ExportConfig config = ExportConfig.builder().build();
+        config.getGlobalImageBuildDomainWhitelist().add("preview.com");
+        byte[] zipBytes = ConfigExportImportTestHelper.buildZipFromExportConfig(
+                CONFIG_FILE_NAME, config, jsonMapper
+        );
+        MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile(ZIP_NAME, zipBytes);
+
+        ImportConfigPreview expected = ImportConfigPreview.builder().build();
+        when(configImportPreviewer.previewImport(any(ExportConfig.class), eq(ConflictResolutionPolicy.OVERWRITE)))
+                .thenReturn(expected);
+
+        // When
+        ImportConfigPreview result = configTransferService.getImportConfigPreview(
+                multipartFile, ConflictResolutionPolicy.OVERWRITE);
+
+        // Then
+        assertThat(result).isSameAs(expected);
+        verify(configImportPreviewer).previewImport(any(ExportConfig.class), eq(ConflictResolutionPolicy.OVERWRITE));
+        verify(configImporter, never()).importConfig(any(), any());
+    }
+
+    @Test
+    void getImportConfigPreview_shouldNotCallPreviewer_whenInvalidZipForPreview() throws IOException {
+        // Given
+        ExportConfig config = ExportConfig.builder().build();
+        byte[] zipBytes = ConfigExportImportTestHelper.buildZipFromExportConfig(
+                "unknown-config.json", config, jsonMapper
+        );
+        MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile(ZIP_NAME, zipBytes);
+
+        // When
+        var exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> configTransferService.getImportConfigPreview(multipartFile, ConflictResolutionPolicy.OVERWRITE)
+        );
+
+        // Then
+        assertThat(exception.getMessage()).isEqualTo("No valid export configuration file 'config.json' found in the ZIP archive.");
+        verify(configImportPreviewer, never()).previewImport(any(), any());
     }
 
     private static class OtherExportRequest extends ExportRequest { }

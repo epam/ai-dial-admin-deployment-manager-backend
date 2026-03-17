@@ -23,8 +23,12 @@ import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategy;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponent;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType;
+import com.epam.aidial.deployment.manager.model.config.ImportAction;
+import com.epam.aidial.deployment.manager.model.config.ImportComponent;
+import com.epam.aidial.deployment.manager.model.config.ImportConfigPreview;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
 import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
@@ -80,6 +84,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipInputStream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -601,6 +607,139 @@ public abstract class ConfigExportImportFunctionalTest {
             Assertions.assertNotNull(entry, "ZIP should contain at least one entry");
             Assertions.assertEquals(expectedEntryName, entry.getName(), "ZIP entry name");
             return new String(zis.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    @Test
+    void importPreview_returnsCreateForAllTypes_withoutMutatingDatabase() throws Exception {
+        // Verify entity doesn't exist before preview
+        assertThat(imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(ImageType.MCP, MCP_IMAGE_NAME, VERSION))
+                .isEmpty();
+
+        MultipartFile zipFile = buildImportZipFromResource();
+
+        // First preview - empty DB → CREATE for all 8 entity types
+        ImportConfigPreview preview = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertPreviewAction(preview, ImportAction.CREATE);
+
+        // Whitelist: Flyway pre-seeds empty row → UPDATE
+        assertThat(preview.getGlobalImageBuildDomainWhitelist()).isNotNull();
+        assertThat(preview.getGlobalImageBuildDomainWhitelist().getAction()).isEqualTo(ImportAction.UPDATE);
+        assertThat(preview.getGlobalImageBuildDomainWhitelist().getPrev()).isEmpty();
+        assertThat(preview.getGlobalImageBuildDomainWhitelist().getNext()).containsAll(EXPORT_WHITELIST);
+
+        // Second preview - must not mutate DB
+        configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertThat(imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(ImageType.MCP, MCP_IMAGE_NAME, VERSION))
+                .isEmpty();
+
+        // Real import creates the entity
+        configTransferService.importConfig(zipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertThat(imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(ImageType.MCP, MCP_IMAGE_NAME, VERSION))
+                .isPresent();
+    }
+
+    @Test
+    void importPreview_respectsConflictResolutionPolicy_whenEntitiesExist() throws Exception {
+        // Seed DB with all entities
+        MultipartFile zipFile = buildImportZipFromResource();
+        configTransferService.importConfig(zipFile, ConflictResolutionPolicy.OVERWRITE);
+
+        // OVERWRITE → UPDATE
+        ImportConfigPreview overwrite = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertPreviewAction(overwrite, ImportAction.UPDATE);
+        assertThat(overwrite.getGlobalImageBuildDomainWhitelist()).isNotNull();
+        assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getAction()).isEqualTo(ImportAction.UPDATE);
+        assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getPrev()).isNotNull();
+        assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getNext()).containsAll(EXPORT_WHITELIST);
+
+        // SKIP_IF_EXISTS → SKIP
+        ImportConfigPreview skip = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.SKIP_IF_EXISTS);
+        assertPreviewAction(skip, ImportAction.SKIP);
+        assertThat(skip.getGlobalImageBuildDomainWhitelist()).isNotNull();
+        assertThat(skip.getGlobalImageBuildDomainWhitelist().getAction()).isEqualTo(ImportAction.SKIP);
+        assertThat(skip.getGlobalImageBuildDomainWhitelist().getPrev()).isNotNull();
+        assertThat(skip.getGlobalImageBuildDomainWhitelist().getNext()).isNull();
+
+        // FAIL_IF_EXISTS → FAIL
+        ImportConfigPreview fail = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.FAIL_IF_EXISTS);
+        assertPreviewAction(fail, ImportAction.FAIL);
+        assertThat(fail.getGlobalImageBuildDomainWhitelist()).isNotNull();
+        assertThat(fail.getGlobalImageBuildDomainWhitelist().getAction()).isEqualTo(ImportAction.FAIL);
+        assertThat(fail.getGlobalImageBuildDomainWhitelist().getPrev()).isNotNull();
+        assertThat(fail.getGlobalImageBuildDomainWhitelist().getNext()).isNotNull();
+    }
+
+    @Test
+    void importPreview_handlesEmptyAndInvalidInput() throws Exception {
+        // Empty config → all lists empty, no whitelist
+        String emptyJson = jsonMapper.writeValueAsString(ExportConfig.builder().build());
+        byte[] emptyZipBytes = ConfigExportImportTestHelper.buildZipFromJson(configExportProperties.getFileName(), emptyJson);
+        MultipartFile emptyZipFile = ConfigExportImportTestHelper.createZipMultipartFile("empty-export.zip", emptyZipBytes);
+
+        ImportConfigPreview preview = configTransferService.getImportConfigPreview(emptyZipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertThat(preview.getMcpImageDefinitions()).isEmpty();
+        assertThat(preview.getAdapterImageDefinitions()).isEmpty();
+        assertThat(preview.getInterceptorImageDefinitions()).isEmpty();
+        assertThat(preview.getMcpDeployments()).isEmpty();
+        assertThat(preview.getAdapterDeployments()).isEmpty();
+        assertThat(preview.getInterceptorDeployments()).isEmpty();
+        assertThat(preview.getNimDeployments()).isEmpty();
+        assertThat(preview.getInferenceDeployments()).isEmpty();
+        assertThat(preview.getGlobalImageBuildDomainWhitelist()).isNull();
+
+        // Not a ZIP → IllegalArgumentException
+        byte[] textBytes = "not a zip file".getBytes(StandardCharsets.UTF_8);
+        MultipartFile textFile = ConfigExportImportTestHelper.createZipMultipartFile("not-a-zip.txt", textBytes);
+        assertThatThrownBy(() ->
+                configTransferService.getImportConfigPreview(textFile, ConflictResolutionPolicy.OVERWRITE))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        // ZIP without recognized config file → IllegalArgumentException
+        byte[] badZipBytes = ConfigExportImportTestHelper.buildZipFromJson("unknown-config.json", "{}");
+        MultipartFile badZipFile = ConfigExportImportTestHelper.createZipMultipartFile("export.zip", badZipBytes);
+        assertThatThrownBy(() ->
+                configTransferService.getImportConfigPreview(badZipFile, ConflictResolutionPolicy.OVERWRITE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No valid export configuration file");
+    }
+
+    private MultipartFile buildImportZipFromResource() throws Exception {
+        String exportConfigJson = ResourceUtils.readResource(EXPECTED_EXPORT_CONFIG_RESOURCE);
+        byte[] zipBytes = ConfigExportImportTestHelper.buildZipFromJson(configExportProperties.getFileName(), exportConfigJson);
+        return ConfigExportImportTestHelper.createZipMultipartFile("export.zip", zipBytes);
+    }
+
+    private void assertPreviewAction(ImportConfigPreview preview, ImportAction expectedAction) {
+        assertComponentListAction(preview.getMcpImageDefinitions(), expectedAction, "mcpImageDefinitions");
+        assertComponentListAction(preview.getAdapterImageDefinitions(), expectedAction, "adapterImageDefinitions");
+        assertComponentListAction(preview.getInterceptorImageDefinitions(), expectedAction, "interceptorImageDefinitions");
+        assertComponentListAction(preview.getMcpDeployments(), expectedAction, "mcpDeployments");
+        assertComponentListAction(preview.getAdapterDeployments(), expectedAction, "adapterDeployments");
+        assertComponentListAction(preview.getInterceptorDeployments(), expectedAction, "interceptorDeployments");
+        assertComponentListAction(preview.getNimDeployments(), expectedAction, "nimDeployments");
+        assertComponentListAction(preview.getInferenceDeployments(), expectedAction, "inferenceDeployments");
+    }
+
+    private <T> void assertComponentListAction(List<ImportComponent<T>> components, ImportAction expectedAction, String listName) {
+        assertThat(components).as(listName + " should not be empty").isNotEmpty();
+        for (ImportComponent<T> component : components) {
+            assertThat(component.getAction()).as(listName + " component action").isEqualTo(expectedAction);
+            switch (expectedAction) {
+                case CREATE -> {
+                    assertThat(component.getPrev()).as(listName + " prev for CREATE").isNull();
+                    assertThat(component.getNext()).as(listName + " next for CREATE").isNotNull();
+                }
+                case UPDATE, FAIL -> {
+                    assertThat(component.getPrev()).as(listName + " prev for " + expectedAction).isNotNull();
+                    assertThat(component.getNext()).as(listName + " next for " + expectedAction).isNotNull();
+                }
+                case SKIP -> {
+                    assertThat(component.getPrev()).as(listName + " prev for SKIP").isNotNull();
+                    assertThat(component.getNext()).as(listName + " next for SKIP").isNull();
+                }
+                default -> throw new IllegalArgumentException("Unhandled action: " + expectedAction);
+            }
         }
     }
 
