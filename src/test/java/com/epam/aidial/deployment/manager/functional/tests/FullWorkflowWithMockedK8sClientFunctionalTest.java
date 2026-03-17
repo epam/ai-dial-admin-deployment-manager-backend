@@ -18,7 +18,6 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.utils.StringUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.knative.client.KnativeClient;
 import io.fabric8.knative.serving.v1.RevisionSpec;
@@ -56,6 +55,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -182,7 +182,6 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // When - Create deployment
         var createdDeployment = deploymentService.createDeployment(deployment);
-        //deploymentRepository.updateServiceName(createdDeployment.getId(), K8sNamingUtils.generateName(createdDeployment.getId()));
 
         // Then - Create deployment
         var secret = secretCaptor.getValue();
