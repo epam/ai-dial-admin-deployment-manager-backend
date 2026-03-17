@@ -37,6 +37,7 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenc
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -80,6 +81,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         JsonMapperConfiguration.class,
         DeploymentDtoMapperImpl.class,
+        ExternalRegistryRefDtoMapperImpl.class,
         ProbePropertiesDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
         ScalingDtoMapperImpl.class,
@@ -253,13 +255,13 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var requestDtoJson = ResourceUtils.readResource("/mcp/deployment/create_deployment_request.json");
         var requestDto = objectMapper.readValue(requestDtoJson, CreateMcpDeploymentRequestDto.class);
         var imageReference = "ghcr.io/modelcontextprotocol/servers/fetch:latest";
-        requestDto.setSource(new CreateImageReferenceDeploymentSourceRequestDto(imageReference));
+        requestDto.setSource(new CreateImageReferenceDeploymentSourceRequestDto(imageReference, null));
 
         var requestJson = objectMapper.writeValueAsString(requestDto);
 
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
-        model.setSource(new ImageReferenceSource(imageReference));
+        model.setSource(new ImageReferenceSource(imageReference, null));
 
         when(deploymentService.createDeployment(any())).thenReturn(model);
 

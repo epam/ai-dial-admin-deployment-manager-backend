@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -16,4 +17,6 @@ import java.util.List;
 public class DockerImageSource extends ImageSource {
     private String imageUri;
     private List<String> entrypoint;
+    @Nullable
+    private ExternalRegistryRef externalRegistryRef;
 }
