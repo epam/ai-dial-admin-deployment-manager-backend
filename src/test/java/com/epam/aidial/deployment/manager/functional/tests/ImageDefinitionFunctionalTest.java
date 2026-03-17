@@ -2,12 +2,16 @@ package com.epam.aidial.deployment.manager.functional.tests;
 
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
+import com.epam.aidial.deployment.manager.model.DockerImageSource;
+import com.epam.aidial.deployment.manager.model.GenericRef;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
+import com.epam.aidial.deployment.manager.model.GitHubRef;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionViewElement;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
+import com.epam.aidial.deployment.manager.model.McpRegistryRef;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
@@ -136,7 +140,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // When 2
         imageDef.setName(imageDef.getName() + "1");
-        imageDef.setSource(new GitDockerfileImageSource("http://test-uri", "some-branch", "*", "", List.of("entry2")));
+        imageDef.setSource(new GitDockerfileImageSource("http://test-uri", "some-branch", "*", "", List.of("entry2"), null));
         imageDef.setAuthor("updated-author");
 
         service.updateImageDefinition(imageDef.getId(), imageDef);
@@ -163,7 +167,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // Given - Update same entity at a later time
         createdImageDef.setName(createdImageDef.getName() + "1");
         createdImageDef.setSource(new GitDockerfileImageSource(
-                "http://test-uri", "some-branch", "*", "", List.of("entry2")
+                "http://test-uri", "some-branch", "*", "", List.of("entry2"), null
         ));
 
         // When - Update
@@ -196,7 +200,7 @@ public abstract class ImageDefinitionFunctionalTest {
         // Given - Update
         createdImageDef.setName(createdImageDef.getName() + "1");
         createdImageDef.setSource(new GitDockerfileImageSource(
-                "http://test-uri", "some-branch", "*", "", List.of("entry2")
+                "http://test-uri", "some-branch", "*", "", List.of("entry2"), null
         ));
 
         // When - Update
@@ -551,5 +555,128 @@ public abstract class ImageDefinitionFunctionalTest {
         Assertions.assertTrue(mcpVersionIds.contains(createdMcp1.getId()));
         Assertions.assertTrue(mcpVersionIds.contains(createdMcp2.getId()));
         Assertions.assertFalse(mcpVersionIds.contains(createdInterceptor.getId()));
+    }
+
+    @Test
+    public void shouldCreateImageDefinitionWithMcpRegistryRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new GitDockerfileImageSource("http://test-uri", "main", null, null, List.of("entry"), null);
+        source.setExternalRegistryRef(new McpRegistryRef("my-server"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+
+        Assertions.assertInstanceOf(GitDockerfileImageSource.class, fetched.getSource());
+        var fetchedSource = (GitDockerfileImageSource) fetched.getSource();
+        Assertions.assertInstanceOf(McpRegistryRef.class, fetchedSource.getExternalRegistryRef());
+        Assertions.assertEquals("my-server", ((McpRegistryRef) fetchedSource.getExternalRegistryRef()).packageName());
+    }
+
+    @Test
+    public void shouldCreateImageDefinitionWithGitHubRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new GitHubRef("org/repo"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+
+        Assertions.assertInstanceOf(DockerImageSource.class, fetched.getSource());
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        Assertions.assertInstanceOf(GitHubRef.class, fetchedSource.getExternalRegistryRef());
+        Assertions.assertEquals("org/repo", ((GitHubRef) fetchedSource.getExternalRegistryRef()).repo());
+    }
+
+    @Test
+    public void shouldCreateImageDefinitionWithGenericRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new GenericRef("https://example.com/pkg"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+
+        Assertions.assertInstanceOf(DockerImageSource.class, fetched.getSource());
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        Assertions.assertInstanceOf(GenericRef.class, fetchedSource.getExternalRegistryRef());
+        Assertions.assertEquals("https://example.com/pkg", ((GenericRef) fetchedSource.getExternalRegistryRef()).url());
+    }
+
+    @Test
+    public void shouldCreateImageDefinitionWithoutExternalRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+
+        var created = service.createImageDefinition(imageDef);
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+
+        Assertions.assertInstanceOf(DockerImageSource.class, fetched.getSource());
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        Assertions.assertNull(fetchedSource.getExternalRegistryRef());
+    }
+
+    @Test
+    public void shouldUpdateImageDefinitionExternalRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("old-pkg"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+
+        created.setSource(new DockerImageSource("http://test-uri", List.of("entry1"), new GitHubRef("new/repo")));
+        service.updateImageDefinition(created.getId(), created);
+
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        Assertions.assertInstanceOf(GitHubRef.class, fetchedSource.getExternalRegistryRef());
+        Assertions.assertEquals("new/repo", ((GitHubRef) fetchedSource.getExternalRegistryRef()).repo());
+    }
+
+    @Test
+    public void shouldClearImageDefinitionExternalRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-pkg"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+
+        created.setSource(new DockerImageSource("http://test-uri", List.of("entry1"), null));
+        service.updateImageDefinition(created.getId(), created);
+
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        Assertions.assertNull(fetchedSource.getExternalRegistryRef());
+    }
+
+    @Test
+    public void shouldListImageDefinitions_withMixedExternalRefs() {
+        var imgDef1 = FunctionalTestHelper.createMcpImageDefinition();
+        imgDef1.setName("img-with-mcp-ref");
+        imgDef1.setSource(new DockerImageSource("http://test-1", List.of("e"), new McpRegistryRef("pkg-1")));
+
+        var imgDef2 = FunctionalTestHelper.createInterceptorImageDefinition();
+        imgDef2.setName("img-with-generic-ref");
+        imgDef2.setSource(new DockerImageSource("http://test-2", List.of("e"), new GenericRef("https://example.com")));
+
+        var imgDef3 = FunctionalTestHelper.createAdapterImageDefinition();
+        imgDef3.setName("img-no-ref");
+        imgDef3.setSource(new DockerImageSource("http://test-3", List.of("e"), null));
+
+        service.createImageDefinition(imgDef1);
+        service.createImageDefinition(imgDef2);
+        service.createImageDefinition(imgDef3);
+
+        var allDefs = service.getAllImageDefinitions().stream().toList();
+        Assertions.assertEquals(3, allDefs.size());
+
+        for (var def : allDefs) {
+            var src = (DockerImageSource) def.getSource();
+            switch (def.getName()) {
+                case "img-with-mcp-ref" -> Assertions.assertInstanceOf(McpRegistryRef.class, src.getExternalRegistryRef());
+                case "img-with-generic-ref" -> Assertions.assertInstanceOf(GenericRef.class, src.getExternalRegistryRef());
+                case "img-no-ref" -> Assertions.assertNull(src.getExternalRegistryRef());
+                default -> Assertions.fail("Unexpected image definition: " + def.getName());
+            }
+        }
     }
 }

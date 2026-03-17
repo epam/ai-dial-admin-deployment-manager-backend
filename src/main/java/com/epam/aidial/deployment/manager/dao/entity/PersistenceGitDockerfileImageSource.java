@@ -7,6 +7,7 @@ public record PersistenceGitDockerfileImageSource(
         String branchName,
         String sha,
         String baseDirectory,
-        List<String> entrypoint
+        List<String> entrypoint,
+        PersistenceExternalRegistryRef externalRegistryRef
 ) implements PersistenceImageSource {
 }

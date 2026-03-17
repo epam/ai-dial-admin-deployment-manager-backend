@@ -11,7 +11,9 @@ import com.epam.aidial.deployment.manager.web.controller.ImageDefinitionControll
 import com.epam.aidial.deployment.manager.web.dto.DockerImageSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.GitDockerfileImageSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.McpRegistryRefDto;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ImageSourceDtoMapperImpl;
@@ -53,6 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JsonMapperConfiguration.class,
         ImageDefinitionDtoMapperImpl.class,
         ImageSourceDtoMapperImpl.class,
+        ExternalRegistryRefDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
         ImageDefinitionViewDtoMapperImpl.class
 })
@@ -229,44 +232,50 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                 Arguments.of(
                         "docker source.imageUri is null",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new DockerImageSourceDto(null, null))),
+                                new DockerImageSourceDto(null, null, null))),
                         "Field [source.imageUri]: must not be null\n"
                 ),
                 Arguments.of(
                         "docker source.imageUri is invalid",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new DockerImageSourceDto("invalid/image/name:with:multiple:colons", null))),
+                                new DockerImageSourceDto("invalid/image/name:with:multiple:colons", null, null))),
                         "Field [source.imageUri]: Invalid Docker image URI format\n"
                 ),
                 Arguments.of(
                         "docker source.entrypoint is empty",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new DockerImageSourceDto("host.com/image:tag", List.of()))),
+                                new DockerImageSourceDto("host.com/image:tag", List.of(), null))),
                         "Field [source.entrypoint]: size must be between 1 and 2147483647\n"
                 ),
                 Arguments.of(
                         "git source.url is null",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new GitDockerfileImageSourceDto(null, null, null, null, null))),
+                                new GitDockerfileImageSourceDto(null, null, null, null, null, null))),
                         "Field [source.url]: must not be null\n"
                 ),
                 Arguments.of(
                         "git source.entrypoint is empty",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new GitDockerfileImageSourceDto("test.com", null, null, null, List.of()))),
+                                new GitDockerfileImageSourceDto("test.com", null, null, null, List.of(), null))),
                         "Field [source.entrypoint]: size must be between 1 and 2147483647\n"
                 ),
                 Arguments.of(
                         "git source.baseDirectory starts with slash",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new GitDockerfileImageSourceDto("test.com", null, null, "/invalid/baseDirectory", null))),
+                                new GitDockerfileImageSourceDto("test.com", null, null, "/invalid/baseDirectory", null, null))),
                         "Field [source.baseDirectory]: Path must not start or end with '/'\n"
                 ),
                 Arguments.of(
                         "git source.baseDirectory ends with slash",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new GitDockerfileImageSourceDto("test.com", null, null, "invalid/baseDirectory/", null))),
+                                new GitDockerfileImageSourceDto("test.com", null, null, "invalid/baseDirectory/", null, null))),
                         "Field [source.baseDirectory]: Path must not start or end with '/'\n"
+                ),
+                Arguments.of(
+                        "docker source.externalRegistryRef.packageName is blank",
+                        (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
+                                new DockerImageSourceDto("host.com/image:tag", null, new McpRegistryRefDto("")))),
+                        "Field [source.externalRegistryRef.packageName]: must not be blank\n"
                 )
         );
     }

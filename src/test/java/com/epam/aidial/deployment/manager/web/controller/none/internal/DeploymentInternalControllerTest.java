@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.web.controller.internal.DeploymentInte
 import com.epam.aidial.deployment.manager.web.controller.none.AbstractControllerNoneSecureTest;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         JsonMapperConfiguration.class,
         DeploymentDtoMapperImpl.class,
+        ExternalRegistryRefDtoMapperImpl.class,
         ProbePropertiesDtoMapperImpl.class,
         EnvVarValueDtoMapperImpl.class,
         ScalingDtoMapperImpl.class,
