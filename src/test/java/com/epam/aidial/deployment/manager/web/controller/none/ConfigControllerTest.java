@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.web.dto.config.ExportComponentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ExportConfigPreviewDto;
 import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
+import com.epam.aidial.deployment.manager.web.mapper.ImportConfigDtoMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -34,6 +35,8 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
     private ConfigTransferService configTransferService;
     @MockitoBean
     private ExportConfigMapper exportConfigMapper;
+    @MockitoBean
+    private ImportConfigDtoMapper importConfigDtoMapper;
 
     @Test
     void previewConfig_validRequest_returns200WithPreview() throws Exception {
