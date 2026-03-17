@@ -123,7 +123,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
     private String resolveImageName(Deployment deployment) {
         return switch (deployment.getSource()) {
-            case ImageReferenceSource(String imageReference) -> imageReference;
+            case ImageReferenceSource(String imageReference, var ignored) -> imageReference;
             case InternalImageSource internalSource ->
                     imageDefinitionService.getImageDefinition(internalSource.imageDefinitionId())
                             .orElseThrow(notFound("ImageDefinition", internalSource.imageDefinitionId()))

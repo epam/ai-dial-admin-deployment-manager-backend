@@ -8,7 +8,11 @@
       "source": {
         "$type": "docker",
         "imageUri": "test-registry/mcp-exp:1.0",
-        "entrypoint": []
+        "entrypoint": [],
+        "externalRegistryRef": {
+          "$type": "mcp-registry",
+          "packageName": "export-test-pkg"
+        }
       },
       "imageBuilder": "buildkit",
       "license": "MIT",

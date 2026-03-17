@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVarMountType;
+import com.epam.aidial.deployment.manager.model.ExternalRegistryRef;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.PodInfo;
@@ -89,13 +90,15 @@ import java.util.stream.Collectors;
 @Slf4j
 @Mapper(
         componentModel = "spring",
-        uses = {EnvVarValueDtoMapper.class, ProbePropertiesDtoMapper.class, ScalingDtoMapper.class},
+        uses = {EnvVarValueDtoMapper.class, ProbePropertiesDtoMapper.class, ScalingDtoMapper.class, ExternalRegistryRefDtoMapper.class},
         subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION
 )
 public abstract class DeploymentDtoMapper {
 
     @Autowired
     private EnvVarValueDtoMapper envVarValueDtoMapper;
+    @Autowired
+    private ExternalRegistryRefDtoMapper externalRegistryRefDtoMapper;
     @Autowired
     private McpEndpointPathResolver mcpEndpointPathResolver;
 
@@ -181,8 +184,8 @@ public abstract class DeploymentDtoMapper {
     @Named("toDeploymentSourceDto")
     protected DeploymentSourceDto toDeploymentSourceDto(Deployment model) {
         return switch (model.getSource()) {
-            case ImageReferenceSource(String imageReference) ->
-                    new ImageReferenceDeploymentSourceDto(imageReference);
+            case ImageReferenceSource(String imageReference, ExternalRegistryRef externalRegistryRef) ->
+                    new ImageReferenceDeploymentSourceDto(imageReference, externalRegistryRefDtoMapper.toDto(externalRegistryRef));
             case InternalImageSource(UUID imageDefinitionId, var type, String imageDefinitionName, String imageDefinitionVersion) ->
                     new InternalImageDeploymentSourceDto(imageDefinitionId, imageDefinitionName, imageDefinitionVersion);
             case null -> null;
@@ -190,13 +193,14 @@ public abstract class DeploymentDtoMapper {
         };
     }
 
-    private static void applyCreateImageSource(CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
+    private void applyCreateImageSource(CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
         switch (dto.getSource()) {
             case CreateInternalImageDeploymentSourceRequestDto(UUID imageDefinitionId, var typeDto, String name, String version) ->
                     model.setSource(new InternalImageSource(imageDefinitionId,
                             typeDto != null ? ImageType.valueOf(typeDto.name()) : null, name, version));
-            case CreateImageReferenceDeploymentSourceRequestDto(String imageReference) ->
-                    model.setSource(new ImageReferenceSource(imageReference));
+            case CreateImageReferenceDeploymentSourceRequestDto(String imageReference, var externalRegistryRefDto) ->
+                    model.setSource(new ImageReferenceSource(imageReference,
+                            externalRegistryRefDtoMapper.toModel(externalRegistryRefDto)));
             default -> throw new IllegalArgumentException(
                     "Unsupported deployment source type: " + dto.getSource().getClass().getName());
         }

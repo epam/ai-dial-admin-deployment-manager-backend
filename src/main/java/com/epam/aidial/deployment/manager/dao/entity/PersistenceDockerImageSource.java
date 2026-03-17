@@ -4,6 +4,7 @@ import java.util.List;
 
 public record PersistenceDockerImageSource(
         String imageUri,
-        List<String> entrypoint
+        List<String> entrypoint,
+        PersistenceExternalRegistryRef externalRegistryRef
 ) implements PersistenceImageSource {
 }
