@@ -5,8 +5,10 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.McpClientFactory;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
+import io.modelcontextprotocol.client.transport.McpHttpClientTransportAuthorizationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
@@ -47,6 +49,12 @@ public class McpHealthChecker implements HealthChecker {
                     log.debug("MCP client initialized successfully for URL: {}", serviceUrl);
                     return null;
                 } catch (Exception e) {
+                    var root = ExceptionUtils.getRootCause(e);
+                    if (root instanceof McpHttpClientTransportAuthorizationException) {
+                        log.warn("MCP client initialization failed due to authorization exception. Marking MCP service as ready. URL: {}", serviceUrl);
+                        return null;
+                    }
+
                     log.debug("MCP client initialization failed for URL: {}, retrying...", serviceUrl, e);
                     throw new RuntimeException("MCP client initialization failed", e);
                 }

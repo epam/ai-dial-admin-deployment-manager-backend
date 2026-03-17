@@ -84,7 +84,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
     implementation 'com.google.cloud.sql:postgres-socket-factory:1.28.0'
 
-    implementation 'io.modelcontextprotocol.sdk:mcp:0.15.0'
+    implementation 'io.modelcontextprotocol.sdk:mcp:1.1.0'
     implementation 'com.google.cloud.tools:jib-core:0.27.3'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
@@ -172,6 +172,9 @@ dependencies {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('tools.jackson.core:jackson-core:3.1.0') {
             because("previous versions have vulnerabilities")
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {

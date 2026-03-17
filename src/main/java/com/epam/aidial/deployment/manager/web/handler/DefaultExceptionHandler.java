@@ -41,7 +41,7 @@ public class DefaultExceptionHandler {
     @ExceptionHandler(McpClientException.class)
     public ErrorView handleMcpClientError(HttpServletRequest req, McpClientException ex) {
         logUncaught(ex);
-        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return new ErrorView(req, ex.getHttpStatus(), ex.getMessage());
     }
 
     @ExceptionHandler(McpRegistryClientException.class)
