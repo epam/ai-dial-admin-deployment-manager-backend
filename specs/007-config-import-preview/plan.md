@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add a read-only `POST /api/v1/configs/import-preview` endpoint that accepts the same multipart inputs as `/import` (ZIP file + `resolutionPolicy`) and returns `ImportConfigPreviewDto` — a per-entity-type breakdown of what action (`CREATE`, `UPDATE`, `SKIP`, `FAIL`) the real import would take for each entity, together with the before (`prev`) and after (`next`) DTO representations. No data is written; the feature is purely read-only.
+Add a read-only `POST /api/v1/configs/import/preview` endpoint that accepts the same multipart inputs as `/import` (ZIP file + `resolutionPolicy`) and returns `ImportConfigPreviewDto` — a per-entity-type breakdown of what action (`CREATE`, `UPDATE`, `SKIP`, `FAIL`) the real import would take for each entity, together with the before (`prev`) and after (`next`) DTO representations. No data is written; the feature is purely read-only.
 
 ## Technical Context
 
@@ -16,7 +16,7 @@ Add a read-only `POST /api/v1/configs/import-preview` endpoint that accepts the 
 **Target Platform**: Linux backend service (Spring Boot REST API)
 **Project Type**: Web service
 **Performance Goals**: Preview in under 3 seconds for ZIPs up to 200 entities (SC-001)
-**Constraints**: Strictly read-only (`@Transactional(readOnly = true)`); no K8s API calls; no DB writes
+**Constraints**: Strictly read-only (`@Transactional(readOnly = true)`); no modifying K8s API calls; no DB writes
 **Scale/Scope**: Same as existing `/import`; single-response (no pagination)
 
 ## Constitution Check
@@ -262,7 +262,7 @@ functional/tests/
 - Add `ImportConfigDtoMapper importConfigDtoMapper` to constructor
 - Add endpoint:
   ```java
-  @PostMapping(path = "/import-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ImportConfigPreviewDto previewImport(
       @RequestPart("file") MultipartFile file,
       @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy) {

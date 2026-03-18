@@ -38,7 +38,7 @@ public class ConfigController {
     private final ExportConfigMapper exportConfigMapper;
     private final ImportConfigDtoMapper importConfigDtoMapper;
 
-    @PostMapping(path = "/export-preview", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    @PostMapping(path = "/export/preview", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ExportConfigPreviewDto previewConfig(@Valid @RequestBody ExportRequestDto dto) {
         ExportRequest request = exportConfigMapper.toExportRequest(dto);
         ExportConfig config = configTransfer.getExportConfig(request);
@@ -59,7 +59,7 @@ public class ConfigController {
                 .body(stream);
     }
 
-    @PostMapping(path = "/import-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ImportConfigPreviewDto previewImport(@RequestPart("file") MultipartFile file,
                                                 @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy) {
         ImportConfigPreview preview = configTransfer.getImportConfigPreview(file, resolutionPolicy);

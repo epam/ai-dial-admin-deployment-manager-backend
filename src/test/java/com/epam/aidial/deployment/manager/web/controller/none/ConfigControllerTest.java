@@ -65,7 +65,7 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
                 """;
 
         // When & Then
-        mockMvc.perform(post("/api/v1/configs/export-preview")
+        mockMvc.perform(post("/api/v1/configs/export/preview")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -95,7 +95,7 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
                 """;
 
         // When & Then
-        mockMvc.perform(post("/api/v1/configs/export-preview")
+        mockMvc.perform(post("/api/v1/configs/export/preview")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -119,7 +119,7 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
                 """;
 
         // When & Then
-        mockMvc.perform(post("/api/v1/configs/export-preview")
+        mockMvc.perform(post("/api/v1/configs/export/preview")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest());

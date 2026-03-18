@@ -3,7 +3,7 @@
 **Feature Branch**: `007-config-import-preview`
 **Created**: 2026-03-16
 **Status**: Draft
-**Input**: User description: "Implement preview for config import. New endpoint POST /api/v1/configs/import-preview — same inputs as /import (multipart/form-data: file + resolutionPolicy), returns ImportConfigPreviewDto."
+**Input**: User description: "Implement preview for config import. New endpoint POST /api/v1/configs/import/preview — same inputs as /import (multipart/form-data: file + resolutionPolicy), returns ImportConfigPreviewDto."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -13,19 +13,19 @@ An administrator has a config archive they intend to import. Before importing, t
 
 **Why this priority**: This is the entire purpose of the feature. Every other scenario depends on this being correct.
 
-**Independent Test**: Can be fully tested by sending a `POST /api/v1/configs/import-preview` request with a valid ZIP file and a `resolutionPolicy` and verifying that the response lists each entity with the expected action, `prev` (existing state), and `next` (incoming state).
+**Independent Test**: Can be fully tested by sending a `POST /api/v1/configs/import/preview` request with a valid ZIP file and a `resolutionPolicy` and verifying that the response lists each entity with the expected action, `prev` (existing state), and `next` (incoming state).
 
 **Acceptance Scenarios**:
 
-1. **Given** a ZIP file containing entities that do not exist in the current environment, **When** `POST /api/v1/configs/import-preview` is called with any `resolutionPolicy`, **Then** each entity in the response carries `importAction = CREATE`, `prev = null`, and `next = <incoming entity>`.
+1. **Given** a ZIP file containing entities that do not exist in the current environment, **When** `POST /api/v1/configs/import/preview` is called with any `resolutionPolicy`, **Then** each entity in the response carries `importAction = CREATE`, `prev = null`, and `next = <incoming entity>`.
 
-2. **Given** a ZIP file containing entities that already exist and `resolutionPolicy = OVERWRITE`, **When** `POST /api/v1/configs/import-preview` is called, **Then** each conflicting entity carries `importAction = UPDATE`, `prev = <existing entity>`, and `next = <incoming entity>`.
+2. **Given** a ZIP file containing entities that already exist and `resolutionPolicy = OVERWRITE`, **When** `POST /api/v1/configs/import/preview` is called, **Then** each conflicting entity carries `importAction = UPDATE`, `prev = <existing entity>`, and `next = <incoming entity>`.
 
-3. **Given** a ZIP file containing entities that already exist and `resolutionPolicy = SKIP_IF_EXISTS`, **When** `POST /api/v1/configs/import-preview` is called, **Then** each conflicting entity carries `importAction = SKIP`, `prev = <existing entity>`, and `next = null`.
+3. **Given** a ZIP file containing entities that already exist and `resolutionPolicy = SKIP_IF_EXISTS`, **When** `POST /api/v1/configs/import/preview` is called, **Then** each conflicting entity carries `importAction = SKIP`, `prev = <existing entity>`, and `next = null`.
 
-4. **Given** a ZIP file containing entities that already exist and `resolutionPolicy = FAIL_IF_EXISTS`, **When** `POST /api/v1/configs/import-preview` is called, **Then** each conflicting entity carries `importAction = FAIL`, `prev = <existing entity>`, and `next = <incoming entity>`.
+4. **Given** a ZIP file containing entities that already exist and `resolutionPolicy = FAIL_IF_EXISTS`, **When** `POST /api/v1/configs/import/preview` is called, **Then** each conflicting entity carries `importAction = FAIL`, `prev = <existing entity>`, and `next = <incoming entity>`.
 
-5. **Given** the ZIP file includes a `globalImageBuildDomainWhitelist` section, **When** `POST /api/v1/configs/import-preview` is called, **Then** the response contains a single `ImportComponentDto<List<String>>` for the whitelist as a whole, with `prev` = current whitelist and `next` = incoming whitelist (or `null` for SKIP), applying the same conflict resolution semantics as other entities.
+5. **Given** the ZIP file includes a `globalImageBuildDomainWhitelist` section, **When** `POST /api/v1/configs/import/preview` is called, **Then** the response contains a single `ImportComponentDto<List<String>>` for the whitelist as a whole, with `prev` = current whitelist and `next` = incoming whitelist (or `null` for SKIP), applying the same conflict resolution semantics as other entities.
 
 ---
 
@@ -39,9 +39,9 @@ An administrator imports a ZIP that contains a mix of entity types (MCP image de
 
 **Acceptance Scenarios**:
 
-1. **Given** a ZIP containing entities from multiple types, **When** `POST /api/v1/configs/import-preview` is called, **Then** the response contains a non-empty list for each entity type present in the ZIP, with correct `importAction` values per type.
+1. **Given** a ZIP containing entities from multiple types, **When** `POST /api/v1/configs/import/preview` is called, **Then** the response contains a non-empty list for each entity type present in the ZIP, with correct `importAction` values per type.
 
-2. **Given** a ZIP containing only deployment entries (no image definitions), **When** `POST /api/v1/configs/import-preview` is called, **Then** image definition lists in the response are empty, and deployment lists reflect the correct actions.
+2. **Given** a ZIP containing only deployment entries (no image definitions), **When** `POST /api/v1/configs/import/preview` is called, **Then** image definition lists in the response are empty, and deployment lists reflect the correct actions.
 
 ---
 
@@ -69,9 +69,9 @@ An administrator accidentally uploads a non-ZIP file or a ZIP that lacks the exp
 
 **Acceptance Scenarios**:
 
-1. **Given** a file that is not a valid ZIP archive, **When** `POST /api/v1/configs/import-preview` is called, **Then** the response returns a 4xx error with a message indicating the file is invalid.
+1. **Given** a file that is not a valid ZIP archive, **When** `POST /api/v1/configs/import/preview` is called, **Then** the response returns a 4xx error with a message indicating the file is invalid.
 
-2. **Given** a valid ZIP that does not contain the expected config file, **When** `POST /api/v1/configs/import-preview` is called, **Then** the response returns a 4xx error indicating no valid config was found.
+2. **Given** a valid ZIP that does not contain the expected config file, **When** `POST /api/v1/configs/import/preview` is called, **Then** the response returns a 4xx error indicating no valid config was found.
 
 ---
 
@@ -86,7 +86,7 @@ An administrator accidentally uploads a non-ZIP file or a ZIP that lacks the exp
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST expose a `POST /api/v1/configs/import-preview` endpoint accepting `multipart/form-data` with the same `file` and `resolutionPolicy` parameters as the existing `/api/v1/configs/import` endpoint.
+- **FR-001**: The system MUST expose a `POST /api/v1/configs/import/preview` endpoint accepting `multipart/form-data` with the same `file` and `resolutionPolicy` parameters as the existing `/api/v1/configs/import` endpoint.
 - **FR-002**: The endpoint MUST return `ImportConfigPreviewDto` containing typed lists of `ImportComponentDto<T>` for all eight entity types (three image-definition types, five deployment types) plus a single `ImportComponentDto<List<String>>` for the global domain whitelist.
 - **FR-003**: Each `ImportComponentDto<T>` MUST carry `importAction` (one of `CREATE`, `UPDATE`, `SKIP`, `FAIL`), `prev` (the existing value or `null`), and `next` (the incoming value or `null`).
 - **FR-004**: The system MUST apply the following action semantics per `ConflictResolutionPolicy`:

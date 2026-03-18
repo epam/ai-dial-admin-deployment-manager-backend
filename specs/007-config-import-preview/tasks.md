@@ -43,12 +43,12 @@
 
 ## Phase 3: User Stories 1, 2, 3 — Preview Accuracy, Type Coverage, Read-Only (Priority: P1) 🎯 MVP
 
-**Goal**: Deliver the core `POST /api/v1/configs/import-preview` endpoint that returns correct `ImportAction` values for all entity types without writing any data.
+**Goal**: Deliver the core `POST /api/v1/configs/import/preview` endpoint that returns correct `ImportAction` values for all entity types without writing any data.
 
 **Independent Test**:
 ```bash
 # Start app, POST a valid export ZIP → verify 200 response with importAction fields
-curl -X POST http://localhost:8080/api/v1/configs/import-preview \
+curl -X POST http://localhost:8080/api/v1/configs/import/preview \
   -F "file=@export.zip" -F "resolutionPolicy=OVERWRITE"
 # → HTTP 200, all entities show importAction=CREATE on empty DB
 ```
@@ -67,7 +67,7 @@ curl -X POST http://localhost:8080/api/v1/configs/import-preview \
 
 - [X] T013 [US3] Add `getImportConfigPreview()` to `ConfigTransferService` in `service/config/ConfigTransferService.java`: add `ConfigImportPreviewer configImportPreviewer` to constructor; extract shared ZIP-parsing logic from `importConfig()` into a private `parseExportConfig(MultipartFile)` helper that returns `ExportConfig` (same validation: file name lookup, duplicate detection, error handling) — **⚠️ regression risk**: the existing `validEntryCount == 0` check fires inside the `while` loop, causing an immediate throw on any non-config entry; preserve this exact behaviour when extracting the helper and run `ConfigTransferServiceTest` import tests before and after to confirm no regression; call helper from both `importConfig()` and the new `@Transactional(readOnly = true) public ImportConfigPreview getImportConfigPreview(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy)` method which calls `configImportPreviewer.previewImport(config, resolutionPolicy)` (depends on T011)
 
-- [X] T014 [US1] Add `previewImport` endpoint to `ConfigController` in `web/controller/ConfigController.java`: add `ImportConfigDtoMapper importConfigDtoMapper` to constructor; add `@PostMapping(path = "/import-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) public ImportConfigPreviewDto previewImport(@RequestPart("file") MultipartFile file, @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy)`; delegate to `configTransfer.getImportConfigPreview()` then `importConfigDtoMapper.toImportConfigPreviewDto()` (depends on T012, T013)
+- [X] T014 [US1] Add `previewImport` endpoint to `ConfigController` in `web/controller/ConfigController.java`: add `ImportConfigDtoMapper importConfigDtoMapper` to constructor; add `@PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) public ImportConfigPreviewDto previewImport(@RequestPart("file") MultipartFile file, @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy)`; delegate to `configTransfer.getImportConfigPreview()` then `importConfigDtoMapper.toImportConfigPreviewDto()` (depends on T012, T013)
 
 ### Tests
 
@@ -87,7 +87,7 @@ curl -X POST http://localhost:8080/api/v1/configs/import-preview \
 
 - [X] T028 [P] [US1] Add `importPreview_returnsEmptyLists_whenZipHasNoEntities()` to `ConfigExportImportFunctionalTest`: build a valid ZIP whose `ExportConfig` has all entity maps empty and no whitelist; call `configTransferService.getImportConfigPreview(zipFile, OVERWRITE)`; assert HTTP 200 (no exception) and all nine fields in the result are empty lists / null (covers FR-010)
 
-**Checkpoint**: US1, US2, US3 fully functional. `POST /api/v1/configs/import-preview` returns accurate per-entity action previews for all entity types with no side effects.
+**Checkpoint**: US1, US2, US3 fully functional. `POST /api/v1/configs/import/preview` returns accurate per-entity action previews for all entity types with no side effects.
 
 ---
 
@@ -98,7 +98,7 @@ curl -X POST http://localhost:8080/api/v1/configs/import-preview \
 **Independent Test**:
 ```bash
 # Upload a plain text file → expect 400
-curl -X POST http://localhost:8080/api/v1/configs/import-preview \
+curl -X POST http://localhost:8080/api/v1/configs/import/preview \
   -F "file=@not-a-zip.txt" -F "resolutionPolicy=OVERWRITE"
 # → HTTP 400
 ```
@@ -196,7 +196,7 @@ Task: T011 — ConfigImportPreviewer
 1. Complete Phase 1: Setup (T001)
 2. Complete Phase 2: All foundational types (T002–T007)
 3. Implement previewers + mapper + service + controller (T008–T014)
-4. **Validate**: smoke-test `POST /api/v1/configs/import-preview` against empty DB → all `CREATE`
+4. **Validate**: smoke-test `POST /api/v1/configs/import/preview` against empty DB → all `CREATE`
 5. Add unit test (T015)
 
 ### Incremental Delivery
