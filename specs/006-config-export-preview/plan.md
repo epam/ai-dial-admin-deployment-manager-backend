@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add a read-only `POST /api/v1/configs/export-preview` endpoint that accepts the same `ExportRequestDto`
+Add a read-only `POST /api/v1/configs/export/preview` endpoint that accepts the same `ExportRequestDto`
 as the existing export endpoint and returns an `ExportConfigPreviewDto` containing two lists of
 `ExportComponentInfoDto` (one for image definitions, one for deployments) and the global domain
 whitelist. The implementation reuses `ConfigExporter.getConfig()` for entity resolution and

@@ -1527,7 +1527,7 @@
                       }
                     },
                     "url": {
-                      "raw": "{{HOST}}/api/v1/configs/export-preview",
+                      "raw": "{{HOST}}/api/v1/configs/export/preview",
                       "host": [
                         "{{HOST}}"
                       ],
@@ -1535,7 +1535,8 @@
                         "api",
                         "v1",
                         "configs",
-                        "export-preview"
+                        "export",
+                        "preview"
                       ]
                     }
                   },
@@ -1587,7 +1588,7 @@
                       ]
                     },
                     "url": {
-                      "raw": "{{HOST}}/api/v1/configs/import-preview?resolutionPolicy=SKIP_IF_EXISTS",
+                      "raw": "{{HOST}}/api/v1/configs/import/preview?resolutionPolicy=SKIP_IF_EXISTS",
                       "host": [
                         "{{HOST}}"
                       ],
@@ -1595,7 +1596,8 @@
                         "api",
                         "v1",
                         "configs",
-                        "import-preview"
+                        "import",
+                        "preview"
                       ],
                       "query": [
                         {
