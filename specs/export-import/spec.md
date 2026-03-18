@@ -8,7 +8,7 @@ Status: **Implemented**
 ## Key Terms
 - **ExportConfig**: The root export structure. Contains maps of all exportable components keyed by name.
 - **ExportConfigComponentType**: The enum of exportable entity types: `MCP_IMAGE_DEFINITION`, `ADAPTER_IMAGE_DEFINITION`, `INTERCEPTOR_IMAGE_DEFINITION`, `MCP_DEPLOYMENT`, `ADAPTER_DEPLOYMENT`, `INTERCEPTOR_DEPLOYMENT`, `NIM_DEPLOYMENT`, `INFERENCE_DEPLOYMENT`.
-- **ConflictResolutionPolicy**: Controls what happens when an imported entity already exists: `OVERWRITE` (replace) or `KEEP_EXISTING` (skip).
+- **ConflictResolutionPolicy**: Controls what happens when an imported entity already exists: `OVERWRITE` (replace; for the global domain whitelist this means *merge* — existing entries are preserved and incoming entries are appended, deduplicated) or `SKIP_IF_EXISTS` (skip).
 - **ExportSanitizer**: Service that removes or masks sensitive environment variable values before export, ensuring exported ZIPs are safe to share or commit. System-managed deployment fields (`serviceName`, `url`, `status`, `author`, `createdAt`, `updatedAt`, `imageDefinitionId`) are also excluded via `DeploymentExportMixIn`.
 - **Import order**: Image definitions are always imported before deployments to satisfy foreign-key constraints; global domain whitelist follows.
 - **Dependency auto-inclusion**: When a deployment is selected for export, its referenced image definition is automatically included in the export bundle even if not explicitly selected.
@@ -52,10 +52,10 @@ Status: **Implemented**
 
 #### Scenario: Import with OVERWRITE policy
 - **WHEN** `POST /api/v1/configs/import` is called with a valid ZIP and `conflictResolutionPolicy=OVERWRITE`
-- **THEN** any existing entity with the same name is replaced with the imported version; for deployments, system-managed fields (`serviceName`, `url`, `status`) are preserved from the existing record
+- **THEN** any existing entity with the same name is replaced with the imported version; for deployments, system-managed fields (`serviceName`, `url`, `status`) are preserved from the existing record; for the global domain whitelist, existing entries are merged with incoming entries (never removed)
 
-#### Scenario: Import with KEEP_EXISTING policy
-- **WHEN** `POST /api/v1/configs/import` is called with a valid ZIP and `conflictResolutionPolicy=KEEP_EXISTING`
+#### Scenario: Import with SKIP_IF_EXISTS policy
+- **WHEN** `POST /api/v1/configs/import` is called with a valid ZIP and `conflictResolutionPolicy=SKIP_IF_EXISTS`
 - **THEN** any existing entity with the same name is left unchanged; only new entities are created
 
 #### Scenario: Import ordering: image definitions before deployments
@@ -77,7 +77,7 @@ Status: **Implemented**
 
 #### Scenario: Global domain whitelist exported and imported
 - **WHEN** the global domain whitelist is included in the export
-- **THEN** it is serialized into the bundle and re-applied on import after deployments
+- **THEN** it is serialized into the bundle and merged on import after deployments (existing domains are preserved; incoming domains are appended; duplicates are removed)
 
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.ConfigController` (path: `/api/v1/configs`)
@@ -90,7 +90,7 @@ Status: **Implemented**
 - Component importers: `com.epam.aidial.deployment.manager.service.config.imports.*` (`DeploymentImporter`, `ImageDefinitionImporter`, `GlobalDomainWhitelistImporter`)
 - Export model root: `com.epam.aidial.deployment.manager.model.config.ExportConfig`
 - Component type enum: `com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType`
-- Conflict policy enum: `ConflictResolutionPolicy` (OVERWRITE, KEEP_EXISTING)
+- Conflict policy enum: `ConflictResolutionPolicy` (OVERWRITE, SKIP_IF_EXISTS)
 - Request DTO: `com.epam.aidial.deployment.manager.web.dto.config.ExportRequestDto`
 - Selected items DTO: `com.epam.aidial.deployment.manager.web.dto.config.SelectedItemsExportRequestDto`
 - Component DTO: `com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentDto`

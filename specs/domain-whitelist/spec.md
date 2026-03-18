@@ -54,6 +54,19 @@ The project has three distinct domain-restriction mechanisms at different scopes
 
 The first two apply at **build time**, the third at **runtime**. They are independent — the global whitelist does not affect deployment runtime network policies, and per-deployment allowed domains do not affect builds.
 
+### Requirement: Import merges rather than replaces
+When the global domain whitelist is imported via `POST /api/v1/configs/import` with `OVERWRITE` policy, existing whitelist entries are preserved and incoming entries are appended (deduplicated). This differs from the direct `POST /api/v1/global-whitelist/image-build` endpoint which performs a full replacement.
+
+Status: **Implemented**
+
+#### Scenario: Import merge
+- **WHEN** `POST /api/v1/configs/import` is called with a ZIP containing a domain whitelist and `conflictResolutionPolicy=OVERWRITE`
+- **THEN** the resulting whitelist is the union of the existing and incoming lists (existing entries first, new incoming entries appended, duplicates removed)
+
+#### Scenario: Import with no existing whitelist
+- **WHEN** `POST /api/v1/configs/import` is called and no global whitelist exists yet
+- **THEN** the incoming whitelist is created as-is
+
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.GlobalDomainWhitelistController`
 - Entity: `com.epam.aidial.deployment.manager.dao.entity.DomainWhitelistEntity`
