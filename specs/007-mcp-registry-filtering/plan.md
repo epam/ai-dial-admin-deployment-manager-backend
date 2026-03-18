@@ -87,7 +87,6 @@ src/test/resources/mcp-registry/
 ├── servers_page.json                        # EXISTING
 ├── server_version.json                      # EXISTING
 ├── servers_page_mixed.json                  # NEW — servers with diverse properties
-├── servers_page_sse_only.json               # NEW — servers with SSE remotes only
 └── servers_page_empty.json                  # NEW — empty results page
 
 docs/

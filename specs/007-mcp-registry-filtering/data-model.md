@@ -19,7 +19,7 @@ Filter criteria for narrowing MCP server search results. Nested inside `ServersR
 
 ### Scan Context (internal, not exposed in API)
 
-Tracks multi-page scanning state between the service and the upstream registry. Not a DTO — exists only within the service method execution.
+Tracks multi-page scanning state within the service method. Method-local state — not encoded into the cursor returned to callers. The cursor returned to callers is the raw upstream registry cursor.
 
 | Field           | Type    | Description                                         |
 |-----------------|---------|-----------------------------------------------------|
@@ -49,7 +49,9 @@ Add one new field:
 
 ## Existing Entities (read-only, used in filter evaluation)
 
-### ServerDetail
+The filter predicate method signature is `matches(ServerResponseDto, ServerFilterDto)`. `ServerResponseDto` wraps `ServerDetail` via its `server` field — filter evaluation traverses `serverResponseDto.getServer()` to access the fields below.
+
+### ServerDetail (accessed via `ServerResponseDto.getServer()`)
 
 Filter evaluation reads these fields:
 

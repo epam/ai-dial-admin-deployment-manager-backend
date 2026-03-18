@@ -111,8 +111,8 @@ An operator deploying the system wants to control how many upstream registry pag
 
 - **FR-001**: System MUST accept a structured filter object on the list-servers endpoints (both GET and POST variants) for properties not supported by the upstream MCP registry.
 - **FR-002**: The filter model MUST be organized around server domain concepts — `remotes`, `packages`, and `repository` — so that each concept can carry its own set of filter criteria independently.
-- **FR-003**: System MUST support filtering by remote transport type — matching servers that have at least one remote entry whose type matches any of the specified values (e.g., ["streamable-http", "sse"]). Values within the list are combined with OR logic.
-- **FR-004**: System MUST support filtering by package registry type — matching servers that have at least one package whose registry type matches any of the specified values (e.g., ["npm", "oci"]). Values within the list are combined with OR logic.
+- **FR-003**: System MUST support filtering by remote transport type — matching servers that have at least one remote entry whose type matches any of the specified values (case-insensitive comparison, e.g., ["streamable-http", "sse"]). Values within the list are combined with OR logic.
+- **FR-004**: System MUST support filtering by package registry type — matching servers that have at least one package whose registry type matches any of the specified values (case-insensitive comparison, e.g., ["npm", "oci"]). Values within the list are combined with OR logic.
 - **FR-005**: System MUST support filtering by repository existence — matching servers that have a non-null repository (exists = true) or a null repository (exists = false).
 - **FR-006**: When multiple filter dimensions are specified, they MUST be combined with AND logic — a server must satisfy every specified dimension to be included in results. Within a single dimension's value list, OR logic applies.
 - **FR-007**: When a filter dimension is omitted (null/absent) or its value list is empty, it MUST NOT constrain results — only explicitly provided criteria with non-empty values participate in filtering.
@@ -130,7 +130,7 @@ An operator deploying the system wants to control how many upstream registry pag
 
 **Configuration**
 
-- **FR-013**: The maximum number of upstream pages to scan per request MUST be configurable via an application property with a sensible default.
+- **FR-013**: The maximum number of upstream pages to scan per request MUST be configurable via an application property (default: 5).
 
 **API stability**
 
@@ -139,7 +139,7 @@ An operator deploying the system wants to control how many upstream registry pag
 ### Key Entities
 
 - **Server Filter**: A structured set of filter criteria organized by domain concept. Contains optional sub-filters for remotes (list of transport types, OR logic), packages (list of registry types, OR logic), and repository (existence boolean). Across dimensions, AND logic applies. When the entire filter is empty/absent, no backend filtering occurs.
-- **Scan Context**: Tracks the current upstream cursor position and the number of pages scanned so far. Encoded into the pagination cursor returned to the caller so that subsequent requests resume correctly. This entity is specific to Phase 1 and will be replaced by standard database pagination in Phase 2.
+- **Scan Context**: Tracks the current upstream cursor position, the number of pages scanned so far, and accumulated matching results. This is method-local state within the service — it is not encoded into the cursor returned to the caller. The cursor returned to callers is the raw upstream registry cursor. This entity is specific to Phase 1 and will be replaced by standard database pagination in Phase 2.
 
 ### Assumptions
 
