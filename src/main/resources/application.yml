@@ -34,6 +34,7 @@ app:
 
   mcp-registry:
     base-url: ${MCP_REGISTRY_BASE_URL:https://registry.modelcontextprotocol.io}
+    max-pages-to-scan: ${MCP_REGISTRY_MAX_PAGES_TO_SCAN:5}
 
   kubernetes:
     connect-type: ${K8S_CONNECT_TYPE:CONFIG_FILE}

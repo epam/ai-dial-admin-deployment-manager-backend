@@ -41,4 +41,10 @@ public class ServersRequestDto {
      */
     @Nullable
     private String version;
+
+    /**
+     * Backend filter criteria. When null/absent, pass-through behavior applies.
+     */
+    @Nullable
+    private ServerFilterDto filter;
 }
