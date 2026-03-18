@@ -79,7 +79,6 @@ public class ImageDefinitionImportPreviewer {
             case FAIL_IF_EXISTS -> new ImportComponent<>(ImportAction.FAIL, existing, imported);
             case SKIP_IF_EXISTS -> new ImportComponent<>(ImportAction.SKIP, existing, null);
             case OVERWRITE -> new ImportComponent<>(ImportAction.UPDATE, existing, imported);
-            default -> throw new IllegalArgumentException("Unknown conflict resolution policy '%s'".formatted(policy));
         };
     }
 

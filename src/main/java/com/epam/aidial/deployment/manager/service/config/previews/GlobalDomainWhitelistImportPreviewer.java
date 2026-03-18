@@ -35,7 +35,6 @@ public class GlobalDomainWhitelistImportPreviewer {
             case FAIL_IF_EXISTS -> new ImportComponent<>(ImportAction.FAIL, current, incoming);
             case SKIP_IF_EXISTS -> new ImportComponent<>(ImportAction.SKIP, current, null);
             case OVERWRITE -> new ImportComponent<>(ImportAction.UPDATE, current, incoming);
-            default -> throw new IllegalArgumentException("Unknown conflict resolution policy '%s'".formatted(policy));
         };
     }
 }

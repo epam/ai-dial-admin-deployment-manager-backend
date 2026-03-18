@@ -16,7 +16,7 @@ Add a read-only `POST /api/v1/configs/import/preview` endpoint that accepts the 
 **Target Platform**: Linux backend service (Spring Boot REST API)
 **Project Type**: Web service
 **Performance Goals**: Preview in under 3 seconds for ZIPs up to 200 entities (SC-001)
-**Constraints**: Strictly read-only (`@Transactional(readOnly = true)`); no K8s API calls; no DB writes
+**Constraints**: Strictly read-only (`@Transactional(readOnly = true)`); no modifying K8s API calls; no DB writes
 **Scale/Scope**: Same as existing `/import`; single-response (no pagination)
 
 ## Constitution Check
