@@ -5,7 +5,6 @@ import com.nimbusds.jwt.SignedJWT;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +17,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.security.oauth2.server.resource.authentication.OpaqueTokenAuthenticationProvider;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
@@ -26,9 +26,6 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.text.ParseException;
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Stream;
 
 @Slf4j
 @Configuration(proxyBeanMethods = false)
@@ -36,13 +33,11 @@ import java.util.stream.Stream;
 @EnableMethodSecurity(securedEnabled = true, jsr250Enabled = true)
 @ConditionalOnProperty(value = "config.rest.security.mode", havingValue = "oidc", matchIfMissing = true)
 @RequiredArgsConstructor
-public class SecurityConfiguration {
+public class OidcSecurityConfiguration {
 
     private final IdentityProvidersProperties identityProvidersProperties;
     private final IdentityProviderUtils identityProviderUtils;
-
-    @Value("${config.rest.security.disable-swagger-authorization}")
-    protected boolean disableSwaggerAuthorization;
+    private final PublicPathsResolver publicPathsResolver;
 
     @Bean
     public JwtAuthenticationConverterFactory jwtAuthenticationConverterFactory() {
@@ -61,8 +56,13 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    public IssuerToDecoderMapFactory issuerToDecoderMapFactory() {
-        return new IssuerToDecoderMapFactory(identityProviderUtils);
+    public NimbusJwtDecoderResolver nimbusJwtDecoderResolver() {
+        return config -> NimbusJwtDecoder.withJwkSetUri(config.getJwkSetUri()).build();
+    }
+
+    @Bean
+    public IssuerToDecoderMapFactory issuerToDecoderMapFactory(NimbusJwtDecoderResolver nimbusJwtDecoderResolver) {
+        return new IssuerToDecoderMapFactory(identityProviderUtils, nimbusJwtDecoderResolver);
     }
 
     @Bean
@@ -80,7 +80,7 @@ public class SecurityConfiguration {
                                                    AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(publicPathPatterns()).permitAll()
+                        .requestMatchers(publicPathsResolver.resolvePublicPathPatterns()).permitAll()
                         .requestMatchers("/api/v1/**").authenticated()
                         .anyRequest().denyAll())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -138,16 +138,5 @@ public class SecurityConfiguration {
             return converter.convert(introspectedToken, authenticatedPrincipal);
         });
         return opaqueTokenAuthenticationProvider;
-    }
-
-    protected String[] publicPathPatterns() {
-        var swaggerPaths = disableSwaggerAuthorization
-                ? List.of("/swagger-ui/**", "/v3/api-docs/**")
-                : List.<String>of();
-        var unsecuredPaths = List.of("/api/v1/health/**", "/api/internal/**");
-
-        return Stream.of(swaggerPaths, unsecuredPaths)
-                .flatMap(Collection::stream)
-                .toArray(String[]::new);
     }
 }

@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionViewDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMapper;
+import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +93,7 @@ public class ImageDefinitionController {
                 .collect(Collectors.toList());
     }
 
+    @FullAdminOnly
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ImageDefinitionDto createImageDefinition(@RequestBody @Valid ImageDefinitionRequestDto requestDto) {
@@ -100,6 +102,7 @@ public class ImageDefinitionController {
         return dtoMapper.toImageDefinitionDto(created);
     }
 
+    @FullAdminOnly
     @PutMapping(path = "/{id}",
             consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
@@ -110,6 +113,7 @@ public class ImageDefinitionController {
         return dtoMapper.toImageDefinitionDto(updated);
     }
 
+    @FullAdminOnly
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteImageDefinition(@PathVariable UUID id) {

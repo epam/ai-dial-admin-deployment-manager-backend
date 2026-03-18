@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
+import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,7 @@ public class GlobalDomainWhitelistController {
         return globalDomainWhitelistService.getDomainWhitelist();
     }
 
+    @FullAdminOnly
     @PostMapping(path = "/image-build",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
