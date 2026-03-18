@@ -85,6 +85,10 @@ List MCP servers with optional backend filtering (POST variant).
 2. **Filter specified with all-empty criteria** (e.g., `{"filter": {"remoteTypes": [], "repositoryExists": null}}`): Treated as no filter — pass-through behavior.
 3. **Filter specified with at least one non-empty criterion**: Multi-page scanning activated. Up to N upstream pages fetched and filtered in memory.
 
+### Result count and `limit`
+
+When backend filtering is active, the `limit` parameter controls when to **stop fetching new upstream pages**, not a hard cap on the number of returned servers. The system always processes an entire upstream page once fetched — it does not discard matching servers mid-page. This means a filtered response MAY contain more servers than `limit` (up to one upstream page worth of extra matches). This is intentional: the upstream cursor is an opaque token pointing to the next page, so breaking mid-page would either lose servers permanently or cause duplicates on the next paginated request. When no filter is active (pass-through mode), `limit` is forwarded to the upstream registry and behaves as a strict cap.
+
 ### Pagination contract
 
 | Scenario                                          | `nextCursor` in response | Meaning                                    |

@@ -54,13 +54,28 @@
 
 ## Decision 5: Scan Limit Default Value
 
-**Decision**: Default max pages to scan = 5.
+**Decision**: Default max pages to scan = 25.
 
 **Rationale**:
-- Upstream registry default page size is 100 items. Scanning 5 pages examines up to 500 servers per request — sufficient for most filter scenarios.
-- Keeps response time bounded (5 sequential HTTP calls worst case).
+- Upstream registry default page size is 100 items. Scanning 25 pages examines up to 2500 servers per request — covers the majority of the registry's catalog.
+- Keeps response time bounded (25 sequential HTTP calls worst case).
 - Configurable via `MCP_REGISTRY_MAX_PAGES_TO_SCAN` for operators who need different trade-offs.
 
 **Alternatives considered**:
-- 10 pages (1000 items) — rejected as potentially too slow for a prototype.
+- 5 pages (500 items) — rejected as too restrictive for rare filter criteria that match a small fraction of servers.
 - 3 pages (300 items) — rejected as too restrictive for diverse filter criteria.
+
+## Decision 6: Full-Page Collection (No Mid-Page Break)
+
+**Decision**: When filtering, always collect all matching servers from an entire upstream page before deciding whether to fetch the next page. Do not break mid-page even if `limit` is already reached.
+
+**Rationale**:
+- The upstream cursor is an opaque token that points to the **next** page. There is no mechanism to resume processing from a specific position within a page.
+- Breaking mid-page and returning the next-page cursor would permanently lose unprocessed matching servers from the remainder of the current page.
+- Breaking mid-page and returning the current-page cursor would cause the client to re-fetch the same page, producing duplicates.
+- Collecting the full page may return slightly more results than `limit` (up to one upstream page worth of extra matches), but guarantees no data loss and no duplicates.
+
+**Alternatives considered**:
+- Break mid-page with next-page cursor — rejected because it loses servers permanently (the original bug).
+- Break mid-page with current-page cursor — rejected because it causes duplicate results on the next request.
+- Introduce a composite cursor encoding the upstream cursor + intra-page offset — rejected as over-engineering for Phase 1; the cursor contract must remain the raw upstream cursor to survive the Phase 2 transition to aggregator-based storage.

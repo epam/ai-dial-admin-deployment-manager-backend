@@ -20,5 +20,5 @@ public class McpRegistryProperties {
     /**
      * Maximum number of upstream pages to scan per filtered request.
      */
-    private int maxPagesToScan = 5;
+    private int maxPagesToScan = 25;
 }

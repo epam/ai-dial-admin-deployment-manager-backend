@@ -258,7 +258,7 @@ TLS and routing rules are generated automatically from `app.nim.deploy.cluster-h
 | Property                    | Environment Variable     | Default Value                              | Required | Applied when | Description                                           |
 |-----------------------------|--------------------------|--------------------------------------------|----------|--------------|--------------------------------------------------------|
 | `app.mcp-registry.base-url` | `MCP_REGISTRY_BASE_URL`  | `https://registry.modelcontextprotocol.io` | No       | -            | Base URL of the MCP Registry API (used by the proxy). |
-| `app.mcp-registry.max-pages-to-scan` | `MCP_REGISTRY_MAX_PAGES_TO_SCAN` | `5` | No | - | Maximum number of upstream registry pages to scan per filtered request. Controls trade-off between result completeness and response time. |
+| `app.mcp-registry.max-pages-to-scan` | `MCP_REGISTRY_MAX_PAGES_TO_SCAN` | `25` | No | - | Maximum number of upstream registry pages to scan per filtered request. Controls trade-off between result completeness and response time. |
 
 ### Hugging Face Configuration
 | Property                                   | Environment Variable                   | Default Value                                                   | Required | Applied when | Description                                                                                                                      |

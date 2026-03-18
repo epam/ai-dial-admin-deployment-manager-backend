@@ -77,9 +77,6 @@ public class McpRegistryService {
                 for (var server : servers) {
                     if (mcpServerFilter.matches(server, filter)) {
                         collected.add(server);
-                        if (collected.size() >= pageSize) {
-                            break;
-                        }
                     }
                 }
             }

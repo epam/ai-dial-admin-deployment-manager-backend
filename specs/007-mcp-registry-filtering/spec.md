@@ -102,6 +102,7 @@ An operator deploying the system wants to control how many upstream registry pag
 - What happens when a server has null/empty `packages` list and a package type filter is applied? The server does not match the filter and is excluded.
 - What happens when a server has null/empty `remotes` list and a remote type filter is applied? The server does not match the filter and is excluded.
 - What happens when a filter criterion has an empty list of values (e.g., remote type = [])? An empty list is treated as "no filter on this dimension" — equivalent to omitting the criterion entirely.
+- What happens when a single upstream page has more matching servers than the requested limit? The system collects all matches from that page and returns them, even if the count exceeds `limit`. This is intentional: the upstream cursor is an opaque token pointing to the next page, so breaking mid-page would permanently lose unprocessed matches. The `limit` controls when to stop fetching new pages, not a hard cap on results.
 
 ## Requirements *(mandatory)*
 
@@ -120,7 +121,7 @@ An operator deploying the system wants to control how many upstream registry pag
 **Multi-page scanning (Phase 1 — Prototype)**
 
 - **FR-008**: When backend filters are applied, the system MUST fetch pages from the upstream registry iteratively (up to a configurable maximum number of pages) and apply filters in memory to accumulate matching results.
-- **FR-009**: The system MUST stop fetching upstream pages when either: (a) the requested page size of matching results has been collected, or (b) the maximum page scan limit has been reached, or (c) the upstream registry has no more pages.
+- **FR-009**: The system MUST stop fetching **new** upstream pages when either: (a) the requested page size of matching results has been reached or exceeded, or (b) the maximum page scan limit has been reached, or (c) the upstream registry has no more pages. Within a single upstream page, **all** matching servers MUST be collected — the system MUST NOT discard matches mid-page. Because the upstream cursor is an opaque token that always points to the next page, breaking mid-page would permanently lose unprocessed servers. Consequently, a filtered response MAY return more servers than `limit` (up to one upstream page worth of extra matches).
 - **FR-010**: When no backend filters are specified, the system MUST preserve existing pass-through behavior — a single upstream request with no multi-page scanning.
 
 **Pagination**
@@ -130,7 +131,7 @@ An operator deploying the system wants to control how many upstream registry pag
 
 **Configuration**
 
-- **FR-013**: The maximum number of upstream pages to scan per request MUST be configurable via an application property (default: 5).
+- **FR-013**: The maximum number of upstream pages to scan per request MUST be configurable via an application property (default: 25).
 
 **API stability**
 

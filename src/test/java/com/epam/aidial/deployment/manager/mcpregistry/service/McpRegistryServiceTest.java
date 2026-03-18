@@ -125,7 +125,7 @@ class McpRegistryServiceTest {
     }
 
     @Test
-    void shouldStopScanning_whenPageSizeFilled() {
+    void shouldCollectAllMatchesFromCurrentPage_whenPageSizeExceeded() {
         var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(2).filter(filter).build();
         stubScanLimit(5);
@@ -141,7 +141,8 @@ class McpRegistryServiceTest {
 
         var result = mcpRegistryService.getServers(request);
 
-        assertThat(result.getServers()).hasSize(2);
+        // All matches from the page are collected to avoid losing servers between cursor boundaries
+        assertThat(result.getServers()).containsExactly(s1, s2, s3);
         assertThat(result.getMetadata().getNextCursor()).isEqualTo("cursor1");
     }
 

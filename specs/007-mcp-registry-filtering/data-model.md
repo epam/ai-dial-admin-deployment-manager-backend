@@ -45,7 +45,7 @@ Add one new field:
 
 | Field             | Type | Default | Env Variable                      | Description                                          |
 |-------------------|------|---------|-----------------------------------|------------------------------------------------------|
-| `maxPagesToScan`  | int  | 5       | `MCP_REGISTRY_MAX_PAGES_TO_SCAN`  | Maximum upstream pages to scan per filtered request.  |
+| `maxPagesToScan`  | int  | 25      | `MCP_REGISTRY_MAX_PAGES_TO_SCAN`  | Maximum upstream pages to scan per filtered request.  |
 
 ## Existing Entities (read-only, used in filter evaluation)
 
