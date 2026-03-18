@@ -45,13 +45,6 @@ public class ConfigController {
         return exportConfigMapper.toExportConfigPreviewDto(config);
     }
 
-    @PostMapping(path = "/export-preview", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    public ExportConfigPreviewDto previewConfig(@Valid @RequestBody ExportRequestDto dto) {
-        ExportRequest request = exportConfigMapper.toExportRequest(dto);
-        ExportConfig config = configTransfer.getExportConfig(request);
-        return exportConfigMapper.toExportConfigPreviewDto(config);
-    }
-
     @PostMapping(path = "/export", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ResponseEntity<StreamingResponseBody> exportConfig(@Valid @RequestBody ExportRequestDto dto) {
         ExportRequest request = exportConfigMapper.toExportRequest(dto);
