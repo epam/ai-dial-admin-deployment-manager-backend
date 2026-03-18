@@ -3,8 +3,10 @@ package com.epam.aidial.deployment.manager.web.controller;
 import com.epam.aidial.deployment.manager.configuration.ConfigExportProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
+import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.config.ExportRequest;
 import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
+import com.epam.aidial.deployment.manager.web.dto.config.ExportConfigPreviewDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ExportRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
 import jakarta.validation.Valid;
@@ -31,6 +33,13 @@ public class ConfigController {
     private final ConfigExportProperties properties;
     private final ConfigTransferService configTransfer;
     private final ExportConfigMapper exportConfigMapper;
+
+    @PostMapping(path = "/export-preview", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    public ExportConfigPreviewDto previewConfig(@Valid @RequestBody ExportRequestDto dto) {
+        ExportRequest request = exportConfigMapper.toExportRequest(dto);
+        ExportConfig config = configTransfer.getExportConfig(request);
+        return exportConfigMapper.toExportConfigPreviewDto(config);
+    }
 
     @PostMapping(path = "/export", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ResponseEntity<StreamingResponseBody> exportConfig(@Valid @RequestBody ExportRequestDto dto) {

@@ -1513,6 +1513,35 @@
               "name": "config",
               "item": [
                 {
+                  "name": "export preview",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"$type\": \"custom\",\n    \"addSecrets\": false,\n    \"addGlobalImageBuildDomainWhitelist\": true,\n    \"components\": [\n        {\n            \"name\": \"{{DEPLOYMENT_NAME}}\",\n            \"type\": \"MCP_DEPLOYMENT\"\n        }\n    ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/configs/export-preview",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "configs",
+                        "export-preview"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
                   "name": "export",
                   "request": {
                     "method": "POST",

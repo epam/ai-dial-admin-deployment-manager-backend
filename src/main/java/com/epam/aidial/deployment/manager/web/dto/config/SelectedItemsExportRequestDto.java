@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.config;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -16,6 +15,5 @@ import java.util.List;
 public class SelectedItemsExportRequestDto extends ExportRequestDto {
 
     @Valid
-    @NotEmpty
     private List<ExportConfigComponentDto> components;
 }

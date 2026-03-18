@@ -59,6 +59,14 @@ public class ConfigTransferService {
         };
     }
 
+    @Transactional(readOnly = true)
+    public ExportConfig getExportConfig(ExportRequest request) {
+        if (!(request instanceof SelectedItemsExportRequest customExportRequest)) {
+            throw new IllegalArgumentException("Unsupported export request type: " + request.getClass());
+        }
+        return configExporter.getConfig(customExportRequest);
+    }
+
     public void importConfig(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy) {
         String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
         log.info("Importing config from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);

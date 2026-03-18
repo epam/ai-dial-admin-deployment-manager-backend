@@ -52,6 +52,9 @@ import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
+import com.epam.aidial.deployment.manager.web.dto.config.ExportComponentInfoDto;
+import com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto;
+import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -124,6 +127,8 @@ public abstract class ConfigExportImportFunctionalTest {
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
     private DeploymentMapper deploymentMapper;
+    @Autowired
+    private ExportConfigMapper exportConfigMapper;
 
     private final AtomicReference<String> lastSecretName = new AtomicReference<>();
 
@@ -221,6 +226,74 @@ public abstract class ConfigExportImportFunctionalTest {
         List<String> whitelist = globalDomainWhitelistService.getDomainWhitelist();
         Assertions.assertTrue(whitelist.containsAll(EXPORT_WHITELIST),
                 "Whitelist should contain %s, got: %s".formatted(EXPORT_WHITELIST, whitelist));
+    }
+
+    @Test
+    void previewConfig_returnsCorrectComponentInfoDtos_whenValidSelectionProvided() {
+        var data = createExportTestData();
+        var request = getSelectedItemsExportRequest(data);
+
+        var config = configTransferService.getExportConfig(request);
+        var preview = exportConfigMapper.toExportConfigPreviewDto(config);
+
+        Assertions.assertEquals(EXPORT_WHITELIST, preview.globalImageBuildDomainWhitelist());
+
+        var imageDefIds = preview.imageDefinitions().stream().map(ExportComponentInfoDto::id).toList();
+        Assertions.assertTrue(imageDefIds.contains(data.firstMcpImageDefId().toString()), "should contain first MCP image def");
+        Assertions.assertTrue(imageDefIds.contains(data.secondMcpImageDefId().toString()), "should contain second MCP image def");
+        Assertions.assertTrue(imageDefIds.contains(data.adapterImageDefId().toString()), "should contain adapter image def");
+        Assertions.assertTrue(imageDefIds.contains(data.interceptorImageDefId().toString()), "should contain interceptor image def");
+
+        // Assert all fields of an image definition (MCP)
+        var firstMcpImageDef = findById(preview.imageDefinitions(), data.firstMcpImageDefId().toString());
+        Assertions.assertEquals(MCP_IMAGE_NAME, firstMcpImageDef.displayName(), "image def displayName");
+        Assertions.assertEquals(VERSION, firstMcpImageDef.version(), "image def version");
+        Assertions.assertEquals("MCP for export/import test", firstMcpImageDef.description(), "image def description");
+        Assertions.assertEquals(ExportConfigComponentTypeDto.MCP_IMAGE_DEFINITION, firstMcpImageDef.type(), "image def type");
+
+        // Assert all fields of an image definition (Adapter)
+        var adapterImageDef = findById(preview.imageDefinitions(), data.adapterImageDefId().toString());
+        Assertions.assertEquals(ADAPTER_IMAGE_NAME, adapterImageDef.displayName(), "adapter image def displayName");
+        Assertions.assertEquals(VERSION, adapterImageDef.version(), "adapter image def version");
+        Assertions.assertEquals("Adapter for export/import test", adapterImageDef.description(), "adapter image def description");
+        Assertions.assertEquals(ExportConfigComponentTypeDto.ADAPTER_IMAGE_DEFINITION, adapterImageDef.type(), "adapter image def type");
+
+        var deploymentIds = preview.deployments().stream().map(ExportComponentInfoDto::id).toList();
+        Assertions.assertTrue(deploymentIds.containsAll(List.of(MCP_DEP_ID, ADAPTER_DEP_ID, INTERCEPTOR_DEP_ID, NIM_DEP_ID, INFERENCE_DEP_ID)),
+                "deployments should contain all selected deployment ids");
+
+        // Assert all fields of a deployment (MCP)
+        var mcpDep = findById(preview.deployments(), MCP_DEP_ID);
+        Assertions.assertEquals("MCP deployment export test", mcpDep.displayName(), "deployment displayName");
+        Assertions.assertNull(mcpDep.version(), "deployment version should be null");
+        Assertions.assertEquals("MCP deployment for import test", mcpDep.description(), "deployment description");
+        Assertions.assertEquals(ExportConfigComponentTypeDto.MCP_DEPLOYMENT, mcpDep.type(), "deployment type");
+
+        // Assert all fields of a deployment (NIM)
+        var nimDep = findById(preview.deployments(), NIM_DEP_ID);
+        Assertions.assertEquals("NIM deployment export test", nimDep.displayName(), "nim deployment displayName");
+        Assertions.assertNull(nimDep.version(), "nim deployment version should be null");
+        Assertions.assertEquals("NIM deployment for import test", nimDep.description(), "nim deployment description");
+        Assertions.assertEquals(ExportConfigComponentTypeDto.NIM_DEPLOYMENT, nimDep.type(), "nim deployment type");
+
+        preview.deployments().forEach(d ->
+                Assertions.assertNull(d.version(), "deployment version should be null"));
+        preview.imageDefinitions().forEach(d ->
+                Assertions.assertNotNull(d.version(), "image definition version should not be null"));
+    }
+
+    @Test
+    void previewConfig_returnsEmptyLists_whenEmptySelectionProvided() {
+        var request = new SelectedItemsExportRequest();
+        request.setAddGlobalImageBuildDomainWhitelist(false);
+        request.setComponents(List.of());
+
+        var config = configTransferService.getExportConfig(request);
+        var preview = exportConfigMapper.toExportConfigPreviewDto(config);
+
+        Assertions.assertTrue(preview.globalImageBuildDomainWhitelist().isEmpty(), "whitelist should be empty");
+        Assertions.assertTrue(preview.imageDefinitions().isEmpty(), "imageDefinitions should be empty");
+        Assertions.assertTrue(preview.deployments().isEmpty(), "deployments should be empty");
     }
 
     private ExportTestData createExportTestData() {
@@ -561,6 +634,13 @@ public abstract class ConfigExportImportFunctionalTest {
             Assertions.assertEquals(expectedEntryName, entry.getName(), "ZIP entry name");
             return new String(zis.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    private static ExportComponentInfoDto findById(List<ExportComponentInfoDto> components, String id) {
+        return components.stream()
+                .filter(c -> c.id().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Component with id '%s' not found".formatted(id)));
     }
 
     private record ExportTestData(UUID firstMcpImageDefId, UUID secondMcpImageDefId, UUID adapterImageDefId, UUID interceptorImageDefId) { }
