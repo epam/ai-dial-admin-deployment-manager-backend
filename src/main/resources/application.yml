@@ -383,7 +383,7 @@ config:
       disable-swagger-authorization: ${DISABLE_SWAGGER_AUTHORIZATION:false}
       default:
         allowedRoles: ConfigAdmin,admin
-        roles-mapping: "{}"
+        roles-mapping: "${SECURITY_ROLES_MAPPING:{}}"
         email-claim: ${CLAIMS_EMAIL_KEY:unique_name}
         principal-claim: ${SECURITY_USER_CLAIM:oid}
 
