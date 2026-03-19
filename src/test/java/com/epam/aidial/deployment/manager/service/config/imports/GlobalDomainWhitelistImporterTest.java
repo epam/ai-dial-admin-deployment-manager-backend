@@ -87,12 +87,22 @@ class GlobalDomainWhitelistImporterTest {
     }
 
     @Test
-    void importGlobalDomainWhitelist_different_overwrite_setsWhitelist() {
+    void importGlobalDomainWhitelist_different_overwrite_mergesWhitelist() {
         List<String> whitelist = List.of("b.com", "c.com");
         when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(List.of("a.com"));
 
         globalDomainWhitelistImporter.importGlobalDomainWhitelist(whitelist, ConflictResolutionPolicy.OVERWRITE);
 
-        verify(globalDomainWhitelistService).setDomainWhitelistOrCreate(eq(whitelist));
+        verify(globalDomainWhitelistService).setDomainWhitelistOrCreate(eq(List.of("a.com", "b.com", "c.com")));
+    }
+
+    @Test
+    void importGlobalDomainWhitelist_overwrite_deduplicates() {
+        List<String> whitelist = List.of("a.com", "b.com");
+        when(globalDomainWhitelistService.getDomainWhitelist()).thenReturn(List.of("a.com", "c.com"));
+
+        globalDomainWhitelistImporter.importGlobalDomainWhitelist(whitelist, ConflictResolutionPolicy.OVERWRITE);
+
+        verify(globalDomainWhitelistService).setDomainWhitelistOrCreate(eq(List.of("a.com", "c.com", "b.com")));
     }
 }

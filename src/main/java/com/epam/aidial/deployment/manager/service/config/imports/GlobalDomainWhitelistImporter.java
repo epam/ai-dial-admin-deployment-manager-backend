@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Slf4j
@@ -40,8 +42,10 @@ public class GlobalDomainWhitelistImporter {
                     "Global domain whitelist already exists and differs from imported; use OVERWRITE or SKIP");
             case SKIP_IF_EXISTS -> log.debug("Skipping global domain whitelist import (SKIP_IF_EXISTS)");
             case OVERWRITE -> {
-                globalDomainWhitelistService.setDomainWhitelistOrCreate(whitelist);
-                log.debug("Imported global domain whitelist (OVERWRITE)");
+                LinkedHashSet<String> merged = new LinkedHashSet<>(current);
+                merged.addAll(whitelist);
+                globalDomainWhitelistService.setDomainWhitelistOrCreate(new ArrayList<>(merged));
+                log.debug("Imported & merged global domain whitelist");
             }
             default -> throw new IllegalArgumentException("Unknown conflict resolution policy '%s'".formatted(policy));
         }

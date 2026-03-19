@@ -43,7 +43,7 @@
   "globalImageBuildDomainWhitelist": {
     "importAction": "UPDATE",
     "prev": ["existing.com"],
-    "next": ["incoming.com", "new.com"]
+    "next": ["existing.com", "incoming.com", "new.com"]
   },                              // null / absent when incoming whitelist is empty
   "mcpDeployments": [ /* ImportComponentDto<McpDeploymentDto>[] */ ],
   "adapterDeployments": [ /* ImportComponentDto<AdapterDeploymentDto>[] */ ],
