@@ -1,7 +1,7 @@
 # Implementation Plan: MCP Registry Backend Filtering
 
-**Branch**: `007-mcp-registry-filtering` | **Date**: 2026-03-18 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/007-mcp-registry-filtering/spec.md`
+**Branch**: `009-mcp-registry-filtering` | **Date**: 2026-03-18 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/009-mcp-registry-filtering/spec.md`
 
 ## Summary
 
@@ -42,7 +42,7 @@ Add backend-side filtering to the MCP registry server list endpoints. The upstre
 ### Documentation (this feature)
 
 ```text
-specs/007-mcp-registry-filtering/
+specs/009-mcp-registry-filtering/
 ├── plan.md              # This file
 ├── spec.md              # Feature specification
 ├── research.md          # Phase 0 output — technical decisions

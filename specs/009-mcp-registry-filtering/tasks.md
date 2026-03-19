@@ -1,6 +1,6 @@
 # Tasks: MCP Registry Backend Filtering
 
-**Input**: Design documents from `/specs/007-mcp-registry-filtering/`
+**Input**: Design documents from `/specs/009-mcp-registry-filtering/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/api.md
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
