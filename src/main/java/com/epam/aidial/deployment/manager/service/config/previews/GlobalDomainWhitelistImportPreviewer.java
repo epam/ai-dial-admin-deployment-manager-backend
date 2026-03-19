@@ -41,7 +41,6 @@ public class GlobalDomainWhitelistImportPreviewer {
                 merged.addAll(incoming);
                 yield new ImportComponent<>(ImportAction.UPDATE, current, new ArrayList<>(merged));
             }
-            default -> throw new IllegalArgumentException("Unknown conflict resolution policy '%s'".formatted(policy));
         };
     }
 }

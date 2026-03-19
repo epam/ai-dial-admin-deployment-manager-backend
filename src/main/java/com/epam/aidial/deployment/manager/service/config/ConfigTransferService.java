@@ -114,10 +114,10 @@ public class ConfigTransferService {
                     log.info("Ignoring file {} in zip archive during import", entry.getName());
                 }
                 zipInputStream.closeEntry();
-                if (validEntryCount == 0) {
-                    throw new IllegalArgumentException("No valid export configuration file '%s' found in the ZIP archive."
-                            .formatted(exportConfigFileName));
-                }
+            }
+            if (validEntryCount == 0 || result == null) {
+                throw new IllegalArgumentException("No valid export configuration file '%s' found in the ZIP archive."
+                        .formatted(exportConfigFileName));
             }
             return result;
         }

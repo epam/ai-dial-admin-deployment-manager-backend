@@ -1,4 +1,4 @@
-# API Contract: POST /api/v1/configs/import-preview
+# API Contract: POST /api/v1/configs/import/preview
 
 **Feature**: `007-config-import-preview`
 **Date**: 2026-03-16
@@ -10,7 +10,7 @@
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/api/v1/configs/import-preview` |
+| Path | `/api/v1/configs/import/preview` |
 | Content-Type | `multipart/form-data` |
 | Authentication | Same as `POST /api/v1/configs/import` |
 
