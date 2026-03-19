@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Slf4j
@@ -34,7 +36,11 @@ public class GlobalDomainWhitelistImportPreviewer {
         return switch (policy) {
             case FAIL_IF_EXISTS -> new ImportComponent<>(ImportAction.FAIL, current, incoming);
             case SKIP_IF_EXISTS -> new ImportComponent<>(ImportAction.SKIP, current, null);
-            case OVERWRITE -> new ImportComponent<>(ImportAction.UPDATE, current, incoming);
+            case OVERWRITE -> {
+                LinkedHashSet<String> merged = new LinkedHashSet<>(current);
+                merged.addAll(incoming);
+                yield new ImportComponent<>(ImportAction.UPDATE, current, new ArrayList<>(merged));
+            }
         };
     }
 }

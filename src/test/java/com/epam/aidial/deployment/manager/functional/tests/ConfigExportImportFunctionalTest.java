@@ -210,6 +210,10 @@ public abstract class ConfigExportImportFunctionalTest {
         byte[] zipBytes = ConfigExportImportTestHelper.buildZipFromJson(configExportProperties.getFileName(), exportConfigJson);
         MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile("export.zip", zipBytes);
 
+        // Set pre-existing whitelist with domains not in the import to verify merge behavior
+        List<String> preExisting = List.of("pre-existing-a.com", "pre-existing-b.com");
+        globalDomainWhitelistService.setDomainWhitelistOrCreate(preExisting);
+
         // Import
         configTransferService.importConfig(multipartFile, ConflictResolutionPolicy.OVERWRITE);
 
@@ -228,10 +232,12 @@ public abstract class ConfigExportImportFunctionalTest {
             assertDeploymentEquals(actual, expected);
         }
 
-        // Validate whitelist
+        // Validate whitelist — merge preserves pre-existing entries and adds imported entries
         List<String> whitelist = globalDomainWhitelistService.getDomainWhitelist();
         Assertions.assertTrue(whitelist.containsAll(EXPORT_WHITELIST),
-                "Whitelist should contain %s, got: %s".formatted(EXPORT_WHITELIST, whitelist));
+                "Whitelist should contain imported entries %s, got: %s".formatted(EXPORT_WHITELIST, whitelist));
+        Assertions.assertTrue(whitelist.containsAll(preExisting),
+                "Whitelist should preserve pre-existing entries %s, got: %s".formatted(preExisting, whitelist));
     }
 
     @Test
@@ -677,13 +683,18 @@ public abstract class ConfigExportImportFunctionalTest {
         MultipartFile zipFile = buildImportZipFromResource();
         configTransferService.importConfig(zipFile, ConflictResolutionPolicy.OVERWRITE);
 
-        // OVERWRITE → UPDATE
+        // Add extra domain to DB whitelist to verify merge semantics in preview
+        List<String> extendedWhitelist = List.of("test-export-a.com", "test-export-b.com", "extra-domain.com");
+        globalDomainWhitelistService.setDomainWhitelistOrCreate(extendedWhitelist);
+
+        // OVERWRITE → UPDATE, next = merged list preserving extra-domain.com
         ImportConfigPreview overwrite = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.OVERWRITE);
         assertPreviewAction(overwrite, ImportAction.UPDATE);
         assertThat(overwrite.getGlobalImageBuildDomainWhitelist()).isNotNull();
         assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getAction()).isEqualTo(ImportAction.UPDATE);
-        assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getPrev()).isNotNull();
+        assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getPrev()).containsExactlyElementsOf(extendedWhitelist);
         assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getNext()).containsAll(EXPORT_WHITELIST);
+        assertThat(overwrite.getGlobalImageBuildDomainWhitelist().getNext()).contains("extra-domain.com");
 
         // SKIP_IF_EXISTS → SKIP
         ImportConfigPreview skip = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.SKIP_IF_EXISTS);
