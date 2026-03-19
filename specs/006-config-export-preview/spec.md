@@ -13,19 +13,19 @@ An administrator wants to see a concise summary of exactly what would be include
 
 **Why this priority**: This is the core value of the feature — the entire feature exists to support this use case. Without it, no value is delivered.
 
-**Independent Test**: Can be fully tested by sending a `POST /api/v1/configs/export-preview` request with a valid `ExportRequestDto` body and verifying that the response contains the correct `ExportConfigPreviewDto` structure with expected `ExportComponentInfoDto` entries.
+**Independent Test**: Can be fully tested by sending a `POST /api/v1/configs/export/preview` request with a valid `ExportRequestDto` body and verifying that the response contains the correct `ExportConfigPreviewDto` structure with expected `ExportComponentInfoDto` entries.
 
 **Acceptance Scenarios**:
 
-1. **Given** one or more deployments exist, **When** `POST /api/v1/configs/export-preview` is called with a selection that includes specific deployments, **Then** the `deployments` list contains one `ExportComponentInfoDto` per resolved deployment with `id` set to the deployment ID, `displayName` to the deployment display name, `version` empty, `description` to the deployment description, and `type` reflecting the deployment type.
+1. **Given** one or more deployments exist, **When** `POST /api/v1/configs/export/preview` is called with a selection that includes specific deployments, **Then** the `deployments` list contains one `ExportComponentInfoDto` per resolved deployment with `id` set to the deployment ID, `displayName` to the deployment display name, `version` empty, `description` to the deployment description, and `type` reflecting the deployment type.
 
-2. **Given** one or more image definitions exist, **When** `POST /api/v1/configs/export-preview` is called with a selection that includes specific image definitions, **Then** the `imageDefinitions` list contains one `ExportComponentInfoDto` per resolved image definition with `id` set to the image definition UUID, `displayName` to the image definition name, `version` to the image definition version, `description` to the image definition description, and `type` reflecting the image definition type.
+2. **Given** one or more image definitions exist, **When** `POST /api/v1/configs/export/preview` is called with a selection that includes specific image definitions, **Then** the `imageDefinitions` list contains one `ExportComponentInfoDto` per resolved image definition with `id` set to the image definition UUID, `displayName` to the image definition name, `version` to the image definition version, `description` to the image definition description, and `type` reflecting the image definition type.
 
-3. **Given** the `addGlobalImageBuildDomainWhitelist` flag is `true` in the request, **When** `POST /api/v1/configs/export-preview` is called, **Then** the `globalImageBuildDomainWhitelist` field in the response contains the current whitelist entries.
+3. **Given** the `addGlobalImageBuildDomainWhitelist` flag is `true` in the request, **When** `POST /api/v1/configs/export/preview` is called, **Then** the `globalImageBuildDomainWhitelist` field in the response contains the current whitelist entries.
 
-4. **Given** the `addGlobalImageBuildDomainWhitelist` flag is `false`, **When** `POST /api/v1/configs/export-preview` is called, **Then** the `globalImageBuildDomainWhitelist` field in the response is empty.
+4. **Given** the `addGlobalImageBuildDomainWhitelist` flag is `false`, **When** `POST /api/v1/configs/export/preview` is called, **Then** the `globalImageBuildDomainWhitelist` field in the response is empty.
 
-5. **Given** a deployment references an image definition, **When** `POST /api/v1/configs/export-preview` is called with that deployment selected, **Then** the image definition is automatically included in the `imageDefinitions` list (consistent with auto-inclusion behavior of the export feature).
+5. **Given** a deployment references an image definition, **When** `POST /api/v1/configs/export/preview` is called with that deployment selected, **Then** the image definition is automatically included in the `imageDefinitions` list (consistent with auto-inclusion behavior of the export feature).
 
 ---
 
@@ -35,11 +35,11 @@ An administrator submits a preview request with an empty selection and receives 
 
 **Why this priority**: Graceful handling of edge cases improves robustness, but this scenario has low business impact.
 
-**Independent Test**: Send a `POST /api/v1/configs/export-preview` with an empty selection; verify the response has empty lists and HTTP 200.
+**Independent Test**: Send a `POST /api/v1/configs/export/preview` with an empty selection; verify the response has empty lists and HTTP 200.
 
 **Acceptance Scenarios**:
 
-1. **Given** an empty selection is provided, **When** `POST /api/v1/configs/export-preview` is called, **Then** the response returns HTTP 200 with `ExportConfigPreviewDto` containing empty lists for all fields.
+1. **Given** an empty selection is provided, **When** `POST /api/v1/configs/export/preview` is called, **Then** the response returns HTTP 200 with `ExportConfigPreviewDto` containing empty lists for all fields.
 
 ---
 
@@ -53,7 +53,7 @@ An administrator submits a preview request with an empty selection and receives 
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST expose a `POST /api/v1/configs/export-preview` endpoint that accepts the same `ExportRequestDto` request body as the existing export endpoint.
+- **FR-001**: The system MUST expose a `POST /api/v1/configs/export/preview` endpoint that accepts the same `ExportRequestDto` request body as the existing export endpoint.
 - **FR-002**: The system MUST return an `ExportConfigPreviewDto` containing `List<String> globalImageBuildDomainWhitelist`, `List<ExportComponentInfoDto> imageDefinitions`, and `List<ExportComponentInfoDto> deployments`.
 - **FR-003**: Each `ExportComponentInfoDto` MUST carry: `id` (string), `displayName` (string), `version` (string, empty for deployments), `description` (string), and `type` (`ExportConfigComponentTypeDto` enum value matching the entity type).
 - **FR-004**: For image definitions, the `ExportComponentInfoDto` fields MUST be mapped as: `id → id`, `name → displayName`, `version → version`, `description → description`, image definition type → `type`.

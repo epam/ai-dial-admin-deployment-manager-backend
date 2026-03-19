@@ -5,7 +5,9 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.config.ExportRequest;
+import com.epam.aidial.deployment.manager.model.config.ImportConfigPreview;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
+import com.epam.aidial.deployment.manager.service.config.previews.ConfigImportPreviewer;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +33,7 @@ public class ConfigTransferService {
     private final ConfigExportProperties properties;
     private final ConfigExporter configExporter;
     private final ConfigImporter configImporter;
+    private final ConfigImportPreviewer configImportPreviewer;
 
     @Qualifier("exportJsonMapper")
     private final JsonMapper exportJsonMapper;
@@ -70,9 +73,34 @@ public class ConfigTransferService {
     public void importConfig(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy) {
         String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
         log.info("Importing config from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);
+        try {
+            ExportConfig config = parseExportConfig(zipFile);
+            configImporter.importConfig(config, resolutionPolicy);
+            log.info("Config import completed successfully");
+        } catch (Exception ex) {
+            log.warn("Config import failed", ex);
+            throw new IllegalArgumentException(ex.getMessage(), ex);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ImportConfigPreview getImportConfigPreview(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy) {
+        String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
+        log.info("Previewing config import from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);
+        try {
+            ExportConfig config = parseExportConfig(zipFile);
+            return configImportPreviewer.previewImport(config, resolutionPolicy);
+        } catch (Exception ex) {
+            log.warn("Config import preview failed", ex);
+            throw new IllegalArgumentException(ex.getMessage(), ex);
+        }
+    }
+
+    private ExportConfig parseExportConfig(MultipartFile zipFile) throws Exception {
         try (var zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipFile.getBytes()))) {
             ZipEntry entry;
             int validEntryCount = 0;
+            ExportConfig result = null;
             var exportConfigFileName = properties.getFileName();
             while ((entry = zipInputStream.getNextEntry()) != null) {
                 if (entry.getName().equals(exportConfigFileName)) {
@@ -81,21 +109,17 @@ public class ConfigTransferService {
                         throw new IllegalArgumentException("Multiple files '%s' with data found in the ZIP archive."
                                 .formatted(exportConfigFileName));
                     }
-                    ExportConfig config = jsonMapper.readValue(zipInputStream, ExportConfig.class);
-                    configImporter.importConfig(config, resolutionPolicy);
+                    result = jsonMapper.readValue(zipInputStream, ExportConfig.class);
                 } else {
                     log.info("Ignoring file {} in zip archive during import", entry.getName());
                 }
                 zipInputStream.closeEntry();
-                if (validEntryCount == 0) {
-                    throw new IllegalArgumentException("No valid export configuration file '%s' found in the ZIP archive."
-                            .formatted(exportConfigFileName));
-                }
             }
-            log.info("Config import completed successfully");
-        } catch (Exception ex) {
-            log.warn("Config import failed", ex);
-            throw new IllegalArgumentException(ex.getMessage(), ex);
+            if (validEntryCount == 0 || result == null) {
+                throw new IllegalArgumentException("No valid export configuration file '%s' found in the ZIP archive."
+                        .formatted(exportConfigFileName));
+            }
+            return result;
         }
     }
 }

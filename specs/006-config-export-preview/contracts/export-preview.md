@@ -5,7 +5,7 @@
 ## Endpoint
 
 ```
-POST /api/v1/configs/export-preview
+POST /api/v1/configs/export/preview
 Content-Type: application/json
 ```
 
