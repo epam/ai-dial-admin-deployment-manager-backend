@@ -183,4 +183,151 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
                         .content("{\"version\":\"1.0.0\"}"))
                 .andExpect(status().isBadRequest());
     }
+
+    // --- Filter param tests (T010, T012) ---
+
+    @Test
+    void getServers_shouldPassRemoteTypesFilter() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("remoteTypes", "sse"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        assertThat(captor.getValue().getFilter()).isNotNull();
+        assertThat(captor.getValue().getFilter().getRemoteTypes()).containsExactly("sse");
+    }
+
+    @Test
+    void getServers_shouldPassPackageRegistryTypesFilter() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("packageRegistryTypes", "npm", "oci"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        assertThat(captor.getValue().getFilter()).isNotNull();
+        assertThat(captor.getValue().getFilter().getPackageRegistryTypes()).containsExactly("npm", "oci");
+    }
+
+    @Test
+    void getServers_shouldPassRepositoryExistsFilter() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("repositoryExists", "true"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        assertThat(captor.getValue().getFilter()).isNotNull();
+        assertThat(captor.getValue().getFilter().getRepositoryExists()).isTrue();
+    }
+
+    @Test
+    void getServers_shouldCombineMultipleFilterParams() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("remoteTypes", "sse")
+                        .param("packageRegistryTypes", "npm")
+                        .param("repositoryExists", "true"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        var filter = captor.getValue().getFilter();
+        assertThat(filter).isNotNull();
+        assertThat(filter.getRemoteTypes()).containsExactly("sse");
+        assertThat(filter.getPackageRegistryTypes()).containsExactly("npm");
+        assertThat(filter.getRepositoryExists()).isTrue();
+    }
+
+    @Test
+    void getServers_shouldPassNullFilter_whenNoFilterParams() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        assertThat(captor.getValue().getFilter()).isNull();
+    }
+
+    @Test
+    void postListServers_shouldPassFilterFromBody() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        var body = """
+                {
+                    "limit": 50,
+                    "filter": {
+                        "remoteTypes": ["sse", "streamable-http"],
+                        "packageRegistryTypes": ["npm"],
+                        "repositoryExists": true
+                    }
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/mcp-registry/servers/list")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        var filter = captor.getValue().getFilter();
+        assertThat(filter).isNotNull();
+        assertThat(filter.getRemoteTypes()).containsExactly("sse", "streamable-http");
+        assertThat(filter.getPackageRegistryTypes()).containsExactly("npm");
+        assertThat(filter.getRepositoryExists()).isTrue();
+    }
+
+    @Test
+    void getServers_shouldIncludeNextCursor_whenMoreResultsExist() throws Exception {
+        var serviceResponse = ServerListResponseDto.builder()
+                .servers(List.of())
+                .metadata(ServerListMetadata.builder().nextCursor("cursor-abc").count(0).build())
+                .build();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("remoteTypes", "sse"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"metadata\":{\"nextCursor\":\"cursor-abc\"}}", JsonCompareMode.LENIENT));
+    }
+
+    @Test
+    void getServers_shouldPassCursorWithFilter() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("cursor", "cursor-abc")
+                        .param("remoteTypes", "sse"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        assertThat(captor.getValue().getCursor()).isEqualTo("cursor-abc");
+        assertThat(captor.getValue().getFilter()).isNotNull();
+    }
+
+    private static ServerListResponseDto emptyServerListResponse() {
+        return ServerListResponseDto.builder()
+                .servers(List.of())
+                .metadata(ServerListMetadata.builder().count(0).build())
+                .build();
+    }
 }
