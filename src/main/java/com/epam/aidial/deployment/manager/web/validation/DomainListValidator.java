@@ -18,6 +18,18 @@ public class DomainListValidator implements ConstraintValidator<ValidDomainList,
     private static final int MIN_DOMAIN_LENGTH = 4;
     private static final int MAX_DOMAIN_LENGTH = 253;
 
+    public static boolean isValidDomain(String domain) {
+        if (domain == null) {
+            return false;
+        }
+        if (ALLOW_ALL_KEY.equals(domain)) {
+            return true;
+        }
+        return domain.length() >= MIN_DOMAIN_LENGTH
+                && domain.length() <= MAX_DOMAIN_LENGTH
+                && DOMAIN_PATTERN.matcher(domain).matches();
+    }
+
     @Override
     public boolean isValid(List<String> domains, ConstraintValidatorContext context) {
         if (domains == null) {

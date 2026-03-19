@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.exception.DatabaseException;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
+import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -129,6 +130,17 @@ public class DefaultExceptionHandler {
                             .append(error.getDefaultMessage())
                             .append("\n");
                 });
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, message.toString());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(ImportValidationException.class)
+    public ErrorView handleImportValidationException(HttpServletRequest req, ImportValidationException ex) {
+        logUncaught(ex);
+        var message = new StringBuilder("Import validation failed:\n");
+        ex.getErrors().forEach(error ->
+                message.append("[%s '%s'] Field [%s]: %s\n".formatted(
+                        error.entityType(), error.entityIdentifier(), error.fieldPath(), error.message())));
         return new ErrorView(req, HttpStatus.BAD_REQUEST, message.toString());
     }
 

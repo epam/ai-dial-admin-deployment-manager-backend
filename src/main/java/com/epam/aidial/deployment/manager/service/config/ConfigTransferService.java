@@ -71,10 +71,12 @@ public class ConfigTransferService {
     }
 
     public void importConfig(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy) {
-        String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
-        log.info("Importing config from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);
+        ExportConfig config = parseAndSanitizeExportConfig(zipFile);
+        importConfig(config, resolutionPolicy);
+    }
+
+    public void importConfig(ExportConfig config, ConflictResolutionPolicy resolutionPolicy) {
         try {
-            ExportConfig config = parseExportConfig(zipFile);
             configImporter.importConfig(config, resolutionPolicy);
             log.info("Config import completed successfully");
         } catch (Exception ex) {
@@ -85,18 +87,28 @@ public class ConfigTransferService {
 
     @Transactional(readOnly = true)
     public ImportConfigPreview getImportConfigPreview(MultipartFile zipFile, ConflictResolutionPolicy resolutionPolicy) {
-        String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
-        log.info("Previewing config import from file '{}' (resolutionPolicy={})", fileName, resolutionPolicy);
+        ExportConfig config = parseAndSanitizeExportConfig(zipFile);
+        return getImportConfigPreview(config, resolutionPolicy);
+    }
+
+    @Transactional(readOnly = true)
+    public ImportConfigPreview getImportConfigPreview(ExportConfig config, ConflictResolutionPolicy resolutionPolicy) {
+        return configImportPreviewer.previewImport(config, resolutionPolicy);
+    }
+
+    public ExportConfig parseAndSanitizeExportConfig(MultipartFile zipFile) {
         try {
             ExportConfig config = parseExportConfig(zipFile);
-            return configImportPreviewer.previewImport(config, resolutionPolicy);
+            return sanitizeExportConfig(config);
         } catch (Exception ex) {
-            log.warn("Config import preview failed", ex);
+            log.warn("Config parse/sanitize failed", ex);
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
     }
 
     private ExportConfig parseExportConfig(MultipartFile zipFile) throws Exception {
+        String fileName = zipFile.getOriginalFilename() != null ? zipFile.getOriginalFilename() : "unknown";
+        log.info("Parsing config from file '{}'", fileName);
         try (var zipInputStream = new ZipInputStream(new ByteArrayInputStream(zipFile.getBytes()))) {
             ZipEntry entry;
             int validEntryCount = 0;
@@ -111,7 +123,7 @@ public class ConfigTransferService {
                     }
                     result = jsonMapper.readValue(zipInputStream, ExportConfig.class);
                 } else {
-                    log.info("Ignoring file {} in zip archive during import", entry.getName());
+                    log.info("Ignoring file {} in zip archive during import config parsing", entry.getName());
                 }
                 zipInputStream.closeEntry();
             }
@@ -121,5 +133,9 @@ public class ConfigTransferService {
             }
             return result;
         }
+    }
+
+    private ExportConfig sanitizeExportConfig(ExportConfig config) throws Exception {
+        return exportJsonMapper.readValue(exportJsonMapper.writeValueAsBytes(config), ExportConfig.class);
     }
 }

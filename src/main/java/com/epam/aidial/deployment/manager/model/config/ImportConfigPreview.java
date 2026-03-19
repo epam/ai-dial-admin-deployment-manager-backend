@@ -41,4 +41,7 @@ public class ImportConfigPreview {
     private List<ImportComponent<InferenceDeployment>> inferenceDeployments = new ArrayList<>();
 
     private ImportComponent<List<String>> globalImageBuildDomainWhitelist;
+
+    @Builder.Default
+    private List<ImportValidationError> validationErrors = new ArrayList<>();
 }

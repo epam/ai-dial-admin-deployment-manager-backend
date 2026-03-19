@@ -48,7 +48,8 @@ public abstract class ImportConfigDtoMapper {
                         dep -> (NimDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getInferenceDeployments(),
                         dep -> (InferenceDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
-                toComponentDto(preview.getGlobalImageBuildDomainWhitelist(), c -> c)
+                toComponentDto(preview.getGlobalImageBuildDomainWhitelist(), c -> c),
+                preview.getValidationErrors()
         );
     }
 
