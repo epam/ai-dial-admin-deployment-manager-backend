@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
+import com.epam.aidial.deployment.manager.model.config.ImportValidationError;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
@@ -18,16 +19,19 @@ import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapper;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -41,153 +45,367 @@ class ImportConfigValidatorTest {
     private ImageDefinitionDtoMapper imageDefinitionDtoMapper;
 
     private ImportConfigValidator importConfigValidator;
-    private ExportConfig validConfig;
 
     @BeforeEach
     void setUp() {
         Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
         importConfigValidator = new ImportConfigValidator(validator, deploymentDtoMapper, imageDefinitionDtoMapper);
-        validConfig = ExportConfig.builder().build();
     }
 
-    @Test
-    void shouldPassValidation_whenConfigIsEmpty() {
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isEmpty();
+    @Nested
+    class EmptyConfig {
+
+        @Test
+        void shouldPassValidation_whenConfigIsEmpty() {
+            var errors = importConfigValidator.collectErrors(ExportConfig.builder().build());
+            assertThat(errors).isEmpty();
+        }
+
+        @Test
+        void shouldPassValidation_whenAllMapsAreNull() {
+            var config = new ExportConfig();
+            config.setMcpDeployments(null);
+            config.setMcpImageDefinitions(null);
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isEmpty();
+        }
     }
 
-    @Test
-    void shouldPassValidation_whenAllEntitiesValid() {
-        var dep = buildMcpDeployment("valid-dep");
-        validConfig.setMcpDeployments(Map.of("valid-dep", dep));
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(any())).thenReturn(buildValidDeploymentDto("valid-dep"));
+    @Nested
+    class ValidEntities {
 
-        var imgDef = buildMcpImageDefinition("valid-img");
-        validConfig.setMcpImageDefinitions(Map.of("valid-img", imgDef));
-        when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(any())).thenReturn(buildValidImageDefDto("valid-img"));
+        @Test
+        void shouldPassValidation_whenDeploymentIsValid() {
+            var config = configWithDeployment("valid-dep", buildValidDeploymentDto("valid-dep"));
+            assertThat(importConfigValidator.collectErrors(config)).isEmpty();
+        }
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isEmpty();
+        @Test
+        void shouldPassValidation_whenImageDefinitionIsValid() {
+            var config = configWithImageDef("valid-img", buildValidImageDefDto("valid-img"));
+            assertThat(importConfigValidator.collectErrors(config)).isEmpty();
+        }
+
+        @Test
+        void shouldNotThrow_whenValidateCalledOnValidConfig() {
+            var config = configWithDeployment("valid-dep", buildValidDeploymentDto("valid-dep"));
+            assertThatCode(() -> importConfigValidator.validate(config)).doesNotThrowAnyException();
+        }
     }
 
-    @Test
-    void shouldFailValidation_whenDeploymentNameInvalid() {
-        var dep = buildMcpDeployment("INVALID-UPPERCASE");
-        validConfig.setMcpDeployments(Map.of("INVALID-UPPERCASE", dep));
-        var dto = buildValidDeploymentDto("INVALID-UPPERCASE");
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(any())).thenReturn(dto);
+    @Nested
+    class DeploymentValidation {
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isNotEmpty();
-        assertThat(errors).anyMatch(e -> "MCP_DEPLOYMENT".equals(e.entityType()) && "name".equals(e.fieldPath()));
+        @Test
+        void shouldFailValidation_whenNameContainsUppercase() {
+            var config = configWithDeployment("BAD-NAME", buildValidDeploymentDto("BAD-NAME"));
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> {
+                        assertThat(e.entityType()).isEqualTo("MCP_DEPLOYMENT");
+                        assertThat(e.entityIdentifier()).isEqualTo("BAD-NAME");
+                        assertThat(e.fieldPath()).isEqualTo("name");
+                    });
+        }
+
+        @Test
+        void shouldFailValidation_whenNameTooShort() {
+            var config = configWithDeployment("x", buildValidDeploymentDto("x"));
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isNotEmpty();
+            assertThat(errors).anyMatch(e -> "name".equals(e.fieldPath()));
+        }
+
+        @Test
+        void shouldFailValidation_whenDisplayNameIsNull() {
+            var dto = buildValidDeploymentDto("valid-id");
+            dto.setDisplayName(null);
+            var config = configWithDeployment("valid-id", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isNotEmpty();
+            assertThat(errors).anyMatch(e -> "displayName".equals(e.fieldPath()));
+        }
+
+        @Test
+        void shouldFailValidation_whenDisplayNameTooLong() {
+            var dto = buildValidDeploymentDto("valid-id");
+            dto.setDisplayName("x".repeat(256));
+            var config = configWithDeployment("valid-id", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isNotEmpty();
+            assertThat(errors).anyMatch(e -> "displayName".equals(e.fieldPath()));
+        }
+
+        @Test
+        void shouldFailValidation_whenMetadataIsNull() {
+            var dto = buildValidDeploymentDto("valid-id");
+            dto.setMetadata(null);
+            var config = configWithDeployment("valid-id", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isNotEmpty();
+            assertThat(errors).anyMatch(e -> "metadata".equals(e.fieldPath()));
+        }
     }
 
-    @Test
-    void shouldFailValidation_whenDeploymentMissingRequiredField() {
-        var dep = buildMcpDeployment("valid-id");
-        validConfig.setMcpDeployments(Map.of("valid-id", dep));
-        var dto = buildValidDeploymentDto("valid-id");
-        dto.setDisplayName(null);
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(any())).thenReturn(dto);
+    @Nested
+    class ImageDefinitionValidation {
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isNotEmpty();
-        assertThat(errors).anyMatch(e -> "displayName".equals(e.fieldPath()));
+        @Test
+        void shouldFailValidation_whenVersionIsInvalid() {
+            var dto = buildValidImageDefDto("valid-img");
+            dto.setVersion("not-semver");
+            var config = configWithImageDef("valid-img", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> {
+                        assertThat(e.entityType()).isEqualTo("MCP_IMAGE_DEFINITION");
+                        assertThat(e.entityIdentifier()).isEqualTo("valid-img");
+                        assertThat(e.fieldPath()).isEqualTo("version");
+                    });
+        }
+
+        @Test
+        void shouldFailValidation_whenVersionIsNull() {
+            var dto = buildValidImageDefDto("valid-img");
+            dto.setVersion(null);
+            var config = configWithImageDef("valid-img", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isNotEmpty();
+            assertThat(errors).anyMatch(e -> "version".equals(e.fieldPath()));
+        }
+
+        @Test
+        void shouldFailValidation_whenSourceIsNull() {
+            var dto = buildValidImageDefDto("valid-img");
+            dto.setSource(null);
+            var config = configWithImageDef("valid-img", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).isNotEmpty();
+            assertThat(errors).anyMatch(e -> "source".equals(e.fieldPath()));
+        }
     }
 
-    @Test
-    void shouldFailValidation_whenDeploymentDisplayNameTooLong() {
-        var dep = buildMcpDeployment("valid-id");
-        validConfig.setMcpDeployments(Map.of("valid-id", dep));
-        var dto = buildValidDeploymentDto("valid-id");
-        dto.setDisplayName("x".repeat(256));
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(any())).thenReturn(dto);
+    @Nested
+    class MultipleViolations {
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isNotEmpty();
-        assertThat(errors).anyMatch(e -> "displayName".equals(e.fieldPath()));
+        @Test
+        void shouldCollectViolationsFromMultipleDeployments() {
+            var dep1 = buildDomainDeployment("BAD-1");
+            var dep2 = buildDomainDeployment("BAD-2");
+            var deployments = new LinkedHashMap<String, McpDeployment>();
+            deployments.put("BAD-1", dep1);
+            deployments.put("BAD-2", dep2);
+
+            when(deploymentDtoMapper.toCreateDeploymentRequestDto(dep1)).thenReturn(buildValidDeploymentDto("BAD-1"));
+            when(deploymentDtoMapper.toCreateDeploymentRequestDto(dep2)).thenReturn(buildValidDeploymentDto("BAD-2"));
+
+            var config = ExportConfig.builder().build();
+            config.setMcpDeployments(deployments);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).hasSizeGreaterThanOrEqualTo(2);
+            assertThat(errors).extracting(ImportValidationError::entityIdentifier)
+                    .contains("BAD-1", "BAD-2");
+        }
+
+        @Test
+        void shouldCollectViolationsAcrossDeploymentsAndImageDefinitions() {
+            var config = ExportConfig.builder().build();
+
+            config.setMcpDeployments(Map.of("BAD-DEP", buildDomainDeployment("BAD-DEP")));
+            when(deploymentDtoMapper.toCreateDeploymentRequestDto(any())).thenReturn(buildValidDeploymentDto("BAD-DEP"));
+
+            var imgDto = buildValidImageDefDto("bad-img");
+            imgDto.setVersion("invalid");
+            config.setMcpImageDefinitions(Map.of("bad-img", buildDomainImageDef("bad-img")));
+            when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(any())).thenReturn(imgDto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).hasSizeGreaterThanOrEqualTo(2);
+            assertThat(errors).extracting(ImportValidationError::entityType)
+                    .contains("MCP_DEPLOYMENT", "MCP_IMAGE_DEFINITION");
+        }
+
+        @Test
+        void shouldCollectMultipleViolationsFromSingleEntity() {
+            var dto = buildValidDeploymentDto("BAD");
+            dto.setDisplayName(null); // @NotNull violation
+            // name "BAD" also fails @Pattern
+            var config = configWithDeployment("BAD", dto);
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).hasSizeGreaterThanOrEqualTo(2);
+            assertThat(errors).extracting(ImportValidationError::fieldPath)
+                    .contains("name", "displayName");
+        }
     }
 
-    @Test
-    void shouldFailValidation_whenImageDefinitionVersionInvalid() {
-        var imgDef = buildMcpImageDefinition("valid-img");
-        validConfig.setMcpImageDefinitions(Map.of("valid-img", imgDef));
-        var dto = buildValidImageDefDto("valid-img");
-        dto.setVersion("not-a-version");
-        when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(any())).thenReturn(dto);
+    @Nested
+    class MapperFailure {
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isNotEmpty();
-        assertThat(errors).anyMatch(e -> "MCP_IMAGE_DEFINITION".equals(e.entityType()) && "version".equals(e.fieldPath()));
+        @Test
+        void shouldReportMappingError_whenDeploymentMapperThrows() {
+            var config = ExportConfig.builder().build();
+            config.setMcpDeployments(Map.of("broken", buildDomainDeployment("broken")));
+            when(deploymentDtoMapper.toCreateDeploymentRequestDto(any()))
+                    .thenThrow(new IllegalArgumentException("unsupported source type"));
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> {
+                        assertThat(e.entityType()).isEqualTo("MCP_DEPLOYMENT");
+                        assertThat(e.entityIdentifier()).isEqualTo("broken");
+                        assertThat(e.fieldPath()).isEmpty();
+                        assertThat(e.message()).contains("Mapping failed");
+                    });
+        }
+
+        @Test
+        void shouldReportMappingError_whenImageDefMapperThrows() {
+            var config = ExportConfig.builder().build();
+            config.setMcpImageDefinitions(Map.of("broken", buildDomainImageDef("broken")));
+            when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(any()))
+                    .thenThrow(new IllegalArgumentException("unsupported source"));
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> {
+                        assertThat(e.entityType()).isEqualTo("MCP_IMAGE_DEFINITION");
+                        assertThat(e.entityIdentifier()).isEqualTo("broken");
+                        assertThat(e.message()).contains("Mapping failed");
+                    });
+        }
     }
 
-    @Test
-    void shouldFailValidation_whenImageDefinitionMissingRequiredField() {
-        var imgDef = buildMcpImageDefinition("valid-img");
-        validConfig.setMcpImageDefinitions(Map.of("valid-img", imgDef));
-        var dto = buildValidImageDefDto("valid-img");
-        dto.setVersion(null);
-        when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(any())).thenReturn(dto);
+    @Nested
+    class GlobalDomainWhitelist {
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isNotEmpty();
-        assertThat(errors).anyMatch(e -> "version".equals(e.fieldPath()));
+        @Test
+        void shouldPassValidation_whenWhitelistIsEmpty() {
+            var config = ExportConfig.builder().globalImageBuildDomainWhitelist(new ArrayList<>()).build();
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType())).isEmpty();
+        }
+
+        @Test
+        void shouldPassValidation_whenWhitelistContainsValidDomains() {
+            var config = ExportConfig.builder()
+                    .globalImageBuildDomainWhitelist(List.of("example.com", "sub.domain.org"))
+                    .build();
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType())).isEmpty();
+        }
+
+        @Test
+        void shouldPassValidation_whenWhitelistContainsWildcard() {
+            var config = ExportConfig.builder()
+                    .globalImageBuildDomainWhitelist(List.of("*"))
+                    .build();
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType())).isEmpty();
+        }
+
+        @Test
+        void shouldFailValidation_whenWhitelistContainsInvalidDomain() {
+            var config = ExportConfig.builder()
+                    .globalImageBuildDomainWhitelist(List.of("not a valid domain!!!"))
+                    .build();
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()))
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> assertThat(e.message()).contains("not a valid domain!!!"));
+        }
+
+        @Test
+        void shouldReportEachInvalidDomainSeparately() {
+            var config = ExportConfig.builder()
+                    .globalImageBuildDomainWhitelist(List.of("valid.com", "bad!", "also bad!!"))
+                    .build();
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors).filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()))
+                    .hasSize(2)
+                    .extracting(ImportValidationError::message)
+                    .anyMatch(m -> m.contains("bad!"))
+                    .anyMatch(m -> m.contains("also bad!!"));
+        }
+
+        @Test
+        void shouldFailValidation_whenWhitelistContainsNullDomain() {
+            var domains = new ArrayList<String>();
+            domains.add(null);
+            var config = ExportConfig.builder().globalImageBuildDomainWhitelist(domains).build();
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()))
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> assertThat(e.message()).contains("must not be null"));
+        }
     }
 
-    @Test
-    void shouldCollectAllViolations_whenMultipleEntitiesInvalid() {
-        var dep1 = buildMcpDeployment("BAD-1");
-        var dep2 = buildMcpDeployment("BAD-2");
-        var deployments = new LinkedHashMap<String, McpDeployment>();
-        deployments.put("BAD-1", dep1);
-        deployments.put("BAD-2", dep2);
-        validConfig.setMcpDeployments(deployments);
+    @Nested
+    class ValidateMethod {
 
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(dep1)).thenReturn(buildValidDeploymentDto("BAD-1"));
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(dep2)).thenReturn(buildValidDeploymentDto("BAD-2"));
+        @Test
+        void shouldThrowImportValidationException_withAllErrors() {
+            var config = configWithDeployment("INVALID", buildValidDeploymentDto("INVALID"));
 
-        var imgDef = buildMcpImageDefinition("valid-img");
-        validConfig.setMcpImageDefinitions(Map.of("valid-img", imgDef));
-        var imgDto = buildValidImageDefDto("valid-img");
-        imgDto.setVersion("bad");
-        when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(any())).thenReturn(imgDto);
+            assertThatThrownBy(() -> importConfigValidator.validate(config))
+                    .isInstanceOf(ImportValidationException.class)
+                    .satisfies(ex -> {
+                        var errors = ((ImportValidationException) ex).getErrors();
+                        assertThat(errors).isNotEmpty();
+                        assertThat(errors).allMatch(e -> "MCP_DEPLOYMENT".equals(e.entityType()));
+                    });
+        }
 
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors.size()).isGreaterThanOrEqualTo(3);
+        @Test
+        void shouldNotThrow_whenNoViolations() {
+            var config = configWithDeployment("valid-dep", buildValidDeploymentDto("valid-dep"));
+            assertThatCode(() -> importConfigValidator.validate(config)).doesNotThrowAnyException();
+        }
     }
 
-    @Test
-    void shouldThrowImportValidationException_whenValidateFails() {
-        var dep = buildMcpDeployment("INVALID");
-        validConfig.setMcpDeployments(Map.of("INVALID", dep));
-        when(deploymentDtoMapper.toCreateDeploymentRequestDto(any())).thenReturn(buildValidDeploymentDto("INVALID"));
+    // -- helpers --
 
-        assertThatThrownBy(() -> importConfigValidator.validate(validConfig))
-                .isInstanceOf(ImportValidationException.class)
-                .satisfies(ex -> {
-                    var errors = ((ImportValidationException) ex).getErrors();
-                    assertThat(errors).isNotEmpty();
-                });
+    private ExportConfig configWithDeployment(String id, CreateMcpDeploymentRequestDto dto) {
+        var dep = buildDomainDeployment(id);
+        when(deploymentDtoMapper.toCreateDeploymentRequestDto(dep)).thenReturn(dto);
+        var config = ExportConfig.builder().build();
+        config.setMcpDeployments(Map.of(id, dep));
+        return config;
     }
 
-    @Test
-    void shouldFailValidation_whenGlobalDomainWhitelistInvalid() {
-        validConfig.setGlobalImageBuildDomainWhitelist(List.of("not a valid domain!!!"));
-
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors).isNotEmpty();
-        assertThat(errors).anyMatch(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()));
+    private ExportConfig configWithImageDef(String name, McpImageDefinitionRequestDto dto) {
+        var imgDef = buildDomainImageDef(name);
+        when(imageDefinitionDtoMapper.toImageDefinitionRequestDto(imgDef)).thenReturn(dto);
+        var config = ExportConfig.builder().build();
+        config.setMcpImageDefinitions(Map.of(name, imgDef));
+        return config;
     }
 
-    @Test
-    void shouldPassValidation_whenGlobalDomainWhitelistValid() {
-        validConfig.setGlobalImageBuildDomainWhitelist(List.of("example.com", "sub.domain.org"));
-
-        var errors = importConfigValidator.collectErrors(validConfig);
-        assertThat(errors.stream().filter(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType())).toList()).isEmpty();
-    }
-
-    private McpDeployment buildMcpDeployment(String id) {
+    private McpDeployment buildDomainDeployment(String id) {
         var dep = new McpDeployment();
         dep.setId(id);
         dep.setDisplayName("Valid Display Name");
@@ -196,7 +414,7 @@ class ImportConfigValidatorTest {
         return dep;
     }
 
-    private McpImageDefinition buildMcpImageDefinition(String name) {
+    private McpImageDefinition buildDomainImageDef(String name) {
         var imgDef = new McpImageDefinition();
         imgDef.setName(name);
         imgDef.setVersion("1.0.0");
