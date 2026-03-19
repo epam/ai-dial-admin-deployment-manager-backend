@@ -1527,7 +1527,7 @@
                       }
                     },
                     "url": {
-                      "raw": "{{HOST}}/api/v1/configs/export-preview",
+                      "raw": "{{HOST}}/api/v1/configs/export/preview",
                       "host": [
                         "{{HOST}}"
                       ],
@@ -1535,7 +1535,8 @@
                         "api",
                         "v1",
                         "configs",
-                        "export-preview"
+                        "export",
+                        "preview"
                       ]
                     }
                   },
@@ -1565,6 +1566,44 @@
                         "v1",
                         "configs",
                         "export"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "import preview",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "uuid": "ef065c92-6627-4867-8878-c144fbd3ad87",
+                          "value": null
+                        }
+                      ]
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/configs/import/preview?resolutionPolicy=SKIP_IF_EXISTS",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "configs",
+                        "import",
+                        "preview"
+                      ],
+                      "query": [
+                        {
+                          "key": "resolutionPolicy",
+                          "value": "SKIP_IF_EXISTS"
+                        }
                       ]
                     }
                   },

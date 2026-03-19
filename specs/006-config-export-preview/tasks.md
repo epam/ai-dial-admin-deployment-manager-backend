@@ -36,10 +36,10 @@ fully-configured project. Phase 1 is intentionally minimal.
 
 ## Phase 3: User Story 1 — Preview Export Contents (Priority: P1) 🎯 MVP
 
-**Goal**: Expose `POST /api/v1/configs/export-preview` returning a structured `ExportConfigPreviewDto`
+**Goal**: Expose `POST /api/v1/configs/export/preview` returning a structured `ExportConfigPreviewDto`
 for the same selection criteria used by the existing export endpoint.
 
-**Independent Test**: `POST /api/v1/configs/export-preview` with `{"$type":"custom","addGlobalImageBuildDomainWhitelist":true,"components":[{"name":"<existing-deployment-name>","type":"MCP_DEPLOYMENT"}]}` returns HTTP 200 with the deployment in `deployments` and its image definition (if image-based) in `imageDefinitions`.
+**Independent Test**: `POST /api/v1/configs/export/preview` with `{"$type":"custom","addGlobalImageBuildDomainWhitelist":true,"components":[{"name":"<existing-deployment-name>","type":"MCP_DEPLOYMENT"}]}` returns HTTP 200 with the deployment in `deployments` and its image definition (if image-based) in `imageDefinitions`.
 
 ### Implementation
 
@@ -47,18 +47,18 @@ for the same selection criteria used by the existing export endpoint.
 
 - [x] T005 [US1] Add `@Transactional(readOnly = true) public ExportConfig getExportConfig(ExportRequest request)` to `src/main/java/com/epam/aidial/deployment/manager/service/config/ConfigTransferService.java`: cast to `SelectedItemsExportRequest`, delegate to `configExporter.getConfig(...)`, and return the result (same guard as the existing `exportConfig` method)
 
-- [x] T006 [US1] Add `POST /export-preview` endpoint to `src/main/java/com/epam/aidial/deployment/manager/web/controller/ConfigController.java`: method `previewConfig(@Valid @RequestBody ExportRequestDto dto)` returns `ExportConfigPreviewDto`; maps dto via `exportConfigMapper.toExportRequest(dto)`, calls `configTransfer.getExportConfig(request)`, maps result via `exportConfigMapper.toExportConfigPreviewDto(config)` (depends on T004, T005)
+- [x] T006 [US1] Add `POST /export/preview` endpoint to `src/main/java/com/epam/aidial/deployment/manager/web/controller/ConfigController.java`: method `previewConfig(@Valid @RequestBody ExportRequestDto dto)` returns `ExportConfigPreviewDto`; maps dto via `exportConfigMapper.toExportRequest(dto)`, calls `configTransfer.getExportConfig(request)`, maps result via `exportConfigMapper.toExportConfigPreviewDto(config)` (depends on T004, T005)
 
-**Checkpoint**: `./gradlew testFast` passes. `POST /api/v1/configs/export-preview` returns HTTP 200 with correct `ExportConfigPreviewDto` — User Story 1 is fully functional.
+**Checkpoint**: `./gradlew testFast` passes. `POST /api/v1/configs/export/preview` returns HTTP 200 with correct `ExportConfigPreviewDto` — User Story 1 is fully functional.
 
 ---
 
 ## Phase 4: User Story 2 — Preview Empty Selection (Priority: P2)
 
-**Goal**: `POST /api/v1/configs/export-preview` with an empty or absent `components` array returns
+**Goal**: `POST /api/v1/configs/export/preview` with an empty or absent `components` array returns
 HTTP 200 with `ExportConfigPreviewDto` containing empty lists for all fields.
 
-**Independent Test**: `POST /api/v1/configs/export-preview` with `{"$type":"custom","components":[]}` returns HTTP 200 with `{"globalImageBuildDomainWhitelist":[],"imageDefinitions":[],"deployments":[]}`.
+**Independent Test**: `POST /api/v1/configs/export/preview` with `{"$type":"custom","components":[]}` returns HTTP 200 with `{"globalImageBuildDomainWhitelist":[],"imageDefinitions":[],"deployments":[]}`.
 
 **No additional implementation required.** `ConfigExporter.getConfig()` already returns an empty
 `ExportConfig` when `components` is empty or null — the Phase 3 implementation handles this case
@@ -114,7 +114,7 @@ T001
 1. Complete Phase 1 (T001)
 2. Complete Phase 2 in parallel (T002, T003)
 3. Complete Phase 3 (T004, T005 in parallel → T006)
-4. **STOP and VALIDATE**: `POST /api/v1/configs/export-preview` works end-to-end
+4. **STOP and VALIDATE**: `POST /api/v1/configs/export/preview` works end-to-end
 5. Phase 4 is already covered; run Phase 5 checks
 
 ### Parallel Execution
