@@ -3,10 +3,13 @@ package com.epam.aidial.deployment.manager.registry.mcp.web.controller;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.registry.mcp.model.ServerListMetadata;
 import com.epam.aidial.deployment.manager.registry.mcp.service.McpRegistryService;
+import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerFilterDto;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerListResponseDto;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerResponseDto;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerVersionsRequestDto;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -33,20 +36,29 @@ public class McpRegistryController {
 
     private final McpRegistryService mcpRegistryService;
 
+    @Operation(summary = "List MCP servers with optional backend filtering")
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ServerListResponseDto getServers(
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false, defaultValue = "100") @Min(1) @Max(1000) Integer limit,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String updatedSince,
-            @RequestParam(required = false) String version
+            @RequestParam(required = false) String version,
+            @Parameter(description = "Remote transport types to filter by (OR logic). Values: sse, streamable-http")
+            @RequestParam(required = false) List<String> remoteTypes,
+            @Parameter(description = "Package registry types to filter by (OR logic). Values: npm, pypi, oci, nuget, mcpb")
+            @RequestParam(required = false) List<String> packageRegistryTypes,
+            @Parameter(description = "Filter by repository existence. true = only servers with repository, false = only without")
+            @RequestParam(required = false) Boolean repositoryExists
     ) {
+        var filter = buildFilter(remoteTypes, packageRegistryTypes, repositoryExists);
         var request = ServersRequestDto.builder()
                 .cursor(cursor)
                 .limit(limit)
                 .search(search)
                 .updatedSince(updatedSince)
                 .version(version)
+                .filter(filter)
                 .build();
         return mcpRegistryService.getServers(request);
     }
@@ -86,5 +98,18 @@ public class McpRegistryController {
                 .build();
         }
         return mcpRegistryService.getServerVersions(serverName);
+    }
+
+    private static ServerFilterDto buildFilter(List<String> remoteTypes,
+                                               List<String> packageRegistryTypes,
+                                               Boolean repositoryExists) {
+        if (remoteTypes == null && packageRegistryTypes == null && repositoryExists == null) {
+            return null;
+        }
+        return ServerFilterDto.builder()
+                .remoteTypes(remoteTypes)
+                .packageRegistryTypes(packageRegistryTypes)
+                .repositoryExists(repositoryExists)
+                .build();
     }
 }

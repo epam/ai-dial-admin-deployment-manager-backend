@@ -16,4 +16,9 @@ public class McpRegistryProperties {
      * Base URL of the MCP Registry API (e.g. https://registry.modelcontextprotocol.io).
      */
     private String baseUrl;
+
+    /**
+     * Maximum number of upstream pages to scan per filtered request.
+     */
+    private int maxPagesToScan;
 }

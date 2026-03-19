@@ -1,0 +1,75 @@
+{
+  "servers": [
+    {
+      "server": {
+        "name": "io.github.user/sse-npm-server",
+        "description": "Server with SSE remote and npm package",
+        "version": "1.0.0",
+        "remotes": [
+          { "type": "sse", "url": "https://example.com/sse" }
+        ],
+        "packages": [
+          {
+            "registryType": "npm",
+            "identifier": "@user/sse-npm-server",
+            "version": "1.0.0",
+            "transport": { "type": "stdio" }
+          }
+        ],
+        "repository": {
+          "url": "https://github.com/user/sse-npm-server",
+          "source": "github"
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "io.github.user/streamable-oci-server",
+        "description": "Server with streamable-http remote and OCI package",
+        "version": "2.0.0",
+        "remotes": [
+          { "type": "streamable-http", "url": "https://example.com/mcp" }
+        ],
+        "packages": [
+          {
+            "registryType": "oci",
+            "identifier": "ghcr.io/user/server:latest",
+            "version": "2.0.0",
+            "transport": { "type": "stdio" }
+          }
+        ],
+        "repository": null
+      }
+    },
+    {
+      "server": {
+        "name": "io.github.user/no-remote-pypi-server",
+        "description": "Server with no remotes and pypi package",
+        "version": "1.0.0",
+        "packages": [
+          {
+            "registryType": "pypi",
+            "identifier": "no-remote-server",
+            "version": "1.0.0",
+            "transport": { "type": "stdio" }
+          }
+        ],
+        "repository": {
+          "url": "https://github.com/user/no-remote-server",
+          "source": "github"
+        }
+      }
+    },
+    {
+      "server": {
+        "name": "io.github.user/bare-server",
+        "description": "Server with no remotes, no packages, no repository",
+        "version": "1.0.0"
+      }
+    }
+  ],
+  "metadata": {
+    "nextCursor": "io.github.user%2Fbare-server:1.0.0",
+    "count": 4
+  }
+}
