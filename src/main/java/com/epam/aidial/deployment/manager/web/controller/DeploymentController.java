@@ -18,6 +18,7 @@ import com.epam.aidial.deployment.manager.web.dto.PodInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapper;
+import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,7 @@ public class DeploymentController {
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found by ID: %s".formatted(id)));
     }
 
+    @FullAdminOnly
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public DeploymentDto createDeployment(@RequestBody @Valid CreateDeploymentRequestDto requestDto) {
@@ -89,6 +91,7 @@ public class DeploymentController {
         return dtoMapper.toDeploymentDto(created);
     }
 
+    @FullAdminOnly
     @PostMapping(path = "/duplicate", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public DeploymentDto duplicateDeployment(@RequestBody @Valid DuplicateDeploymentRequestDto requestDto) {
@@ -100,6 +103,7 @@ public class DeploymentController {
         return dtoMapper.toDeploymentDto(duplicated);
     }
 
+    @FullAdminOnly
     @PostMapping(path = "/change-image",
             consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
@@ -110,6 +114,7 @@ public class DeploymentController {
         );
     }
 
+    @FullAdminOnly
     @PutMapping(path = "/{id}",
             consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.OK)
@@ -120,12 +125,14 @@ public class DeploymentController {
         return dtoMapper.toDeploymentDto(updated);
     }
 
+    @FullAdminOnly
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteDeployment(@PathVariable String id) {
         deploymentService.deleteDeployment(id);
     }
 
+    @FullAdminOnly
     @PostMapping(path = "{id}/deploy",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public DeploymentDto deploy(@PathVariable("id") String id) {
@@ -133,6 +140,7 @@ public class DeploymentController {
         return dtoMapper.toDeploymentDto(deployment);
     }
 
+    @FullAdminOnly
     @PostMapping(path = "{id}/undeploy",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public DeploymentDto undeploy(@PathVariable("id") String id) {

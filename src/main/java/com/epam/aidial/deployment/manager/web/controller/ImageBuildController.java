@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.web.dto.CreateBuildImageRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageBuildDetailsDto;
 import com.epam.aidial.deployment.manager.web.mapper.ImageBuildDetailsDtoMapper;
+import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class ImageBuildController {
     private final ImageBuildRunner imageBuildRunner;
     private final ImageBuildDetailsDtoMapper dtoMapper;
 
+    @FullAdminOnly
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public void buildImage(@RequestBody @Valid CreateBuildImageRequestDto requestDto) {

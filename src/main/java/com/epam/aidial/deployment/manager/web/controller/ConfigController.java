@@ -12,6 +12,7 @@ import com.epam.aidial.deployment.manager.web.dto.config.ExportRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ImportConfigPreviewDto;
 import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImportConfigDtoMapper;
+import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -66,6 +67,7 @@ public class ConfigController {
         return importConfigDtoMapper.toImportConfigPreviewDto(preview);
     }
 
+    @FullAdminOnly
     @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public void importConfig(@RequestPart("file") MultipartFile file,
                              @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy) {

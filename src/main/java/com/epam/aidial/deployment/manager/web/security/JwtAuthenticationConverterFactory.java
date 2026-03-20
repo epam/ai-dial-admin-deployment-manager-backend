@@ -11,7 +11,6 @@ public class JwtAuthenticationConverterFactory {
     private final IdentityProviderUtils identityProviderUtils;
     private final Map<String, JwtAuthenticationConverter> convertersByIssuer;
 
-
     public JwtAuthenticationConverterFactory(List<JwtProviderConfig> providers,
                                              IdentityProviderUtils identityProviderUtils) {
         this.identityProviderUtils = identityProviderUtils;
@@ -34,11 +33,15 @@ public class JwtAuthenticationConverterFactory {
         grantedAuthoritiesConverter.setAuthoritiesPaths(authoritiesPaths);
         grantedAuthoritiesConverter.setAuthorityPrefix("");
 
+        var grantedAuthoritiesTransformer = new UserRolesResolver(
+                identityProviderUtils.getRolesMapping(config.getAllowedRoles(), config.getRolesMapping())
+        );
+
         return new JwtAuthenticationConverter(
                 grantedAuthoritiesConverter,
+                grantedAuthoritiesTransformer,
                 identityProviderUtils.getPrincipalClaim(config.getPrincipalClaim()),
                 identityProviderUtils.getEmailClaims(config.getEmailClaims()),
-                identityProviderUtils.getAllowedRoles(config.getAllowedRoles()),
                 identityProviderUtils.isEmailRequired()
         );
     }

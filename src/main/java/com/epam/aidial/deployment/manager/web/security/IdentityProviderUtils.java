@@ -1,6 +1,9 @@
 package com.epam.aidial.deployment.manager.web.security;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -13,6 +16,7 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -24,17 +28,31 @@ public class IdentityProviderUtils {
     private static final String V1_ISSUER_FORMAT = "https://%s/%s/";
     private static final String V2_ISSUER_FORMAT = "https://%s/%s/v2.0";
 
+    private final RolesMappingResolver rolesMappingResolver;
+
     private final Set<String> defaultAllowedRoles;
+    private final Map<String, Set<UserRole>> defaultRolesMapping;
     private final String defaultEmailClaim;
     private final String defaultPrincipalClaim;
     private final boolean requireEmail;
 
     public IdentityProviderUtils(
+            RolesMappingResolver rolesMappingResolver,
+            ObjectMapper objectMapper,
             @Value("${config.rest.security.default.allowedRoles}") Set<String> defaultAllowedRoles,
+            @Value("${config.rest.security.default.roles-mapping}") String defaultRolesMapping,
             @Value("${config.rest.security.default.email-claim}") String defaultEmailClaim,
             @Value("${config.rest.security.default.principal-claim}") String defaultPrincipalClaim,
             @Value("${config.rest.security.require-email}") boolean requireEmail) {
-        this.defaultAllowedRoles = Set.copyOf(defaultAllowedRoles);
+        this.rolesMappingResolver = rolesMappingResolver;
+        this.defaultAllowedRoles = defaultAllowedRoles;
+        try {
+            this.defaultRolesMapping = defaultRolesMapping != null
+                    ? objectMapper.readValue(defaultRolesMapping, new TypeReference<>() {})
+                    : Map.of();
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Invalid JSON in config.rest.security.default.roles-mapping", e);
+        }
         this.defaultEmailClaim = defaultEmailClaim;
         this.defaultPrincipalClaim = defaultPrincipalClaim;
         this.requireEmail = requireEmail;
@@ -70,12 +88,8 @@ public class IdentityProviderUtils {
         }
     }
 
-    public Set<String> getAllowedRoles(Set<String> allowedRoles) {
-        Set<String> acceptedRoles = new HashSet<>(defaultAllowedRoles);
-        if (allowedRoles != null) {
-            acceptedRoles.addAll(allowedRoles);
-        }
-        return Set.copyOf(acceptedRoles);
+    public Map<String, Set<UserRole>> getRolesMapping(Set<String> providerAllowedRoles, Map<String, Set<UserRole>> providerRolesMapping) {
+        return rolesMappingResolver.resolve(defaultAllowedRoles, defaultRolesMapping, providerAllowedRoles, providerRolesMapping);
     }
 
     public Set<String> getEmailClaims(List<String> emailClaims) {

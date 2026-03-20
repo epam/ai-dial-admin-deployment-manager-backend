@@ -1673,6 +1673,30 @@
               "response": []
             },
             {
+              "name": "security info",
+              "protocolProfileBehavior": {
+                "followRedirects": true,
+                "disableUrlEncoding": false,
+                "disableCookies": false
+              },
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{HOST}}/api/v1/security-info",
+                  "host": [
+                    "{{HOST}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "security-info"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
               "name": "api docs",
               "protocolProfileBehavior": {
                 "followRedirects": true,
