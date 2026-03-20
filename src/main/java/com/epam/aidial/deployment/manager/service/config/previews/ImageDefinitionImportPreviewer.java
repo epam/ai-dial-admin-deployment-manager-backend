@@ -1,12 +1,9 @@
 package com.epam.aidial.deployment.manager.service.config.previews;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageType;
-import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
-import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.model.config.ImportAction;
 import com.epam.aidial.deployment.manager.model.config.ImportComponent;
@@ -66,7 +63,7 @@ public class ImageDefinitionImportPreviewer {
     private <T extends ImageDefinition> ImportComponent<T> previewOne(T imported, ConflictResolutionPolicy policy) {
         String name = imported.getName();
         String version = imported.getVersion();
-        ImageType type = imageTypeOf(imported);
+        ImageType type = ImageType.of(imported);
 
         Optional<ImageDefinition> existingOpt = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version);
 
@@ -82,12 +79,4 @@ public class ImageDefinitionImportPreviewer {
         };
     }
 
-    private static ImageType imageTypeOf(ImageDefinition def) {
-        return switch (def) {
-            case McpImageDefinition ignored -> ImageType.MCP;
-            case AdapterImageDefinition ignored -> ImageType.ADAPTER;
-            case InterceptorImageDefinition ignored -> ImageType.INTERCEPTOR;
-            default -> throw new IllegalArgumentException("Unsupported image definition type: " + def.getClass().getName());
-        };
-    }
 }

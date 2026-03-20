@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.service.config.imports;
 
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.McpTransport;
@@ -77,7 +78,7 @@ class DeploymentImporterTest {
         when(deploymentService.getDeployment(DEPLOYMENT_ID, false)).thenReturn(Optional.of(imported));
 
         assertThatThrownBy(() -> deploymentImporter.importDeployments(config, ConflictResolutionPolicy.FAIL_IF_EXISTS))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(EntityAlreadyExistsException.class)
                 .hasMessageContaining("already exists")
                 .hasMessageContaining(DEPLOYMENT_ID);
 

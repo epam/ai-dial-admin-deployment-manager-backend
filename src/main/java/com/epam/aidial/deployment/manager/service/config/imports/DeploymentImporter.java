@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.config.imports;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
@@ -45,7 +46,7 @@ public class DeploymentImporter {
 
         if (existing.isPresent()) {
             switch (policy) {
-                case FAIL_IF_EXISTS -> throw new IllegalStateException("Deployment already exists: " + id);
+                case FAIL_IF_EXISTS -> throw new EntityAlreadyExistsException("Deployment already exists: " + id);
                 case SKIP_IF_EXISTS -> log.debug("Skipping existing deployment: {}", id);
                 case OVERWRITE -> {
                     CreateDeployment createRequest = deploymentMapper.toCreateDeployment(imported);
