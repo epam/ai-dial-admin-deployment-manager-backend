@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.config.imports;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.configuration.export.ImageDefinitionExportMixIn;
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -98,7 +99,7 @@ class ImageDefinitionImporterTest {
                 .thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> imageDefinitionImporter.importImageDefinitions(config, ConflictResolutionPolicy.FAIL_IF_EXISTS))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(EntityAlreadyExistsException.class)
                 .hasMessageContaining("already exists")
                 .hasMessageContaining(NAME)
                 .hasMessageContaining(VERSION);
