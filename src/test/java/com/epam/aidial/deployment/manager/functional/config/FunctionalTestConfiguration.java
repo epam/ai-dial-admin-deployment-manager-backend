@@ -14,6 +14,8 @@ import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtract
 import com.google.common.util.concurrent.MoreExecutors;
 import io.fabric8.knative.client.KnativeClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -91,4 +93,8 @@ public class FunctionalTestConfiguration {
         return Mockito.mock(SecurityClaimsExtractor.class);
     }
 
+    @Bean
+    public Validator validator() {
+        return Validation.buildDefaultValidatorFactory().getValidator();
+    }
 }

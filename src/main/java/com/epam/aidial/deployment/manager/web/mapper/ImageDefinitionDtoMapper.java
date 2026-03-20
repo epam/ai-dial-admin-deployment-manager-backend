@@ -42,6 +42,11 @@ public interface ImageDefinitionDtoMapper {
     @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionDto.class)
     ImageDefinitionDto toImageDefinitionDto(ImageDefinition imageDefinition);
 
+    @SubclassMapping(source = McpImageDefinition.class, target = McpImageDefinitionRequestDto.class)
+    @SubclassMapping(source = AdapterImageDefinition.class, target = AdapterImageDefinitionRequestDto.class)
+    @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionRequestDto.class)
+    ImageDefinitionRequestDto toImageDefinitionRequestDto(ImageDefinition imageDefinition);
+
     @Mapping(source = "buildStatus", target = "status")
     BaseImageDetailsDto toBaseImageDetailsDto(ImageDefinition imageDefinition);
 

@@ -7,10 +7,8 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -22,8 +20,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ImageDefinitionImporter {
 
-    @Qualifier("exportJsonMapper")
-    private final JsonMapper exportJsonMapper;
     private final ImageDefinitionService imageDefinitionService;
 
     public void importImageDefinitions(ExportConfig config, ConflictResolutionPolicy policy) {
@@ -54,31 +50,15 @@ public class ImageDefinitionImporter {
                         "Image definition already exists: type=%s, name=%s, version=%s".formatted(type, name, version));
                 case SKIP_IF_EXISTS -> log.debug("Skipping existing image definition: type={}, name={}, version={}", type, name, version);
                 case OVERWRITE -> {
-                    ImageDefinition toUpdate = mergeForOverwrite(imported, existing.get());
-                    imageDefinitionService.updateImageDefinition(existing.get().getId(), toUpdate, true);
+                    imported.setAuthor(existing.get().getAuthor());
+                    imageDefinitionService.updateImageDefinition(existing.get().getId(), imported, true);
                     log.debug("Overwrote image definition: type={}, name={}, version={}", type, name, version);
                 }
                 default -> throw new IllegalArgumentException("Unknown conflict resolution policy '%s'".formatted(policy));
             }
         } else {
-            ImageDefinition toCreate = cloneImageDefinition(imported);
-            imageDefinitionService.createImageDefinition(toCreate);
+            imageDefinitionService.createImageDefinition(imported);
             log.debug("Created image definition: type={}, name={}, version={}", type, name, version);
-        }
-    }
-
-    private ImageDefinition mergeForOverwrite(ImageDefinition imported, ImageDefinition existing) {
-        ImageDefinition copy = cloneImageDefinition(imported);
-        copy.setAuthor(existing.getAuthor());
-        return copy;
-    }
-
-    private ImageDefinition cloneImageDefinition(ImageDefinition source) {
-        try {
-            Class<? extends ImageDefinition> clazz = source.getClass();
-            return exportJsonMapper.readValue(exportJsonMapper.writeValueAsBytes(source), clazz);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to clone image definition '%s' for import".formatted(source.getId()), e);
         }
     }
 }

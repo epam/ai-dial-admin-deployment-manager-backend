@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.config;
 
+import com.epam.aidial.deployment.manager.model.config.ImportValidationError;
 import com.epam.aidial.deployment.manager.web.dto.AdapterImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.InterceptorImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.McpImageDefinitionDto;
@@ -20,5 +21,6 @@ public record ImportConfigPreviewDto(
         List<ImportComponentDto<InterceptorDeploymentDto>> interceptorDeployments,
         List<ImportComponentDto<NimDeploymentDto>> nimDeployments,
         List<ImportComponentDto<InferenceDeploymentDto>> inferenceDeployments,
-        ImportComponentDto<List<String>> globalImageBuildDomainWhitelist
+        ImportComponentDto<List<String>> globalImageBuildDomainWhitelist,
+        List<ImportValidationError> validationErrors
 ) {}

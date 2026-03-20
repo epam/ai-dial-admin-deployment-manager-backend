@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.web.dto.config.ImportConfigPreviewDto;
 import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImportConfigDtoMapper;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
+import com.epam.aidial.deployment.manager.web.validation.ImportConfigValidator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -38,6 +39,7 @@ public class ConfigController {
     private final ConfigTransferService configTransfer;
     private final ExportConfigMapper exportConfigMapper;
     private final ImportConfigDtoMapper importConfigDtoMapper;
+    private final ImportConfigValidator importConfigValidator;
 
     @PostMapping(path = "/export/preview", consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public ExportConfigPreviewDto previewConfig(@Valid @RequestBody ExportRequestDto dto) {
@@ -63,7 +65,9 @@ public class ConfigController {
     @PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ImportConfigPreviewDto previewImport(@RequestPart("file") MultipartFile file,
                                                 @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy) {
-        ImportConfigPreview preview = configTransfer.getImportConfigPreview(file, resolutionPolicy);
+        ExportConfig config = configTransfer.parseAndSanitizeExportConfig(file);
+        ImportConfigPreview preview = configTransfer.getImportConfigPreview(config, resolutionPolicy);
+        preview.setValidationErrors(importConfigValidator.collectErrors(config));
         return importConfigDtoMapper.toImportConfigPreviewDto(preview);
     }
 
@@ -71,6 +75,8 @@ public class ConfigController {
     @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public void importConfig(@RequestPart("file") MultipartFile file,
                              @RequestParam("resolutionPolicy") ConflictResolutionPolicy resolutionPolicy) {
-        configTransfer.importConfig(file, resolutionPolicy);
+        ExportConfig config = configTransfer.parseAndSanitizeExportConfig(file);
+        importConfigValidator.validate(config);
+        configTransfer.importConfig(config, resolutionPolicy);
     }
 }

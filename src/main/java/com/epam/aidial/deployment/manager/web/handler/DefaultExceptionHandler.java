@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
+import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +28,7 @@ import org.springframework.web.context.request.async.AsyncRequestTimeoutExceptio
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
@@ -131,6 +133,17 @@ public class DefaultExceptionHandler {
                             .append("\n");
                 });
         return new ErrorView(req, HttpStatus.BAD_REQUEST, message.toString());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(ImportValidationException.class)
+    public ErrorView handleImportValidationException(HttpServletRequest req, ImportValidationException ex) {
+        logUncaught(ex);
+        String details = ex.getErrors().stream()
+                .map(error -> "[%s '%s'] Field [%s]: %s".formatted(
+                    error.entityType(), error.entityIdentifier(), error.fieldPath(), error.message()))
+                .collect(Collectors.joining("\n"));
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, "Import validation failed:\n" + details);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
