@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapper;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Component;
@@ -25,18 +26,12 @@ import java.util.Set;
 @Slf4j
 @Component
 @LogExecution
+@RequiredArgsConstructor
 public class ImportConfigValidator {
 
     private final Validator validator;
     private final DeploymentDtoMapper deploymentDtoMapper;
     private final ImageDefinitionDtoMapper imageDefinitionDtoMapper;
-
-    public ImportConfigValidator(Validator validator, DeploymentDtoMapper deploymentDtoMapper,
-                                 ImageDefinitionDtoMapper imageDefinitionDtoMapper) {
-        this.validator = validator;
-        this.deploymentDtoMapper = deploymentDtoMapper;
-        this.imageDefinitionDtoMapper = imageDefinitionDtoMapper;
-    }
 
     public void validate(ExportConfig config) {
         var errors = collectErrors(config);
