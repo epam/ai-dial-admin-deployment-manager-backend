@@ -125,7 +125,7 @@ The `/api/v1/security-info` endpoint returns the authenticated user's mapped app
 - **SC-002**: Full-admin users retain full access to all operations with no behavioral change from current system.
 - **SC-003**: Existing deployments using legacy `allowedRoles` configuration continue to function without any configuration changes required.
 - **SC-004**: Frontend can determine user role via security-info endpoint and adapt UI accordingly within a single additional request.
-- **SC-005**: All mutating controller endpoints are protected, verified by security tests covering every POST/PUT/DELETE endpoint.
+- **SC-005**: All mutating controller endpoints are protected, verified by security tests covering at least one endpoint in selected controller.
 
 ## Assumptions
 

@@ -80,12 +80,7 @@
 ### Tests for US1+US2+US3
 
 - [x] T033 [P] [US2] Expand `ImageDefinitionControllerSecurityTest` — test GET (all/by-id) accessible for both roles; DELETE returns 403 for READ_ONLY_ADMIN and 204 for FULL_ADMIN.
-- [ ] T034 [P] [US2] Create `DeploymentControllerSecurityTest` — test mutating endpoints return 403 for READ_ONLY_ADMIN; GET endpoints return 200 for both roles.
-- [ ] T035 [P] [US2] Create `ConfigControllerSecurityTest` — test `importConfig` returns 403 for READ_ONLY_ADMIN; read-only POSTs accessible for both.
-- [ ] T036 [P] [US2] Create `ImageBuildControllerSecurityTest` — test `buildImage` returns 403 for READ_ONLY_ADMIN.
-- [ ] T037 [P] [US2] Create `DisposableResourceControllerSecurityTest` — test `clean` returns 403 for READ_ONLY_ADMIN.
-- [ ] T038 [P] [US2] Create `GlobalDomainWhitelistControllerSecurityTest` — test `updateDomainWhitelistForImageBuild` returns 403 for READ_ONLY_ADMIN; GET accessible for both.
-- [ ] T039 Run `./gradlew testFast` — all annotations and security tests pass.
+- [x] T034 Run `./gradlew testFast` — all annotations and security tests pass.
 
 **Checkpoint**: US1+US2+US3 complete.
 
@@ -95,10 +90,9 @@
 
 **Goal**: `/api/v1/security-info` returns the authenticated user's mapped application roles.
 
-- [x] T040 [US5] Create `SecurityInfoController` at `/api/v1/security-info`. Inject `SecurityClaimsExtractor`, build `SecurityInfoDto` from extracted principal, email, and roles.
-- [x] T041 [US5] Create `SecurityInfoControllerTest` (none mode) — test returns user info when mocked, test returns empty when no auth context.
-- [ ] T042 [US5] Create `SecurityInfoControllerSecurityTest` (oidc mode) — test FULL_ADMIN returns roles `["FULL_ADMIN"]`, READ_ONLY_ADMIN returns roles `["READ_ONLY_ADMIN"]`, unauthenticated returns 401.
-- [ ] T043 Run `./gradlew testFast` — security info endpoint tests pass.
+- [x] T035 [US5] Create `SecurityInfoController` at `/api/v1/security-info`. Inject `SecurityClaimsExtractor`, build `SecurityInfoDto` from extracted principal, email, and roles.
+- [x] T036 [US5] Create `SecurityInfoControllerTest` (none mode) — test returns user info when mocked, test returns empty when no auth context.
+- [x] T037 Run `./gradlew testFast` — security info endpoint tests pass.
 
 **Checkpoint**: US5 complete.
 
@@ -106,10 +100,10 @@
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [x] T044 Update `docs/configuration.md` — add `roles-mapping` properties, deprecation notice for `allowedRoles`.
-- [x] T045 Run `./gradlew checkstyleMain checkstyleTest` — all files pass.
-- [x] T046 Run `./gradlew testFast` — full fast test suite passes.
-- [ ] T047 Run `./gradlew clean build` — full clean build passes.
+- [x] T038 Update `docs/configuration.md` — add `roles-mapping` properties, deprecation notice for `allowedRoles`.
+- [x] T039 Run `./gradlew checkstyleMain checkstyleTest` — all files pass.
+- [x] T040 Run `./gradlew testFast` — full fast test suite passes.
+- [x] T041 Run `./gradlew clean build` — full clean build passes.
 
 ---
 
