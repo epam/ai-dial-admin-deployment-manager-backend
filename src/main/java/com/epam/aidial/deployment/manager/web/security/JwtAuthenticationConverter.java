@@ -43,7 +43,9 @@ public class JwtAuthenticationConverter implements Converter<Jwt, AbstractAuthen
 
         if (userRoles.isEmpty()) {
             log.warn("Authorization failed - issuer: {}, authorities: {}, user roles: {}", issuer, authorities, userRoles);
-            return new JwtAuthenticationToken(jwt);
+            var unauthToken = new JwtAuthenticationToken(jwt);
+            unauthToken.setDetails(details);
+            return unauthToken;
         }
 
         JwtAuthenticationToken authToken = new JwtAuthenticationToken(jwt, userRoles, principalClaimValue);

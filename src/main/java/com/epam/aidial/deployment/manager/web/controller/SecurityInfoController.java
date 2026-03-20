@@ -20,13 +20,10 @@ public class SecurityInfoController {
 
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public SecurityInfoDto getSecurityInfo() {
-        UserInfoDto userInfoDto = UserInfoDto.builder()
-                .id(securityClaimsExtractor.getAuthor())
-                .email(securityClaimsExtractor.getEmail())
-                .roles(securityClaimsExtractor.getRoles())
-                .build();
-        return SecurityInfoDto.builder()
-                .userInfo(userInfoDto)
-                .build();
+        UserInfoDto userInfoDto = new UserInfoDto(
+                securityClaimsExtractor.getAuthor(),
+                securityClaimsExtractor.getEmail(),
+                securityClaimsExtractor.getRoles());
+        return new SecurityInfoDto(userInfoDto);
     }
 }

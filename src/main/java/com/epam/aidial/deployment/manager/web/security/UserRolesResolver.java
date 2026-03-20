@@ -35,10 +35,10 @@ public class UserRolesResolver {
 
         if (result.isEmpty()) {
             log.warn("Authorization failed - roles mapping: {}, granted authorities: {}", rolesMapping, grantedAuthorities);
+        } else {
+            log.trace("Authorization state - roles mapping: {}, granted authorities: {}, user roles: {}",
+                    rolesMapping, grantedAuthorities, result);
         }
-
-        log.trace("Authorization state - roles mapping: {}, granted authorities: {}, user roles: {}",
-                rolesMapping, grantedAuthorities, result);
 
         return result;
     }
