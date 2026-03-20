@@ -102,8 +102,16 @@
 - [X] T035 [US3] Add `case ApplicationImageDefinition a -> config.getApplicationImageDefinitions().put(key, a)` and `case ApplicationDeployment ignored -> config.getApplicationDeployments().put(key, (ApplicationDeployment) sanitized)` switch cases to `ConfigExporter` in `src/main/java/com/epam/aidial/deployment/manager/service/config/ConfigExporter.java`
 - [X] T036 [US3] Add `importMap(config.getApplicationImageDefinitions(), policy)` call to `ImageDefinitionImporter.importImageDefinitions()` in `src/main/java/com/epam/aidial/deployment/manager/service/config/imports/ImageDefinitionImporter.java`
 - [X] T037 [US3] Add `importMap(config.getApplicationDeployments(), policy)` call to `DeploymentImporter.importDeployments()` in `src/main/java/com/epam/aidial/deployment/manager/service/config/imports/DeploymentImporter.java`
+- [X] T037a [US3] Add `APPLICATION_IMAGE_DEFINITION` and `APPLICATION_DEPLOYMENT` enum values to `ExportConfigComponentType` in `src/main/java/com/epam/aidial/deployment/manager/model/config/ExportConfigComponentType.java` and `ExportConfigComponentTypeDto` in `src/main/java/com/epam/aidial/deployment/manager/web/dto/config/ExportConfigComponentTypeDto.java`
+- [X] T037b [US3] Add `APPLICATION_IMAGE_DEFINITION` and `APPLICATION_DEPLOYMENT` to the selective export switch in `ConfigExporter.getConfig()` in `src/main/java/com/epam/aidial/deployment/manager/service/config/ConfigExporter.java`
+- [X] T037c [US3] Add Application streams to `ExportConfigMapper.toExportConfigPreviewDto()` for both image definitions and deployments in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ExportConfigMapper.java`
+- [X] T037d [US3] Add `applicationImageDefinitions` and `applicationDeployments` fields to `ImportConfigPreview` in `src/main/java/com/epam/aidial/deployment/manager/model/config/ImportConfigPreview.java` and `ImportConfigPreviewDto` in `src/main/java/com/epam/aidial/deployment/manager/web/dto/config/ImportConfigPreviewDto.java`
+- [X] T037e [US3] Add Application preview calls in `ImageDefinitionImportPreviewer` and `DeploymentImportPreviewer` in `src/main/java/com/epam/aidial/deployment/manager/service/config/previews/`
+- [X] T037f [US3] Add Application mapping entries in `ImportConfigDtoMapper.toImportConfigPreviewDto()` in `src/main/java/com/epam/aidial/deployment/manager/web/mapper/ImportConfigDtoMapper.java`
+- [X] T037g [US3] Add `validateImageDefinitions(config.getApplicationImageDefinitions(), ...)` and `validateDeployments(config.getApplicationDeployments(), ...)` calls to `ImportConfigValidator.collectErrors()` in `src/main/java/com/epam/aidial/deployment/manager/web/validation/ImportConfigValidator.java`
+- [X] T037h [US3] Update `ImportConfigPreviewDto` constructor calls in `ConfigControllerTest` test data in `src/test/java/com/epam/aidial/deployment/manager/web/controller/none/ConfigControllerTest.java`
 
-**Checkpoint**: Config export includes Application entities, import restores them. Run `./gradlew testFast` to verify.
+**Checkpoint**: Config export includes Application entities, import previews show them, import validation covers them, selective export handles them. Run `./gradlew testFast` to verify.
 
 ---
 

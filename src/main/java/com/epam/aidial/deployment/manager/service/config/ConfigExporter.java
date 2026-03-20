@@ -71,9 +71,11 @@ public class ConfigExporter {
                 continue;
             }
             switch (type) {
-                case MCP_IMAGE_DEFINITION, INTERCEPTOR_IMAGE_DEFINITION, ADAPTER_IMAGE_DEFINITION ->
+                case MCP_IMAGE_DEFINITION, INTERCEPTOR_IMAGE_DEFINITION, ADAPTER_IMAGE_DEFINITION,
+                        APPLICATION_IMAGE_DEFINITION ->
                         addImageDefinition(config, imageDefinitionService.getImageDefinition(UUID.fromString(name)));
-                case MCP_DEPLOYMENT, ADAPTER_DEPLOYMENT, INTERCEPTOR_DEPLOYMENT, NIM_DEPLOYMENT, INFERENCE_DEPLOYMENT ->
+                case MCP_DEPLOYMENT, ADAPTER_DEPLOYMENT, INTERCEPTOR_DEPLOYMENT, APPLICATION_DEPLOYMENT,
+                        NIM_DEPLOYMENT, INFERENCE_DEPLOYMENT ->
                         addDeployment(config, deploymentService.getDeployment(name, addSecrets), addSecrets);
                 default -> throw new IllegalArgumentException("Unsupported export component type: " + type);
             }

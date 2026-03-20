@@ -137,8 +137,8 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
     void previewImport_validFile_returns200WithPreviewAndEmptyValidationErrors() throws Exception {
         // Given
         var previewDto = new ImportConfigPreviewDto(
-                List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
                 null, List.of()
         );
 
@@ -165,8 +165,8 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
                 new ImportValidationError("MCP_IMAGE_DEFINITION", "bad-img", "version", "invalid version")
         );
         var previewDto = new ImportConfigPreviewDto(
-                List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
                 null, validationErrors
         );
 

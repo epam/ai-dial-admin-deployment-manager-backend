@@ -114,13 +114,32 @@ src/main/java/com/epam/aidial/deployment/manager/
 │   ├── deployment/
 │   │   ├── KnativeDeploymentManager.java          # MODIFY — add ApplicationDeployment to supported list
 │   │   └── DeploymentManagerProvider.java         # MODIFY — add switch case
+│   ├── ImageBuildRunner.java                      # MODIFY — add instanceof ApplicationImageDefinition
 │   └── config/
-│       ├── ConfigExporter.java                    # MODIFY — add switch cases
-│       └── imports/
-│           ├── DeploymentImporter.java            # MODIFY — add importMap call
-│           └── ImageDefinitionImporter.java       # MODIFY — add importMap call
+│       ├── ConfigExporter.java                    # MODIFY — add switch cases (addImageDef, addDeployment, getConfig)
+│       ├── imports/
+│       │   ├── DeploymentImporter.java            # MODIFY — add importMap call
+│       │   └── ImageDefinitionImporter.java       # MODIFY — add importMap call
+│       └── previews/
+│           ├── ImageDefinitionImportPreviewer.java # MODIFY — add Application preview
+│           └── DeploymentImportPreviewer.java     # MODIFY — add Application preview
+├── web/
+│   ├── dto/
+│   │   ├── internal/
+│   │   │   ├── ApplicationDeploymentInternalDto.java  # NEW — extends DeploymentInternalDto
+│   │   │   └── DeploymentInternalDto.java             # MODIFY — add @JsonSubTypes entry
+│   │   └── config/
+│   │       ├── ExportConfigComponentTypeDto.java       # MODIFY — add APPLICATION enum values
+│   │       └── ImportConfigPreviewDto.java             # MODIFY — add Application fields
+│   ├── mapper/
+│   │   ├── ExportConfigMapper.java                # MODIFY — add Application streams to preview
+│   │   └── ImportConfigDtoMapper.java             # MODIFY — add Application mapping entries
+│   └── validation/
+│       └── ImportConfigValidator.java             # MODIFY — add Application validation calls
 └── model/config/
-    └── ExportConfig.java                          # MODIFY — add application maps
+    ├── ExportConfig.java                          # MODIFY — add application maps
+    ├── ExportConfigComponentType.java             # MODIFY — add APPLICATION enum values
+    └── ImportConfigPreview.java                   # MODIFY — add Application preview fields
 
 src/main/resources/db/migration/
 ├── H2/V1.54__CreateApplicationTables.sql          # NEW

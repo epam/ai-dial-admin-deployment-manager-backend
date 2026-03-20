@@ -18,6 +18,8 @@ import java.util.stream.Stream;
 
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.ADAPTER_DEPLOYMENT;
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.ADAPTER_IMAGE_DEFINITION;
+import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.APPLICATION_DEPLOYMENT;
+import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.APPLICATION_IMAGE_DEFINITION;
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.INFERENCE_DEPLOYMENT;
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.INTERCEPTOR_DEPLOYMENT;
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.INTERCEPTOR_IMAGE_DEFINITION;
@@ -40,7 +42,9 @@ public abstract class ExportConfigMapper {
                 config.getAdapterImageDefinitions().values().stream()
                         .map(d -> toComponentInfoDto(d, ADAPTER_IMAGE_DEFINITION)),
                 config.getInterceptorImageDefinitions().values().stream()
-                        .map(d -> toComponentInfoDto(d, INTERCEPTOR_IMAGE_DEFINITION))
+                        .map(d -> toComponentInfoDto(d, INTERCEPTOR_IMAGE_DEFINITION)),
+                config.getApplicationImageDefinitions().values().stream()
+                        .map(d -> toComponentInfoDto(d, APPLICATION_IMAGE_DEFINITION))
         ).flatMap(s -> s).toList();
 
         var deployments = Stream.of(
@@ -50,6 +54,8 @@ public abstract class ExportConfigMapper {
                         .map(d -> toComponentInfoDto(d, ADAPTER_DEPLOYMENT)),
                 config.getInterceptorDeployments().values().stream()
                         .map(d -> toComponentInfoDto(d, INTERCEPTOR_DEPLOYMENT)),
+                config.getApplicationDeployments().values().stream()
+                        .map(d -> toComponentInfoDto(d, APPLICATION_DEPLOYMENT)),
                 config.getNimDeployments().values().stream()
                         .map(d -> toComponentInfoDto(d, NIM_DEPLOYMENT)),
                 config.getInferenceDeployments().values().stream()
