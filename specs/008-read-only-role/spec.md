@@ -94,6 +94,7 @@ The `/api/v1/security-info` endpoint returns the authenticated user's mapped app
 - What happens when the `roles-mapping` configuration contains an invalid/unknown application role name? The unknown role is ignored; only recognized roles (FULL_ADMIN, READ_ONLY_ADMIN) are mapped.
 - What happens when security mode is "none"? All endpoints are accessible without authentication; role enforcement does not apply. The security-info endpoint returns anonymous user info (`id: "anonymousUser"`, `roles: ["ROLE_ANONYMOUS"]`).
 - What happens when provider-specific and default role mappings partially overlap? Provider-specific mapping wins for overlapping keys; non-overlapping keys from default mapping are preserved (merge behavior).
+- What happens when security mode is "basic"? `BasicSecurityConfiguration` does NOT have the `@EnableMethodSecurity` annotation, so `@PreAuthorize` / `@FullAdminOnly` checks are not enforced. The reason is that in basic auth mode the user only provides a username and password with no mechanism to assign or derive roles, so every authenticated user is treated as a full admin.
 
 ## Requirements *(mandatory)*
 
@@ -136,3 +137,4 @@ The `/api/v1/security-info` endpoint returns the authenticated user's mapped app
 - The `roles-mapping` configuration follows the same JSON format as the reference implementation: `{"idpRole":["FULL_ADMIN"],"viewerRole":["READ_ONLY_ADMIN"]}`.
 - A `RolesMappingResolver` resolves the effective role mapping considering default and provider-specific configurations with the precedence rules defined in FR-004/FR-005.
 - A `UserRolesResolver` translates granted authorities (IdP roles) to application roles (UserRole) based on the resolved mapping, replacing the current pass-through role filtering.
+- `BasicSecurityConfiguration` (security mode `basic`) intentionally omits `@EnableMethodSecurity`. In basic auth mode there is no role information available (only username/password), so all authenticated users are treated as full admins. Role-based access control only applies to OAuth2/JWT/opaque-token security modes.
