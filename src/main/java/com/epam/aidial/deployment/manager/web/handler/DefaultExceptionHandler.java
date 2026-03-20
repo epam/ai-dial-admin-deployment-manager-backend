@@ -27,6 +27,7 @@ import org.springframework.web.context.request.async.AsyncRequestTimeoutExceptio
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
@@ -137,11 +138,11 @@ public class DefaultExceptionHandler {
     @ExceptionHandler(ImportValidationException.class)
     public ErrorView handleImportValidationException(HttpServletRequest req, ImportValidationException ex) {
         logUncaught(ex);
-        var message = new StringBuilder("Import validation failed:\n");
-        ex.getErrors().forEach(error ->
-                message.append("[%s '%s'] Field [%s]: %s\n".formatted(
-                        error.entityType(), error.entityIdentifier(), error.fieldPath(), error.message())));
-        return new ErrorView(req, HttpStatus.BAD_REQUEST, message.toString());
+        String details = ex.getErrors().stream()
+                .map(error -> "[%s '%s'] Field [%s]: %s".formatted(
+                    error.entityType(), error.entityIdentifier(), error.fieldPath(), error.message()))
+                .collect(Collectors.joining("\n"));
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, "Import validation failed:\n" + details);
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
