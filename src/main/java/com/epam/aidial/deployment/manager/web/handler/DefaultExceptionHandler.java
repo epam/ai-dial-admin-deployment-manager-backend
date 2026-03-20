@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.web.handler;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.DatabaseException;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
@@ -137,6 +138,13 @@ public class DefaultExceptionHandler {
     public ErrorView handleIllegalArgumentError(HttpServletRequest req, Exception ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(EntityAlreadyExistsException.class)
+    public ErrorView handleEntityAlreadyExistsException(HttpServletRequest req, EntityAlreadyExistsException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.CONFLICT, ex.getMessage());
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
