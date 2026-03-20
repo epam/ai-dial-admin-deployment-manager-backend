@@ -39,13 +39,15 @@ public class ConfigImporter {
     private static int countImageDefinitions(ExportConfig config) {
         return config.getMcpImageDefinitions().size()
                 + config.getAdapterImageDefinitions().size()
-                + config.getInterceptorImageDefinitions().size();
+                + config.getInterceptorImageDefinitions().size()
+                + config.getApplicationImageDefinitions().size();
     }
 
     private static int countDeployments(ExportConfig config) {
         return config.getMcpDeployments().size()
                 + config.getAdapterDeployments().size()
                 + config.getInterceptorDeployments().size()
+                + config.getApplicationDeployments().size()
                 + config.getNimDeployments().size()
                 + config.getInferenceDeployments().size();
     }
