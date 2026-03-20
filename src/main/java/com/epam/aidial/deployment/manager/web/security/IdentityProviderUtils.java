@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.web.security;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -36,7 +36,6 @@ public class IdentityProviderUtils {
     private final String defaultPrincipalClaim;
     private final boolean requireEmail;
 
-    @SneakyThrows
     public IdentityProviderUtils(
             RolesMappingResolver rolesMappingResolver,
             ObjectMapper objectMapper,
@@ -47,9 +46,13 @@ public class IdentityProviderUtils {
             @Value("${config.rest.security.require-email}") boolean requireEmail) {
         this.rolesMappingResolver = rolesMappingResolver;
         this.defaultAllowedRoles = defaultAllowedRoles;
-        this.defaultRolesMapping = defaultRolesMapping != null
-                ? objectMapper.readValue(defaultRolesMapping, new TypeReference<>() {})
-                : Map.of();
+        try {
+            this.defaultRolesMapping = defaultRolesMapping != null
+                    ? objectMapper.readValue(defaultRolesMapping, new TypeReference<>() {})
+                    : Map.of();
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Invalid JSON in config.rest.security.default.roles-mapping", e);
+        }
         this.defaultEmailClaim = defaultEmailClaim;
         this.defaultPrincipalClaim = defaultPrincipalClaim;
         this.requireEmail = requireEmail;
