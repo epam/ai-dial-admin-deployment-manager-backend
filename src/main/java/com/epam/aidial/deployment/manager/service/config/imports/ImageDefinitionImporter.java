@@ -1,12 +1,10 @@
 package com.epam.aidial.deployment.manager.service.config.imports;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageType;
-import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
-import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -46,13 +44,13 @@ public class ImageDefinitionImporter {
     private void importOne(ImageDefinition imported, ConflictResolutionPolicy policy) {
         String name = imported.getName();
         String version = imported.getVersion();
-        ImageType type = imageTypeOf(imported);
+        ImageType type = ImageType.of(imported);
 
         Optional<ImageDefinition> existing = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version);
 
         if (existing.isPresent()) {
             switch (policy) {
-                case FAIL_IF_EXISTS -> throw new IllegalStateException(
+                case FAIL_IF_EXISTS -> throw new EntityAlreadyExistsException(
                         "Image definition already exists: type=%s, name=%s, version=%s".formatted(type, name, version));
                 case SKIP_IF_EXISTS -> log.debug("Skipping existing image definition: type={}, name={}, version={}", type, name, version);
                 case OVERWRITE -> {
@@ -67,15 +65,6 @@ public class ImageDefinitionImporter {
             imageDefinitionService.createImageDefinition(toCreate);
             log.debug("Created image definition: type={}, name={}, version={}", type, name, version);
         }
-    }
-
-    private static ImageType imageTypeOf(ImageDefinition def) {
-        return switch (def) {
-            case McpImageDefinition ignored -> ImageType.MCP;
-            case AdapterImageDefinition ignored -> ImageType.ADAPTER;
-            case InterceptorImageDefinition ignored -> ImageType.INTERCEPTOR;
-            default -> throw new IllegalArgumentException("Unsupported image definition type: " + def.getClass().getName());
-        };
     }
 
     private ImageDefinition mergeForOverwrite(ImageDefinition imported, ImageDefinition existing) {

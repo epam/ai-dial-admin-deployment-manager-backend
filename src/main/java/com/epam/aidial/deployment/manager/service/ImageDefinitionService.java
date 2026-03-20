@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service;
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.ComponentRemoval;
 import com.epam.aidial.deployment.manager.model.ComponentType;
@@ -74,6 +75,16 @@ public class ImageDefinitionService {
 
     @Transactional
     public ImageDefinition createImageDefinition(ImageDefinition imageDefinition) {
+        var type = ImageType.of(imageDefinition);
+        var name = imageDefinition.getName();
+        var version = imageDefinition.getVersion();
+
+        imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
+                .ifPresent(existing -> {
+                    throw new EntityAlreadyExistsException(
+                            "Image definition already exists: type=%s, name=%s, version=%s".formatted(type, name, version));
+                });
+
         imageDefinition.setBuildStatus(ImageStatus.NOT_BUILT);
 
         // Set author information - use provided author or extract from security context

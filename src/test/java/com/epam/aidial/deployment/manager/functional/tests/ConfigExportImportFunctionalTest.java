@@ -3,7 +3,6 @@ package com.epam.aidial.deployment.manager.functional.tests;
 import com.epam.aidial.deployment.manager.configuration.ConfigExportProperties;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
-import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.ConflictResolutionPolicy;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
@@ -14,7 +13,6 @@ import com.epam.aidial.deployment.manager.model.ImageBuilder;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageSource;
 import com.epam.aidial.deployment.manager.model.ImageType;
-import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpRegistryRef;
 import com.epam.aidial.deployment.manager.model.McpTransport;
@@ -221,7 +219,7 @@ public abstract class ConfigExportImportFunctionalTest {
         var expectedImageDefs = buildExportImageDefinitions();
         for (var expected : expectedImageDefs) {
             var actual = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(
-                    imageTypeOf(expected), expected.getName(), expected.getVersion()).orElseThrow();
+                    ImageType.of(expected), expected.getName(), expected.getVersion()).orElseThrow();
             assertImageDefinitionEquals(actual, expected);
         }
 
@@ -470,15 +468,6 @@ public abstract class ConfigExportImportFunctionalTest {
         return buildExportDeployments().stream()
                 .map(deploymentMapper::toDeployment)
                 .toList();
-    }
-
-    private static ImageType imageTypeOf(ImageDefinition def) {
-        return switch (def) {
-            case McpImageDefinition ignored -> ImageType.MCP;
-            case AdapterImageDefinition ignored -> ImageType.ADAPTER;
-            case InterceptorImageDefinition ignored -> ImageType.INTERCEPTOR;
-            default -> throw new IllegalArgumentException("Unsupported: " + def.getClass().getName());
-        };
     }
 
     private static DeploymentMetadata mcpDeploymentMetadata() {
