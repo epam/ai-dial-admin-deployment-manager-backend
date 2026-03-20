@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.dao.entity.PersistenceSensitiveEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceSimpleEnvVar;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.AdapterDeploymentEntity;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.ApplicationDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
@@ -24,6 +25,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
@@ -51,6 +53,7 @@ public abstract class PersistenceDeploymentMapper {
     @Mapping(target = "metadata.envs.value", ignore = true)
     @SubclassMapping(source = McpDeploymentEntity.class, target = McpDeployment.class)
     @SubclassMapping(source = AdapterDeploymentEntity.class, target = AdapterDeployment.class)
+    @SubclassMapping(source = ApplicationDeploymentEntity.class, target = ApplicationDeployment.class)
     @SubclassMapping(source = InterceptorDeploymentEntity.class, target = InterceptorDeployment.class)
     @SubclassMapping(source = NimDeploymentEntity.class, target = NimDeployment.class)
     @SubclassMapping(source = InferenceDeploymentEntity.class, target = InferenceDeployment.class)
@@ -67,6 +70,7 @@ public abstract class PersistenceDeploymentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentEntity.class)
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentEntity.class)
+    @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentEntity.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentEntity.class)
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentEntity.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentEntity.class)

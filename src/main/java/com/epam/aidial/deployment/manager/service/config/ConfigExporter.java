@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.config;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -13,6 +14,7 @@ import com.epam.aidial.deployment.manager.model.config.ExportConfigComponent;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
@@ -102,6 +104,7 @@ public class ConfigExporter {
             case McpImageDefinition mcp -> config.getMcpImageDefinitions().put(key, mcp);
             case AdapterImageDefinition a -> config.getAdapterImageDefinitions().put(key, a);
             case InterceptorImageDefinition i -> config.getInterceptorImageDefinitions().put(key, i);
+            case ApplicationImageDefinition a -> config.getApplicationImageDefinitions().put(key, a);
             default -> throw new IllegalArgumentException("Unsupported image definition type: " + imageDef.getClass());
         }
     }
@@ -126,6 +129,7 @@ public class ConfigExporter {
             case InterceptorDeployment ignored -> config.getInterceptorDeployments().put(key, (InterceptorDeployment) sanitized);
             case NimDeployment ignored -> config.getNimDeployments().put(key, (NimDeployment) sanitized);
             case InferenceDeployment ignored -> config.getInferenceDeployments().put(key, (InferenceDeployment) sanitized);
+            case ApplicationDeployment ignored -> config.getApplicationDeployments().put(key, (ApplicationDeployment) sanitized);
             default -> throw new IllegalArgumentException("Unsupported deployment type: " + deployment.getClass());
         }
     }

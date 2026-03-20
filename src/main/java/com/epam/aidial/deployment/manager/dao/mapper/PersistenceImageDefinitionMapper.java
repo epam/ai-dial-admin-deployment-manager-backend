@@ -1,11 +1,13 @@
 package com.epam.aidial.deployment.manager.dao.mapper;
 
 import com.epam.aidial.deployment.manager.dao.entity.AdapterImageDefinitionEntity;
+import com.epam.aidial.deployment.manager.dao.entity.ApplicationImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.McpImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageStatus;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
@@ -26,6 +28,7 @@ public interface PersistenceImageDefinitionMapper {
     @SubclassMapping(source = AdapterImageDefinitionEntity.class, target = AdapterImageDefinition.class)
     @SubclassMapping(source = InterceptorImageDefinitionEntity.class, target = InterceptorImageDefinition.class)
     @SubclassMapping(source = McpImageDefinitionEntity.class, target = McpImageDefinition.class)
+    @SubclassMapping(source = ApplicationImageDefinitionEntity.class, target = ApplicationImageDefinition.class)
     ImageDefinition toImageDefinition(ImageDefinitionEntity entity);
 
     @Mapping(target = "createdAt", ignore = true)
@@ -34,6 +37,7 @@ public interface PersistenceImageDefinitionMapper {
     @SubclassMapping(source = AdapterImageDefinition.class, target = AdapterImageDefinitionEntity.class)
     @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionEntity.class)
     @SubclassMapping(source = McpImageDefinition.class, target = McpImageDefinitionEntity.class)
+    @SubclassMapping(source = ApplicationImageDefinition.class, target = ApplicationImageDefinitionEntity.class)
     ImageDefinitionEntity toImageDefinitionEntity(ImageDefinition domain);
 
     PersistenceImageStatus toImageStatusDto(ImageStatus imageStatus);
@@ -82,6 +86,8 @@ public interface PersistenceImageDefinitionMapper {
             return "ADAPTER";
         } else if (InterceptorImageDefinition.class.isAssignableFrom(entityClass)) {
             return "INTERCEPTOR";
+        } else if (ApplicationImageDefinition.class.isAssignableFrom(entityClass)) {
+            return "APPLICATION";
         }
         return null;
     }

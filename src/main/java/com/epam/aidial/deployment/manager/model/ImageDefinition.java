@@ -20,7 +20,8 @@ import java.util.UUID;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = McpImageDefinition.class, name = "mcp"),
         @JsonSubTypes.Type(value = AdapterImageDefinition.class, name = "adapter"),
-        @JsonSubTypes.Type(value = InterceptorImageDefinition.class, name = "interceptor")
+        @JsonSubTypes.Type(value = InterceptorImageDefinition.class, name = "interceptor"),
+        @JsonSubTypes.Type(value = ApplicationImageDefinition.class, name = "application")
 })
 public abstract class ImageDefinition {
     private UUID id;

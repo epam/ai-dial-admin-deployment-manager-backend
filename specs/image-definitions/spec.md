@@ -1,18 +1,18 @@
 # Image Definitions
 
 ## Purpose
-This spec describes the ImageDefinition entity — the configuration record for a container image that can be built and deployed. ImageDefinitions have three concrete subtypes (MCP, Interceptor, Adapter), each with its own spec.
+This spec describes the ImageDefinition entity — the configuration record for a container image that can be built and deployed. ImageDefinitions have four concrete subtypes (MCP, Interceptor, Adapter, Application), each with its own spec.
 
 Status: **Implemented**
 
 ## Key Terms
 - **ImageDefinition**: A persistent record that defines a container image — its source, version, metadata, and build configuration. Identified by a UUID.
 - **Image source**: Either a pre-built Docker image reference (`DockerImageSourceDto`) or a Git repository with a Dockerfile (`GitDockerfileImageSourceDto`).
-- **`$type` discriminator**: The Jackson polymorphism field (`"mcp"` | `"adapter"` | `"interceptor"`) that determines which subtype is created or returned.
+- **`$type` discriminator**: The Jackson polymorphism field (`"mcp"` | `"adapter"` | `"interceptor"` | `"application"`) that determines which subtype is created or returned.
 - **Build status**: The latest build outcome for a given image definition version (`buildStatus` field).
 - **Semantic version**: The `version` field must follow semantic versioning (e.g., `1.0.0`).
 - **Grouped view**: An `ImageDefinitionViewDto` that groups all versions of the same image definition name under a single entry, with a `selectedId` and an `availableVersions` list.
-- **ImageType**: Domain enum with values MCP, ADAPTER, INTERCEPTOR — there are no NIM or INFERENCE image definition subtypes.
+- **ImageType**: Domain enum with values MCP, ADAPTER, INTERCEPTOR, APPLICATION — there are no NIM or INFERENCE image definition subtypes.
 
 ## Base Fields
 
@@ -151,11 +151,11 @@ Status: **Implemented**
 - JPA repository: `com.epam.aidial.deployment.manager.dao.jpa.ImageDefinitionJpaRepository`
 - Domain repository: `com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository`
 - Domain model (abstract): `com.epam.aidial.deployment.manager.model.ImageDefinition`
-- Domain type enum: `com.epam.aidial.deployment.manager.model.ImageType` (MCP, ADAPTER, INTERCEPTOR)
+- Domain type enum: `com.epam.aidial.deployment.manager.model.ImageType` (MCP, ADAPTER, INTERCEPTOR, APPLICATION)
 - Base response DTO (abstract): `com.epam.aidial.deployment.manager.web.dto.ImageDefinitionDto`
 - Base request DTO (abstract): `com.epam.aidial.deployment.manager.web.dto.ImageDefinitionRequestDto`
-- Subtype response DTOs: `com.epam.aidial.deployment.manager.web.dto.McpImageDefinitionDto`, `AdapterImageDefinitionDto`, `InterceptorImageDefinitionDto`
-- Subtype request DTOs: `com.epam.aidial.deployment.manager.web.dto.McpImageDefinitionRequestDto`, `AdapterImageDefinitionRequestDto`, `InterceptorImageDefinitionRequestDto`
+- Subtype response DTOs: `com.epam.aidial.deployment.manager.web.dto.McpImageDefinitionDto`, `AdapterImageDefinitionDto`, `InterceptorImageDefinitionDto`, `ApplicationImageDefinitionDto`
+- Subtype request DTOs: `com.epam.aidial.deployment.manager.web.dto.McpImageDefinitionRequestDto`, `AdapterImageDefinitionRequestDto`, `InterceptorImageDefinitionRequestDto`, `ApplicationImageDefinitionRequestDto`
 - Image source DTOs: `DockerImageSourceDto`, `GitDockerfileImageSourceDto`
 - Grouped view DTO: `com.epam.aidial.deployment.manager.web.dto.ImageDefinitionViewDto` (name, selectedId, availableVersions)
 - Grouped view element DTO: `com.epam.aidial.deployment.manager.web.dto.ImageDefinitionViewElementDto` (id, version, status, description, topics)

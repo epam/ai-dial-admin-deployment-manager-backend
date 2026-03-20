@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageType;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.AdapterDeploymentEntity;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.ApplicationDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
@@ -81,6 +82,7 @@ public class DeploymentRepository {
         return switch (type) {
             case MCP -> McpDeploymentEntity.class;
             case ADAPTER -> AdapterDeploymentEntity.class;
+            case APPLICATION -> ApplicationDeploymentEntity.class;
             case INTERCEPTOR -> InterceptorDeploymentEntity.class;
             case NIM -> NimDeploymentEntity.class;
             case INFERENCE -> InferenceDeploymentEntity.class;

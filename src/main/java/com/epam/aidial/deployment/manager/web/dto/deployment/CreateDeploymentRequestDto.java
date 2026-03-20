@@ -30,6 +30,7 @@ import java.util.List;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = CreateMcpDeploymentRequestDto.class, name = "mcp"),
         @JsonSubTypes.Type(value = CreateAdapterDeploymentRequestDto.class, name = "adapter"),
+        @JsonSubTypes.Type(value = CreateApplicationDeploymentRequestDto.class, name = "application"),
         @JsonSubTypes.Type(value = CreateInterceptorDeploymentRequestDto.class, name = "interceptor"),
         @JsonSubTypes.Type(value = CreateNimDeploymentRequestDto.class, name = "nim"),
         @JsonSubTypes.Type(value = CreateInferenceDeploymentRequestDto.class, name = "inference"),

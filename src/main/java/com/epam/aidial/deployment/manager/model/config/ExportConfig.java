@@ -1,9 +1,11 @@
 package com.epam.aidial.deployment.manager.model.config;
 
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -36,6 +38,8 @@ public class ExportConfig {
     private Map<String, AdapterImageDefinition> adapterImageDefinitions = new LinkedHashMap<>();
     @Builder.Default
     private Map<String, InterceptorImageDefinition> interceptorImageDefinitions = new LinkedHashMap<>();
+    @Builder.Default
+    private Map<String, ApplicationImageDefinition> applicationImageDefinitions = new LinkedHashMap<>();
 
     @Builder.Default
     private List<String> globalImageBuildDomainWhitelist = new ArrayList<>();
@@ -44,6 +48,8 @@ public class ExportConfig {
     private Map<String, McpDeployment> mcpDeployments = new LinkedHashMap<>();
     @Builder.Default
     private Map<String, AdapterDeployment> adapterDeployments = new LinkedHashMap<>();
+    @Builder.Default
+    private Map<String, ApplicationDeployment> applicationDeployments = new LinkedHashMap<>();
     @Builder.Default
     private Map<String, InterceptorDeployment> interceptorDeployments = new LinkedHashMap<>();
     @Builder.Default

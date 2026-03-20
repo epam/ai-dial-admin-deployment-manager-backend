@@ -7,7 +7,7 @@ Status: **Implemented**
 
 ## Key Terms
 - **ExportConfig**: The root export structure. Contains maps of all exportable components keyed by name.
-- **ExportConfigComponentType**: The enum of exportable entity types: `MCP_IMAGE_DEFINITION`, `ADAPTER_IMAGE_DEFINITION`, `INTERCEPTOR_IMAGE_DEFINITION`, `MCP_DEPLOYMENT`, `ADAPTER_DEPLOYMENT`, `INTERCEPTOR_DEPLOYMENT`, `NIM_DEPLOYMENT`, `INFERENCE_DEPLOYMENT`.
+- **ExportConfigComponentType**: The enum of exportable entity types: `MCP_IMAGE_DEFINITION`, `ADAPTER_IMAGE_DEFINITION`, `INTERCEPTOR_IMAGE_DEFINITION`, `APPLICATION_IMAGE_DEFINITION`, `MCP_DEPLOYMENT`, `ADAPTER_DEPLOYMENT`, `INTERCEPTOR_DEPLOYMENT`, `APPLICATION_DEPLOYMENT`, `NIM_DEPLOYMENT`, `INFERENCE_DEPLOYMENT`.
 - **ConflictResolutionPolicy**: Controls what happens when an imported entity already exists: `OVERWRITE` (replace; for the global domain whitelist this means *merge* — existing entries are preserved and incoming entries are appended, deduplicated) or `SKIP_IF_EXISTS` (skip).
 - **ExportSanitizer**: Service that removes or masks sensitive environment variable values before export, ensuring exported ZIPs are safe to share or commit. System-managed deployment fields (`serviceName`, `url`, `status`, `author`, `createdAt`, `updatedAt`, `imageDefinitionId`) are also excluded via `DeploymentExportMixIn`.
 - **Import order**: Image definitions are always imported before deployments to satisfy foreign-key constraints; global domain whitelist follows.
@@ -25,7 +25,7 @@ Status: **Implemented**
 - **THEN** those components are serialized into the export bundle and returned as a ZIP file download
 
 #### Scenario: Export with auto-included image definition
-- **WHEN** an export request includes an image-based deployment (MCP, Adapter, Interceptor)
+- **WHEN** an export request includes an image-based deployment (MCP, Adapter, Interceptor, Application)
 - **THEN** the referenced image definition is automatically added to the bundle, even if not explicitly listed
 
 #### Scenario: Empty selection returns empty ZIP
@@ -63,12 +63,12 @@ Status: **Implemented**
 - **THEN** image definitions are imported first, ensuring foreign-key constraints are satisfied when deployments are imported
 
 ### Requirement: All major component types are exportable and importable
-The system SHALL support export and import of all five deployment types, all three image definition types, and the global domain whitelist.
+The system SHALL support export and import of all six deployment types, all four image definition types, and the global domain whitelist.
 
 Status: **Implemented**
 
 #### Scenario: Image-based deployment types
-- **WHEN** MCP, Adapter, or Interceptor deployments are included in an export/import
+- **WHEN** MCP, Adapter, Interceptor, or Application deployments are included in an export/import
 - **THEN** they are serialized/deserialized including their image definition reference and all configuration fields
 
 #### Scenario: Model-source deployment types

@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -50,7 +51,8 @@ public class ImageBuildRunner {
             return buildMcpImage(mcpImageDefinition);
 
         } else if (imageDefinition instanceof AdapterImageDefinition
-                || imageDefinition instanceof InterceptorImageDefinition) {
+                || imageDefinition instanceof InterceptorImageDefinition
+                || imageDefinition instanceof ApplicationImageDefinition) {
             var imageSource = imageDefinition.getSource();
             if (imageSource instanceof DockerImageSource) {
                 return startDockerImagePipeline(imageDefinition, imageCopyPipeline::run);

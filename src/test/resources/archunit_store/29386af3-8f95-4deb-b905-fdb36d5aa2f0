@@ -10,3 +10,4 @@ Static Initializer <com.epam.aidial.deployment.manager.dao.repository.Deployment
 Static Initializer <com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository$1.<clinit>()> gets field <com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto.INTERCEPTOR> in (DeploymentRepository.java:78)
 Static Initializer <com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository$1.<clinit>()> gets field <com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto.MCP> in (DeploymentRepository.java:78)
 Static Initializer <com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository$1.<clinit>()> gets field <com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto.NIM> in (DeploymentRepository.java:78)
+Static Initializer <com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository$1.<clinit>()> gets field <com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto.APPLICATION> in (DeploymentRepository.java:82)

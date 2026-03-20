@@ -378,6 +378,44 @@ public abstract class ImageDefinitionFunctionalTest {
     }
 
     @Test
+    public void shouldSuccessfullyCreateApplicationImageDefinition() {
+        // Given
+        ImageDefinition imageDef = FunctionalTestHelper.createApplicationImageDefinition();
+
+        // When
+        service.createImageDefinition(imageDef);
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, imageDefs.size());
+
+        ImageDefinition actualImageDef = imageDefs.getFirst();
+        imageDef.setId(actualImageDef.getId());
+        imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
+        Assertions.assertEquals(imageDef, actualImageDef);
+    }
+
+    @Test
+    public void shouldSuccessfullyCreateAndGetApplicationImageDefinitionByType() {
+        // Given
+        ImageDefinition applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
+        ImageDefinition interceptorImageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+
+        // When
+        service.createImageDefinition(applicationImageDef);
+        service.createImageDefinition(interceptorImageDef);
+        List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageType.APPLICATION).stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, imageDefs.size());
+
+        ImageDefinition actualImageDef = imageDefs.getFirst();
+        applicationImageDef.setId(actualImageDef.getId());
+        applicationImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
+        Assertions.assertEquals(applicationImageDef, actualImageDef);
+    }
+
+    @Test
     public void shouldGetAdapterImageDefinitionViewsByType() {
         // Given
         var adapterImageDef1 = FunctionalTestHelper.createAdapterImageDefinition();

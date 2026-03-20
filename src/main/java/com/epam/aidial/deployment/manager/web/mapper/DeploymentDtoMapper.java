@@ -10,7 +10,9 @@ import com.epam.aidial.deployment.manager.model.McpTransport;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
@@ -38,7 +40,9 @@ import com.epam.aidial.deployment.manager.web.dto.McpTransportDto;
 import com.epam.aidial.deployment.manager.web.dto.PodInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.AdapterDeploymentDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.ApplicationDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateAdapterDeploymentRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.CreateApplicationDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageBasedDeploymentRequestDto;
@@ -60,6 +64,7 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentNgcRegistrySourceDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.AdapterDeploymentInternalDto;
+import com.epam.aidial.deployment.manager.web.dto.internal.ApplicationDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.DeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.InferenceDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.InterceptorDeploymentInternalDto;
@@ -109,6 +114,7 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = CreateInterceptorDeploymentRequestDto.class, target = CreateInterceptorDeployment.class)
     @SubclassMapping(source = CreateNimDeploymentRequestDto.class, target = CreateNimDeployment.class)
     @SubclassMapping(source = CreateInferenceDeploymentRequestDto.class, target = CreateInferenceDeployment.class)
+    @SubclassMapping(source = CreateApplicationDeploymentRequestDto.class, target = CreateApplicationDeployment.class)
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
 
     @Mapping(target = "name", source = "id")
@@ -116,6 +122,7 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
     @SubclassMapping(source = McpDeployment.class, target = CreateMcpDeploymentRequestDto.class)
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeploymentRequestDto.class)
+    @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeploymentRequestDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = CreateInterceptorDeploymentRequestDto.class)
     @SubclassMapping(source = NimDeployment.class, target = CreateNimDeploymentRequestDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = CreateInferenceDeploymentRequestDto.class)
@@ -127,6 +134,7 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "source", ignore = true)
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentDto.class)
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentDto.class)
+    @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentDto.class)
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
@@ -135,6 +143,7 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentInternalDto.class)
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentInternalDto.class)
+    @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentInternalDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentInternalDto.class)
     @SubclassMapping(source = NimDeployment.class, target = NimDeploymentInternalDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentInternalDto.class)
@@ -299,6 +308,8 @@ public abstract class DeploymentDtoMapper {
             return DeploymentTypeDto.MCP;
         } else if (deployment instanceof AdapterDeployment) {
             return DeploymentTypeDto.ADAPTER;
+        } else if (deployment instanceof ApplicationDeployment) {
+            return DeploymentTypeDto.APPLICATION;
         } else if (deployment instanceof InterceptorDeployment) {
             return DeploymentTypeDto.INTERCEPTOR;
         } else if (deployment instanceof NimDeployment) {

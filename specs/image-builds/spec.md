@@ -73,7 +73,7 @@ Status: **Implemented**
 - **THEN** stored log lines are replayed and the connection closes after all logs and the final `status` event are delivered
 
 ### Requirement: Pipeline selection based on image definition type and source
-`ImageBuildRunner` SHALL select the correct pipeline automatically based on the image definition type (MCP, Adapter, Interceptor), its source type (GitDockerfile or DockerImage), and for MCP definitions, the transport type (REMOTE or LOCAL).
+`ImageBuildRunner` SHALL select the correct pipeline automatically based on the image definition type (MCP, Adapter, Interceptor, Application), its source type (GitDockerfile or DockerImage), and for MCP definitions, the transport type (REMOTE or LOCAL).
 
 Status: **Implemented**
 
@@ -89,8 +89,8 @@ Status: **Implemented**
 - **WHEN** build is triggered for an MCP image definition with `DockerImageSource` and transport type `REMOTE`
 - **THEN** `ImageCopyPipeline` is dispatched (copies the existing image into the managed registry via Skopeo)
 
-#### Scenario: Adapter or Interceptor image with Docker source
-- **WHEN** build is triggered for an Adapter or Interceptor image definition with `DockerImageSource`
+#### Scenario: Adapter, Interceptor, or Application image with Docker source
+- **WHEN** build is triggered for an Adapter, Interceptor, or Application image definition with `DockerImageSource`
 - **THEN** `ImageCopyPipeline` is dispatched
 
 ## Implementation Notes

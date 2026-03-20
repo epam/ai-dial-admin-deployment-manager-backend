@@ -4,4 +4,5 @@ public enum ImageTypeDto {
     MCP,
     ADAPTER,
     INTERCEPTOR,
+    APPLICATION,
 }

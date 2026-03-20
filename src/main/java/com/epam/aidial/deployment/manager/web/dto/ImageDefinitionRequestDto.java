@@ -25,6 +25,7 @@ import java.util.List;
         @JsonSubTypes.Type(value = McpImageDefinitionRequestDto.class, name = "mcp"),
         @JsonSubTypes.Type(value = AdapterImageDefinitionRequestDto.class, name = "adapter"),
         @JsonSubTypes.Type(value = InterceptorImageDefinitionRequestDto.class, name = "interceptor"),
+        @JsonSubTypes.Type(value = ApplicationImageDefinitionRequestDto.class, name = "application"),
 })
 @Data
 @NoArgsConstructor

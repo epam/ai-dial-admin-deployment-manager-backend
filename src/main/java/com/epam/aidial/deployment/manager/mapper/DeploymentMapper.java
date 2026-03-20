@@ -2,7 +2,9 @@ package com.epam.aidial.deployment.manager.mapper;
 
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
@@ -36,6 +38,7 @@ public abstract class DeploymentMapper {
     @Mapping(target = "status", constant = "NOT_DEPLOYED")
     @SubclassMapping(source = CreateMcpDeployment.class, target = McpDeployment.class)
     @SubclassMapping(source = CreateAdapterDeployment.class, target = AdapterDeployment.class)
+    @SubclassMapping(source = CreateApplicationDeployment.class, target = ApplicationDeployment.class)
     @SubclassMapping(source = CreateInterceptorDeployment.class, target = InterceptorDeployment.class)
     @SubclassMapping(source = CreateNimDeployment.class, target = NimDeployment.class)
     @SubclassMapping(source = CreateInferenceDeployment.class, target = InferenceDeployment.class)
@@ -52,6 +55,7 @@ public abstract class DeploymentMapper {
 
     @SubclassMapping(source = McpDeployment.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeployment.class)
+    @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeployment.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = CreateInterceptorDeployment.class)
     @SubclassMapping(source = NimDeployment.class, target = CreateNimDeployment.class)
     @SubclassMapping(source = InferenceDeployment.class, target = CreateInferenceDeployment.class)

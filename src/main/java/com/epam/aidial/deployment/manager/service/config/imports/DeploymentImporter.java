@@ -26,6 +26,7 @@ public class DeploymentImporter {
     public void importDeployments(ExportConfig config, ConflictResolutionPolicy policy) {
         importMap(config.getMcpDeployments(), policy);
         importMap(config.getAdapterDeployments(), policy);
+        importMap(config.getApplicationDeployments(), policy);
         importMap(config.getInterceptorDeployments(), policy);
         importMap(config.getNimDeployments(), policy);
         importMap(config.getInferenceDeployments(), policy);

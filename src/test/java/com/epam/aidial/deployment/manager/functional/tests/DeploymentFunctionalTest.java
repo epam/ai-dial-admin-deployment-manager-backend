@@ -171,6 +171,59 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
+    public void shouldSuccessfullyCreateApplicationDeployment() {
+        // Given - application image definition
+        var applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
+        var createdApplicationImageDef = imageDefinitionService.createImageDefinition(applicationImageDef);
+        imageDefinitionService.updateBuildStatus(createdApplicationImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+
+        var createDeployment = FunctionalTestHelper.createApplicationDeploymentRequest(createdApplicationImageDef.getId());
+        var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
+
+        // When
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var deployments = deploymentService.getAllDeployments();
+
+        // Then
+        Assertions.assertEquals(1, deployments.size());
+        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
+        Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
+        Assertions.assertInstanceOf(InternalImageSource.class, deployment.getSource());
+        var applicationDeploymentSource = (InternalImageSource) deployment.getSource();
+        Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), applicationDeploymentSource.imageDefinitionId());
+        Assertions.assertEquals(applicationImageDef.getName(), applicationDeploymentSource.imageDefinitionName());
+        Assertions.assertEquals(applicationImageDef.getVersion(), applicationDeploymentSource.imageDefinitionVersion());
+        Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
+        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
+        assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
+        Assertions.assertNotNull(deployment.getId());
+        Assertions.assertNull(deployment.getServiceName());
+    }
+
+    @Test
+    public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsApplication() {
+        // Given
+        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        createMcpDeployment.setDisplayName("mcp-deployment");
+        deploymentService.createDeployment(createMcpDeployment);
+
+        var applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
+        var createdApplicationImageDef = imageDefinitionService.createImageDefinition(applicationImageDef);
+        imageDefinitionService.updateBuildStatus(createdApplicationImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        var createApplicationDeployment = FunctionalTestHelper.createApplicationDeploymentRequest(createdApplicationImageDef.getId());
+        createApplicationDeployment.setDisplayName("application-deployment");
+        var applicationDeployment = deploymentService.createDeployment(createApplicationDeployment);
+
+        // When
+        var applicationDeployments = deploymentService.getAllDeploymentsByType(List.of(DeploymentTypeDto.APPLICATION)).stream().toList();
+
+        // Then
+        Assertions.assertEquals(1, applicationDeployments.size());
+        Assertions.assertEquals(applicationDeployment.getId(), applicationDeployments.getFirst().getId());
+        Assertions.assertEquals("application-deployment", applicationDeployments.getFirst().getDisplayName());
+    }
+
+    @Test
     public void shouldExtractAuthorIfWasNotProvided() {
         // Given 1
         var extractedAuthor = "extracted-author";

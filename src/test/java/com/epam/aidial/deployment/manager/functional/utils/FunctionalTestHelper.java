@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.functional.utils;
 
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -20,6 +21,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
@@ -144,6 +146,21 @@ public class FunctionalTestHelper {
                 .build();
     }
 
+    public static ImageDefinition createApplicationImageDefinition() {
+        var source = new DockerImageSource("http://test-uri-application", List.of("entry-application"), null);
+        return ApplicationImageDefinition.builder()
+                .name("applicationImage")
+                .version("1.0.0")
+                .description("applicationDesc")
+                .license("applicationLicense")
+                .source(source)
+                .topics(getTopics())
+                .author("test-author")
+                .allowedDomains(List.of())
+                .imageBuilder(ImageBuilder.BUILDKIT_ROOTLESS)
+                .build();
+    }
+
     public static GitDockerfileImageSource createGitImageSource() {
         return GitDockerfileImageSource.builder()
                 .url("https://github.com/test/test-repo.git")
@@ -173,6 +190,19 @@ public class FunctionalTestHelper {
                 .source(new InternalImageSource(imageDefinitionId, null, null, null))
                 .displayName("test-adapter-deployment")
                 .description("Test adapter deployment description")
+                .resources(createResources())
+                .author("test-author")
+                .metadata(createMetadata())
+                .allowedDomains(List.of())
+                .build();
+    }
+
+    public static CreateDeployment createApplicationDeploymentRequest(UUID imageDefinitionId) {
+        return CreateApplicationDeployment.builder()
+                .id("application-test-deployment-1")
+                .source(new InternalImageSource(imageDefinitionId, null, null, null))
+                .displayName("test-application-deployment")
+                .description("Test application deployment description")
                 .resources(createResources())
                 .author("test-author")
                 .metadata(createMetadata())

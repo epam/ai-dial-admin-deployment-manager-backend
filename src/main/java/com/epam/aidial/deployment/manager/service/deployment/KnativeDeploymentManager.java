@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
@@ -79,7 +80,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
     @Override
     public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
-        return List.of(McpDeployment.class, InterceptorDeployment.class, AdapterDeployment.class);
+        return List.of(McpDeployment.class, InterceptorDeployment.class, AdapterDeployment.class, ApplicationDeployment.class);
     }
 
     @Override
@@ -87,11 +88,12 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         return deploymentRepository.getById(id).map(deployment -> {
             if (deployment instanceof McpDeployment
                     || deployment instanceof InterceptorDeployment
-                    || deployment instanceof AdapterDeployment) {
+                    || deployment instanceof AdapterDeployment
+                    || deployment instanceof ApplicationDeployment) {
                 return deployment;
             }
             throw new IllegalArgumentException(
-                    "Deployment type should be 'MCP', 'Interceptor' or 'Adapter' for Knative service deployment. Deployment: "
+                    "Deployment type should be 'MCP', 'Interceptor', 'Adapter' or 'Application' for Knative service deployment. Deployment: "
                             + deployment.getId());
         });
     }
