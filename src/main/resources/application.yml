@@ -449,15 +449,6 @@ otel:
     otlp:
       endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
-      traces:
-        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-        protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
-      metrics:
-        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-        protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
-      logs:
-        endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-        protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
   logs:
     exporter: ${OTEL_LOGS_EXPORTER:otlp}
   traces:
