@@ -48,6 +48,7 @@ public class ImageDefinitionImportPreviewer {
         preview.getMcpImageDefinitions().addAll(previewMap(config.getMcpImageDefinitions(), policy));
         preview.getAdapterImageDefinitions().addAll(previewMap(config.getAdapterImageDefinitions(), policy));
         preview.getInterceptorImageDefinitions().addAll(previewMap(config.getInterceptorImageDefinitions(), policy));
+        preview.getApplicationImageDefinitions().addAll(previewMap(config.getApplicationImageDefinitions(), policy));
     }
 
     private <T extends ImageDefinition> List<ImportComponent<T>> previewMap(Map<String, T> map, ConflictResolutionPolicy policy) {

@@ -53,6 +53,7 @@ public class DeploymentImportPreviewer {
         preview.getMcpDeployments().addAll(previewMap(config.getMcpDeployments(), policy));
         preview.getAdapterDeployments().addAll(previewMap(config.getAdapterDeployments(), policy));
         preview.getInterceptorDeployments().addAll(previewMap(config.getInterceptorDeployments(), policy));
+        preview.getApplicationDeployments().addAll(previewMap(config.getApplicationDeployments(), policy));
         preview.getNimDeployments().addAll(previewMap(config.getNimDeployments(), policy));
         preview.getInferenceDeployments().addAll(previewMap(config.getInferenceDeployments(), policy));
     }

@@ -9,7 +9,7 @@ Status: **Implemented**
 - **Deployment**: A persistent configuration record representing a deployed (or deployable) AI component in Kubernetes, identified by a UUID.
 - **`name`**: The stable, immutable string identifier for a deployment (2–36 chars, `^[a-z0-9-]+`). Used as the Kubernetes resource name and in API paths that reference a deployment by name. Separate from `displayName`.
 - **Source**: A polymorphic typed object (`$type` discriminator) representing where a deployment's container image or model comes from. All deployment types carry a `source` field. Four variants exist: `InternalImageSource` (`$type: "internal_image"` — references a managed image definition), `ImageReferenceSource` (`$type: "image_reference"` — direct Docker image URI), `HuggingFaceSource` (`$type: "huggingface"` — HuggingFace model), `NgcRegistrySource` (`$type: "ngc_registry"` — NVIDIA NGC image).
-- **Image-based deployment (Knative)**: A deployment type (MCP, Interceptor, Adapter) that runs on KNative. Accepts two source types: `internal_image` (referencing an image definition by ID or type+name+version triple) or `image_reference` (direct Docker image name, no image definition required).
+- **Image-based deployment (Knative)**: A deployment type (MCP, Interceptor, Adapter, Application) that runs on KNative. Accepts two source types: `internal_image` (referencing an image definition by ID or type+name+version triple) or `image_reference` (direct Docker image name, no image definition required).
 - **Model-source deployment**: A deployment type (Inference, NIM) that references a model source directly. Inference uses `HuggingFaceSource`; NIM uses `NgcRegistrySource`.
 - **Deploy / Undeploy**: Activating or deactivating the Kubernetes resources for a deployment, while preserving the configuration record.
 - **Reconciliation**: Process run at startup to align actual Kubernetes state with the desired state stored in the database.
@@ -76,7 +76,7 @@ The system SHALL create a new deployment of the specified subtype. New deploymen
 Status: **Implemented**
 
 #### Scenario: Create image-based deployment with internal_image source (by ID)
-- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER` and `source: { "$type": "internal_image", "imageDefinitionId": "<uuid>" }`
+- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER|APPLICATION` and `source: { "$type": "internal_image", "imageDefinitionId": "<uuid>" }`
 - **THEN** a new deployment is persisted in `NOT_DEPLOYED` status with the `internal_image` source; HTTP 201 is returned
 
 #### Scenario: Create image-based deployment with internal_image source (by type + name + version)
@@ -84,7 +84,7 @@ Status: **Implemented**
 - **THEN** the image definition is resolved by type + name + version and the deployment is persisted; HTTP 201 is returned
 
 #### Scenario: Create image-based deployment with image_reference source
-- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER` and `source: { "$type": "image_reference", "imageReference": "<docker-image>" }`
+- **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER|APPLICATION` and `source: { "$type": "image_reference", "imageReference": "<docker-image>" }`
 - **THEN** a new deployment is persisted in `NOT_DEPLOYED` status using the direct image reference (no image definition required); HTTP 201 is returned
 
 #### Scenario: Incomplete internal_image source rejected
@@ -336,7 +336,8 @@ DeploymentDto (abstract)
 ├── ImageBasedDeploymentDto (abstract) — adds source: DeploymentSourceDto (internal_image | image_reference)
 │   ├── McpDeploymentDto
 │   ├── InterceptorDeploymentDto
-│   └── AdapterDeploymentDto
+│   ├── AdapterDeploymentDto
+│   └── ApplicationDeploymentDto
 ├── InferenceDeploymentDto — source: InferenceDeploymentSourceDto (huggingface)
 └── NimDeploymentDto — source: NimDeploymentSourceDto (ngc_registry)
 ```
@@ -356,6 +357,7 @@ DeploymentEntity (@Inheritance JOINED) — source: PersistenceSource (JSON), ima
 ├── McpDeploymentEntity
 ├── InterceptorDeploymentEntity
 ├── AdapterDeploymentEntity
+├── ApplicationDeploymentEntity
 ├── InferenceDeploymentEntity
 └── NimDeploymentEntity
 ```

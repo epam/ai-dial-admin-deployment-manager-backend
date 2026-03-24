@@ -21,6 +21,7 @@ import java.util.UUID;
         @JsonSubTypes.Type(value = McpImageDefinitionDto.class, name = "mcp"),
         @JsonSubTypes.Type(value = AdapterImageDefinitionDto.class, name = "adapter"),
         @JsonSubTypes.Type(value = InterceptorImageDefinitionDto.class, name = "interceptor"),
+        @JsonSubTypes.Type(value = ApplicationImageDefinitionDto.class, name = "application"),
 })
 @Data
 @NoArgsConstructor

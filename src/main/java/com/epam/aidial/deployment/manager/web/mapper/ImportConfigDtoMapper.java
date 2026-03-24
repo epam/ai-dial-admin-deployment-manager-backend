@@ -4,12 +4,14 @@ import com.epam.aidial.deployment.manager.model.config.ImportAction;
 import com.epam.aidial.deployment.manager.model.config.ImportComponent;
 import com.epam.aidial.deployment.manager.model.config.ImportConfigPreview;
 import com.epam.aidial.deployment.manager.web.dto.AdapterImageDefinitionDto;
+import com.epam.aidial.deployment.manager.web.dto.ApplicationImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.InterceptorImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.McpImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ImportActionDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ImportComponentDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ImportConfigPreviewDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.AdapterDeploymentDto;
+import com.epam.aidial.deployment.manager.web.dto.deployment.ApplicationDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InterceptorDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
@@ -38,12 +40,16 @@ public abstract class ImportConfigDtoMapper {
                         def -> (AdapterImageDefinitionDto) imageDefinitionDtoMapper.toImageDefinitionDto(def)),
                 mapList(preview.getInterceptorImageDefinitions(),
                         def -> (InterceptorImageDefinitionDto) imageDefinitionDtoMapper.toImageDefinitionDto(def)),
+                mapList(preview.getApplicationImageDefinitions(),
+                        def -> (ApplicationImageDefinitionDto) imageDefinitionDtoMapper.toImageDefinitionDto(def)),
                 mapList(preview.getMcpDeployments(),
                         dep -> (McpDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getAdapterDeployments(),
                         dep -> (AdapterDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getInterceptorDeployments(),
                         dep -> (InterceptorDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
+                mapList(preview.getApplicationDeployments(),
+                        dep -> (ApplicationDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getNimDeployments(),
                         dep -> (NimDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getInferenceDeployments(),

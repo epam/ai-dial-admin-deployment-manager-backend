@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.dao.repository;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.AdapterImageDefinitionEntity;
+import com.epam.aidial.deployment.manager.dao.entity.ApplicationImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.McpImageDefinitionEntity;
@@ -166,6 +167,7 @@ public class ImageDefinitionRepository {
             case MCP -> McpImageDefinitionEntity.class;
             case ADAPTER -> AdapterImageDefinitionEntity.class;
             case INTERCEPTOR -> InterceptorImageDefinitionEntity.class;
+            case APPLICATION -> ApplicationImageDefinitionEntity.class;
         };
     }
 

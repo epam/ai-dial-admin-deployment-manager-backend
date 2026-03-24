@@ -1,11 +1,14 @@
 package com.epam.aidial.deployment.manager.web.mapper;
 
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.web.dto.AdapterImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.AdapterImageDefinitionRequestDto;
+import com.epam.aidial.deployment.manager.web.dto.ApplicationImageDefinitionDto;
+import com.epam.aidial.deployment.manager.web.dto.ApplicationImageDefinitionRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.BaseImageDetailsDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageDefinitionRequestDto;
@@ -35,16 +38,19 @@ public interface ImageDefinitionDtoMapper {
     @SubclassMapping(source = McpImageDefinitionRequestDto.class, target = McpImageDefinition.class)
     @SubclassMapping(source = AdapterImageDefinitionRequestDto.class, target = AdapterImageDefinition.class)
     @SubclassMapping(source = InterceptorImageDefinitionRequestDto.class, target = InterceptorImageDefinition.class)
+    @SubclassMapping(source = ApplicationImageDefinitionRequestDto.class, target = ApplicationImageDefinition.class)
     ImageDefinition toImageDefinition(ImageDefinitionRequestDto requestDto);
 
     @SubclassMapping(source = McpImageDefinition.class, target = McpImageDefinitionDto.class)
     @SubclassMapping(source = AdapterImageDefinition.class, target = AdapterImageDefinitionDto.class)
     @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionDto.class)
+    @SubclassMapping(source = ApplicationImageDefinition.class, target = ApplicationImageDefinitionDto.class)
     ImageDefinitionDto toImageDefinitionDto(ImageDefinition imageDefinition);
 
     @SubclassMapping(source = McpImageDefinition.class, target = McpImageDefinitionRequestDto.class)
     @SubclassMapping(source = AdapterImageDefinition.class, target = AdapterImageDefinitionRequestDto.class)
     @SubclassMapping(source = InterceptorImageDefinition.class, target = InterceptorImageDefinitionRequestDto.class)
+    @SubclassMapping(source = ApplicationImageDefinition.class, target = ApplicationImageDefinitionRequestDto.class)
     ImageDefinitionRequestDto toImageDefinitionRequestDto(ImageDefinition imageDefinition);
 
     @Mapping(source = "buildStatus", target = "status")

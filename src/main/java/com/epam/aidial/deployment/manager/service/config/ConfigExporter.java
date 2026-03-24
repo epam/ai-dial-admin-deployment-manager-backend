@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.config;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -13,6 +14,7 @@ import com.epam.aidial.deployment.manager.model.config.ExportConfigComponent;
 import com.epam.aidial.deployment.manager.model.config.ExportConfigComponentType;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
@@ -69,9 +71,11 @@ public class ConfigExporter {
                 continue;
             }
             switch (type) {
-                case MCP_IMAGE_DEFINITION, INTERCEPTOR_IMAGE_DEFINITION, ADAPTER_IMAGE_DEFINITION ->
+                case MCP_IMAGE_DEFINITION, INTERCEPTOR_IMAGE_DEFINITION, ADAPTER_IMAGE_DEFINITION,
+                        APPLICATION_IMAGE_DEFINITION ->
                         addImageDefinition(config, imageDefinitionService.getImageDefinition(UUID.fromString(name)));
-                case MCP_DEPLOYMENT, ADAPTER_DEPLOYMENT, INTERCEPTOR_DEPLOYMENT, NIM_DEPLOYMENT, INFERENCE_DEPLOYMENT ->
+                case MCP_DEPLOYMENT, ADAPTER_DEPLOYMENT, INTERCEPTOR_DEPLOYMENT, APPLICATION_DEPLOYMENT,
+                        NIM_DEPLOYMENT, INFERENCE_DEPLOYMENT ->
                         addDeployment(config, deploymentService.getDeployment(name, addSecrets), addSecrets);
                 default -> throw new IllegalArgumentException("Unsupported export component type: " + type);
             }
@@ -102,6 +106,7 @@ public class ConfigExporter {
             case McpImageDefinition mcp -> config.getMcpImageDefinitions().put(key, mcp);
             case AdapterImageDefinition a -> config.getAdapterImageDefinitions().put(key, a);
             case InterceptorImageDefinition i -> config.getInterceptorImageDefinitions().put(key, i);
+            case ApplicationImageDefinition a -> config.getApplicationImageDefinitions().put(key, a);
             default -> throw new IllegalArgumentException("Unsupported image definition type: " + imageDef.getClass());
         }
     }
@@ -126,6 +131,7 @@ public class ConfigExporter {
             case InterceptorDeployment ignored -> config.getInterceptorDeployments().put(key, (InterceptorDeployment) sanitized);
             case NimDeployment ignored -> config.getNimDeployments().put(key, (NimDeployment) sanitized);
             case InferenceDeployment ignored -> config.getInferenceDeployments().put(key, (InferenceDeployment) sanitized);
+            case ApplicationDeployment ignored -> config.getApplicationDeployments().put(key, (ApplicationDeployment) sanitized);
             default -> throw new IllegalArgumentException("Unsupported deployment type: " + deployment.getClass());
         }
     }

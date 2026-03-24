@@ -7,7 +7,7 @@ Status: **Implemented**
 
 ## Key Terms
 - **Manifest strategy**: The implementation responsible for generating Kubernetes resources for a specific deployment type (KNative, NIM, KServe).
-- **KNative Service**: A serverless Kubernetes workload managed by Knative, used for MCP, Interceptor, and Adapter deployments.
+- **KNative Service**: A serverless Kubernetes workload managed by Knative, used for MCP, Interceptor, Adapter, and Application deployments.
 - **KServe InferenceService**: A KServe CRD for model serving, used for Inference deployments.
 - **NIM resources**: NVIDIA-specific Kubernetes resources used for NIM deployments.
 - **Feature flag**: Spring property (`app.knative.enabled`, `app.nim.enabled`, `app.kserve.enabled`) that controls which backends are available.
@@ -18,7 +18,7 @@ Status: **Implemented**
 ## Requirements
 
 ### Requirement: KNative manifest generated for image-based deployments
-When KNative is enabled, the system SHALL generate a KNative Service manifest for MCP, Interceptor, and Adapter deployments. The manifest includes:
+When KNative is enabled, the system SHALL generate a KNative Service manifest for MCP, Interceptor, Adapter, and Application deployments. The manifest includes:
 
 - **Container**: image name, container port, resource limits/requests, startup probe (when `probeProperties.enabled`), custom `command`/`args` (when provided)
 - **Environment variables**: plain env vars set directly; sensitive env vars via Kubernetes Secret references (`SecretKeyRef`); file-based secrets via volume mounts (at configurable path, default: `/etc/secrets`)
@@ -30,7 +30,7 @@ When KNative is enabled, the system SHALL generate a KNative Service manifest fo
 Status: **Implemented**
 
 #### Scenario: KNative Service creation
-- **WHEN** a deploy operation is triggered for an MCP, Interceptor, or Adapter deployment with `app.knative.enabled=true`
+- **WHEN** a deploy operation is triggered for an MCP, Interceptor, Adapter, or Application deployment with `app.knative.enabled=true`
 - **THEN** a KNative Service resource is created with the container image, env vars, resource limits, and scaling parameters
 
 #### Scenario: Scaling annotations applied from Scaling config
@@ -137,7 +137,7 @@ Status: **Implemented**
 
 #### Scenario: Strategy routing
 - **WHEN** a deploy operation is triggered
-- **THEN** the strategy is selected: KNative for MCP/Interceptor/Adapter, KServe for Inference, NIM for NIM
+- **THEN** the strategy is selected: KNative for MCP/Interceptor/Adapter/Application, KServe for Inference, NIM for NIM
 
 ### Requirement: Environment variables injected into manifests
 The system SHALL inject plain and sensitive environment variables from the deployment configuration into generated Kubernetes manifests.
@@ -177,4 +177,4 @@ Status: **Implemented**
 - CRD definitions: `src/main/resources/kubernetes/crd/`
 - Fabric8 CRD code generator: runs at build time via `io.fabric8.java-generator` Gradle plugin
 - Feature flags: `app.knative.enabled`, `app.nim.enabled`, `app.kserve.enabled`
-- Related specs: `mcp-deployments`, `interceptor-deployments`, `adapter-deployments`, `inference-deployments`, `nim-deployments`
+- Related specs: `mcp-deployments`, `interceptor-deployments`, `adapter-deployments`, `application-deployments`, `inference-deployments`, `nim-deployments`

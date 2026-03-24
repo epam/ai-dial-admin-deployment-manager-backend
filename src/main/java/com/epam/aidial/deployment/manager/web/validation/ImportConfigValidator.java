@@ -44,12 +44,14 @@ public class ImportConfigValidator {
         var errors = new ArrayList<ImportValidationError>();
         validateDeployments(config.getMcpDeployments(), ExportConfigComponentType.MCP_DEPLOYMENT, errors);
         validateDeployments(config.getAdapterDeployments(), ExportConfigComponentType.ADAPTER_DEPLOYMENT, errors);
+        validateDeployments(config.getApplicationDeployments(), ExportConfigComponentType.APPLICATION_DEPLOYMENT, errors);
         validateDeployments(config.getInterceptorDeployments(), ExportConfigComponentType.INTERCEPTOR_DEPLOYMENT, errors);
         validateDeployments(config.getNimDeployments(), ExportConfigComponentType.NIM_DEPLOYMENT, errors);
         validateDeployments(config.getInferenceDeployments(), ExportConfigComponentType.INFERENCE_DEPLOYMENT, errors);
         validateImageDefinitions(config.getMcpImageDefinitions(), ExportConfigComponentType.MCP_IMAGE_DEFINITION, errors);
         validateImageDefinitions(config.getAdapterImageDefinitions(), ExportConfigComponentType.ADAPTER_IMAGE_DEFINITION, errors);
         validateImageDefinitions(config.getInterceptorImageDefinitions(), ExportConfigComponentType.INTERCEPTOR_IMAGE_DEFINITION, errors);
+        validateImageDefinitions(config.getApplicationImageDefinitions(), ExportConfigComponentType.APPLICATION_IMAGE_DEFINITION, errors);
         validateGlobalDomainWhitelist(config.getGlobalImageBuildDomainWhitelist(), errors);
         return errors;
     }

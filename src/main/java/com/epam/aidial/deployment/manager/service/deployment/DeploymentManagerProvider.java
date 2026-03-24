@@ -4,7 +4,9 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateAdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
@@ -44,6 +46,7 @@ public class DeploymentManagerProvider {
             case CreateMcpDeployment ignored -> McpDeployment.class;
             case CreateInterceptorDeployment ignored -> InterceptorDeployment.class;
             case CreateAdapterDeployment ignored -> AdapterDeployment.class;
+            case CreateApplicationDeployment ignored -> ApplicationDeployment.class;
             case CreateNimDeployment ignored -> NimDeployment.class;
             case CreateInferenceDeployment ignored -> InferenceDeployment.class;
             default -> throw new IllegalArgumentException("Deployment type is not supported: %s. Deployment displayName: %s"

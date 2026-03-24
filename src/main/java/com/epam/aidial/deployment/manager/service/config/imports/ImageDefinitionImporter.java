@@ -26,6 +26,7 @@ public class ImageDefinitionImporter {
         importMap(config.getMcpImageDefinitions(), policy);
         importMap(config.getAdapterImageDefinitions(), policy);
         importMap(config.getInterceptorImageDefinitions(), policy);
+        importMap(config.getApplicationImageDefinitions(), policy);
     }
 
     private void importMap(Map<String, ? extends ImageDefinition> map, ConflictResolutionPolicy policy) {

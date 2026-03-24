@@ -14,11 +14,13 @@ This directory contains one spec file per capability implemented in the AI DIAL 
 | [mcp-image-definitions](mcp-image-definitions/spec.md) | Implemented | MCP-specific image definition — adds `transportType` (LOCAL/REMOTE) field and validation |
 | [interceptor-image-definitions](interceptor-image-definitions/spec.md) | Implemented | Interceptor-specific image definition subtype — no additional fields beyond the base contract |
 | [adapter-image-definitions](adapter-image-definitions/spec.md) | Implemented | Adapter-specific image definition subtype — no additional fields beyond the base contract |
+| [application-image-definitions](application-image-definitions/spec.md) | Implemented | Application-specific image definition subtype — no additional fields beyond the base contract |
 | [image-builds](image-builds/spec.md) | Implemented | Image build pipeline — trigger builds, status lifecycle (NOT_BUILT → BUILDING → BUILT / BUILD_FAILED), log streaming via SSE |
 | [deployments](deployments/spec.md) | Implemented | Base deployment CRUD, lifecycle states, deploy/undeploy, duplicate, change-image, pod introspection, SSE event streaming, probe properties, startup reconciliation |
 | [mcp-deployments](mcp-deployments/spec.md) | Implemented | MCP server deployment — extends image-based deployments with transport protocol (SSE/HTTP_STREAMING) and MCP endpoint path |
 | [interceptor-deployments](interceptor-deployments/spec.md) | Implemented | Interceptor deployment — extends image-based deployments with type INTERCEPTOR as the sole distinction |
 | [adapter-deployments](adapter-deployments/spec.md) | Implemented | Adapter deployment — extends image-based deployments with type ADAPTER as the sole distinction |
+| [application-deployments](application-deployments/spec.md) | Implemented | Application deployment — extends image-based deployments with type APPLICATION as the sole distinction |
 | [inference-deployments](inference-deployments/spec.md) | Implemented | Inference model deployment — KServe-backed, HuggingFace model source, scaling configuration (PENDING_REQUESTS / ACTIVE_REQUESTS / HARDWARE_USAGE) |
 | [nim-deployments](nim-deployments/spec.md) | Implemented | NVIDIA NIM model deployment — NIM-backed, NGC registry source, GPU configuration, optional gRPC port |
 | [mcp-servers](mcp-servers/spec.md) | Implemented | MCP server management — list tools, resources, and prompts from running MCP deployments |

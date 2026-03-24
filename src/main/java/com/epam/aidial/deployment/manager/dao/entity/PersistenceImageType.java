@@ -4,4 +4,5 @@ public enum PersistenceImageType {
     MCP,
     ADAPTER,
     INTERCEPTOR,
+    APPLICATION,
 }

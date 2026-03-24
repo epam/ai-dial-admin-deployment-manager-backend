@@ -1,12 +1,14 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-03-13T10:48:49.090740Z
+> Generated at: 2026-03-20T14:01:30.887715Z
 
 ## Tables
 
 - [ADAPTER_DEPLOYMENT](#adapter_deployment)
 - [ADAPTER_IMAGE_DEFINITION](#adapter_image_definition)
+- [APPLICATION_DEPLOYMENT](#application_deployment)
+- [APPLICATION_IMAGE_DEFINITION](#application_image_definition)
 - [COMPONENT_REMOVAL](#component_removal)
 - [DEPLOYMENT](#deployment)
 - [DEPLOYMENT_TOPICS](#deployment_topics)
@@ -28,6 +30,18 @@
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
 
 ## ADAPTER_IMAGE_DEFINITION
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| ID | UUID | No |  | PK, FK → IMAGE_DEFINITION.ID |
+
+## APPLICATION_DEPLOYMENT
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
+
+## APPLICATION_IMAGE_DEFINITION
 
 | Column | Type | Nullable | Default | Key |
 |--------|------|----------|---------|-----|

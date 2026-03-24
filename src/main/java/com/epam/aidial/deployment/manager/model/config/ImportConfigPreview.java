@@ -1,9 +1,11 @@
 package com.epam.aidial.deployment.manager.model.config;
 
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
+import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.InterceptorImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -28,6 +30,8 @@ public class ImportConfigPreview {
     private List<ImportComponent<AdapterImageDefinition>> adapterImageDefinitions = new ArrayList<>();
     @Builder.Default
     private List<ImportComponent<InterceptorImageDefinition>> interceptorImageDefinitions = new ArrayList<>();
+    @Builder.Default
+    private List<ImportComponent<ApplicationImageDefinition>> applicationImageDefinitions = new ArrayList<>();
 
     @Builder.Default
     private List<ImportComponent<McpDeployment>> mcpDeployments = new ArrayList<>();
@@ -35,6 +39,8 @@ public class ImportConfigPreview {
     private List<ImportComponent<AdapterDeployment>> adapterDeployments = new ArrayList<>();
     @Builder.Default
     private List<ImportComponent<InterceptorDeployment>> interceptorDeployments = new ArrayList<>();
+    @Builder.Default
+    private List<ImportComponent<ApplicationDeployment>> applicationDeployments = new ArrayList<>();
     @Builder.Default
     private List<ImportComponent<NimDeployment>> nimDeployments = new ArrayList<>();
     @Builder.Default
