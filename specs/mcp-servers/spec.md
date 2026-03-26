@@ -50,13 +50,17 @@ Status: **Implemented**
 - **THEN** the list of prompts advertised by the MCP server is returned
 
 ### Requirement: Call an MCP tool on a deployment
-The system SHALL invoke a specific tool on a live MCP deployment and return the result.
+The system SHALL invoke a specific tool on a live MCP deployment and return the result. This endpoint is protected by `@FullAdminOnly` — only FULL_ADMIN users may call tools; READ_ONLY_ADMIN users receive 403.
 
 Status: **Implemented**
 
 #### Scenario: Successful tool call
-- **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called with a valid tool name and arguments
+- **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called by a FULL_ADMIN user with a valid tool name and arguments
 - **THEN** the tool is invoked on the MCP server and the result is returned
+
+#### Scenario: Read-only admin attempts tool call
+- **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called by a READ_ONLY_ADMIN user
+- **THEN** the system responds with 403 Forbidden
 
 #### Scenario: MCP server unreachable during tool call
 - **WHEN** `POST /api/v1/deployments/mcp/{deploymentId}/call-tool` is called and the MCP server is unavailable

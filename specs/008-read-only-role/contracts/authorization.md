@@ -48,6 +48,12 @@ All endpoints below return **403 Forbidden** for READ_ONLY_ADMIN users. FULL_ADM
 |---|---|---|
 | POST | `/image-build` | updateDomainWhitelistForImageBuild |
 
+### McpController (`/api/v1/deployments/mcp`)
+
+| Method | Path | Operation |
+|---|---|---|
+| POST | `/{deploymentId}/call-tool` | callTool |
+
 ## Endpoints NOT annotated (read-only, accessible to all authenticated users)
 
 - All GET endpoints across all controllers
