@@ -164,6 +164,7 @@ Status: **Implemented**
 | ImageBuildController | POST | `/api/v1/images/builds` | buildImage |
 | DisposableResourceController | POST | `/api/v1/disposable/clean` | clean |
 | GlobalDomainWhitelistController | POST | `/api/v1/global-whitelist/image-build` | updateDomainWhitelistForImageBuild |
+| McpController | POST | `/api/v1/deployments/mcp/{deploymentId}/call-tool` | callTool |
 
 ## Implementation Notes
 - Security configurations: `OidcSecurityConfiguration` (oidc), `BasicSecurityConfiguration` (basic), `NoneSecurityConfiguration` (none)

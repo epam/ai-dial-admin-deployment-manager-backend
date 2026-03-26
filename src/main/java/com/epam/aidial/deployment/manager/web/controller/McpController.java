@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.McpService;
+import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -29,6 +30,7 @@ public class McpController {
         return mcpService.getTools(deploymentId, nextCursor);
     }
 
+    @FullAdminOnly
     @PostMapping(path = "/{deploymentId}/call-tool", produces = MediaType.APPLICATION_JSON_VALUE)
     public McpSchema.CallToolResult callTool(@PathVariable String deploymentId,
                                              @RequestBody McpSchema.CallToolRequest callToolRequest) {
