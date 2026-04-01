@@ -84,7 +84,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
     implementation 'com.google.cloud.sql:postgres-socket-factory:1.28.0'
 
-    implementation 'io.modelcontextprotocol.sdk:mcp:1.1.0'
+    implementation 'io.modelcontextprotocol.sdk:mcp:1.1.1'
     implementation 'com.google.cloud.tools:jib-core:0.27.3'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
@@ -150,7 +150,7 @@ dependencies {
         implementation ('io.projectreactor.netty:reactor-netty-http:1.2.8') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('io.netty:netty-codec-http2:4.2.4.Final') {
+        implementation ('io.netty:netty-codec-http2:4.2.11.Final') {
             because("previous versions have vulnerabilities")
         }
         implementation("io.grpc:grpc-netty-shaded:1.75.0") {
@@ -159,13 +159,16 @@ dependencies {
         implementation ('io.netty:netty-codec:4.2.8.Final') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('io.netty:netty-codec-http:4.2.8.Final') {
+        implementation ('io.netty:netty-codec-http:4.2.10.Final') {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework:spring-webmvc:6.2.10') {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework.security:spring-security-core:6.5.4') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework.security:spring-security-web:6.5.9') {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework:spring-core:6.2.11') {
