@@ -41,6 +41,11 @@
 
 - `HUGGINGFACE_DEFAULT_ALLOWED_DOMAINS` — comma-separated list of default domains added to Cilium egress for HuggingFace inference deployments (default: `huggingface.co,transfer.xethub.hf.co,cas-server.xethub.hf.co`)
 - `K8S_NIM_CLUSTER_HOST` — cluster host for external NIM URL; required when `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL` is `false`
+- NIM Service Ingress Configuration — configurable Ingress template for externally exposed NIM services (applied when `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL` is `false`):
+  - `app.nim-service-expose-ingress-config.enabled` — enable/disable Ingress creation (default: `true`)
+  - `app.nim-service-expose-ingress-config.annotations` — annotations applied to the Ingress resource, with defaults: `proxy-body-size=0`, `proxy-read-timeout=600`, `cluster-issuer=letsencrypt-production`, `force-ssl-redirect=true`
+  - `app.nim-service-expose-ingress-config.spec.ingressClassName` — Ingress class name (default: `nginx`)
+  - TLS and routing rules auto-generated from `cluster-host` and NIM service name; each service gets a `<NimServiceName>-tls-secret`
 
 #### Providers
 
