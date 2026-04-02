@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.model.EnvVar;
-import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
@@ -31,10 +30,6 @@ public interface DeploymentManager<S> {
 
     void updateCiliumNetworkPolicy(String id);
 
-    List<PodInfo> getActiveInstances(String id);
-
-    List<PodInfo> getInstances(String id);
-
     NonNamespaceOperation<Event, EventList, Resource<Event>> getAllEventsBase();
 
     /**
@@ -52,4 +47,6 @@ public interface DeploymentManager<S> {
     void cleanupSecrets(String deploymentId, List<EnvVar> currentEnvs);
 
     Deployment resolveSecrets(Deployment deployment);
+
+    PodInfoProvider getPodInfoProvider();
 }

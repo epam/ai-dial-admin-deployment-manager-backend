@@ -39,6 +39,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     private final NimManifestGenerator nimManifestGenerator;
     private final K8sNimClient k8sNimClient;
     private final NimDeployProperties nimDeployProperties;
+    private final PodInfoProvider podInfoProvider;
 
     public NimDeploymentManager(
             K8sClient k8sClient,
@@ -57,6 +58,11 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         this.nimManifestGenerator = nimManifestGenerator;
         this.k8sNimClient = k8sNimClient;
         this.nimDeployProperties = nimDeployProperties;
+        this.podInfoProvider = new PodInfoProvider(
+                this::getServiceName,
+                serviceName -> getServicePods(namespace, serviceName),
+                pod -> isPodReady(pod.getStatus())
+        );
     }
 
     @Override
@@ -209,4 +215,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         return SERVICE_NAME_LABEL;
     }
 
+    @Override
+    public PodInfoProvider getPodInfoProvider() {
+        return podInfoProvider;
+    }
 }

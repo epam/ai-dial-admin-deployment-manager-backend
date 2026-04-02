@@ -14,7 +14,6 @@ import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarValue;
 import com.epam.aidial.deployment.manager.model.FileEnvVarValue;
-import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
@@ -23,9 +22,6 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
-import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
-import io.fabric8.kubernetes.api.model.ContainerState;
-import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
@@ -45,7 +41,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
@@ -55,7 +50,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -429,103 +423,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public List<PodInfo> getActiveInstances(String id) {
-        return getInstances(id, pod -> isPodReady(pod.getStatus()));
-    }
-
-    @Override
-    public List<PodInfo> getInstances(String id) {
-        return getInstances(id, null);
-    }
-
-    protected List<PodInfo> getInstances(String id, Predicate<? super Pod> filter) {
-        var serviceName = getServiceName(id);
-        var podList = getServicePods(namespace, serviceName);
-        var podsStream = podList.stream();
-        if (filter != null) {
-            podsStream = podsStream.filter(filter);
-        }
-        return podsStream.map(this::toPodInfo).toList();
-    }
-
-    private PodInfo toPodInfo(Pod pod) {
-        var containerStatuses = pod.getStatus() != null
-                ? pod.getStatus().getContainerStatuses()
-                : null;
-
-        var containerInfo = extractContainerInfo(containerStatuses);
-
-        return new PodInfo(
-                pod.getMetadata().getName(),
-                Instant.parse(pod.getMetadata().getCreationTimestamp()),
-                containerInfo.restartCount(),
-                containerInfo.lastTerminationReason(),
-                containerInfo.lastExitCode(),
-                containerInfo.lastSignal(),
-                containerInfo.lastFinishedAt()
-        );
-    }
-
-    private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
-        if (CollectionUtils.isEmpty(containerStatuses)) {
-            return new ContainerInfo(0, null, null, null, null);
-        }
-
-        int totalRestartCount = 0;
-        ContainerStateTerminated mostRecentTermination = null;
-
-        for (var containerStatus : containerStatuses) {
-            totalRestartCount += containerStatus.getRestartCount() != null ? containerStatus.getRestartCount() : 0;
-
-            // Check both 'state' (current) and 'lastState' (previous)
-            // to find the most recent failure event.
-            var currentTerminated = getTerminatedState(containerStatus.getState());
-            var previousTerminated = getTerminatedState(containerStatus.getLastState());
-
-            // Compare timestamps to find the true "latest" error
-            mostRecentTermination = getLaterTermination(mostRecentTermination, currentTerminated);
-            mostRecentTermination = getLaterTermination(mostRecentTermination, previousTerminated);
-        }
-
-        if (mostRecentTermination != null) {
-            return new ContainerInfo(
-                    totalRestartCount,
-                    mostRecentTermination.getReason(),
-                    mostRecentTermination.getExitCode(),
-                    mostRecentTermination.getSignal(),
-                    K8sParseUtils.parseInstant(mostRecentTermination.getFinishedAt())
-            );
-        }
-
-        return new ContainerInfo(totalRestartCount, null, null, null, null);
-    }
-
-    private ContainerStateTerminated getTerminatedState(ContainerState state) {
-        return (state != null) ? state.getTerminated() : null;
-    }
-
-    private ContainerStateTerminated getLaterTermination(ContainerStateTerminated currentBest,
-                                                         ContainerStateTerminated candidate) {
-        if (candidate == null) {
-            return currentBest;
-        }
-        if (currentBest == null) {
-            return candidate;
-        }
-
-        var t1 = K8sParseUtils.parseInstant(currentBest.getFinishedAt());
-        var t2 = K8sParseUtils.parseInstant(candidate.getFinishedAt());
-        if (t1 == null) {
-            return candidate;
-        }
-        if (t2 == null) {
-            return currentBest;
-        }
-
-        return t2.isAfter(t1) ? candidate : currentBest;
-    }
-
-    @Override
     public ContainerResource getContainerResourceForLogs(String id, String podName, boolean previous) {
         var serviceName = getServiceName(id);
 
@@ -835,15 +732,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     return Map.entry(entry.getKey(), value);
                 })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    }
-
-    private record ContainerInfo(
-            int restartCount,
-            String lastTerminationReason,
-            Integer lastExitCode,
-            Integer lastSignal,
-            Instant lastFinishedAt
-    ) {
     }
 
 }

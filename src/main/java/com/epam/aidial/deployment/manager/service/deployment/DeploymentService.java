@@ -254,11 +254,13 @@ public class DeploymentService {
 
     public List<PodInfo> getActiveInstances(String id) {
         return deploymentManagerProvider.provide(id)
+                .getPodInfoProvider()
                 .getActiveInstances(id);
     }
 
     public List<PodInfo> getInstances(String id) {
         return deploymentManagerProvider.provide(id)
+                .getPodInfoProvider()
                 .getInstances(id);
     }
 
