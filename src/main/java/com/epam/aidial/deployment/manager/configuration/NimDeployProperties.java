@@ -18,6 +18,7 @@ public class NimDeployProperties {
     private long informerResyncInterval;
     private boolean useClusterInternalUrl;
     private String clusterHost;
+    private String urlSchema;
 
     @AssertTrue(message = "'cluster-host' must not be blank when 'use-cluster-internal-url' is false")
     public boolean isClusterHostValid() {
