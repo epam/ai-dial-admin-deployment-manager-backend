@@ -54,7 +54,8 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             @Nullable List<String> command,
             @Nullable List<String> args,
             @Nullable Integer containerPort,
-            @Nullable ProbeProperties probeProperties
+            @Nullable ProbeProperties probeProperties,
+            int startupTimeoutSec
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
@@ -66,7 +67,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var predictorChain = specChain.get(InferenceMappers.SERVICE_SPEC_PREDICTOR_FIELD);
 
         applyScaling(name, scaling, predictorChain, config);
-        applyProgressDeadline(probeProperties, config);
+        applyProgressDeadline(probeProperties, startupTimeoutSec, config);
 
         var modelChain = predictorChain.get(InferenceMappers.PREDICTOR_MODEL_FIELD);
         modelChain.data().setStorageUri(storageUri);
@@ -152,13 +153,12 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
     }
 
     private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
+                                       int startupTimeoutSec,
                                        MappingChain<InferenceService> config) {
-        var progressDeadline = progressDeadlineCalculator.compute(probeProperties);
-        if (progressDeadline != null) {
-            var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
-                    .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
-            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
-        }
+        var progressDeadline = progressDeadlineCalculator.compute(probeProperties, startupTimeoutSec);
+        var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
+                .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
+        annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
     }
 
     private void applyScaling(String name,

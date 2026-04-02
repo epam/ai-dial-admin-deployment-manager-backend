@@ -281,6 +281,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 any(Boolean.class),
                 any(),
                 any(),
@@ -329,6 +330,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 any(Boolean.class),
                 any(),
                 any(),
@@ -380,7 +382,7 @@ class NimDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), anyInt(), eq(true), any(), any(), any()
         )).thenThrow(new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured"));
 
         // When/Then: generator receives useExternalUrl=true and blank clusterHost, throws IllegalArgumentException
@@ -389,7 +391,7 @@ class NimDeploymentManagerTest {
                 .hasMessageContaining("Failed to deploy service")
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("External NIM URL is enabled but cluster host is not configured");
-        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any());
+        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), anyInt(), eq(true), any(), any(), any());
     }
 
     @Test
@@ -409,6 +411,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 eq(true),
                 eq(CLUSTER_HOST),
                 any(),
@@ -432,6 +435,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 eq(true),
                 eq(CLUSTER_HOST),
                 any(),
@@ -483,6 +487,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 any(Boolean.class),
                 any(),
                 any(),

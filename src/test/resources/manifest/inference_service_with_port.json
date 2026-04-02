@@ -2,6 +2,9 @@
   "apiVersion": "serving.kserve.io/v1beta1",
   "kind": "InferenceService",
   "metadata": {
+    "annotations": {
+      "serving.knative.dev/progress-deadline": "3630s"
+    },
     "name": "dm-custom-port-inference-app"
   },
   "spec": {

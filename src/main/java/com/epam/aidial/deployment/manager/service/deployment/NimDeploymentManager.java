@@ -108,6 +108,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 containerPort,
                 containerGrpcPort,
                 deployment.getProbeProperties(),
+                startupTimeoutSec,
                 useExternalUrl,
                 nimDeployProperties.getClusterHost(),
                 deployment.getCommand(),

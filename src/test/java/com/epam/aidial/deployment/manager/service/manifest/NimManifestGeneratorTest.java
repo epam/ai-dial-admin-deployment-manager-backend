@@ -18,7 +18,6 @@ import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -34,12 +33,13 @@ import static org.mockito.Mockito.when;
 class NimManifestGeneratorTest {
 
     private static final String DM_PREFIX = "dm-";
+    private static final int STARTUP_TIMEOUT_SEC = 3600;
 
     @Mock
     private AppProperties appconfig;
     @Mock
     private NimProbeConverter nimProbeConverter;
-    @InjectMocks
+
     private NimManifestGenerator manifestGenerator;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -47,6 +47,8 @@ class NimManifestGeneratorTest {
 
     @BeforeEach
     void setupMocks() throws JsonProcessingException {
+        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, 10);
+
         var baseServiceJson = ResourceUtils.readResource("/manifest/nim_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, NIMService.class);
 
@@ -80,7 +82,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -102,7 +104,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                false, null, null, null
+                STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -124,7 +126,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
-                customGrpcPort, null, false, null, null, null
+                customGrpcPort, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -147,7 +149,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                false, null, null, null
+                STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -172,7 +174,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                httpPort, null, null, true, clusterHost, null, null
+                httpPort, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
         );
 
         // Then: expose.ingress is set with host, tls secret, backend
@@ -208,7 +210,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, true, clusterHost, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
         );
 
         // Then: expose.ingress has annotations from nim-service-expose-ingress-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
@@ -231,7 +233,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then: expose.ingress is not set
@@ -243,7 +245,7 @@ class NimManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnSpec() {
         // Given: generator with real NimProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()));
+        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()), 10);
         var deploymentName = "probe-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
@@ -252,7 +254,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, probeProperties, false, null, null, null
+                8000, null, probeProperties, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then: spec has startup probe with expected enabled, path, port and timing
@@ -281,7 +283,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, command, args
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, args
         );
 
         // Then
@@ -300,7 +302,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, command, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, null
         );
 
         // Then
@@ -318,12 +320,37 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
         assertThat(generatedService.getSpec().getCommand()).isNull();
         assertThat(generatedService.getSpec().getArgs()).isNull();
+    }
+
+    @Test
+    void testServiceConfig_withoutProbe_setsDefaultTcpStartupProbe() {
+        // Given: generator with real converter so default probe is built
+        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()), 10);
+        var deploymentName = "default-probe-nim-app";
+        var imageName = "my-registry.io/probe-image:v1";
+        var containerPort = 8000;
+
+        // When: no probe properties provided
+        var generatedService = generatorWithRealConverter.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
+                containerPort, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+        );
+
+        // Then: default TCP startup probe is set with failureThreshold = 3600/10 = 360
+        var startupProbe = generatedService.getSpec().getStartupProbe();
+        assertThat(startupProbe).isNotNull();
+        assertThat(startupProbe.getEnabled()).isTrue();
+        assertThat(startupProbe.getProbe()).isNotNull();
+        assertThat(startupProbe.getProbe().getTcpSocket()).isNotNull();
+        assertThat(startupProbe.getProbe().getTcpSocket().getPort().getIntVal()).isEqualTo(containerPort);
+        assertThat(startupProbe.getProbe().getPeriodSeconds()).isEqualTo(10);
+        assertThat(startupProbe.getProbe().getFailureThreshold()).isEqualTo(360);
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
