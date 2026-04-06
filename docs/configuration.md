@@ -152,7 +152,7 @@ app:
 
 KNative has a default progress deadline of 600 seconds (10 minutes). If a Revision does not become ready within this window, KNative marks it as **Failed** and terminates the pod. This can cause deployments of large models to fail if they need more time to download or initialize.
 
-The application automatically sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative, when a startup probe is configured) or the InferenceService metadata (for KServe):
+The application automatically sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative, when a startup probe is configured) or the service metadata (for KServe and NIM):
 
 **When a startup probe is configured**, the deadline is computed from the probe parameters:
 
@@ -162,15 +162,15 @@ progressDeadline = initialDelaySeconds + ((failureThreshold - 1) × periodSecond
 
 If the startup probe does not specify `initialDelaySeconds`, `periodSeconds`, or `failureThreshold`, the corresponding default values from the properties above are used (matching Kubernetes defaults).
 
-**When no startup probe is configured**, for KNative - default KNative deadline is used; for KServe - the deadline falls back to the `startup-timeout` value plus `buffer-seconds`:
+**When no startup probe is configured** (KServe and NIM only), the deadline falls back to the deployment type's `startup-timeout` value plus `buffer-seconds`. This ensures that the Kubernetes-level timeout aligns with the application-level health check timeout:
 
 ```
 progressDeadline = startupTimeout + bufferSeconds
 ```
 
-For example, with KServe's default `startup-timeout` of 3600s and `buffer-seconds` of 30, the progress deadline will be `3630s`.
+For example, with KServe's or NIM's default `startup-timeout` of 3600s and `buffer-seconds` of 30, the progress deadline will be `3630s`.
 
-**NIM deployments**: When no startup probe is configured, a default TCP socket startup probe is automatically applied on the container port. The probe's `failureThreshold` is derived from `startupTimeout / defaultPeriod` (e.g., 3600 / 10 = 360), ensuring the NIM operator allows sufficient time for large model initialization.
+For KNative deployments (MCP servers, interceptors, adapters, applications), when no startup probe is configured, no annotation is set and KNative's built-in default of 600s applies.
 
 #### MCP Proxy Configuration
 
@@ -212,7 +212,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 |-------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `app.nim.enabled`                         | `K8S_NIM_ENABLED`                                 | `false`       | No                                                | -            | Enable or disable NIM deployment support                                                                                                                                                                                |
 | `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments                                                                                                                                                                                |
-| `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour). Used to derive a default TCP startup probe when no custom probe is configured. See [Progress Deadline](#progress-deadline-configuration).                              |
+| `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour). Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration).                                 |
 | `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments                                                                                                                                                      |
 | `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | When `true`, NIM services use cluster-internal URL only. When `false`, external URL via Ingress is used; `K8S_NIM_CLUSTER_HOST` must be set.                                                                            |
 | `app.nim.deploy.cluster-host`             | `K8S_NIM_CLUSTER_HOST`                            | -             | Yes when using external NIM URL                   | NIM deploy   | Cluster host for external NIM URL. Ingress host is `<NimServiceName>.<ClusterHost>` (e.g. `mcp-my-id.example.com`). Required when `use-cluster-internal-url` is `false`.                                                |

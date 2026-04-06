@@ -158,7 +158,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         var progressDeadline = progressDeadlineCalculator.compute(probeProperties, startupTimeoutSec);
         var annotations = config.get(InferenceMappers.SERVICE_METADATA_FIELD)
                 .get(InferenceMappers.METADATA_ANNOTATIONS_FIELD).data();
-        annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
+        annotations.put(KNATIVE_PROGRESS_DEADLINE, progressDeadline);
     }
 
     private void applyScaling(String name,

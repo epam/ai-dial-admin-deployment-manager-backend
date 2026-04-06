@@ -214,7 +214,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         if (progressDeadline != null) {
             var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
                     .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
-            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
+            annotations.put(KNATIVE_PROGRESS_DEADLINE, progressDeadline);
         }
     }
 

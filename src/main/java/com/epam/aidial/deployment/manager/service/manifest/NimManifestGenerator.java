@@ -6,7 +6,6 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
-import com.epam.aidial.deployment.manager.model.probe.TcpSocketProbe;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
 import com.google.cloud.tools.jib.api.ImageReference;
@@ -28,7 +27,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -39,14 +37,14 @@ import java.util.List;
 public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private final NimProbeConverter nimProbeConverter;
-    private final int defaultProbePeriod;
+    private final ProgressDeadlineCalculator progressDeadlineCalculator;
 
     public NimManifestGenerator(AppProperties appconfig,
                                 NimProbeConverter nimProbeConverter,
-                                @Value("${app.deployment.progress-deadline.default-period}") int defaultProbePeriod) {
+                                ProgressDeadlineCalculator progressDeadlineCalculator) {
         super(appconfig);
         this.nimProbeConverter = nimProbeConverter;
-        this.defaultProbePeriod = defaultProbePeriod;
+        this.progressDeadlineCalculator = progressDeadlineCalculator;
     }
 
     @SneakyThrows
@@ -104,7 +102,8 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             specChain.data().setArgs(args);
         }
 
-        applyStartupProbe(name, specChain, probeProperties, startupTimeoutSec, containerPort);
+        applyStartupProbe(name, specChain, probeProperties);
+        applyProgressDeadline(probeProperties, startupTimeoutSec, config);
 
         return config.data();
     }
@@ -158,22 +157,21 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private void applyStartupProbe(String name,
                                    MappingChain<NIMServiceSpec> specChain,
-                                   @Nullable ProbeProperties deploymentProbeProperties,
-                                   int startupTimeoutSec,
-                                   int containerPort) {
-        var effectiveProbeProperties = deploymentProbeProperties;
-        if (effectiveProbeProperties == null || !effectiveProbeProperties.isEnabled()) {
-            int failureThreshold = startupTimeoutSec / defaultProbePeriod;
-            effectiveProbeProperties = new ProbeProperties(
-                    true, null, defaultProbePeriod, null, failureThreshold, new TcpSocketProbe(containerPort));
-            log.debug("No probe configured for NIM deployment '{}', using default TCP probe "
-                    + "(period={}s, failureThreshold={}, port={})", name, defaultProbePeriod, failureThreshold, containerPort);
-        }
-        var probe = nimProbeConverter.toNimStartupProbe(effectiveProbeProperties);
+                                   @Nullable ProbeProperties deploymentProbeProperties) {
+        var probe = nimProbeConverter.toNimStartupProbe(deploymentProbeProperties);
         if (probe != null) {
             log.debug("Applying startup probe for NIM deployment '{}': {}", name, probe);
             specChain.data().setStartupProbe(probe);
         }
+    }
+
+    private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
+                                       int startupTimeoutSec,
+                                       MappingChain<NIMService> config) {
+        var progressDeadline = progressDeadlineCalculator.compute(probeProperties, startupTimeoutSec);
+        var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
+                .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
+        annotations.put(KNATIVE_PROGRESS_DEADLINE, progressDeadline);
     }
 
     @SneakyThrows

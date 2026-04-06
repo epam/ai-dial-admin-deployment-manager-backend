@@ -18,6 +18,7 @@ import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -27,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,7 +43,9 @@ class NimManifestGeneratorTest {
     private AppProperties appconfig;
     @Mock
     private NimProbeConverter nimProbeConverter;
-
+    @Mock
+    private ProgressDeadlineCalculator progressDeadlineCalculator;
+    @InjectMocks
     private NimManifestGenerator manifestGenerator;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -47,12 +53,11 @@ class NimManifestGeneratorTest {
 
     @BeforeEach
     void setupMocks() throws JsonProcessingException {
-        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, 10);
-
         var baseServiceJson = ResourceUtils.readResource("/manifest/nim_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, NIMService.class);
 
         when(appconfig.cloneNimServiceConfig()).thenReturn(baseService);
+        lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
     }
 
     private void stubNimServiceExposeIngressConfig() {
@@ -245,7 +250,9 @@ class NimManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnSpec() {
         // Given: generator with real NimProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()), 10);
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
+                realCalculator);
         var deploymentName = "probe-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
@@ -329,28 +336,23 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withoutProbe_setsDefaultTcpStartupProbe() {
-        // Given: generator with real converter so default probe is built
-        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()), 10);
-        var deploymentName = "default-probe-nim-app";
+    void testServiceConfig_withoutProbe_setsFallbackProgressDeadlineAnnotation() {
+        // Given: generator with real calculator so fallback deadline is computed
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealCalculator = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
+                realCalculator);
+        var deploymentName = "fallback-deadline-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
-        var containerPort = 8000;
 
         // When: no probe properties provided
-        var generatedService = generatorWithRealConverter.serviceConfig(
+        var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                containerPort, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
-        // Then: default TCP startup probe is set with failureThreshold = 3600/10 = 360
-        var startupProbe = generatedService.getSpec().getStartupProbe();
-        assertThat(startupProbe).isNotNull();
-        assertThat(startupProbe.getEnabled()).isTrue();
-        assertThat(startupProbe.getProbe()).isNotNull();
-        assertThat(startupProbe.getProbe().getTcpSocket()).isNotNull();
-        assertThat(startupProbe.getProbe().getTcpSocket().getPort().getIntVal()).isEqualTo(containerPort);
-        assertThat(startupProbe.getProbe().getPeriodSeconds()).isEqualTo(10);
-        assertThat(startupProbe.getProbe().getFailureThreshold()).isEqualTo(360);
+        // Then: fallback deadline = 3600 + 30 = 3630s
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "3630s");
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
