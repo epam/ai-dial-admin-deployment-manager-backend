@@ -16,9 +16,6 @@ buildscript {
             classpath ('io.netty:netty-codec-http:4.2.10.Final') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('org.codehaus.plexus:plexus-utils:4.0.3') {
-                because("previous versions have vulnerabilities")
-            }
         }
     }
 }
@@ -187,6 +184,9 @@ dependencies {
             because("previous versions have vulnerabilities")
         }
         implementation ('tools.jackson.core:jackson-core:3.1.1') {
+            because("previous versions have vulnerabilities")
+        }
+        checkstyle ('org.codehaus.plexus:plexus-utils:4.0.3') {
             because("previous versions have vulnerabilities")
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
