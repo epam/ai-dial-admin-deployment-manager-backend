@@ -168,7 +168,7 @@ dependencies {
         implementation ('io.netty:netty-codec-http:4.2.10.Final') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('org.springframework:spring-webmvc:6.2.10') {
+        implementation ('org.springframework:spring-webmvc:6.2.17') {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework.security:spring-security-core:6.5.4') {
@@ -183,7 +183,10 @@ dependencies {
         implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('tools.jackson.core:jackson-core:3.1.0') {
+        implementation ('tools.jackson.core:jackson-core:3.1.1') {
+            because("previous versions have vulnerabilities")
+        }
+        checkstyle ('org.codehaus.plexus:plexus-utils:4.0.3') {
             because("previous versions have vulnerabilities")
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
