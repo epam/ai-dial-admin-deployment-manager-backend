@@ -183,7 +183,10 @@ dependencies {
         implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('tools.jackson.core:jackson-core:3.1.0') {
+        implementation ('tools.jackson.core:jackson-core:3.1.1') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.codehaus.plexus:plexus-utils:4.0.3') {
             because("previous versions have vulnerabilities")
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
