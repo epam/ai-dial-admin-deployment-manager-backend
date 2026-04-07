@@ -18,13 +18,20 @@ public class ServerFilterDto {
      * Remote transport types to match (OR logic). Values: "streamable-http", "sse".
      */
     @Nullable
-    private List<String> remoteTypes;
+    private List<String> remoteTransportTypes;
 
     /**
      * Package registry types to match (OR logic). Values: "npm", "pypi", "oci", "nuget", "mcpb".
      */
     @Nullable
     private List<String> packageRegistryTypes;
+
+    /**
+     * Package transport types to match (OR logic). Values: "stdio", "streamable-http", "sse".
+     * Matched case-insensitively against Package.transport.type. A package with null transport does not match.
+     */
+    @Nullable
+    private List<String> packageTransportTypes;
 
     /**
      * If true, match servers with non-null repository. If false, match servers with null repository.

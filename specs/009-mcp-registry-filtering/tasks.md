@@ -1,100 +1,78 @@
 # Tasks: MCP Registry Backend Filtering
 
 **Input**: Design documents from `/specs/009-mcp-registry-filtering/`
-**Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/api.md
+**Prerequisites**: plan.md ✅, spec.md ✅, data-model.md ✅, contracts/api.md ✅, research.md ✅
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+**Organization**: Tasks grouped by user story to enable independent implementation and testing.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
+- **[P]**: Can run in parallel (different files, no dependencies on incomplete tasks)
+- **[Story]**: Which user story this task belongs to
 - Include exact file paths in descriptions
+
+## Path Conventions
+
+Single-project layout: `src/main/java/…`, `src/test/java/…` at repository root.
+Base package: `com.epam.aidial.deployment.manager.registry.mcp`
 
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Create shared DTOs, configuration, and test fixtures that all user stories depend on
-
-- [X] T001 Create `ServerFilterDto` DTO with `remoteTypes` (List\<String\>), `packageRegistryTypes` (List\<String\>), and `repositoryExists` (Boolean) fields in `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/web/dto/ServerFilterDto.java`
-- [X] T002 [P] Add `filter` field (type `ServerFilterDto`, nullable) to `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/web/dto/ServersRequestDto.java`
-- [X] T003 [P] Add `maxPagesToScan` field (int, default 5) to `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/properties/McpRegistryProperties.java` and add `max-pages-to-scan: ${MCP_REGISTRY_MAX_PAGES_TO_SCAN:5}` to `src/main/resources/application.yml` under `app.mcp-registry`
-- [X] T004 [P] Create test JSON fixtures: `src/test/resources/mcp-registry/servers_page_mixed.json` (servers with diverse remotes, packages, repositories), `src/test/resources/mcp-registry/servers_page_empty.json` (empty server list with no nextCursor)
+No setup required — this is a modification to an existing Spring Boot project with all infrastructure in place.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Filter predicate component — MUST be complete before any user story implementation
+**Purpose**: Rename `remoteTypes` → `remoteTransportTypes` and add `packageTransportTypes` in `ServerFilterDto`. This is the single DTO change that all downstream source and test files depend on.
 
-**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+**⚠️ CRITICAL**: Tasks T002 and T003 cannot start until T001 is complete.
 
-- [X] T005 Create `McpServerFilter` Spring component with `matches(ServerResponseDto, ServerFilterDto)` method implementing: remote type matching (OR within list, case-insensitive against `server.getServer().getRemotes()[].type`), package registry type matching (OR within list, case-insensitive against `server.getServer().getPackages()[].registryType.getValue()`), repository existence check (null check on `server.getServer().getRepository()`). Use `CollectionUtils.isEmpty()` for null-safe collection checks. Add `@LogExecution` and `@Component` annotations. File: `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/service/McpServerFilter.java`
-- [X] T006 Create unit tests for `McpServerFilter` covering: single remote type match, multi-value remote type OR logic, single package type match, multi-value package type OR logic, repository exists=true, repository exists=false, null/empty remotes with remote filter (should not match), null/empty packages with package filter (should not match), null filter (should match all), empty filter lists (should match all). File: `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/service/McpServerFilterTest.java`
+- [x] T001 Rename field `remoteTypes` → `remoteTransportTypes` (update field name, Lombok builder key, and Javadoc) and add new field `@Nullable private List<String> packageTransportTypes` with Javadoc: "Package transport types to match (OR logic). Values: stdio, streamable-http, sse. Matched case-insensitively against Package.transport.type. A package with null transport does not match." in `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/web/dto/ServerFilterDto.java`
 
-**Checkpoint**: Filter predicate is ready and tested — user story implementation can now begin
-
----
-
-## Phase 3: User Story 1+2 — Filter & Combine MCP Servers (Priority: P1) 🎯 MVP
-
-**Goal**: Administrators can filter MCP servers by remote type, package type, and repository existence. Multiple filters combine with AND logic across dimensions, OR logic within a dimension's value list.
-
-**Independent Test**: Send a list-servers request with filter params (e.g., `remoteTypes=sse&packageRegistryTypes=npm&repositoryExists=true`) and verify only matching servers are returned.
-
-### Implementation
-
-- [X] T007 [US1] [US2] Implement multi-page scanning loop in `McpRegistryService.getServers()`: when `ServerFilterDto` has active criteria, iterate upstream pages using `McpRegistryClient.getServers()`, apply `McpServerFilter.matches()` to each server, accumulate results until page size is filled or scan limit (`McpRegistryProperties.maxPagesToScan`) is reached or upstream exhausted. When no filter is active, preserve existing single-request pass-through behavior. Handle upstream errors mid-scan: if `McpRegistryClientException` is thrown and results have already been collected, return the partial results with the last successful cursor; if no results collected yet, propagate the exception. Upstream-supported filters (`search`, `updatedSince`, `version`) MUST remain on the request forwarded to the upstream registry alongside backend filtering. File: `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/service/McpRegistryService.java`
-- [X] T008 [US1] [US2] Update GET endpoint in `McpRegistryController.getServers()` to accept new query params: `remoteTypes` (List\<String\>), `packageRegistryTypes` (List\<String\>), `repositoryExists` (Boolean). Construct `ServerFilterDto` from these params and set it on the `ServersRequestDto`. File: `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/web/controller/McpRegistryController.java`
-- [X] T009 [US1] [US2] Create unit tests for `McpRegistryService` scanning loop covering: single filter dimension returns only matching servers, multiple filter dimensions use AND logic, multi-value filter uses OR within dimension, no filter preserves pass-through (single upstream call), upstream returns mixed servers and only matching ones are collected, first page has no matches but subsequent pages do — loop continues, error mid-scan with partial results returns collected results, error mid-scan with no results propagates exception, upstream `search` param is still forwarded when backend filter is also active. Mock `McpRegistryClient` and `McpServerFilter`. File: `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/service/McpRegistryServiceTest.java`
-- [X] T010 [US1] [US2] Add controller tests: GET with `remoteTypes` param passes filter to service, GET with `packageRegistryTypes` param passes filter to service, GET with `repositoryExists` param passes filter to service, GET with multiple filter params combines them, GET with no filter params results in null filter (pass-through), POST with `filter` object in JSON body passes filter to service. File: `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/web/controller/McpRegistryControllerTest.java`
-
-**Checkpoint**: Filtering and combining works for both GET and POST endpoints. MVP is functional.
+**Checkpoint**: `ServerFilterDto` compiles — all downstream tasks can begin.
 
 ---
 
-## Phase 4: User Story 3 — Paginate Through Filtered Results (Priority: P2)
+## Phase 3: User Story 1 — Filter MCP Servers by Properties (Priority: P1) 🎯 MVP
 
-**Goal**: Callers can paginate through filtered results using `nextCursor`, identically to non-filtered pagination. Scan limit hit returns a cursor; upstream exhausted returns null cursor.
+**Goal**: `McpServerFilter` evaluates the new `packageTransportTypes` dimension; `McpRegistryController` exposes the renamed `remoteTransportTypes` and new `packageTransportTypes` GET query params. Both endpoints (GET and POST) accept the updated filter shape.
 
-**Independent Test**: Request first page of filtered servers, use returned cursor for next page, verify no duplicates and proper continuation.
+**Independent Test**: `GET /api/v1/mcp-registry/servers?packageTransportTypes=stdio` returns only servers that have at least one package with `transport.type = "stdio"`. `GET /api/v1/mcp-registry/servers?remoteTransportTypes=sse` still works after the rename (old `remoteTypes` param no longer accepted).
 
-**Depends on**: Phase 3 (scanning loop must exist)
+### Implementation for User Story 1
 
-### Implementation
+- [x] T002 [P] [US1] Add private method `matchesPackageTransportTypes(List<Package> packages, List<String> filterTypes)` — returns `false` when packages is null/empty; iterates packages and returns `true` if any package has non-null `transport`, non-null `transport.type`, and `transport.type.getValue().equalsIgnoreCase(filterType)` for any filter value; update `matches()` to call it when `filter.getPackageTransportTypes()` is non-empty; update `hasActiveCriteria()` to also return `true` when `packageTransportTypes` is non-empty; rename `getRemoteTypes()` → `getRemoteTransportTypes()` references in existing `matchesRemoteTypes` call in `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/service/McpServerFilter.java`
+- [x] T003 [P] [US1] Rename `@RequestParam List<String> remoteTypes` → `remoteTransportTypes` with updated `@Parameter(description = "Remote transport types to filter by (OR logic). Renamed from remoteTypes. Values: sse, streamable-http")`; add `@Parameter(description = "Package transport types to filter by (OR logic). Values: stdio, streamable-http, sse") @RequestParam(required = false) List<String> packageTransportTypes`; update `buildFilter()` method signature to accept `remoteTransportTypes` and `packageTransportTypes`; update `buildFilter()` null-check to include `packageTransportTypes`; update `ServerFilterDto.builder()` to use `.remoteTransportTypes(remoteTransportTypes)` and `.packageTransportTypes(packageTransportTypes)` in `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/web/controller/McpRegistryController.java`
 
-- [X] T011 [US3] Add pagination-specific test scenarios to `McpRegistryServiceTest`: scan limit reached with upstream remaining returns nextCursor for continuation, caller provides cursor and scanning resumes from correct upstream position, upstream exhausted returns null nextCursor, partial page returned when scan limit hit (fewer results than limit), second request with cursor returns non-overlapping results. File: `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/service/McpRegistryServiceTest.java`
-- [X] T012 [US3] Add pagination controller test scenarios: GET with cursor param and filter params passes both to service, response metadata includes nextCursor when more results exist, response metadata has null nextCursor when upstream exhausted. File: `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/web/controller/McpRegistryControllerTest.java`
-
-**Checkpoint**: Paginated browsing through filtered results works seamlessly
+**Checkpoint**: US1 is fully functional — new filter dimension wired through DTO → predicate → controller.
 
 ---
 
-## Phase 5: User Story 4 — Configurable Maximum Page Scan Limit (Priority: P3)
+## Phase 4: User Story 2 — Combine Multiple Filters (Priority: P1)
 
-**Goal**: Operators can control how many upstream pages the system scans per request via the `MCP_REGISTRY_MAX_PAGES_TO_SCAN` environment variable.
+**Goal**: Verify AND-across-dimensions logic correctly applies `packageTransportTypes` alongside the existing three filter dimensions. No new source code required — this phase covers test tasks only, since the AND logic already works for any filter field added to `McpServerFilter`.
 
-**Independent Test**: Configure a low scan limit (e.g., 2), apply a rare filter, verify the system stops after the configured number of pages.
+**Independent Test**: `GET /api/v1/mcp-registry/servers?remoteTransportTypes=sse&packageRegistryTypes=npm&packageTransportTypes=stdio` returns only servers satisfying all three criteria simultaneously.
 
-**Depends on**: Phase 3 (scanning loop must exist)
+### Tests for User Story 2
 
-### Implementation
+- [x] T004 [P] [US2] In `McpServerFilterTest`: (a) rename all `.remoteTypes(...)` builder calls → `.remoteTransportTypes(...)`; (b) add helper `pkgWithTransport(LocalTransportType type)` returning `Package.builder().registryType(PackageRegistryType.NPM).transport(LocalTransport.builder().type(type).build()).build()`; (c) add test cases: `shouldMatchSinglePackageTransportType`, `shouldMatchPackageTransportTypeCaseInsensitive` (filter "STDIO", transport `LocalTransportType.STDIO`), `shouldMatchMultiValuePackageTransportTypeOrLogic` (filter ["stdio","sse"], server has stdio), `shouldNotMatchPackageTransportType_whenNoMatch`, `shouldNotMatchPackageTransportType_whenPackagesNull`, `shouldNotMatchPackageTransportType_whenPackagesEmpty`, `shouldNotMatchPackageTransportType_whenTransportIsNull` (package with `transport = null`); (d) update `shouldMatchAll_whenFilterHasEmptyLists` and `shouldReturnFalse_whenAllCriteriaEmpty` to include `packageTransportTypes(Collections.emptyList())`; (e) add `shouldReturnTrue_whenPackageTransportTypesPresent`; (f) add combined AND test `shouldMatchCombinedFilters_remoteTransportAndPackageTransportTypes` (server with SSE remote AND stdio-transport package); (g) add independent cross-package test `shouldMatchCombinedFilters_packageRegistryAndPackageTransportTypes_independentEvaluation` (OCI package + different package with streamable-http transport) in `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/service/McpServerFilterTest.java`
+- [x] T005 [P] [US2] In `McpRegistryControllerTest`: (a) rename all `.param("remoteTypes", ...)` → `.param("remoteTransportTypes", ...)`; (b) update all captured `ServerFilterDto` assertions from `getRemoteTypes()` → `getRemoteTransportTypes()`; (c) add test `getServers_shouldPassPackageTransportTypesFilter_whenParamProvided` — performs `GET /api/v1/mcp-registry/servers` with `.param("packageTransportTypes", "stdio")`, captures the `ServersRequestDto` argument passed to `mcpRegistryService.getServers()`, asserts `filter.getPackageTransportTypes()` equals `List.of("stdio")`; (d) verify `buildFilter` returns `null` when `remoteTransportTypes`, `packageRegistryTypes`, `packageTransportTypes`, and `repositoryExists` are all absent in `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/web/controller/McpRegistryControllerTest.java`
 
-- [X] T013 [US4] Add scan-limit-specific test scenarios to `McpRegistryServiceTest`: configured limit of 2 stops after 2 upstream pages regardless of results collected, default limit (5) is used when not explicitly configured, scan limit of 1 fetches exactly one upstream page. File: `src/test/java/com/epam/aidial/deployment/manager/mcpregistry/service/McpRegistryServiceTest.java`
-
-**Checkpoint**: Scan limit is configurable and bounded
+**Checkpoint**: US1 and US2 fully covered — all renamed references updated, all new test cases pass.
 
 ---
 
-## Phase 6: Polish & Cross-Cutting Concerns
+## Phase 5: Polish & Cross-Cutting Concerns
 
-**Purpose**: Documentation, API annotations, and quality verification
+**Purpose**: Documentation accuracy, code style, and full test suite validation.
 
-- [X] T014 [P] Add OpenAPI `@Operation` and `@Parameter` annotations for new filter query params (`remoteTypes`, `packageRegistryTypes`, `repositoryExists`) on the GET endpoint in `src/main/java/com/epam/aidial/deployment/manager/registry/mcp/web/controller/McpRegistryController.java`
-- [X] T015 [P] Update `docs/configuration.md` — add row for `app.mcp-registry.max-pages-to-scan` / `MCP_REGISTRY_MAX_PAGES_TO_SCAN` with default `5` and description
-- [X] T016 Run `./gradlew checkstyleMain checkstyleTest` and fix any violations
-- [X] T017 Run `./gradlew testFast` to verify all tests pass
+- [x] T006 [P] Verify `docs/configuration.md` has an accurate entry for `MCP_REGISTRY_MAX_PAGES_TO_SCAN` / `app.mcp-registry.max-pages-to-scan` with default value `25` — add or update if missing or stale in `docs/configuration.md`
+- [x] T007 Run `./gradlew checkstyleMain checkstyleTest` and fix any Google Java Style / 180-char line violations introduced by T001–T003
+- [x] T008 Run `./gradlew testFast` and confirm all tests pass (depends on T004, T005, T007)
 
 ---
 
@@ -102,81 +80,65 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — can start immediately
-- **Foundational (Phase 2)**: Depends on T001 (ServerFilterDto) from Setup — BLOCKS all user stories
-- **US1+US2 (Phase 3)**: Depends on Phase 2 completion (McpServerFilter ready)
-- **US3 (Phase 4)**: Depends on Phase 3 (scanning loop must exist to test pagination)
-- **US4 (Phase 5)**: Depends on Phase 3 (scanning loop must exist to test scan limits)
-- **Polish (Phase 6)**: Depends on all user stories being complete
+- **Phase 1–2 (Setup + Foundational)**: Start immediately; T001 must complete before T002/T003
+- **Phase 3 (US1)**: T002 and T003 in parallel after T001
+- **Phase 4 (US2 Tests)**: T004 depends on T002; T005 depends on T003; T004 and T005 run in parallel
+- **Phase 5 (Polish)**: T006 is independent; T007 after T001–T003; T008 after T004, T005, T007
 
-### User Story Dependencies
+### User Story Coverage
 
-- **US1+US2 (P1)**: Can start after Foundational (Phase 2) — no dependencies on other stories
-- **US3 (P2)**: Depends on US1+US2 — pagination is a property of the scanning loop
-- **US4 (P3)**: Depends on US1+US2 — scan limit is a property of the scanning loop
-- **US3 and US4**: Can run in parallel with each other (both only add tests to existing code)
-
-### Within Each Phase
-
-- DTOs before services
-- Services before controllers
-- Implementation before tests (tests validate the implementation)
-- Core logic before integration tests
+| Story | Priority | Status | Tasks |
+|-------|----------|--------|-------|
+| US1 — Filter by properties | P1 | New work | T001, T002, T003 |
+| US2 — Combine multiple filters | P1 | Tested by Phase 4 | T004, T005 |
+| US3 — Paginate filtered results | P2 | Already implemented | — |
+| US4 — Configurable scan limit | P3 | Already implemented | — |
 
 ### Parallel Opportunities
 
-- T002, T003, T004 can all run in parallel (different files, no dependencies)
-- T014, T015 can run in parallel (different files)
-- Phase 4 (US3) and Phase 5 (US4) can run in parallel (both add tests to existing code)
+- **T002 and T003** run in parallel after T001 (different files: service vs. controller)
+- **T004 and T005** run in parallel (different test files)
+- **T006** runs at any time (independent docs update)
 
 ---
 
-## Parallel Example: Phase 1 Setup
+## Parallel Example: Phase 3
 
 ```
-# These three tasks can run in parallel after T001:
-Task T002: Add filter field to ServersRequestDto.java
-Task T003: Add maxPagesToScan to McpRegistryProperties.java + application.yml
-Task T004: Create test JSON fixtures
+# After T001 (ServerFilterDto) compiles:
+Task T002: McpServerFilter.java — add packageTransportTypes logic, rename remoteTypes ref
+Task T003: McpRegistryController.java — rename remoteTypes param, add packageTransportTypes param
 ```
 
-## Parallel Example: Phase 3 US1+US2
+## Parallel Example: Phase 4
 
 ```
-# After T007 (service) is complete:
-Task T008: Update controller (different file from T007)
-Task T009: Create service unit tests (test file, different from T007)
-# After T008:
-Task T010: Create controller tests
+# After T001 (and T002 for T004, T003 for T005):
+Task T004: McpServerFilterTest.java — rename refs, add packageTransportTypes test cases
+Task T005: McpRegistryControllerTest.java — rename refs, add packageTransportTypes param test
 ```
 
 ---
 
 ## Implementation Strategy
 
-### MVP First (User Story 1+2 Only)
+### MVP (User Story 1 only)
 
-1. Complete Phase 1: Setup (DTOs, config, fixtures)
-2. Complete Phase 2: Foundational (McpServerFilter)
-3. Complete Phase 3: US1+US2 (scanning loop, controller, tests)
-4. **STOP and VALIDATE**: Test filtering via GET and POST endpoints independently
-5. Deploy/demo if ready — filtering and combining work end-to-end
+1. Complete Phase 2: T001 — DTO rename + new field
+2. Complete Phase 3: T002 + T003 in parallel — filter logic and controller
+3. **STOP and VALIDATE**: `GET /api/v1/mcp-registry/servers?packageTransportTypes=stdio` works; `remoteTransportTypes` param accepted; POST body `filter.packageTransportTypes` passes through
+4. Continue with Phase 4 (tests) + Phase 5 (polish)
 
 ### Incremental Delivery
 
-1. Setup + Foundational → Foundation ready
-2. Add US1+US2 → Test filtering and combining → Deploy (MVP!)
-3. Add US3 → Test pagination through filtered results → Deploy
-4. Add US4 → Test configurable scan limit → Deploy
-5. Polish → OpenAPI docs, configuration docs, checkstyle → Final release
+US3 (pagination) and US4 (configurable limit) are already fully implemented. This feature is a single cohesive increment: rename + add one filter dimension. Deliver as one PR.
 
 ---
 
 ## Notes
 
-- [P] tasks = different files, no dependencies
-- [Story] label maps task to specific user story for traceability
-- US1 and US2 are combined in Phase 3 because the filter model inherently supports both single and combined filters — they cannot be implemented separately
-- US3 (pagination) and US4 (scan limit) are testing phases — the underlying code is already part of the scanning loop in Phase 3
-- Commit after each task or logical group
-- Stop at any checkpoint to validate story independently
+- [P] tasks = different files, no dependency on an incomplete task in the same phase
+- US3 and US4 are already implemented and tested — `McpRegistryService` and `McpRegistryProperties` need no changes
+- The rename `remoteTypes` → `remoteTransportTypes` is a **breaking change** for any existing API callers using the old GET query param — note in release notes/changelog
+- `packageTransportTypes` and `packageRegistryTypes` use independent OR evaluation across all packages on a server (no co-location requirement — confirmed clarification 2026-04-02)
+- Null transport on a `Package` means that package does not match `packageTransportTypes` and is simply skipped; the server matches only if another of its packages has a non-null matching transport
