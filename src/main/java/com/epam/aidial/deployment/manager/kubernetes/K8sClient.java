@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -209,11 +210,20 @@ public class K8sClient {
 
     public void deleteCiliumNetworkPolicy(String namespace, String name) {
         log.debug("Deleting CiliumNetworkPolicy '{}' in namespace '{}'", name, namespace);
-        client.resources(CiliumNetworkPolicy.class)
-                .inNamespace(namespace)
-                .withName(name)
-                .delete();
-        log.debug("CiliumNetworkPolicy '{}' successfully deleted.", name);
+        try {
+            client.resources(CiliumNetworkPolicy.class)
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .delete();
+            log.debug("CiliumNetworkPolicy '{}' successfully deleted.", name);
+        } catch (KubernetesClientException e) {
+            if (e.getCode() == java.net.HttpURLConnection.HTTP_NOT_FOUND) {
+                log.warn("CiliumNetworkPolicy '{}' or its CRD not found in namespace '{}' (404)."
+                        + " Treating as deleted.", name, namespace);
+                return;
+            }
+            throw e;
+        }
     }
 
 }
