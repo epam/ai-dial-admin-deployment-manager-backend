@@ -15,17 +15,17 @@
 
 ## Decision 2: Filter DTO Structure (Flat vs Nested)
 
-**Decision**: Add a nested `ServerFilterDto` object as a `filter` field inside `ServersRequestDto`. The filter DTO uses concept-based field naming (`remoteTypes`, `packageRegistryTypes`, `repositoryExists`).
+**Decision**: `ServerFilterDto` uses flat fields: `remoteTransportTypes` (renamed from `remoteTypes`), `packageRegistryTypes` (existing), `packageTransportTypes` (new), `repositoryExists` (existing). No nested sub-objects. The `filter` field on `ServersRequestDto` remains a single `ServerFilterDto`.
 
 **Rationale**:
-- Spec FR-002 requires filters organized around server domain concepts.
-- A nested `filter` object separates filter concerns from pagination/search params (`cursor`, `limit`, `search`, `updatedSince`, `version`).
-- Naming convention (`remoteTypes`, `packageRegistryTypes`, `repositoryExists`) makes the domain concept clear without deep nesting.
-- For the GET endpoint, the controller accepts flat query params and constructs the filter DTO manually (matching existing controller patterns).
+- Clarification session (2026-04-02) confirmed flat fields over list-of-criteria structure.
+- Co-location requirement (same package must match both registry type and transport type) was explicitly dropped — each field is evaluated independently across all packages.
+- Flat structure keeps the DTO, the GET query param binding, and the filter predicate straightforward with no additional object graph.
+- For GET: multi-value fields use repeated param names (`remoteTransportTypes=sse&remoteTransportTypes=streamable-http`) — standard Spring MVC `List<String>` binding.
 
 **Alternatives considered**:
-- Flat fields directly on `ServersRequestDto` — rejected because it mixes filtering concerns with pagination and makes future extension harder.
-- Deep nesting (`filter.remotes.types`, `filter.packages.registryTypes`) — rejected as over-engineering for 3 filter fields.
+- List-of-criteria per package (`packages: [{registryTypes, transportTypes}]`) with co-located AND — rejected because the co-location requirement was dropped in clarification.
+- Deep nesting (`filter.remotes.transportTypes`, `filter.packages.registryTypes`) — rejected as over-engineering for flat independent fields.
 
 ## Decision 3: Multi-Page Scanning Location
 

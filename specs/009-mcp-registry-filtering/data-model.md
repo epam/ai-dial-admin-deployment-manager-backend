@@ -1,74 +1,74 @@
 # Data Model: MCP Registry Backend Filtering
 
-## New Entities
-
-### ServerFilterDto
-
-Filter criteria for narrowing MCP server search results. Nested inside `ServersRequestDto` as the `filter` field.
-
-| Field                  | Type           | Nullable | Description                                                                                     |
-|------------------------|----------------|----------|-------------------------------------------------------------------------------------------------|
-| `remoteTypes`          | List\<String\> | Yes      | Remote transport types to match (OR logic). Values: "streamable-http", "sse". Matches `remotes[].type`. |
-| `packageRegistryTypes` | List\<String\> | Yes      | Package registry types to match (OR logic). Values: "npm", "pypi", "oci", "nuget", "mcpb". Matches `packages[].registryType`. |
-| `repositoryExists`     | Boolean        | Yes      | If `true`, match servers with non-null repository. If `false`, match servers with null repository. If null/absent, no constraint. |
-
-**Filter logic**:
-- Within a dimension's value list: **OR** (server matches if any value matches)
-- Across dimensions: **AND** (server must satisfy all specified dimensions)
-- Null/absent dimension or empty list: no constraint on that dimension
-
-### Scan Context (internal, not exposed in API)
-
-Tracks multi-page scanning state within the service method. Method-local state — not encoded into the cursor returned to callers. The cursor returned to callers is the raw upstream registry cursor.
-
-| Field           | Type    | Description                                         |
-|-----------------|---------|-----------------------------------------------------|
-| `upstreamCursor`| String  | Current cursor position in the upstream registry     |
-| `pagesScanned`  | int     | Number of upstream pages fetched so far              |
-| `collected`     | List    | Accumulated matching `ServerResponseDto` entries     |
-
 ## Modified Entities
 
-### ServersRequestDto (existing — modified)
+### ServerFilterDto (modified)
 
-Add one new field:
+Flat filter DTO nested inside `ServersRequestDto` as the `filter` field.
 
-| Field    | Type            | Nullable | Description                                                            |
-|----------|-----------------|----------|------------------------------------------------------------------------|
-| `filter` | ServerFilterDto | Yes      | Backend filter criteria. When null/absent, pass-through behavior applies. |
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| `remoteTransportTypes` | `List<String>` | Yes | **Renamed from `remoteTypes`.** Remote transport types to match (OR logic). Values: `streamable-http`, `sse`. Matched case-insensitively against `RemoteTransport.type`. |
+| `packageRegistryTypes` | `List<String>` | Yes | Package registry types to match (OR logic). Values: `npm`, `pypi`, `oci`, `nuget`, `mcpb`. Matched case-insensitively against `Package.registryType` enum value. |
+| `packageTransportTypes` | `List<String>` | Yes | **New field.** Package transport types to match (OR logic). Values: `stdio`, `streamable-http`, `sse`. Matched case-insensitively against `Package.transport.type` enum value. A package with null `transport` does not match. |
+| `repositoryExists` | `Boolean` | Yes | `true` = servers with non-null repository; `false` = servers with null repository. Null = no constraint. |
 
-All existing fields (`cursor`, `limit`, `search`, `updatedSince`, `version`) remain unchanged.
+**Cross-dimension logic**: AND. A server must satisfy every non-empty/non-null dimension.
 
-### McpRegistryProperties (existing — modified)
+**Active criteria**: `hasActiveCriteria()` returns `true` when any field is non-null and non-empty (including `packageTransportTypes`).
 
-Add one new field:
+**Filter logic matrix:**
 
-| Field             | Type | Default | Env Variable                      | Description                                          |
-|-------------------|------|---------|-----------------------------------|------------------------------------------------------|
-| `maxPagesToScan`  | int  | 25      | `MCP_REGISTRY_MAX_PAGES_TO_SCAN`  | Maximum upstream pages to scan per filtered request.  |
+| remoteTransportTypes | packageRegistryTypes | packageTransportTypes | repositoryExists | Behavior |
+|---|---|---|---|---|
+| null/empty | null/empty | null/empty | null | Pass-through (no multi-page scan) |
+| ["sse"] | — | — | — | Servers with ≥1 SSE remote |
+| — | ["oci"] | — | — | Servers with ≥1 OCI package |
+| — | — | ["stdio"] | — | Servers with ≥1 package with stdio transport |
+| — | ["oci"] | ["streamable-http"] | — | Servers with ≥1 OCI package AND ≥1 package with streamable-http transport (evaluated independently — may be different packages) |
+
+### ServersRequestDto (unchanged)
+
+`filter` field already present; no changes to this class.
+
+### McpRegistryProperties (unchanged)
+
+`maxPagesToScan` property already present; no changes.
 
 ## Existing Entities (read-only, used in filter evaluation)
 
-The filter predicate method signature is `matches(ServerResponseDto, ServerFilterDto)`. `ServerResponseDto` wraps `ServerDetail` via its `server` field — filter evaluation traverses `serverResponseDto.getServer()` to access the fields below.
-
 ### ServerDetail (accessed via `ServerResponseDto.getServer()`)
 
-Filter evaluation reads these fields:
-
-| Field        | Type                | Filter usage                               |
-|--------------|---------------------|--------------------------------------------|
-| `remotes`    | List\<RemoteTransport\> | Check `type` field against `remoteTypes` filter |
-| `packages`   | List\<Package\>     | Check `registryType` field against `packageRegistryTypes` filter |
-| `repository` | Repository          | Null check for `repositoryExists` filter   |
+| Field | Type | Filter usage |
+|-------|------|-------------|
+| `remotes` | `List<RemoteTransport>` | Check `type` against `remoteTransportTypes` |
+| `packages` | `List<Package>` | Check `registryType` against `packageRegistryTypes`; check `transport.type` against `packageTransportTypes` |
+| `repository` | `Repository` | Null check for `repositoryExists` |
 
 ### RemoteTransport
 
-| Field  | Type   | Filter usage                               |
-|--------|--------|--------------------------------------------|
-| `type` | String | Compared against `remoteTypes` filter values (case-insensitive) |
+| Field | Type | Filter usage |
+|-------|------|-------------|
+| `type` | `String` | Compared against `remoteTransportTypes` values (case-insensitive) |
 
 ### Package
 
-| Field          | Type                | Filter usage                                         |
-|----------------|---------------------|------------------------------------------------------|
-| `registryType` | PackageRegistryType | Enum `.getValue()` compared against `packageRegistryTypes` filter values |
+| Field | Type | Filter usage |
+|-------|------|-------------|
+| `registryType` | `PackageRegistryType` | `enum.getValue()` compared against `packageRegistryTypes` values (case-insensitive) |
+| `transport` | `LocalTransport` (nullable) | `transport.type.getValue()` compared against `packageTransportTypes` values (case-insensitive); null transport = no match |
+
+### LocalTransport
+
+| Field | Type | Values |
+|-------|------|--------|
+| `type` | `LocalTransportType` | `STDIO("stdio")`, `STREAMABLE_HTTP("streamable-http")`, `SSE("sse")` |
+
+## Scan Context (internal, method-local, not persisted)
+
+| Variable | Type | Purpose |
+|----------|------|---------|
+| `collected` | `List<ServerResponseDto>` | Accumulated matching results across pages |
+| `currentCursor` | `String` | Cursor for next upstream fetch |
+| `lastSuccessfulCursor` | `String` | Cursor returned to caller when scan limit reached |
+| `pagesScanned` | `int` | Count of pages fetched; stops at `maxPagesToScan` |

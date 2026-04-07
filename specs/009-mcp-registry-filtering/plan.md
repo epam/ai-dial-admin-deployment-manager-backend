@@ -1,41 +1,44 @@
 # Implementation Plan: MCP Registry Backend Filtering
 
-**Branch**: `009-mcp-registry-filtering` | **Date**: 2026-03-18 | **Spec**: [spec.md](./spec.md)
+**Branch**: `009-mcp-registry-filtering` | **Date**: 2026-04-02 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/009-mcp-registry-filtering/spec.md`
 
 ## Summary
 
-Add backend-side filtering to the MCP registry server list endpoints. The upstream MCP registry only supports name-based search — this feature adds filtering by remote transport type, package registry type, and repository existence. When filters are applied, the service scans up to N upstream pages, filtering results in memory, and returns a single page of matching servers. This is Phase 1 (prototype); Phase 2 will replace the scanning with a local aggregator data store.
+Add `packageTransportTypes` filter field to the existing backend-filtering mechanism, and rename
+`remoteTypes` → `remoteTransportTypes` for consistency. All filter fields remain flat on
+`ServerFilterDto`; each is evaluated independently across all server entities with OR within a
+field and AND across fields. No schema migrations required — this is a pure API/service change.
 
 ## Technical Context
 
-**Language/Version**: Java 21, Spring Boot 3.5.10, Gradle 8.13
-**Primary Dependencies**: OkHttpClient (HTTP), Jackson (JSON), Lombok, MapStruct
-**Storage**: N/A (in-memory filtering; no database changes)
-**Testing**: JUnit 5, Mockito, AssertJ, MockMvc; `./gradlew testFast` for dev cycle
-**Target Platform**: Linux server (Spring Boot web service)
+**Language/Version**: Java 21, Spring Boot 3.5.10
+**Primary Dependencies**: Spring Web MVC, Lombok, SpringDoc OpenAPI 2.8.5, Apache Commons Collections4
+**Storage**: N/A — no DB changes
+**Testing**: JUnit 5 + AssertJ + Spring MockMvc (`@WebMvcTest`); `./gradlew testFast`
+**Target Platform**: Linux server (Spring Boot REST service)
 **Project Type**: Web service (REST API)
-**Performance Goals**: Bounded by scan limit — max N sequential upstream HTTP calls per request
-**Constraints**: Max pages to scan configurable (default 5); no changes to upstream API contract
-**Scale/Scope**: Modifies 3 existing files, adds 2 new classes, adds test fixtures
+**Performance Goals**: No new latency targets; bounded by existing `maxPagesToScan` (default 25)
+**Constraints**: GET multi-value params via repeated param name (Spring MVC `List<String>` binding)
+**Scale/Scope**: Touches 4 source files + 3 test files; no migrations; no new dependencies
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*GATE: Must pass before implementation.*
 
-| Gate | Status | Notes |
+| Rule | Status | Notes |
 |------|--------|-------|
-| Layered architecture (web → service → dao/kubernetes) | PASS | Controller calls service; service calls client. No layer violations. |
-| `@LogExecution` on all Spring components | PASS | New `McpServerFilter` component will carry `@LogExecution`. |
-| MapStruct `componentModel = "spring"` | N/A | No new mappers needed. |
-| `@Transactional` only on service/dao layers | N/A | No transactions involved. |
-| Kubernetes isolation | N/A | No K8s changes. |
-| Checkstyle (Google Java Style, 180-char lines) | PASS | Will verify with `./gradlew checkstyleMain checkstyleTest`. |
-| No wildcard imports | PASS | Standard imports only. |
-| Test naming: `shouldDoX()` / `shouldFailDoX_whenY()` | PASS | All new tests follow convention. |
-| `docs/configuration.md` updated for new config | PASS | New env var `MCP_REGISTRY_MAX_PAGES_TO_SCAN` will be documented. |
-| `CollectionUtils.isEmpty()`/`isNotEmpty()` for null-safe checks | PASS | Will use for null/empty list checks in filter. |
-| `StringUtils` for string checks | PASS | Will use where applicable. |
+| Strict Layered Architecture (web → service → dao) | ✅ Pass | Controller builds filter, service orchestrates, McpServerFilter is `@Component` |
+| `@LogExecution` on every Spring component | ✅ Pass | Already present on `McpRegistryController`, `McpRegistryService`, `McpServerFilter` |
+| `@Transactional` only on service/dao | ✅ Pass | No transactions involved |
+| OpenAPI `@Operation` + `@ApiResponse` on every endpoint | ✅ Pass | Must update `@Parameter` docs for renamed/new params |
+| No wildcard imports | ✅ Pass | Enforced by Checkstyle |
+| Configuration property defaults in `application.yml` only | ✅ Pass | `max-pages-to-scan` default already in YAML; no new properties |
+| `docs/configuration.md` update | ✅ Required | No new env vars added — `MCP_REGISTRY_MAX_PAGES_TO_SCAN` already documented; verify |
+| Google Java Style / 180-char line limit | ✅ Pass | Verify with `./gradlew checkstyleMain checkstyleTest` |
+| CollectionUtils for null+empty checks | ✅ Pass | Already used in `McpServerFilter` |
+
+**No violations.** Complexity tracking table not required.
 
 ## Project Structure
 
@@ -43,58 +46,94 @@ Add backend-side filtering to the MCP registry server list endpoints. The upstre
 
 ```text
 specs/009-mcp-registry-filtering/
-├── plan.md              # This file
-├── spec.md              # Feature specification
-├── research.md          # Phase 0 output — technical decisions
-├── data-model.md        # Phase 1 output — entity definitions
-├── quickstart.md        # Phase 1 output — implementation guide
+├── plan.md              ← this file
+├── research.md          ← updated with Decision 2 revision
+├── data-model.md        ← filter DTO fields + logic matrix
 ├── contracts/
-│   └── api.md           # Phase 1 output — API contract
-└── tasks.md             # Phase 2 output (created by /speckit.tasks)
+│   └── server-filter-api.md   ← GET params + POST body shape
+└── tasks.md             ← generated by /speckit.tasks
 ```
 
-### Source Code (repository root)
+### Source Code (affected files only)
 
 ```text
-src/main/java/com/epam/aidial/deployment/manager/registry/mcp/
-├── client/
-│   └── McpRegistryClient.java              # UNCHANGED — single-page HTTP client
-├── model/
-│   └── (existing models)                    # UNCHANGED
-├── properties/
-│   └── McpRegistryProperties.java           # MODIFIED — add maxPagesToScan
-├── service/
-│   ├── McpRegistryService.java              # MODIFIED — multi-page scanning loop
-│   └── McpServerFilter.java                 # NEW — filter predicate component
-└── web/
-    ├── controller/
-    │   └── McpRegistryController.java       # MODIFIED — add filter query params
-    └── dto/
-        ├── ServersRequestDto.java           # MODIFIED — add filter field
-        └── ServerFilterDto.java             # NEW — filter criteria DTO
+src/main/java/.../registry/mcp/
+├── web/
+│   ├── controller/
+│   │   └── McpRegistryController.java        ← rename remoteTypes param, add packageTransportTypes param
+│   └── dto/
+│       └── ServerFilterDto.java              ← rename remoteTypes, add packageTransportTypes
+└── service/
+    └── McpServerFilter.java                  ← add packageTransportTypes matching logic
 
-src/main/resources/
-└── application.yml                          # MODIFIED — add max-pages-to-scan
-
-src/test/java/com/epam/aidial/deployment/manager/mcpregistry/
-├── service/
-│   ├── McpServerFilterTest.java             # NEW — unit tests for filter predicate
-│   └── McpRegistryServiceTest.java          # NEW — unit tests for scanning loop
-└── web/controller/
-    └── McpRegistryControllerTest.java       # MODIFIED — add filter param tests
-
-src/test/resources/mcp-registry/
-├── servers_page.json                        # EXISTING
-├── server_version.json                      # EXISTING
-├── servers_page_mixed.json                  # NEW — servers with diverse properties
-└── servers_page_empty.json                  # NEW — empty results page
-
-docs/
-└── configuration.md                         # MODIFIED — document new env var
+src/test/java/.../mcpregistry/
+├── web/controller/
+│   └── McpRegistryControllerTest.java        ← update/add GET filter param tests
+└── service/
+    └── McpServerFilterTest.java              ← add packageTransportTypes test cases
 ```
 
-**Structure Decision**: All changes fit within the existing `registry/mcp/` package hierarchy. Two new classes (`ServerFilterDto`, `McpServerFilter`) follow existing naming conventions. No new packages needed.
+**Structure Decision**: Single-project layout; changes are confined to the existing
+`registry/mcp/` package tree. No new packages or modules required.
 
 ## Complexity Tracking
 
-No constitution violations. No complexity justifications needed.
+> No constitution violations — table not applicable.
+
+## Phase 0: Research
+
+**Status**: Complete — see [research.md](./research.md)
+
+Key decisions relevant to this change:
+
+| # | Decision | Outcome |
+|---|----------|---------|
+| 1 | Filter field types | `String` for all filter lists; case-insensitive comparison |
+| 2 | DTO structure | Flat fields; `packageTransportTypes` added as independent dimension |
+| 3 | Scanning location | `McpRegistryService` loop; `McpServerFilter` predicate |
+| 4 | Filter predicate | Dedicated `McpServerFilter` `@Component` |
+| 5 | Scan limit default | 25 pages (already in place) |
+| 6 | Full-page collection | No mid-page break (already in place) |
+
+No NEEDS CLARIFICATION items remain.
+
+## Phase 1: Design & Contracts
+
+### Data Model
+
+See [data-model.md](./data-model.md) for the full field inventory and logic matrix.
+
+**`ServerFilterDto` — after this change:**
+
+| Field | Type | Cardinality | Logic | Matches against |
+|-------|------|-------------|-------|-----------------|
+| `remoteTransportTypes` | `List<String>` | 0..N | OR within; AND with others | `RemoteTransport.type` |
+| `packageRegistryTypes` | `List<String>` | 0..N | OR within; AND with others | `Package.registryType` (enum value) |
+| `packageTransportTypes` | `List<String>` | 0..N | OR within; AND with others | `Package.transport.type` (enum value) |
+| `repositoryExists` | `Boolean` | 0..1 | AND with others | `ServerDetail.repository != null` |
+
+`PackageTransportType` valid values: `stdio`, `streamable-http`, `sse` (case-insensitive; matches `LocalTransportType` enum values).
+
+**`hasActiveCriteria` update**: must also return `true` when `packageTransportTypes` is non-empty.
+
+### API Contracts
+
+See [contracts/server-filter-api.md](./contracts/server-filter-api.md) for full request/response shape.
+
+**Summary of changes:**
+
+| Endpoint | Change |
+|----------|--------|
+| `GET /api/v1/mcp-registry/servers` | Rename `remoteTypes` → `remoteTransportTypes`; add `packageTransportTypes` repeated param |
+| `POST /api/v1/mcp-registry/servers/list` | Rename `remoteTypes` → `remoteTransportTypes` in body; add `packageTransportTypes` |
+
+Response shape unchanged.
+
+### Implementation Steps
+
+1. **`ServerFilterDto`** — rename `remoteTypes` → `remoteTransportTypes`; add `packageTransportTypes`
+2. **`McpServerFilter`** — add `matchesPackageTransportTypes()` private method; update `hasActiveCriteria()` to include the new field; update `matches()` to apply the new dimension
+3. **`McpRegistryController`** — rename `remoteTypes` param to `remoteTransportTypes`; add `packageTransportTypes` param; update `buildFilter()` helper; update `@Parameter` OpenAPI docs
+4. **`McpServerFilterTest`** — rename references to `remoteTypes`; add test cases for `packageTransportTypes` (single value, multi-value OR, case-insensitive, null transport, empty packages, AND with other dimensions); update `hasActiveCriteria` tests
+5. **`McpRegistryControllerTest`** — update GET test assertions for renamed param; add test for `packageTransportTypes` query param binding
+6. **Checkstyle + tests** — run `./gradlew checkstyleMain checkstyleTest testFast`
