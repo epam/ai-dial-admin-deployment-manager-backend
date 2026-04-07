@@ -20,6 +20,7 @@ import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumN
 import com.nvidia.apps.v1alpha1.NIMService;
 import io.fabric8.kubernetes.api.model.Pod;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -194,19 +195,35 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         }
 
         String url;
+        String defaultSchema;
         if (nimDeployProperties.isUseClusterInternalUrl()) {
             url = model.getClusterEndpoint();
+            defaultSchema = "http";
             log.info("resolveServiceUrl. serviceName: '{}'. Using cluster internal URL: {}", serviceName, url);
         } else {
             url = model.getExternalEndpoint();
+            defaultSchema = "https";
             log.info("resolveServiceUrl. serviceName: '{}'. Using external URL: {}", serviceName, url);
         }
-        return url;
+        return prependSchema(url, defaultSchema);
     }
 
     @Override
     protected String getServiceNameLabel() {
         return SERVICE_NAME_LABEL;
+    }
+
+    private String prependSchema(String url, String defaultSchema) {
+        if (StringUtils.isEmpty(url)) {
+            return null;
+        }
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url;
+        }
+        var schema = StringUtils.isNotEmpty(nimDeployProperties.getUrlSchema())
+                ? nimDeployProperties.getUrlSchema().replace("://", "")
+                : defaultSchema;
+        return schema + "://" + url;
     }
 
 }

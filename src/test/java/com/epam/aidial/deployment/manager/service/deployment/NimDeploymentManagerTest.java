@@ -624,7 +624,7 @@ class NimDeploymentManagerTest {
     }
 
     @Test
-    void resolveServiceUrl_shouldReturnExternalEndpoint() {
+    void resolveServiceUrl_shouldReturnExternalEndpointWithHttpsSchema() {
         // Given
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -632,8 +632,8 @@ class NimDeploymentManagerTest {
         service.setMetadata(metadata);
         NIMServiceStatus status = new NIMServiceStatus();
         Model model = new Model();
-        model.setClusterEndpoint("http://cluster-internal:8000");
-        model.setExternalEndpoint("http://external:8000");
+        model.setClusterEndpoint("cluster-internal:8000");
+        model.setExternalEndpoint("external:8000");
         status.setModel(model);
         service.setStatus(status);
         NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
@@ -642,11 +642,11 @@ class NimDeploymentManagerTest {
         String result = nimDeploymentManager.resolveServiceUrl(service, deployment);
 
         // Then
-        assertThat(result).isEqualTo("http://external:8000");
+        assertThat(result).isEqualTo("https://external:8000");
     }
 
     @Test
-    void resolveServiceUrl_shouldReturnClusterEndpointWhenUseClusterInternalUrlIsTrue() {
+    void resolveServiceUrl_shouldReturnClusterEndpointWithHttpSchemaWhenUseClusterInternalUrlIsTrue() {
         // Given
         var nimDeployProperties = new NimDeployProperties();
         nimDeployProperties.setNamespace(NAMESPACE);
@@ -663,8 +663,8 @@ class NimDeploymentManagerTest {
         service.setMetadata(metadata);
         NIMServiceStatus status = new NIMServiceStatus();
         Model model = new Model();
-        model.setClusterEndpoint("http://cluster-internal:8000");
-        model.setExternalEndpoint("http://external:8000");
+        model.setClusterEndpoint("cluster-internal:8000");
+        model.setExternalEndpoint("external:8000");
         status.setModel(model);
         service.setStatus(status);
         NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
@@ -674,6 +674,143 @@ class NimDeploymentManagerTest {
 
         // Then
         assertThat(result).isEqualTo("http://cluster-internal:8000");
+    }
+
+    @Test
+    void resolveServiceUrl_shouldPreserveExistingSchemaPrefix() {
+        // Given
+        NIMService service = new NIMService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        NIMServiceStatus status = new NIMServiceStatus();
+        Model model = new Model();
+        model.setClusterEndpoint("cluster-internal:8000");
+        model.setExternalEndpoint("https://already-prefixed:8000");
+        status.setModel(model);
+        service.setStatus(status);
+        NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
+
+        // When
+        String result = nimDeploymentManager.resolveServiceUrl(service, deployment);
+
+        // Then
+        assertThat(result).isEqualTo("https://already-prefixed:8000");
+    }
+
+    @Test
+    void resolveServiceUrl_shouldUseOverriddenSchemaForClusterEndpoint() {
+        // Given
+        var nimDeployProperties = new NimDeployProperties();
+        nimDeployProperties.setNamespace(NAMESPACE);
+        nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        nimDeployProperties.setUseClusterInternalUrl(true);
+        nimDeployProperties.setUrlSchema("https");
+
+        nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
+                knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
+                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+
+        NIMService service = new NIMService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        NIMServiceStatus status = new NIMServiceStatus();
+        Model model = new Model();
+        model.setClusterEndpoint("cluster-internal:8000");
+        status.setModel(model);
+        service.setStatus(status);
+        NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
+
+        // When
+        String result = nimDeploymentManager.resolveServiceUrl(service, deployment);
+
+        // Then
+        assertThat(result).isEqualTo("https://cluster-internal:8000");
+    }
+
+    @Test
+    void resolveServiceUrl_shouldUseOverriddenSchemaForExternalEndpoint() {
+        // Given
+        var nimDeployProperties = new NimDeployProperties();
+        nimDeployProperties.setNamespace(NAMESPACE);
+        nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        nimDeployProperties.setUseClusterInternalUrl(false);
+        nimDeployProperties.setClusterHost(CLUSTER_HOST);
+        nimDeployProperties.setUrlSchema("http");
+
+        nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
+                knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
+                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+
+        NIMService service = new NIMService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        NIMServiceStatus status = new NIMServiceStatus();
+        Model model = new Model();
+        model.setExternalEndpoint("external:8000");
+        status.setModel(model);
+        service.setStatus(status);
+        NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
+
+        // When
+        String result = nimDeploymentManager.resolveServiceUrl(service, deployment);
+
+        // Then
+        assertThat(result).isEqualTo("http://external:8000");
+    }
+
+    @Test
+    void resolveServiceUrl_shouldNormalizeOverrideValueWithProtocolSuffix() {
+        // Given
+        var nimDeployProperties = new NimDeployProperties();
+        nimDeployProperties.setNamespace(NAMESPACE);
+        nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        nimDeployProperties.setUseClusterInternalUrl(true);
+        nimDeployProperties.setUrlSchema("https://");
+
+        nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
+                knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
+                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+
+        NIMService service = new NIMService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        NIMServiceStatus status = new NIMServiceStatus();
+        Model model = new Model();
+        model.setClusterEndpoint("cluster-internal:8000");
+        status.setModel(model);
+        service.setStatus(status);
+        NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
+
+        // When
+        String result = nimDeploymentManager.resolveServiceUrl(service, deployment);
+
+        // Then
+        assertThat(result).isEqualTo("https://cluster-internal:8000");
+    }
+
+    @Test
+    void resolveServiceUrl_shouldUseDefaultSchemaWhenOverrideIsEmpty() {
+        // Given — default setUp uses useClusterInternalUrl=false with no urlSchema override
+        NIMService service = new NIMService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        NIMServiceStatus status = new NIMServiceStatus();
+        Model model = new Model();
+        model.setExternalEndpoint("external:8000");
+        status.setModel(model);
+        service.setStatus(status);
+        NimDeployment deployment = (NimDeployment) createDeployment(DeploymentStatus.RUNNING);
+
+        // When
+        String result = nimDeploymentManager.resolveServiceUrl(service, deployment);
+
+        // Then — default for external is https
+        assertThat(result).isEqualTo("https://external:8000");
     }
 
     @Test
