@@ -193,6 +193,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.knative.deploy.startup-timeout`          | `K8S_KNATIVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `300`         | No                                                | -            | Knative service startup timeout in seconds                             |
 | `app.knative.deploy.undeploy-timeout`         | `K8S_KNATIVE_DEPLOYMENT_UNDEPLOY_TIMEOUT_SEC`         | `300`         | No                                                | -            | Knative service undeploy timeout in seconds                            |
 | `app.knative.deploy.informer-resync-interval` | `K8S_KNATIVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for Knative deployments |
+| `app.knative.deploy.ready-grace-period`       | `K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC`       | `15`          | No                                                | -            | Grace period in seconds after Ready=False before reporting CRASHED status. Set to 0 to disable |
 
 
 #### NIM (NVIDIA Inference Microservices) Configuration

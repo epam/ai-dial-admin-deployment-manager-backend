@@ -29,7 +29,9 @@ import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
+import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.knative.serving.v1.Service;
+import io.fabric8.knative.serving.v1.ServiceStatus;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
@@ -78,6 +80,7 @@ class KnativeDeploymentManagerTest {
     private static final UUID IMAGE_DEFINITION_ID = UUID.randomUUID();
     private static final int STARTUP_TIMEOUT = 60;
     private static final int UNDEPLOY_TIMEOUT = 300;
+    private static final int READY_GRACE_PERIOD = 15;
 
     private static final String SERVICE_URL = "https://service-url.example.com";
     private static final String SERVICE_NAME = "test-" + DEPLOYMENT_ID;
@@ -132,6 +135,7 @@ class KnativeDeploymentManagerTest {
         knativeDeployProperties.setNamespace(NAMESPACE);
         knativeDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         knativeDeployProperties.setUndeployTimeout(UNDEPLOY_TIMEOUT);
+        knativeDeployProperties.setReadyGracePeriod(READY_GRACE_PERIOD);
 
         knativeDeploymentManager = new KnativeDeploymentManager(
                 k8sClient,
@@ -688,6 +692,141 @@ class KnativeDeploymentManagerTest {
         // Then
         assertThat(result).isTrue();
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
+    }
+
+    @Test
+    void reconcile_shouldTreatReadyFalseAsPendingWithinGracePeriod() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        Service service = createKnativeServiceWithReadyCondition("False", Instant.now().minusSeconds(5).toString());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = ReconcileConfig.<Service>builder()
+                .deploymentId(DEPLOYMENT_ID)
+                .service(service)
+                .serviceIsMissing(false)
+                .initiator("Reconciliation Test")
+                .ignorePendingOnServiceNotFound(false)
+                .build();
+
+        // When
+        boolean result = knativeDeploymentManager.reconcile(reconcileConfig);
+
+        // Then - status is already PENDING, so no update needed
+        assertThat(result).isFalse();
+        verify(deploymentRepository, never()).updateStatus(any(), any());
+    }
+
+    @Test
+    void reconcile_shouldTreatReadyFalseAsCrashedAfterGracePeriod() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        Service service = createKnativeServiceWithReadyCondition("False", Instant.now().minusSeconds(60).toString());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = ReconcileConfig.<Service>builder()
+                .deploymentId(DEPLOYMENT_ID)
+                .service(service)
+                .serviceIsMissing(false)
+                .initiator("Reconciliation Test")
+                .ignorePendingOnServiceNotFound(false)
+                .build();
+
+        // When
+        boolean result = knativeDeploymentManager.reconcile(reconcileConfig);
+
+        // Then
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.CRASHED));
+    }
+
+    @Test
+    void reconcile_shouldTreatReadyFalseAsCrashedWhenLastTransitionTimeIsNull() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        Service service = createKnativeServiceWithReadyCondition("False", null);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = ReconcileConfig.<Service>builder()
+                .deploymentId(DEPLOYMENT_ID)
+                .service(service)
+                .serviceIsMissing(false)
+                .initiator("Reconciliation Test")
+                .ignorePendingOnServiceNotFound(false)
+                .build();
+
+        // When
+        boolean result = knativeDeploymentManager.reconcile(reconcileConfig);
+
+        // Then
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.CRASHED));
+    }
+
+    @Test
+    void reconcile_shouldTreatReadyFalseAsCrashedWhenGracePeriodDisabled() {
+        // Given - recreate manager with grace period = 0
+        var knativeDeployProperties = new KnativeDeployProperties();
+        knativeDeployProperties.setNamespace(NAMESPACE);
+        knativeDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
+        knativeDeployProperties.setUndeployTimeout(UNDEPLOY_TIMEOUT);
+        knativeDeployProperties.setReadyGracePeriod(0);
+
+        var managerWithDisabledGrace = new KnativeDeploymentManager(
+                k8sClient,
+                manifestGenerator,
+                knativeManifestGenerator,
+                deploymentRepository,
+                imageDefinitionService,
+                containerPortResolver,
+                disposableResourceManager,
+                ciliumNetworkPolicyCreator,
+                healthCheckProvider,
+                k8sKnativeClient,
+                knativeDeployProperties,
+                SERVICE_CONTAINER
+        );
+
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        Service service = createKnativeServiceWithReadyCondition("False", Instant.now().minusSeconds(5).toString());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = ReconcileConfig.<Service>builder()
+                .deploymentId(DEPLOYMENT_ID)
+                .service(service)
+                .serviceIsMissing(false)
+                .initiator("Reconciliation Test")
+                .ignorePendingOnServiceNotFound(false)
+                .build();
+
+        // When
+        boolean result = managerWithDisabledGrace.reconcile(reconcileConfig);
+
+        // Then - even though lastTransitionTime is recent, grace period is disabled → CRASHED
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.CRASHED));
+    }
+
+    private Service createKnativeServiceWithReadyCondition(String status, String lastTransitionTime) {
+        var service = mock(Service.class);
+        var metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        when(service.getMetadata()).thenReturn(metadata);
+
+        var condition = new Condition();
+        condition.setType("Ready");
+        condition.setStatus(status);
+        condition.setLastTransitionTime(lastTransitionTime);
+
+        var serviceStatus = mock(ServiceStatus.class);
+        when(serviceStatus.getConditions()).thenReturn(List.of(condition));
+        when(service.getStatus()).thenReturn(serviceStatus);
+
+        return service;
     }
 
     private Deployment createDeployment(DeploymentStatus status) {
