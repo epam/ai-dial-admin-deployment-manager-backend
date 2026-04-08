@@ -187,18 +187,33 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
     // --- Filter param tests (T010, T012) ---
 
     @Test
-    void getServers_shouldPassRemoteTypesFilter() throws Exception {
+    void getServers_shouldPassRemoteTransportTypesFilter() throws Exception {
         var serviceResponse = emptyServerListResponse();
         when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
 
         mockMvc.perform(get("/api/v1/mcp-registry/servers")
-                        .param("remoteTypes", "sse"))
+                        .param("remoteTransportTypes", "sse"))
                 .andExpect(status().isOk());
 
         var captor = forClass(ServersRequestDto.class);
         verify(mcpRegistryService).getServers(captor.capture());
         assertThat(captor.getValue().getFilter()).isNotNull();
-        assertThat(captor.getValue().getFilter().getRemoteTypes()).containsExactly("sse");
+        assertThat(captor.getValue().getFilter().getRemoteTransportTypes()).containsExactly("sse");
+    }
+
+    @Test
+    void getServers_shouldPassPackageTransportTypesFilter() throws Exception {
+        var serviceResponse = emptyServerListResponse();
+        when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
+
+        mockMvc.perform(get("/api/v1/mcp-registry/servers")
+                        .param("packageTransportTypes", "stdio"))
+                .andExpect(status().isOk());
+
+        var captor = forClass(ServersRequestDto.class);
+        verify(mcpRegistryService).getServers(captor.capture());
+        assertThat(captor.getValue().getFilter()).isNotNull();
+        assertThat(captor.getValue().getFilter().getPackageTransportTypes()).containsExactly("stdio");
     }
 
     @Test
@@ -237,7 +252,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
         when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
 
         mockMvc.perform(get("/api/v1/mcp-registry/servers")
-                        .param("remoteTypes", "sse")
+                        .param("remoteTransportTypes", "sse")
                         .param("packageRegistryTypes", "npm")
                         .param("repositoryExists", "true"))
                 .andExpect(status().isOk());
@@ -246,7 +261,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
         verify(mcpRegistryService).getServers(captor.capture());
         var filter = captor.getValue().getFilter();
         assertThat(filter).isNotNull();
-        assertThat(filter.getRemoteTypes()).containsExactly("sse");
+        assertThat(filter.getRemoteTransportTypes()).containsExactly("sse");
         assertThat(filter.getPackageRegistryTypes()).containsExactly("npm");
         assertThat(filter.getRepositoryExists()).isTrue();
     }
@@ -273,8 +288,9 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
                 {
                     "limit": 50,
                     "filter": {
-                        "remoteTypes": ["sse", "streamable-http"],
+                        "remoteTransportTypes": ["sse", "streamable-http"],
                         "packageRegistryTypes": ["npm"],
+                        "packageTransportTypes": ["stdio"],
                         "repositoryExists": true
                     }
                 }
@@ -289,8 +305,9 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
         verify(mcpRegistryService).getServers(captor.capture());
         var filter = captor.getValue().getFilter();
         assertThat(filter).isNotNull();
-        assertThat(filter.getRemoteTypes()).containsExactly("sse", "streamable-http");
+        assertThat(filter.getRemoteTransportTypes()).containsExactly("sse", "streamable-http");
         assertThat(filter.getPackageRegistryTypes()).containsExactly("npm");
+        assertThat(filter.getPackageTransportTypes()).containsExactly("stdio");
         assertThat(filter.getRepositoryExists()).isTrue();
     }
 
@@ -303,7 +320,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
         when(mcpRegistryService.getServers(any())).thenReturn(serviceResponse);
 
         mockMvc.perform(get("/api/v1/mcp-registry/servers")
-                        .param("remoteTypes", "sse"))
+                        .param("remoteTransportTypes", "sse"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"metadata\":{\"nextCursor\":\"cursor-abc\"}}", JsonCompareMode.LENIENT));
     }
@@ -315,7 +332,7 @@ class McpRegistryControllerTest extends AbstractControllerNoneSecureTest {
 
         mockMvc.perform(get("/api/v1/mcp-registry/servers")
                         .param("cursor", "cursor-abc")
-                        .param("remoteTypes", "sse"))
+                        .param("remoteTransportTypes", "sse"))
                 .andExpect(status().isOk());
 
         var captor = forClass(ServersRequestDto.class);

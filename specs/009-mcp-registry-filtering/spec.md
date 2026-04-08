@@ -15,13 +15,23 @@ This feature follows a two-phase delivery strategy:
 
 **Design constraint**: The filter API contract (request parameters and response shape) introduced in Phase 1 MUST be designed as the permanent interface that survives the transition to Phase 2. Callers should not need to change when the underlying implementation switches from multi-page scanning to aggregator-based storage. No special "preview" or "prototype" labeling in the API — the contract is stable from day one.
 
+## Clarifications
+
+### Session 2026-04-02
+
+- Q: Should the filter DTO use flat fields or a list-of-criteria structure for package filtering? → A: Flat fields — `remoteTransportTypes` (renamed from `remoteTypes`), `packageRegistryTypes` (existing), `packageTransportTypes` (new), `repositoryExists` (existing). Package registry type and package transport type filters are evaluated independently across all packages on the server (no co-location requirement).
+- Q: Do the filter endpoints require additional authorization beyond the existing list-servers endpoint auth? → A: Same auth as existing list-servers — no additional restriction.
+- Q: When the upstream errors mid-scan after some results are collected, what should the system return? → A: Return collected results if any; propagate the error only if zero results were collected (existing edge case behavior retained).
+- Q: How should multi-value filter fields be encoded as GET query parameters? → A: Repeated param name — `remoteTransportTypes=sse&remoteTransportTypes=streamable-http` (standard Spring MVC List binding).
+- Q: Should there be a configurable per-request timeout for multi-page scans? → A: No explicit timeout — rely on existing HTTP client/server timeouts configured at infrastructure level.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Filter MCP Servers by Properties Not Supported by Registry (Priority: P1)
 
-An administrator browsing MCP servers wants to narrow results by properties the upstream MCP registry does not support filtering on — such as remote transport type, package registry type, or repository presence. The system reads multiple pages from the upstream registry behind the scenes, applies the requested filters in memory, and returns a single page of matching results to the caller.
+An administrator browsing MCP servers wants to narrow results by properties the upstream MCP registry does not support filtering on — such as remote transport type, package registry type, package transport type, or repository presence. The system reads multiple pages from the upstream registry behind the scenes, applies the requested filters in memory, and returns a single page of matching results to the caller.
 
-The filter model is designed to be expressive and extensible. Rather than flat top-level filter parameters, filters are structured around the server's domain concepts (remotes, packages, repository) so that new filter criteria can be added to each concept without changing the overall request shape. Each filter criterion accepts a list of values with OR logic within it (e.g., remote type = ["sse", "streamable-http"] matches servers with either transport), while AND logic applies across different filter dimensions.
+The filter model uses flat fields organized around the server's domain concepts (remotes, packages, repository). Each field accepts a list of values with OR logic within it. AND logic applies across different filter dimensions. The package registry type and package transport type filters are independent — each is evaluated across all packages on the server separately (a server matches `packageRegistryTypes=["oci"]` + `packageTransportTypes=["streamable-http"]` if it has at least one OCI package AND at least one package with streamable-http transport, which may or may not be the same package).
 
 **Why this priority**: This is the core value of the feature. Without backend-side filtering, users must manually browse through large numbers of servers to find ones matching their criteria, which is impractical for registries with thousands of entries.
 
@@ -36,8 +46,10 @@ The filter model is designed to be expressive and extensible. Rather than flat t
 5. **Given** a user requests servers filtered by "repository does not exist", **Then** only servers without a repository are returned.
 6. **Given** a user requests servers filtered by remote type ["sse", "streamable-http"], **Then** servers that have at least one remote of type "sse" OR at least one remote of type "streamable-http" are returned.
 7. **Given** a user requests servers filtered by package registry type ["npm", "pypi"], **Then** servers that have at least one npm package OR at least one pypi package are returned.
-8. **Given** a backend filter is applied and the first upstream page has no matching servers, **When** the system fetches subsequent pages, **Then** the system continues fetching up to N pages until it collects enough results to fill the requested page size or exhausts the maximum page scan limit.
-9. **Given** a backend filter is applied alongside the existing `search` parameter, **When** the request is made, **Then** the `search` parameter is forwarded to the upstream registry (server-side) while the backend filter is applied in memory to the results.
+8. **Given** the upstream registry contains servers with various package transport types, **When** a user requests servers filtered by package transport type ["stdio"], **Then** only servers that have at least one package with `transport.type = "stdio"` are returned.
+9. **Given** a user requests servers filtered by `packageRegistryTypes: ["oci"]` AND `packageTransportTypes: ["streamable-http"]`, **When** the results are returned, **Then** servers that have at least one OCI package AND at least one package with streamable-http transport are returned — these may be different packages on the same server.
+10. **Given** a backend filter is applied and the first upstream page has no matching servers, **When** the system fetches subsequent pages, **Then** the system continues fetching up to N pages until it collects enough results to fill the requested page size or exhausts the maximum page scan limit.
+11. **Given** a backend filter is applied alongside the existing `search` parameter, **When** the request is made, **Then** the `search` parameter is forwarded to the upstream registry (server-side) while the backend filter is applied in memory to the results.
 
 ---
 
@@ -47,14 +59,15 @@ An administrator wants to find servers that match several criteria at once — f
 
 **Why this priority**: Same priority as basic filtering — combining filters is not an add-on, it is inherent to how the filter model works. Each filter dimension independently contributes to a single AND predicate.
 
-**Independent Test**: Can be tested by sending a request with multiple filter criteria (e.g., remote type + package type + repository exists) and verifying the returned servers satisfy all conditions.
+**Independent Test**: Can be tested by sending a request with multiple filter dimensions (e.g., remoteTransportTypes + packageRegistryTypes + repositoryExists) and verifying the returned servers satisfy all conditions.
 
 **Acceptance Scenarios**:
 
-1. **Given** a user requests servers with remote type ["sse"] AND package registry type ["npm"], **When** the results are returned, **Then** every server in the results has at least one SSE remote AND at least one npm package.
-2. **Given** a user requests servers with package registry type ["oci"] AND repository exists, **When** the results are returned, **Then** every server has at least one OCI package AND a non-null repository.
-3. **Given** a user requests servers with remote type ["sse", "streamable-http"] AND package registry type ["npm", "pypi"], **When** the results are returned, **Then** every server has (at least one SSE or streamable-http remote) AND (at least one npm or pypi package).
+1. **Given** a user requests servers with `remoteTransportTypes: ["sse"]` AND `packageRegistryTypes: ["npm"]`, **When** the results are returned, **Then** every server in the results has at least one SSE remote AND at least one npm package.
+2. **Given** a user requests servers with `packageRegistryTypes: ["oci"]` AND `repositoryExists: true`, **When** the results are returned, **Then** every server has at least one OCI package AND a non-null repository.
+3. **Given** a user requests servers with `remoteTransportTypes: ["sse", "streamable-http"]` AND `packageRegistryTypes: ["npm", "pypi"]`, **When** the results are returned, **Then** every server has (at least one SSE or streamable-http remote) AND (at least one npm or pypi package).
 4. **Given** a user specifies only one filter dimension, **When** the results are returned, **Then** only that single dimension is applied — no implicit defaults on other filter dimensions.
+5. **Given** a user requests servers with `packageRegistryTypes: ["oci"]` AND `packageTransportTypes: ["streamable-http"]`, **When** the results are returned, **Then** every server has at least one OCI package AND at least one package with streamable-http transport (evaluated independently across all packages).
 
 ---
 
@@ -99,9 +112,10 @@ An operator deploying the system wants to control how many upstream registry pag
 - What happens when no backend filters are specified? The request is passed through to the upstream registry without any multi-page scanning — existing behavior is preserved.
 - What happens when the upstream registry has fewer pages than the scan limit? The system stops when the upstream indicates no more pages (null nextCursor) and returns collected results with null cursor.
 - What happens when a user provides a backend filter on the GET endpoint (query params)? The filters are accepted as query parameters the same way they are in the POST request body.
-- What happens when a server has null/empty `packages` list and a package type filter is applied? The server does not match the filter and is excluded.
+- What happens when a server has null/empty `packages` list and a package criterion filter is applied? The server does not match the filter and is excluded.
 - What happens when a server has null/empty `remotes` list and a remote type filter is applied? The server does not match the filter and is excluded.
 - What happens when a filter criterion has an empty list of values (e.g., remote type = [])? An empty list is treated as "no filter on this dimension" — equivalent to omitting the criterion entirely.
+- What happens when `packageTransportTypes` is specified but a package has a null `transport` field? That package does not match the transport type filter and is skipped; the server matches only if another of its packages has a non-null transport with a matching type.
 - What happens when a single upstream page has more matching servers than the requested limit? The system collects all matches from that page and returns them, even if the count exceeds `limit`. This is intentional: the upstream cursor is an opaque token pointing to the next page, so breaking mid-page would permanently lose unprocessed matches. The `limit` controls when to stop fetching new pages, not a hard cap on results.
 
 ## Requirements *(mandatory)*
@@ -111,12 +125,14 @@ An operator deploying the system wants to control how many upstream registry pag
 **Filter model**
 
 - **FR-001**: System MUST accept a structured filter object on the list-servers endpoints (both GET and POST variants) for properties not supported by the upstream MCP registry.
-- **FR-002**: The filter model MUST be organized around server domain concepts — `remotes`, `packages`, and `repository` — so that each concept can carry its own set of filter criteria independently.
-- **FR-003**: System MUST support filtering by remote transport type — matching servers that have at least one remote entry whose type matches any of the specified values (case-insensitive comparison, e.g., ["streamable-http", "sse"]). Values within the list are combined with OR logic.
-- **FR-004**: System MUST support filtering by package registry type — matching servers that have at least one package whose registry type matches any of the specified values (case-insensitive comparison, e.g., ["npm", "oci"]). Values within the list are combined with OR logic.
-- **FR-005**: System MUST support filtering by repository existence — matching servers that have a non-null repository (exists = true) or a null repository (exists = false).
-- **FR-006**: When multiple filter dimensions are specified, they MUST be combined with AND logic — a server must satisfy every specified dimension to be included in results. Within a single dimension's value list, OR logic applies.
-- **FR-007**: When a filter dimension is omitted (null/absent) or its value list is empty, it MUST NOT constrain results — only explicitly provided criteria with non-empty values participate in filtering.
+- **FR-002**: The filter model uses flat fields grouped by server domain concept (`remotes`, `packages`, `repository`). Each field is evaluated independently across all matching entities on the server.
+- **FR-003**: System MUST support filtering by remote transport type via `remoteTransportTypes` — matching servers that have at least one remote entry whose `type` matches any of the specified values (case-insensitive, e.g., ["streamable-http", "sse"]). Values are combined with OR logic.
+- **FR-004**: System MUST support filtering by package registry type via `packageRegistryTypes` — matching servers that have at least one package whose `registryType` matches any of the specified values (case-insensitive, e.g., ["npm", "pypi", "oci", "nuget", "mcpb"]). Values are combined with OR logic.
+- **FR-004b**: System MUST support filtering by package transport type via `packageTransportTypes` — matching servers that have at least one package whose `transport.type` matches any of the specified values (case-insensitive, e.g., ["stdio", "streamable-http", "sse"]). Values are combined with OR logic. This filter is evaluated independently from `packageRegistryTypes` — the matching package does not need to be the same package.
+- **FR-005**: System MUST support filtering by repository existence via `repositoryExists` — matching servers that have a non-null repository (`true`) or a null repository (`false`).
+- **FR-006**: When multiple filter fields are specified, they MUST be combined with AND logic — a server must satisfy every specified field to be included in results. Within a single field's value list, OR logic applies.
+- **FR-007**: When a filter field is omitted (null/absent) or its value list is empty, it MUST NOT constrain results — only explicitly provided fields with non-empty values participate in filtering.
+- **FR-007a**: On the GET endpoint, multi-value filter fields MUST be accepted as repeated query parameters (e.g., `remoteTransportTypes=sse&remoteTransportTypes=streamable-http`), consistent with standard Spring MVC `List<String>` binding.
 
 **Multi-page scanning (Phase 1 — Prototype)**
 
@@ -139,7 +155,13 @@ An operator deploying the system wants to control how many upstream registry pag
 
 ### Key Entities
 
-- **Server Filter**: A structured set of filter criteria organized by domain concept. Contains optional sub-filters for remotes (list of transport types, OR logic), packages (list of registry types, OR logic), and repository (existence boolean). Across dimensions, AND logic applies. When the entire filter is empty/absent, no backend filtering occurs.
+- **Server Filter**: A flat set of optional filter fields evaluated with AND logic across dimensions and OR logic within each field's value list:
+  - `remoteTransportTypes`: list of strings matched against `RemoteTransport.type` ("streamable-http", "sse").
+  - `packageRegistryTypes`: list of strings matched against `Package.registryType` ("npm", "pypi", "oci", "nuget", "mcpb").
+  - `packageTransportTypes`: list of strings matched against `Package.transport.type` ("stdio", "streamable-http", "sse"). Evaluated independently from `packageRegistryTypes`.
+  - `repositoryExists`: boolean — true requires non-null repository, false requires null repository.
+
+  When the entire filter is null/absent or all fields are empty/null, no backend filtering occurs.
 - **Scan Context**: Tracks the current upstream cursor position, the number of pages scanned so far, and accumulated matching results. This is method-local state within the service — it is not encoded into the cursor returned to the caller. The cursor returned to callers is the raw upstream registry cursor. This entity is specific to Phase 1 and will be replaced by standard database pagination in Phase 2.
 
 ### Assumptions
@@ -147,12 +169,13 @@ An operator deploying the system wants to control how many upstream registry pag
 - The upstream MCP Registry API remains stable at `v0.1` for the duration of Phase 1.
 - The registry's cursor-based pagination is deterministic — the same cursor always resumes from the same position.
 - Phase 2 (aggregator-based storage) will be specified as a separate feature; this spec covers only Phase 1.
+- The filter endpoints inherit the same authorization as the existing list-servers endpoints — no additional role restriction is applied to filtering.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can filter MCP servers by remote transport type, package registry type, and repository existence in a single request and receive only matching results.
+- **SC-001**: Users can filter MCP servers by remote transport type (`remoteTransportTypes`), package registry type (`packageRegistryTypes`), package transport type (`packageTransportTypes`), and repository existence (`repositoryExists`) in a single request and receive only matching results.
 - **SC-002**: Filters are composable — any combination of the supported filter dimensions can be used together, with multiple values per dimension (OR within, AND across).
 - **SC-003**: Paginated browsing through filtered results works seamlessly — callers paginate using `nextCursor` identically whether filters are applied or not, with no duplicates or missing servers between pages.
 - **SC-004**: When no backend filters are provided, the system behaves identically to the current implementation with no additional upstream requests.
