@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.KubernetesConditionConstants;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
@@ -44,7 +45,6 @@ import java.util.Optional;
 @LogExecution
 public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployment, Service> {
 
-    private static final String SERVICE_NAME_LABEL = "serving.knative.dev/service";
     private static final int DEFAULT_KNATIVE_SERVICE_PORT = 8080;
 
     private final KnativeManifestGenerator knativeManifestGenerator;
@@ -185,7 +185,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
     @Override
     protected String getServiceNameLabel() {
-        return SERVICE_NAME_LABEL;
+        return KnativeAnnotations.SERVICE;
     }
 
     @Override

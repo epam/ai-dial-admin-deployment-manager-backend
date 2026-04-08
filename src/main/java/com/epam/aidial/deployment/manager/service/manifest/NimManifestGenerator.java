@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -171,7 +172,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         var progressDeadline = progressDeadlineCalculator.compute(probeProperties, startupTimeoutSec);
         var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
                 .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
-        annotations.put(KNATIVE_PROGRESS_DEADLINE, progressDeadline);
+        annotations.put(KnativeAnnotations.PROGRESS_DEADLINE, progressDeadline);
     }
 
     @SneakyThrows

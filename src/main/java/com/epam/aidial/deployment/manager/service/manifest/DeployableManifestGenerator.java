@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 public abstract class DeployableManifestGenerator extends BaseManifestGenerator {
 
-    protected static final String KNATIVE_PROGRESS_DEADLINE = "serving.knative.dev/progress-deadline";
     protected static final List<ScalingStrategyType> SUPPORTED_SCALING_STRATEGIES =
             List.of(ScalingStrategyType.ACTIVE_REQUESTS);
 
