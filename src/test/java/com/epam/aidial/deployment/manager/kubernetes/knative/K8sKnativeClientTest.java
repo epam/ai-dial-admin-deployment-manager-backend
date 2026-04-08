@@ -185,6 +185,28 @@ class K8sKnativeClientTest {
     }
 
     @Test
+    void deleteService_shouldTreatNotFoundAsDeleted() {
+        // Given
+        when(knativeClient.services()).thenReturn(knativeServiceOperation);
+        when(knativeServiceOperation.inNamespace(NAMESPACE)).thenReturn(namespacedKnativeServiceOperation);
+        when(namespacedKnativeServiceOperation.withName(SERVICE_NAME)).thenReturn(knativeServiceResource);
+        when(knativeServiceResource.withPropagationPolicy(any())).thenAnswer(invocation -> knativeServiceResource);
+        when(knativeServiceResource.withGracePeriod(0L)).thenAnswer(invocation -> knativeServiceResource);
+        when(knativeServiceResource.delete()).thenThrow(new KubernetesClientException("Not Found", 404, null));
+
+        // When — should not throw
+        k8sKnativeClient.deleteService(NAMESPACE, SERVICE_NAME);
+
+        // Then
+        verify(knativeClient).services();
+        verify(knativeServiceOperation).inNamespace(NAMESPACE);
+        verify(namespacedKnativeServiceOperation).withName(SERVICE_NAME);
+        verify(knativeServiceResource).withPropagationPolicy(eq(DeletionPropagation.FOREGROUND));
+        verify(knativeServiceResource).withGracePeriod(0L);
+        verify(knativeServiceResource).delete();
+    }
+
+    @Test
     void deleteService_shouldRethrowWhenKubernetesExceptionOccurs() {
         // Given
         when(knativeClient.services()).thenReturn(knativeServiceOperation);
