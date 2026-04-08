@@ -214,9 +214,9 @@ All deployment types SHALL carry these fields:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. |
+| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. Must be 0 when `scaleToZeroDelaySeconds` is set; must be > 0 when `scaleToZeroDelaySeconds` is not set. |
 | `maxReplicas` | int | Yes | Maximum replica count. `@Min(1)`. |
-| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. |
+| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. When set, `minReplicas` must be 0; when not set, `minReplicas` must be > 0. |
 | `strategy` | ScalingStrategyDto | Conditional | Scaling strategy. Nullable. Required when `minReplicas != maxReplicas` (unless `minReplicas=0, maxReplicas=1`). Must be null when `minReplicas == maxReplicas` or when `minReplicas=0, maxReplicas=1`. |
 
 **`ScalingStrategyDto` structure:**
@@ -382,7 +382,7 @@ The `source` JSON column lives on the base `DeploymentEntity`, storing a `Persis
 - Scaling DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingDto` (minReplicas, maxReplicas, scaleToZeroDelaySeconds, strategy)
 - Scaling strategy DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyDto` ($type as `ScalingStrategyTypeDto`, threshold)
 - Scaling strategy type enum: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyTypeDto` (PENDING_REQUESTS, ACTIVE_REQUESTS, HARDWARE_USAGE)
-- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts)
+- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts; validates minReplicas/scaleToZeroDelaySeconds cross-field constraints)
 - Scaling DTO mapper: `com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapper`
 - Domain scaling model: `com.epam.aidial.deployment.manager.model.Scaling`, `com.epam.aidial.deployment.manager.model.ScalingStrategy`, `com.epam.aidial.deployment.manager.model.ScalingStrategyType`
 - Probe properties DTO: `com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto`
