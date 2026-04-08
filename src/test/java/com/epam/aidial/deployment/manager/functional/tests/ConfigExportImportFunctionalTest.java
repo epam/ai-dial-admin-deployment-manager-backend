@@ -64,7 +64,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -191,9 +190,8 @@ public abstract class ConfigExportImportFunctionalTest {
         expectedTree.fields().forEachRemaining(entry -> {
             String key = entry.getKey();
             JsonNode expectedNode = actualTree.get(key);
-            Assertions.assertNotNull(expectedNode, "Exported JSON should contain key: " + key);
-            Assertions.assertEquals(expectedNode, entry.getValue(),
-                    "Exported JSON for key '%s' should match expected export config".formatted(key));
+            assertThat(expectedNode).as("Exported JSON should contain key: " + key).isNotNull();
+            assertThat(entry.getValue()).as("Exported JSON for key '%s' should match expected export config".formatted(key)).isEqualTo(expectedNode);
         });
     }
 
@@ -232,10 +230,10 @@ public abstract class ConfigExportImportFunctionalTest {
 
         // Validate whitelist — merge preserves pre-existing entries and adds imported entries
         List<String> whitelist = globalDomainWhitelistService.getDomainWhitelist();
-        Assertions.assertTrue(whitelist.containsAll(EXPORT_WHITELIST),
-                "Whitelist should contain imported entries %s, got: %s".formatted(EXPORT_WHITELIST, whitelist));
-        Assertions.assertTrue(whitelist.containsAll(preExisting),
-                "Whitelist should preserve pre-existing entries %s, got: %s".formatted(preExisting, whitelist));
+        assertThat(whitelist.containsAll(EXPORT_WHITELIST))
+                .as("Whitelist should contain imported entries %s, got: %s".formatted(EXPORT_WHITELIST, whitelist)).isTrue();
+        assertThat(whitelist.containsAll(preExisting))
+                .as("Whitelist should preserve pre-existing entries %s, got: %s".formatted(preExisting, whitelist)).isTrue();
     }
 
     @Test
@@ -246,50 +244,51 @@ public abstract class ConfigExportImportFunctionalTest {
         var config = configTransferService.getExportConfig(request);
         var preview = exportConfigMapper.toExportConfigPreviewDto(config);
 
-        Assertions.assertEquals(EXPORT_WHITELIST, preview.globalImageBuildDomainWhitelist());
+        assertThat(preview.globalImageBuildDomainWhitelist()).isEqualTo(EXPORT_WHITELIST);
 
         var imageDefIds = preview.imageDefinitions().stream().map(ExportComponentInfoDto::id).toList();
-        Assertions.assertTrue(imageDefIds.contains(data.firstMcpImageDefId().toString()), "should contain first MCP image def");
-        Assertions.assertTrue(imageDefIds.contains(data.secondMcpImageDefId().toString()), "should contain second MCP image def");
-        Assertions.assertTrue(imageDefIds.contains(data.adapterImageDefId().toString()), "should contain adapter image def");
-        Assertions.assertTrue(imageDefIds.contains(data.interceptorImageDefId().toString()), "should contain interceptor image def");
+        assertThat(imageDefIds.contains(data.firstMcpImageDefId().toString())).as("should contain first MCP image def").isTrue();
+        assertThat(imageDefIds.contains(data.secondMcpImageDefId().toString())).as("should contain second MCP image def").isTrue();
+        assertThat(imageDefIds.contains(data.adapterImageDefId().toString())).as("should contain adapter image def").isTrue();
+        assertThat(imageDefIds.contains(data.interceptorImageDefId().toString())).as("should contain interceptor image def").isTrue();
 
         // Assert all fields of an image definition (MCP)
         var firstMcpImageDef = findById(preview.imageDefinitions(), data.firstMcpImageDefId().toString());
-        Assertions.assertEquals(MCP_IMAGE_NAME, firstMcpImageDef.displayName(), "image def displayName");
-        Assertions.assertEquals(VERSION, firstMcpImageDef.version(), "image def version");
-        Assertions.assertEquals("MCP for export/import test", firstMcpImageDef.description(), "image def description");
-        Assertions.assertEquals(ExportConfigComponentTypeDto.MCP_IMAGE_DEFINITION, firstMcpImageDef.type(), "image def type");
+        assertThat(firstMcpImageDef.displayName()).as("image def displayName").isEqualTo(MCP_IMAGE_NAME);
+        assertThat(firstMcpImageDef.version()).as("image def version").isEqualTo(VERSION);
+        assertThat(firstMcpImageDef.description()).as("image def description").isEqualTo("MCP for export/import test");
+        assertThat(firstMcpImageDef.type()).as("image def type").isEqualTo(ExportConfigComponentTypeDto.MCP_IMAGE_DEFINITION);
 
         // Assert all fields of an image definition (Adapter)
         var adapterImageDef = findById(preview.imageDefinitions(), data.adapterImageDefId().toString());
-        Assertions.assertEquals(ADAPTER_IMAGE_NAME, adapterImageDef.displayName(), "adapter image def displayName");
-        Assertions.assertEquals(VERSION, adapterImageDef.version(), "adapter image def version");
-        Assertions.assertEquals("Adapter for export/import test", adapterImageDef.description(), "adapter image def description");
-        Assertions.assertEquals(ExportConfigComponentTypeDto.ADAPTER_IMAGE_DEFINITION, adapterImageDef.type(), "adapter image def type");
+        assertThat(adapterImageDef.displayName()).as("adapter image def displayName").isEqualTo(ADAPTER_IMAGE_NAME);
+        assertThat(adapterImageDef.version()).as("adapter image def version").isEqualTo(VERSION);
+        assertThat(adapterImageDef.description()).as("adapter image def description").isEqualTo("Adapter for export/import test");
+        assertThat(adapterImageDef.type()).as("adapter image def type").isEqualTo(ExportConfigComponentTypeDto.ADAPTER_IMAGE_DEFINITION);
 
         var deploymentIds = preview.deployments().stream().map(ExportComponentInfoDto::id).toList();
-        Assertions.assertTrue(deploymentIds.containsAll(List.of(MCP_DEP_ID, ADAPTER_DEP_ID, INTERCEPTOR_DEP_ID, NIM_DEP_ID, INFERENCE_DEP_ID)),
-                "deployments should contain all selected deployment ids");
+        assertThat(deploymentIds.containsAll(
+                List.of(MCP_DEP_ID, ADAPTER_DEP_ID, INTERCEPTOR_DEP_ID, NIM_DEP_ID, INFERENCE_DEP_ID)))
+                .as("deployments should contain all selected deployment ids").isTrue();
 
         // Assert all fields of a deployment (MCP)
         var mcpDep = findById(preview.deployments(), MCP_DEP_ID);
-        Assertions.assertEquals("MCP deployment export test", mcpDep.displayName(), "deployment displayName");
-        Assertions.assertNull(mcpDep.version(), "deployment version should be null");
-        Assertions.assertEquals("MCP deployment for import test", mcpDep.description(), "deployment description");
-        Assertions.assertEquals(ExportConfigComponentTypeDto.MCP_DEPLOYMENT, mcpDep.type(), "deployment type");
+        assertThat(mcpDep.displayName()).as("deployment displayName").isEqualTo("MCP deployment export test");
+        assertThat(mcpDep.version()).as("deployment version should be null").isNull();
+        assertThat(mcpDep.description()).as("deployment description").isEqualTo("MCP deployment for import test");
+        assertThat(mcpDep.type()).as("deployment type").isEqualTo(ExportConfigComponentTypeDto.MCP_DEPLOYMENT);
 
         // Assert all fields of a deployment (NIM)
         var nimDep = findById(preview.deployments(), NIM_DEP_ID);
-        Assertions.assertEquals("NIM deployment export test", nimDep.displayName(), "nim deployment displayName");
-        Assertions.assertNull(nimDep.version(), "nim deployment version should be null");
-        Assertions.assertEquals("NIM deployment for import test", nimDep.description(), "nim deployment description");
-        Assertions.assertEquals(ExportConfigComponentTypeDto.NIM_DEPLOYMENT, nimDep.type(), "nim deployment type");
+        assertThat(nimDep.displayName()).as("nim deployment displayName").isEqualTo("NIM deployment export test");
+        assertThat(nimDep.version()).as("nim deployment version should be null").isNull();
+        assertThat(nimDep.description()).as("nim deployment description").isEqualTo("NIM deployment for import test");
+        assertThat(nimDep.type()).as("nim deployment type").isEqualTo(ExportConfigComponentTypeDto.NIM_DEPLOYMENT);
 
         preview.deployments().forEach(d ->
-                Assertions.assertNull(d.version(), "deployment version should be null"));
+                assertThat(d.version()).as("deployment version should be null").isNull());
         preview.imageDefinitions().forEach(d ->
-                Assertions.assertNotNull(d.version(), "image definition version should not be null"));
+                assertThat(d.version()).as("image definition version should not be null").isNotNull());
     }
 
     @Test
@@ -301,9 +300,9 @@ public abstract class ConfigExportImportFunctionalTest {
         var config = configTransferService.getExportConfig(request);
         var preview = exportConfigMapper.toExportConfigPreviewDto(config);
 
-        Assertions.assertTrue(preview.globalImageBuildDomainWhitelist().isEmpty(), "whitelist should be empty");
-        Assertions.assertTrue(preview.imageDefinitions().isEmpty(), "imageDefinitions should be empty");
-        Assertions.assertTrue(preview.deployments().isEmpty(), "deployments should be empty");
+        assertThat(preview.globalImageBuildDomainWhitelist().isEmpty()).as("whitelist should be empty").isTrue();
+        assertThat(preview.imageDefinitions().isEmpty()).as("imageDefinitions should be empty").isTrue();
+        assertThat(preview.deployments().isEmpty()).as("deployments should be empty").isTrue();
     }
 
     private ExportTestData createExportTestData() {
@@ -490,19 +489,18 @@ public abstract class ConfigExportImportFunctionalTest {
     }
 
     private void assertImageDefinitionEquals(ImageDefinition actual, ImageDefinition expected) {
-        Assertions.assertEquals(expected.getName(), actual.getName(), "name");
-        Assertions.assertEquals(expected.getVersion(), actual.getVersion(), "version");
-        Assertions.assertEquals(expected.getDescription(), actual.getDescription(), "description");
-        Assertions.assertEquals(expected.getImageBuilder(), actual.getImageBuilder(), "imageBuilder");
-        Assertions.assertEquals(expected.getLicense(), actual.getLicense(), "license");
-        Assertions.assertEquals(expected.getTopics(), actual.getTopics(), "topics");
-        Assertions.assertEquals(
-                expected.getAllowedDomains() != null ? expected.getAllowedDomains() : List.of(),
-                actual.getAllowedDomains() != null ? actual.getAllowedDomains() : List.of(),
-                "allowedDomains");
+        assertThat(actual.getName()).as("name").isEqualTo(expected.getName());
+        assertThat(actual.getVersion()).as("version").isEqualTo(expected.getVersion());
+        assertThat(actual.getDescription()).as("description").isEqualTo(expected.getDescription());
+        assertThat(actual.getImageBuilder()).as("imageBuilder").isEqualTo(expected.getImageBuilder());
+        assertThat(actual.getLicense()).as("license").isEqualTo(expected.getLicense());
+        assertThat(actual.getTopics()).as("topics").isEqualTo(expected.getTopics());
+        assertThat(actual.getAllowedDomains() != null ? actual.getAllowedDomains() : List.of())
+                .as("allowedDomains")
+                .isEqualTo(expected.getAllowedDomains() != null ? expected.getAllowedDomains() : List.of());
         assertImageSourceEquals(expected.getSource(), actual.getSource());
         if (expected instanceof McpImageDefinition expectedMcp && actual instanceof McpImageDefinition actualMcp) {
-            Assertions.assertEquals(expectedMcp.getTransportType(), actualMcp.getTransportType(), "transportType");
+            assertThat(actualMcp.getTransportType()).as("transportType").isEqualTo(expectedMcp.getTransportType());
         }
     }
 
@@ -511,58 +509,57 @@ public abstract class ConfigExportImportFunctionalTest {
             return;
         }
 
-        Assertions.assertNotNull(expected, "expected source");
-        Assertions.assertNotNull(actual, "actual source");
+        assertThat(expected).as("expected source").isNotNull();
+        assertThat(actual).as("actual source").isNotNull();
 
         if (expected instanceof DockerImageSource expDocker && actual instanceof DockerImageSource actDocker) {
-            Assertions.assertEquals(expDocker.getImageUri(), actDocker.getImageUri(), "source.imageUri");
-            Assertions.assertEquals(expDocker.getEntrypoint(), actDocker.getEntrypoint(), "source.entrypoint");
-            Assertions.assertEquals(expDocker.getExternalRegistryRef(), actDocker.getExternalRegistryRef(), "source.externalRegistryRef");
+            assertThat(actDocker.getImageUri()).as("source.imageUri").isEqualTo(expDocker.getImageUri());
+            assertThat(actDocker.getEntrypoint()).as("source.entrypoint").isEqualTo(expDocker.getEntrypoint());
+            assertThat(actDocker.getExternalRegistryRef()).as("source.externalRegistryRef").isEqualTo(expDocker.getExternalRegistryRef());
         } else if (expected instanceof GitDockerfileImageSource expGit && actual instanceof GitDockerfileImageSource actGit) {
-            Assertions.assertEquals(expGit.getUrl(), actGit.getUrl(), "source.url");
-            Assertions.assertEquals(expGit.getBranchName(), actGit.getBranchName(), "source.branchName");
-            Assertions.assertEquals(expGit.getExternalRegistryRef(), actGit.getExternalRegistryRef(), "source.externalRegistryRef");
+            assertThat(actGit.getUrl()).as("source.url").isEqualTo(expGit.getUrl());
+            assertThat(actGit.getBranchName()).as("source.branchName").isEqualTo(expGit.getBranchName());
+            assertThat(actGit.getExternalRegistryRef()).as("source.externalRegistryRef").isEqualTo(expGit.getExternalRegistryRef());
         } else {
-            Assertions.fail("Source type mismatch: expected=%s, actual=%s"
+            org.assertj.core.api.Assertions.fail("Source type mismatch: expected=%s, actual=%s"
                     .formatted(expected.getClass().getSimpleName(), actual.getClass().getSimpleName()));
         }
     }
 
     private void assertDeploymentEquals(Deployment actual, Deployment expected) {
-        Assertions.assertEquals(expected.getId(), actual.getId(), "id");
-        Assertions.assertEquals(expected.getDisplayName(), actual.getDisplayName(), "displayName");
-        Assertions.assertEquals(expected.getDescription(), actual.getDescription(), "description");
-        Assertions.assertEquals(expected.getScaling(), actual.getScaling(), "scaling");
-        Assertions.assertEquals(expected.getContainerPort(), actual.getContainerPort(), "containerPort");
-        Assertions.assertEquals(expected.getResources(), actual.getResources(), "resources");
-        Assertions.assertEquals(expected.getAllowedDomains(), actual.getAllowedDomains(), "allowedDomains");
-        Assertions.assertEquals(
-                Set.copyOf(expected.getTopics() != null ? expected.getTopics() : List.of()),
-                Set.copyOf(actual.getTopics() != null ? actual.getTopics() : List.of()),
-                "topics");
+        assertThat(actual.getId()).as("id").isEqualTo(expected.getId());
+        assertThat(actual.getDisplayName()).as("displayName").isEqualTo(expected.getDisplayName());
+        assertThat(actual.getDescription()).as("description").isEqualTo(expected.getDescription());
+        assertThat(actual.getScaling()).as("scaling").isEqualTo(expected.getScaling());
+        assertThat(actual.getContainerPort()).as("containerPort").isEqualTo(expected.getContainerPort());
+        assertThat(actual.getResources()).as("resources").isEqualTo(expected.getResources());
+        assertThat(actual.getAllowedDomains()).as("allowedDomains").isEqualTo(expected.getAllowedDomains());
+        assertThat(Set.copyOf(actual.getTopics() != null ? actual.getTopics() : List.of()))
+                .as("topics")
+                .isEqualTo(Set.copyOf(expected.getTopics() != null ? expected.getTopics() : List.of()));
         assertProbePropertiesEquals(expected.getProbeProperties(), actual.getProbeProperties());
         assertMetadataEnvsEquals(
                 expected.getMetadata() != null ? expected.getMetadata().getEnvs() : null,
                 actual.getMetadata() != null ? actual.getMetadata().getEnvs() : null);
 
         if (expected.getSource() instanceof InternalImageSource expSource) {
-            Assertions.assertInstanceOf(InternalImageSource.class, actual.getSource(), "source should be InternalImageSource");
+            assertThat(actual.getSource()).as("source should be InternalImageSource").isInstanceOf(InternalImageSource.class);
             InternalImageSource actSource = (InternalImageSource) actual.getSource();
-            Assertions.assertEquals(expSource.imageDefinitionName(), actSource.imageDefinitionName(), "imageDefinitionName");
-            Assertions.assertEquals(expSource.imageDefinitionVersion(), actSource.imageDefinitionVersion(), "imageDefinitionVersion");
+            assertThat(actSource.imageDefinitionName()).as("imageDefinitionName").isEqualTo(expSource.imageDefinitionName());
+            assertThat(actSource.imageDefinitionVersion()).as("imageDefinitionVersion").isEqualTo(expSource.imageDefinitionVersion());
         }
 
         switch (expected) {
             case McpDeployment expMcp when actual instanceof McpDeployment actMcp -> {
-                Assertions.assertEquals(expMcp.getTransport(), actMcp.getTransport(), "transport");
-                Assertions.assertEquals(expMcp.getMcpEndpointPath(), actMcp.getMcpEndpointPath(), "mcpEndpointPath");
+                assertThat(actMcp.getTransport()).as("transport").isEqualTo(expMcp.getTransport());
+                assertThat(actMcp.getMcpEndpointPath()).as("mcpEndpointPath").isEqualTo(expMcp.getMcpEndpointPath());
             }
             case NimDeployment expNim when actual instanceof NimDeployment actNim -> {
-                Assertions.assertEquals(expNim.getContainerGrpcPort(), actNim.getContainerGrpcPort(), "containerGrpcPort");
+                assertThat(actNim.getContainerGrpcPort()).as("containerGrpcPort").isEqualTo(expNim.getContainerGrpcPort());
                 assertNimSourceEquals(expNim.getSource(), actNim.getSource());
             }
             case InferenceDeployment expInf when actual instanceof InferenceDeployment actInf -> {
-                Assertions.assertEquals(expInf.getModelFormat(), actInf.getModelFormat(), "modelFormat");
+                assertThat(actInf.getModelFormat()).as("modelFormat").isEqualTo(expInf.getModelFormat());
                 assertInferenceSourceEquals(expInf.getSource(), actInf.getSource());
             }
             default -> { }
@@ -574,21 +571,21 @@ public abstract class ConfigExportImportFunctionalTest {
             return;
         }
 
-        Assertions.assertNotNull(expected, "expected probeProperties");
-        Assertions.assertNotNull(actual, "actual probeProperties");
-        Assertions.assertEquals(expected.isEnabled(), actual.isEnabled(), "probeProperties.enabled");
-        Assertions.assertEquals(expected.getInitialDelaySeconds(), actual.getInitialDelaySeconds(), "probeProperties.initialDelaySeconds");
-        Assertions.assertEquals(expected.getPeriodSeconds(), actual.getPeriodSeconds(), "probeProperties.periodSeconds");
-        Assertions.assertEquals(expected.getTimeoutSeconds(), actual.getTimeoutSeconds(), "probeProperties.timeoutSeconds");
-        Assertions.assertEquals(expected.getFailureThreshold(), actual.getFailureThreshold(), "probeProperties.failureThreshold");
+        assertThat(expected).as("expected probeProperties").isNotNull();
+        assertThat(actual).as("actual probeProperties").isNotNull();
+        assertThat(actual.isEnabled()).as("probeProperties.enabled").isEqualTo(expected.isEnabled());
+        assertThat(actual.getInitialDelaySeconds()).as("probeProperties.initialDelaySeconds").isEqualTo(expected.getInitialDelaySeconds());
+        assertThat(actual.getPeriodSeconds()).as("probeProperties.periodSeconds").isEqualTo(expected.getPeriodSeconds());
+        assertThat(actual.getTimeoutSeconds()).as("probeProperties.timeoutSeconds").isEqualTo(expected.getTimeoutSeconds());
+        assertThat(actual.getFailureThreshold()).as("probeProperties.failureThreshold").isEqualTo(expected.getFailureThreshold());
 
         if (expected.getProbe() instanceof TcpSocketProbe expTcp && actual.getProbe() instanceof TcpSocketProbe actTcp) {
-            Assertions.assertEquals(expTcp.getPort(), actTcp.getPort(), "probe.port");
+            assertThat(actTcp.getPort()).as("probe.port").isEqualTo(expTcp.getPort());
         } else if (expected.getProbe() instanceof HttpGetProbe expHttp && actual.getProbe() instanceof HttpGetProbe actHttp) {
-            Assertions.assertEquals(expHttp.getPath(), actHttp.getPath(), "probe.path");
-            Assertions.assertEquals(expHttp.getPort(), actHttp.getPort(), "probe.port");
+            assertThat(actHttp.getPath()).as("probe.path").isEqualTo(expHttp.getPath());
+            assertThat(actHttp.getPort()).as("probe.port").isEqualTo(expHttp.getPort());
         } else {
-            Assertions.assertEquals(expected.getProbe(), actual.getProbe(), "probe");
+            assertThat(actual.getProbe()).as("probe").isEqualTo(expected.getProbe());
         }
     }
 
@@ -597,42 +594,42 @@ public abstract class ConfigExportImportFunctionalTest {
             return;
         }
 
-        Assertions.assertNotNull(expected, "expected metadata.envs");
-        Assertions.assertNotNull(actual, "actual metadata.envs");
-        Assertions.assertEquals(expected.size(), actual.size(), "metadata.envs.size");
+        assertThat(expected).as("expected metadata.envs").isNotNull();
+        assertThat(actual).as("actual metadata.envs").isNotNull();
+        assertThat(actual.size()).as("metadata.envs.size").isEqualTo(expected.size());
 
         for (int i = 0; i < expected.size(); i++) {
             var exp = expected.get(i);
             var act = actual.get(i);
-            Assertions.assertEquals(exp.getName(), act.getName(), "metadata.envs[%d].name".formatted(i));
-            Assertions.assertEquals(exp.getMountType(), act.getMountType(), "metadata.envs[%d].mountType".formatted(i));
+            assertThat(act.getName()).as("metadata.envs[%d].name".formatted(i)).isEqualTo(exp.getName());
+            assertThat(act.getMountType()).as("metadata.envs[%d].mountType".formatted(i)).isEqualTo(exp.getMountType());
             if (exp.getValue() != null && act.getValue() != null && exp.getValue() instanceof SimpleEnvVarValue expVal && act.getValue() instanceof SimpleEnvVarValue actVal) {
-                Assertions.assertEquals(expVal.getValue(), actVal.getValue(), "metadata.envs[%d].value".formatted(i));
+                assertThat(actVal.getValue()).as("metadata.envs[%d].value".formatted(i)).isEqualTo(expVal.getValue());
             }
         }
     }
 
     private static void assertNimSourceEquals(Source expected, Source actual) {
         if (expected instanceof NgcRegistrySource(String ref) && actual instanceof NgcRegistrySource(String imageRef)) {
-            Assertions.assertEquals(ref, imageRef, "source.imageRef");
+            assertThat(imageRef).as("source.imageRef").isEqualTo(ref);
         } else {
-            Assertions.assertEquals(expected, actual, "source");
+            assertThat(actual).as("source").isEqualTo(expected);
         }
     }
 
     private static void assertInferenceSourceEquals(Source expected, Source actual) {
         if (expected instanceof HuggingFaceSource(String modelName) && actual instanceof HuggingFaceSource(String name)) {
-            Assertions.assertEquals(modelName, name, "source.modelName");
+            assertThat(name).as("source.modelName").isEqualTo(modelName);
         } else {
-            Assertions.assertEquals(expected, actual, "source");
+            assertThat(actual).as("source").isEqualTo(expected);
         }
     }
 
     private static String extractFirstEntryFromZip(byte[] zipBytes, String expectedEntryName) throws Exception {
         try (var zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
             var entry = zis.getNextEntry();
-            Assertions.assertNotNull(entry, "ZIP should contain at least one entry");
-            Assertions.assertEquals(expectedEntryName, entry.getName(), "ZIP entry name");
+            assertThat(entry).as("ZIP should contain at least one entry").isNotNull();
+            assertThat(entry.getName()).as("ZIP entry name").isEqualTo(expectedEntryName);
             return new String(zis.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

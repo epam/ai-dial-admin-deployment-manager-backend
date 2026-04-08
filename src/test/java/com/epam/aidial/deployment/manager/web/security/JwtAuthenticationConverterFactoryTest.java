@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtAuthenticationConverterFactoryTest {
 
@@ -124,7 +124,8 @@ class JwtAuthenticationConverterFactoryTest {
                         "roles", List.of("USER")
                 )
         );
-        assertThrows(AuthenticationServiceException.class, () -> converterWithRequiredEmail.convert(jwtToken));
+        assertThatThrownBy(() -> converterWithRequiredEmail.convert(jwtToken))
+                .isInstanceOf(AuthenticationServiceException.class);
     }
 
     private static List<String> authoritiesToStrings(Collection<? extends GrantedAuthority> auths) {

@@ -32,10 +32,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -96,7 +92,7 @@ class ImageBuildFromGitJobSpecificationTest {
         String jobId = jobSpecification.getJobId();
 
         // Then
-        assertEquals(BUILD_ID, jobId);
+        assertThat(jobId).isEqualTo(BUILD_ID);
     }
 
     @Test
@@ -105,7 +101,7 @@ class ImageBuildFromGitJobSpecificationTest {
         String namespace = jobSpecification.getNamespace();
 
         // Then
-        assertEquals(NAMESPACE, namespace);
+        assertThat(namespace).isEqualTo(NAMESPACE);
     }
 
     @Test
@@ -114,8 +110,8 @@ class ImageBuildFromGitJobSpecificationTest {
         List<ConfigMap> configMaps = jobSpecification.getConfigMaps();
 
         // Then
-        assertNotNull(configMaps);
-        assertTrue(configMaps.isEmpty());
+        assertThat(configMaps).isNotNull();
+        assertThat(configMaps).isEmpty();
     }
 
     @Test
@@ -132,9 +128,9 @@ class ImageBuildFromGitJobSpecificationTest {
         List<Secret> secrets = jobSpecification.getSecrets();
 
         // Then
-        assertNotNull(secrets);
-        assertEquals(1, secrets.size());
-        assertEquals(mockSecret, secrets.getFirst());
+        assertThat(secrets).isNotNull();
+        assertThat(secrets).hasSize(1);
+        assertThat(secrets.getFirst()).isEqualTo(mockSecret);
 
         // Verify the correct secret name was used
         verify(manifestGenerator).dialRegistryAuthSecretConfig(expectedSecretName);
@@ -154,25 +150,25 @@ class ImageBuildFromGitJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job);
-        assertNotNull(job.getMetadata());
-        assertNotNull(job.getSpec());
-        assertNotNull(job.getSpec().getTemplate());
-        assertNotNull(job.getSpec().getTemplate().getSpec());
-        assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(2, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertThat(job).isNotNull();
+        assertThat(job.getMetadata()).isNotNull();
+        assertThat(job.getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).hasSize(2);
 
         // Verify init container exists
-        assertNotNull(job.getSpec().getTemplate().getSpec().getInitContainers());
-        assertEquals(1, job.getSpec().getTemplate().getSpec().getInitContainers().size());
+        assertThat(job.getSpec().getTemplate().getSpec().getInitContainers()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getInitContainers()).hasSize(1);
         Container initContainer = job.getSpec().getTemplate().getSpec().getInitContainers().getFirst();
-        assertEquals("git-clone", initContainer.getName());
+        assertThat(initContainer.getName()).isEqualTo("git-clone");
 
         // Verify the container arguments contain the expected values
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
-        assertNotNull(args);
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace")));
+        assertThat(args).isNotNull();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("context=/workspace"))).isTrue();
     }
 
     @Test
@@ -191,10 +187,10 @@ class ImageBuildFromGitJobSpecificationTest {
         // Verify the container arguments contain the expected values
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
-        assertNotNull(args);
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace")));
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace")));
-        assertFalse(args.stream().anyMatch(arg -> arg.equals("--no-push")));
+        assertThat(args).isNotNull();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace"))).isTrue();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("context=/workspace"))).isTrue();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("--no-push"))).isFalse();
     }
 
     @Test
@@ -219,10 +215,10 @@ class ImageBuildFromGitJobSpecificationTest {
         // Verify the container arguments contain the expected values
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> args = buildContainer.getArgs();
-        assertNotNull(args);
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace/src/app")));
-        assertTrue(args.stream().anyMatch(arg -> arg.equals("context=/workspace/src/app")));
-        assertFalse(args.stream().anyMatch(arg -> arg.equals("--no-push")));
+        assertThat(args).isNotNull();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("dockerfile=/workspace/src/app"))).isTrue();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("context=/workspace/src/app"))).isTrue();
+        assertThat(args.stream().anyMatch(arg -> arg.equals("--no-push"))).isFalse();
     }
 
     @Test
@@ -269,24 +265,24 @@ class ImageBuildFromGitJobSpecificationTest {
         Job job = createJobSpecification(gitDockerfileImageSource, ImageBuilder.BUILDKIT_ROOTLESS).getJob();
 
         // Then
-        assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
-        assertFalse(job.getSpec().getTemplate().getSpec().getVolumes().isEmpty());
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes()).isNotEmpty();
 
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
-        assertNotNull(buildContainer.getVolumeMounts());
-        assertFalse(buildContainer.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
+        assertThat(buildContainer.getVolumeMounts()).isNotNull();
+        assertThat(buildContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH))).isFalse();
 
-        assertFalse(buildContainer.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+        assertThat(buildContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY))).isFalse();
 
         Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
-        assertNotNull(pushContainer.getVolumeMounts());
-        assertTrue(pushContainer.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
+        assertThat(pushContainer.getVolumeMounts()).isNotNull();
+        assertThat(pushContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH))).isTrue();
 
-        assertTrue(pushContainer.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+        assertThat(pushContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY))).isTrue();
     }
 
     private Container getContainerByName(Job job, String containerName) {

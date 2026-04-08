@@ -29,9 +29,8 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -113,16 +112,16 @@ class DockerRegistryClientTest {
             ImageEntrypoint result = dockerRegistryClient.getEntrypoint(imageName);
 
             // Then
-            assertNotNull(result);
-            assertEquals(List.of("sh"), result.getEntrypoint());
-            assertEquals(List.of("-c", "echo hello"), result.getCmd());
+            assertThat(result).isNotNull();
+            assertThat(result.getEntrypoint()).isEqualTo(List.of("sh"));
+            assertThat(result.getCmd()).isEqualTo(List.of("-c", "echo hello"));
 
             // When BASIC auth and registry matches, credentials should be set, not bearer auth
             var credentialCaptor = ArgumentCaptor.forClass(com.google.cloud.tools.jib.api.Credential.class);
             verify(registryClientFactory).setCredential(credentialCaptor.capture());
             var credential = credentialCaptor.getValue();
-            assertEquals("testuser", credential.getUsername());
-            assertEquals("testpass", credential.getPassword());
+            assertThat(credential.getUsername()).isEqualTo("testuser");
+            assertThat(credential.getPassword()).isEqualTo("testpass");
         }
     }
 
@@ -149,8 +148,8 @@ class DockerRegistryClientTest {
             verify(registryClientFactory).setCredential(credentialCaptor.capture());
             
             var credential = credentialCaptor.getValue();
-            assertEquals("testuser", credential.getUsername());
-            assertEquals("testpass", credential.getPassword());
+            assertThat(credential.getUsername()).isEqualTo("testuser");
+            assertThat(credential.getPassword()).isEqualTo("testpass");
         }
     }
 
@@ -247,11 +246,9 @@ class DockerRegistryClientTest {
         when(httpConnection.getResponseMessage()).thenReturn("Something happened");
 
         // When/Then
-        var exception = assertThrows(RuntimeException.class, () -> {
-            ReflectionTestUtils.invokeMethod(dockerRegistryClient, "getManifestDigest", repository, imageTag);
-        });
-
-        assertEquals("Failed to retrieve manifest digest. HTTP response code: 500. Message: Something happened", exception.getMessage());
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(dockerRegistryClient, "getManifestDigest", repository, imageTag))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Failed to retrieve manifest digest. HTTP response code: 500. Message: Something happened");
     }
 
     @Test
@@ -265,21 +262,19 @@ class DockerRegistryClientTest {
         when(httpConnection.getResponseCode()).thenReturn(500);
 
         // When/Then
-        var exception = assertThrows(RuntimeException.class, () -> {
-            ReflectionTestUtils.invokeMethod(dockerRegistryClient, "deleteManifestByDigest", repository, digest);
-        });
-
-        assertEquals("Failed to delete manifest. HTTP response code: 500", exception.getMessage());
+        assertThatThrownBy(() -> ReflectionTestUtils.invokeMethod(dockerRegistryClient, "deleteManifestByDigest", repository, digest))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Failed to delete manifest. HTTP response code: 500");
     }
 
     @Test
     void toSlf4jLogLevel_shouldMapLogLevelsCorrectly() {
         // Given/When/Then
-        assertEquals(org.slf4j.event.Level.ERROR, ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.ERROR));
-        assertEquals(org.slf4j.event.Level.WARN, ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.WARN));
-        assertEquals(org.slf4j.event.Level.INFO, ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.INFO));
-        assertEquals(org.slf4j.event.Level.INFO, ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.LIFECYCLE));
-        assertEquals(org.slf4j.event.Level.INFO, ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.PROGRESS));
-        assertEquals(org.slf4j.event.Level.DEBUG, ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.DEBUG));
+        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.ERROR)).isEqualTo(org.slf4j.event.Level.ERROR);
+        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.WARN)).isEqualTo(org.slf4j.event.Level.WARN);
+        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.INFO)).isEqualTo(org.slf4j.event.Level.INFO);
+        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.LIFECYCLE)).isEqualTo(org.slf4j.event.Level.INFO);
+        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.PROGRESS)).isEqualTo(org.slf4j.event.Level.INFO);
+        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.DEBUG)).isEqualTo(org.slf4j.event.Level.DEBUG);
     }
 }
