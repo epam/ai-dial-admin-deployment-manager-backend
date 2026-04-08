@@ -154,12 +154,12 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         var jobSecret = jobSpec.getSecrets().getFirst();
         var expectedJobSecret = createJobSecret(getAuthValueFromSecret(jobSecret), jobSecret.getMetadata().getName());
-        assertThat(jobSpec.getSecrets()).isEqualTo(List.of(expectedJobSecret));
+        assertThat(jobSpec.getSecrets()).containsExactly(expectedJobSecret);
 
         if (compareConfigMaps) {
             var source = ((DockerImageSource) imageDefinition.getSource());
             var expectedJobConfigMap = createJobConfigMap(image.getId().toString(), source.getImageUri(), source.getEntrypoint());
-            assertThat(jobSpec.getConfigMaps()).isEqualTo(List.of(expectedJobConfigMap));
+            assertThat(jobSpec.getConfigMaps()).containsExactly(expectedJobConfigMap);
         }
 
         // Given - Create deployment

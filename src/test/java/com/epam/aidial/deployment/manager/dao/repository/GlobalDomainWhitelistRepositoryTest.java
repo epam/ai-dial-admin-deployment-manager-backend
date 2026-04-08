@@ -36,7 +36,7 @@ public class GlobalDomainWhitelistRepositoryTest {
 
         List<String> result = repository.getAllowedDomains();
 
-        assertThat(result).isEqualTo(List.of("a.com", "b.com"));
+        assertThat(result).containsExactly("a.com", "b.com");
         verify(jpaRepository).findAll();
     }
 
@@ -72,10 +72,10 @@ public class GlobalDomainWhitelistRepositoryTest {
 
         List<String> result = repository.updateAllowedDomains(List.of("new.com", "another.com"));
 
-        assertThat(result).isEqualTo(List.of("new.com", "another.com"));
+        assertThat(result).containsExactly("new.com", "another.com");
 
         var captor = ArgumentCaptor.forClass(DomainWhitelistEntity.class);
         verify(jpaRepository).saveAndFlush(captor.capture());
-        assertThat(captor.getValue().getAllowedDomains()).isEqualTo(List.of("new.com", "another.com"));
+        assertThat(captor.getValue().getAllowedDomains()).containsExactly("new.com", "another.com");
     }
 }

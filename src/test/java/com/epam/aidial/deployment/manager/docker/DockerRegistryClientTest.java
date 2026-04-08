@@ -22,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.event.Level;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.ByteArrayInputStream;
@@ -113,8 +114,8 @@ class DockerRegistryClientTest {
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getEntrypoint()).isEqualTo(List.of("sh"));
-            assertThat(result.getCmd()).isEqualTo(List.of("-c", "echo hello"));
+            assertThat(result.getEntrypoint()).containsExactly("sh");
+            assertThat(result.getCmd()).containsExactly("-c", "echo hello");
 
             // When BASIC auth and registry matches, credentials should be set, not bearer auth
             var credentialCaptor = ArgumentCaptor.forClass(com.google.cloud.tools.jib.api.Credential.class);
@@ -270,11 +271,11 @@ class DockerRegistryClientTest {
     @Test
     void toSlf4jLogLevel_shouldMapLogLevelsCorrectly() {
         // Given/When/Then
-        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.ERROR)).isEqualTo(org.slf4j.event.Level.ERROR);
-        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.WARN)).isEqualTo(org.slf4j.event.Level.WARN);
-        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.INFO)).isEqualTo(org.slf4j.event.Level.INFO);
-        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.LIFECYCLE)).isEqualTo(org.slf4j.event.Level.INFO);
-        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.PROGRESS)).isEqualTo(org.slf4j.event.Level.INFO);
-        assertThat((Object) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.DEBUG)).isEqualTo(org.slf4j.event.Level.DEBUG);
+        assertThat((Level) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.ERROR)).isEqualTo(Level.ERROR);
+        assertThat((Level) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.WARN)).isEqualTo(Level.WARN);
+        assertThat((Level) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.INFO)).isEqualTo(Level.INFO);
+        assertThat((Level) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.LIFECYCLE)).isEqualTo(Level.INFO);
+        assertThat((Level) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.PROGRESS)).isEqualTo(Level.INFO);
+        assertThat((Level) ReflectionTestUtils.invokeMethod(dockerRegistryClient, "toSlf4jLogLevel", LogEvent.Level.DEBUG)).isEqualTo(Level.DEBUG);
     }
 }
