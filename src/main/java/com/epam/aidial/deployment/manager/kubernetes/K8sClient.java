@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -217,7 +218,7 @@ public class K8sClient {
                     .delete();
             log.debug("CiliumNetworkPolicy '{}' successfully deleted.", name);
         } catch (KubernetesClientException e) {
-            if (e.getCode() == java.net.HttpURLConnection.HTTP_NOT_FOUND) {
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
                 log.warn("CiliumNetworkPolicy '{}' or its CRD not found in namespace '{}' (404)."
                         + " Treating as deleted.", name, namespace);
                 return;
