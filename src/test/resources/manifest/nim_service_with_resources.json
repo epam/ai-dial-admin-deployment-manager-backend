@@ -6,7 +6,10 @@
   },
   "spec" : {
     "authSecret" : "ngc-api-secret",
-    "env" : [ ],
+    "env" : [ {
+      "name" : "NIM_SERVED_MODEL_NAME",
+      "value" : "resource-nim-app"
+    } ],
     "expose" : {
       "service" : {
         "port" : 8000,

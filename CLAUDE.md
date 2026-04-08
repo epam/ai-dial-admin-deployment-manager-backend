@@ -28,3 +28,9 @@ Run a single test class:
 ## Spec-Driven Development
 
 This project uses speckit (`/speckit.*` slash commands) for feature development. The workflow is: specify → plan → tasks → implement. Feature specs in `specs/` and the constitution in `.specify/memory/constitution.md` are the authoritative references for how code should be structured.
+
+## Active Technologies
+- Java 21, Spring Boot 3.5.10, Gradle 8.13 + Fabric8 Kubernetes Client 7.5.2, NVIDIA NIM CRD (NIMService), MapStruct 1.6.0, Lombok 8.10 (013-nim-served-model-name)
+
+## Recent Changes
+- 013-nim-served-model-name
