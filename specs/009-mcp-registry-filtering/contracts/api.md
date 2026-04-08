@@ -6,27 +6,30 @@
 
 List MCP servers with optional backend filtering.
 
-**New query parameters** (all optional, added alongside existing params):
+**Filter query parameters** (all optional):
 
-| Parameter              | Type            | Required | Description                                                                 |
-|------------------------|-----------------|----------|-----------------------------------------------------------------------------|
-| `remoteTypes`          | String (CSV)    | No       | Comma-separated remote transport types. Values: `sse`, `streamable-http`.   |
-| `packageRegistryTypes` | String (CSV)    | No       | Comma-separated package registry types. Values: `npm`, `pypi`, `oci`, `nuget`, `mcpb`. |
-| `repositoryExists`     | Boolean         | No       | `true` = only servers with repository; `false` = only servers without.      |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `remoteTransportTypes` | `List<String>` (repeated param) | No | Remote transport types (OR logic). Values: `sse`, `streamable-http`. **Renamed from `remoteTypes`.** |
+| `packageRegistryTypes` | `List<String>` (repeated param) | No | Package registry types (OR logic). Values: `npm`, `pypi`, `oci`, `nuget`, `mcpb`. |
+| `packageTransportTypes` | `List<String>` (repeated param) | No | **New.** Package transport types (OR logic). Values: `stdio`, `streamable-http`, `sse`. |
+| `repositoryExists` | `Boolean` | No | `true` = only servers with repository; `false` = only servers without. |
+
+Multi-value encoding: repeat the parameter name — `remoteTransportTypes=sse&remoteTransportTypes=streamable-http`.
 
 **Existing parameters** (unchanged):
 
-| Parameter     | Type    | Required | Description                              |
-|---------------|---------|----------|------------------------------------------|
-| `cursor`      | String  | No       | Pagination cursor                        |
-| `limit`       | Integer | No       | Max items (1-1000, default 100)          |
-| `search`      | String  | No       | Name search (forwarded to upstream)      |
-| `updatedSince`| String  | No       | RFC3339 timestamp (forwarded to upstream)|
-| `version`     | String  | No       | Version filter (forwarded to upstream)   |
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `cursor` | String | Pagination cursor |
+| `limit` | Integer | Max items (1–1000, default 100) |
+| `search` | String | Name search (forwarded to upstream) |
+| `updatedSince` | String | RFC3339 timestamp (forwarded to upstream) |
+| `version` | String | Version filter (forwarded to upstream) |
 
 **Example**:
 ```
-GET /api/v1/mcp-registry/servers?remoteTypes=sse,streamable-http&packageRegistryTypes=npm&repositoryExists=true&limit=20
+GET /api/v1/mcp-registry/servers?remoteTransportTypes=sse&packageRegistryTypes=oci&packageTransportTypes=streamable-http&repositoryExists=true&limit=20
 ```
 
 **Response**: `ServerListResponseDto` (unchanged shape)
@@ -40,11 +43,13 @@ GET /api/v1/mcp-registry/servers?remoteTypes=sse,streamable-http&packageRegistry
 }
 ```
 
+---
+
 ### POST /api/v1/mcp-registry/servers/list
 
 List MCP servers with optional backend filtering (POST variant).
 
-**Modified request body** (`ServersRequestDto`):
+**Request body** (`ServersRequestDto`):
 
 ```json
 {
@@ -54,57 +59,57 @@ List MCP servers with optional backend filtering (POST variant).
   "updatedSince": null,
   "version": "latest",
   "filter": {
-    "remoteTypes": ["sse", "streamable-http"],
+    "remoteTransportTypes": ["sse", "streamable-http"],
     "packageRegistryTypes": ["npm", "oci"],
+    "packageTransportTypes": ["stdio"],
     "repositoryExists": true
   }
 }
 ```
 
-**New field**:
+**`ServerFilterDto` schema** (within `filter`):
 
-| Field    | Type             | Required | Description                                                                          |
-|----------|------------------|----------|--------------------------------------------------------------------------------------|
-| `filter` | `ServerFilterDto`| No       | When absent/null, pass-through behavior. When present, backend filtering is applied. |
-
-**`ServerFilterDto` schema**:
-
-| Field                  | Type             | Required | Description                                                          |
-|------------------------|------------------|----------|----------------------------------------------------------------------|
-| `remoteTypes`          | List\<String\>   | No       | Remote transport types (OR within). Empty list = no constraint.      |
-| `packageRegistryTypes` | List\<String\>   | No       | Package registry types (OR within). Empty list = no constraint.      |
-| `repositoryExists`     | Boolean          | No       | `true` = must have repo; `false` = must not have repo; null = any.   |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `remoteTransportTypes` | `List<String>` | No | **Renamed from `remoteTypes`.** Remote transport types (OR). Empty = no constraint. |
+| `packageRegistryTypes` | `List<String>` | No | Package registry types (OR). Empty = no constraint. |
+| `packageTransportTypes` | `List<String>` | No | **New.** Package transport types (OR). Empty = no constraint. |
+| `repositoryExists` | `Boolean` | No | `true` = must have repo; `false` = must not have repo; null = any. |
 
 **Response**: `ServerListResponseDto` (unchanged shape)
 
+---
+
 ## Behavior Contract
 
-### Filter application rules
+### Filter activation rules
 
-1. **No filter specified** (`filter` is null/absent): Single upstream request, no scanning. Identical to current behavior.
-2. **Filter specified with all-empty criteria** (e.g., `{"filter": {"remoteTypes": [], "repositoryExists": null}}`): Treated as no filter — pass-through behavior.
-3. **Filter specified with at least one non-empty criterion**: Multi-page scanning activated. Up to N upstream pages fetched and filtered in memory.
+1. **No filter** (`filter` null/absent or all fields null/empty): Single upstream request, no scanning — identical to existing behavior.
+2. **At least one non-empty field**: Multi-page scanning activated. Up to `maxPagesToScan` upstream pages fetched and filtered in memory.
+
+### Independent dimension evaluation
+
+`packageRegistryTypes` and `packageTransportTypes` are evaluated **independently across all packages** on a server. A server with Package A (OCI, stdio) and Package B (npm, streamable-http) matches `packageRegistryTypes=oci` + `packageTransportTypes=streamable-http` because it has at least one OCI package AND at least one package with streamable-http transport (even though they are different packages).
 
 ### Result count and `limit`
 
-When backend filtering is active, the `limit` parameter controls when to **stop fetching new upstream pages**, not a hard cap on the number of returned servers. The system always processes an entire upstream page once fetched — it does not discard matching servers mid-page. This means a filtered response MAY contain more servers than `limit` (up to one upstream page worth of extra matches). This is intentional: the upstream cursor is an opaque token pointing to the next page, so breaking mid-page would either lose servers permanently or cause duplicates on the next paginated request. When no filter is active (pass-through mode), `limit` is forwarded to the upstream registry and behaves as a strict cap.
+When backend filtering is active, `limit` controls when to **stop fetching new upstream pages**, not a hard cap on returned servers. A filtered response MAY contain more servers than `limit` (up to one upstream page extra) because the system never discards matches mid-page.
 
 ### Pagination contract
 
-| Scenario                                          | `nextCursor` in response | Meaning                                    |
-|---------------------------------------------------|--------------------------|-------------------------------------------|
-| Page filled and upstream has more pages            | Present                  | More results may exist, continue paginating |
-| Scan limit reached, upstream has more pages        | Present                  | More results may exist, continue paginating |
-| Upstream exhausted (no more pages)                 | Null/absent              | All data has been examined                  |
-| Zero results, upstream has more pages              | Present                  | No matches yet, caller can continue         |
-| Zero results, upstream exhausted                   | Null/absent              | No matching servers exist                   |
+| Scenario | `nextCursor` | Meaning |
+|----------|-------------|---------|
+| Page filled, upstream has more pages | Present | More results may exist |
+| Scan limit reached, upstream has more pages | Present | Caller can continue scanning |
+| Upstream exhausted | Null/absent | All data examined |
+| Zero results, upstream has more pages | Present | No matches yet, caller can continue |
+| Zero results, upstream exhausted | Null/absent | No matching servers exist |
 
 ### GET ↔ POST parity
 
-The GET and POST endpoints accept the same filter criteria and produce the same results. The only difference is parameter encoding:
-
-| Filter field           | GET (query param)                        | POST (JSON body)                          |
-|------------------------|------------------------------------------|-------------------------------------------|
-| `remoteTypes`          | `?remoteTypes=sse,streamable-http`       | `"filter": {"remoteTypes": ["sse", "streamable-http"]}` |
-| `packageRegistryTypes` | `?packageRegistryTypes=npm,oci`          | `"filter": {"packageRegistryTypes": ["npm", "oci"]}`     |
-| `repositoryExists`     | `?repositoryExists=true`                 | `"filter": {"repositoryExists": true}`                    |
+| Filter field | GET (repeated params) | POST (JSON body `filter`) |
+|---|---|---|
+| `remoteTransportTypes` | `?remoteTransportTypes=sse&remoteTransportTypes=streamable-http` | `"remoteTransportTypes": ["sse", "streamable-http"]` |
+| `packageRegistryTypes` | `?packageRegistryTypes=npm&packageRegistryTypes=oci` | `"packageRegistryTypes": ["npm", "oci"]` |
+| `packageTransportTypes` | `?packageTransportTypes=stdio` | `"packageTransportTypes": ["stdio"]` |
+| `repositoryExists` | `?repositoryExists=true` | `"repositoryExists": true` |

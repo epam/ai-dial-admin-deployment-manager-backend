@@ -45,13 +45,15 @@ public class McpRegistryController {
             @RequestParam(required = false) String updatedSince,
             @RequestParam(required = false) String version,
             @Parameter(description = "Remote transport types to filter by (OR logic). Values: sse, streamable-http")
-            @RequestParam(required = false) List<String> remoteTypes,
+            @RequestParam(required = false) List<String> remoteTransportTypes,
             @Parameter(description = "Package registry types to filter by (OR logic). Values: npm, pypi, oci, nuget, mcpb")
             @RequestParam(required = false) List<String> packageRegistryTypes,
+            @Parameter(description = "Package transport types to filter by (OR logic). Values: stdio, streamable-http, sse")
+            @RequestParam(required = false) List<String> packageTransportTypes,
             @Parameter(description = "Filter by repository existence. true = only servers with repository, false = only without")
             @RequestParam(required = false) Boolean repositoryExists
     ) {
-        var filter = buildFilter(remoteTypes, packageRegistryTypes, repositoryExists);
+        var filter = buildFilter(remoteTransportTypes, packageRegistryTypes, packageTransportTypes, repositoryExists);
         var request = ServersRequestDto.builder()
                 .cursor(cursor)
                 .limit(limit)
@@ -100,15 +102,18 @@ public class McpRegistryController {
         return mcpRegistryService.getServerVersions(serverName);
     }
 
-    private static ServerFilterDto buildFilter(List<String> remoteTypes,
+    private static ServerFilterDto buildFilter(List<String> remoteTransportTypes,
                                                List<String> packageRegistryTypes,
+                                               List<String> packageTransportTypes,
                                                Boolean repositoryExists) {
-        if (remoteTypes == null && packageRegistryTypes == null && repositoryExists == null) {
+        if (remoteTransportTypes == null && packageRegistryTypes == null
+                && packageTransportTypes == null && repositoryExists == null) {
             return null;
         }
         return ServerFilterDto.builder()
-                .remoteTypes(remoteTypes)
+                .remoteTransportTypes(remoteTransportTypes)
                 .packageRegistryTypes(packageRegistryTypes)
+                .packageTransportTypes(packageTransportTypes)
                 .repositoryExists(repositoryExists)
                 .build();
     }

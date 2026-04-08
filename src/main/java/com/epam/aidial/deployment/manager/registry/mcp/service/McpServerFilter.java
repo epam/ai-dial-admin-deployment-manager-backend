@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.registry.mcp.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.registry.mcp.model.LocalTransport;
 import com.epam.aidial.deployment.manager.registry.mcp.model.Package;
 import com.epam.aidial.deployment.manager.registry.mcp.model.RemoteTransport;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerFilterDto;
@@ -28,14 +29,20 @@ public class McpServerFilter {
             return false;
         }
 
-        if (CollectionUtils.isNotEmpty(filter.getRemoteTypes())) {
-            if (!matchesRemoteTypes(server.getRemotes(), filter.getRemoteTypes())) {
+        if (CollectionUtils.isNotEmpty(filter.getRemoteTransportTypes())) {
+            if (!matchesRemoteTypes(server.getRemotes(), filter.getRemoteTransportTypes())) {
                 return false;
             }
         }
 
         if (CollectionUtils.isNotEmpty(filter.getPackageRegistryTypes())) {
             if (!matchesPackageRegistryTypes(server.getPackages(), filter.getPackageRegistryTypes())) {
+                return false;
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(filter.getPackageTransportTypes())) {
+            if (!matchesPackageTransportTypes(server.getPackages(), filter.getPackageTransportTypes())) {
                 return false;
             }
         }
@@ -57,8 +64,9 @@ public class McpServerFilter {
         if (filter == null) {
             return false;
         }
-        return CollectionUtils.isNotEmpty(filter.getRemoteTypes())
+        return CollectionUtils.isNotEmpty(filter.getRemoteTransportTypes())
                 || CollectionUtils.isNotEmpty(filter.getPackageRegistryTypes())
+                || CollectionUtils.isNotEmpty(filter.getPackageTransportTypes())
                 || filter.getRepositoryExists() != null;
     }
 
@@ -78,5 +86,18 @@ public class McpServerFilter {
         return packages.stream()
                 .anyMatch(pkg -> pkg.getRegistryType() != null
                         && filterTypes.stream().anyMatch(ft -> ft.equalsIgnoreCase(pkg.getRegistryType().getValue())));
+    }
+
+    private boolean matchesPackageTransportTypes(List<Package> packages, List<String> filterTypes) {
+        if (CollectionUtils.isEmpty(packages)) {
+            return false;
+        }
+        return packages.stream()
+                .anyMatch(pkg -> {
+                    LocalTransport transport = pkg.getTransport();
+                    return transport != null
+                            && transport.getType() != null
+                            && filterTypes.stream().anyMatch(ft -> ft.equalsIgnoreCase(transport.getType().getValue()));
+                });
     }
 }

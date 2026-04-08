@@ -80,7 +80,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldReturnOnlyMatchingServers_whenSingleFilterApplied() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(5);
 
@@ -103,7 +103,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldScanMultiplePages_whenFirstPageHasNoMatches() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(5);
 
@@ -126,7 +126,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldCollectAllMatchesFromCurrentPage_whenPageSizeExceeded() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(2).filter(filter).build();
         stubScanLimit(5);
 
@@ -150,7 +150,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldForwardSearchParam_whenBackendFilterAlsoActive() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).search("myserver").filter(filter).build();
         stubScanLimit(5);
 
@@ -173,7 +173,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldReturnPartialResults_whenErrorMidScanWithCollectedResults() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(5);
 
@@ -194,7 +194,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldPropagateException_whenErrorMidScanWithNoResults() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(5);
 
@@ -213,7 +213,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldPropagateException_whenFirstPageFails() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(5);
 
@@ -230,7 +230,7 @@ class McpRegistryServiceTest {
     @Test
     void shouldApplyAndLogicAcrossFilterDimensions() {
         var filter = ServerFilterDto.builder()
-                .remoteTypes(List.of("sse"))
+                .remoteTransportTypes(List.of("sse"))
                 .packageRegistryTypes(List.of("npm"))
                 .build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
@@ -254,7 +254,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldReturnNextCursor_whenScanLimitReachedWithUpstreamRemaining() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(2);
 
@@ -276,7 +276,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldResumeScanningFromCursor() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).cursor("cursor1").filter(filter).build();
         stubScanLimit(5);
 
@@ -298,7 +298,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldReturnNullCursor_whenUpstreamExhausted() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(5);
 
@@ -316,7 +316,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldReturnPartialPage_whenScanLimitHit() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(10).filter(filter).build();
         stubScanLimit(1);
 
@@ -339,7 +339,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldStopAfterConfiguredScanLimit() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(2);
 
@@ -359,7 +359,7 @@ class McpRegistryServiceTest {
 
     @Test
     void shouldFetchExactlyOnePage_whenScanLimitIsOne() {
-        var filter = ServerFilterDto.builder().remoteTypes(List.of("sse")).build();
+        var filter = ServerFilterDto.builder().remoteTransportTypes(List.of("sse")).build();
         var request = ServersRequestDto.builder().limit(100).filter(filter).build();
         stubScanLimit(1);
 
