@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -45,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.net.HttpURLConnection;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -126,6 +128,11 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
                         log.warn(errorMessage, e);
                         markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
+                        if (isUnrecoverableK8sError(e)) {
+                            log.warn("Unrecoverable Kubernetes error for deployment '{}' (HTTP {}). Marking as STOPPED.",
+                                    id, ((KubernetesClientException) e).getCode());
+                            deploymentRepository.updateStatusInNewTransaction(id, DeploymentStatus.STOPPED);
+                        }
                         throw new DeploymentException(errorMessage, e);
                     }
                 }
@@ -723,6 +730,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         disposableResources.addAll(cnpDisposableResources);
 
         return disposableResources;
+    }
+
+    private static boolean isUnrecoverableK8sError(Exception e) {
+        if (e instanceof KubernetesClientException kce) {
+            int code = kce.getCode();
+            return code == HttpURLConnection.HTTP_NOT_FOUND
+                    || code == HttpURLConnection.HTTP_UNAUTHORIZED
+                    || code == HttpURLConnection.HTTP_FORBIDDEN;
+        }
+        return false;
     }
 
     private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, String name) {

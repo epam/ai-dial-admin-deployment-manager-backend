@@ -160,6 +160,14 @@ Status: **Implemented**
 - **WHEN** `POST /api/v1/deployments/{id}/deploy` is called on a `CRASHED` deployment
 - **THEN** Kubernetes resources are updated and status transitions to `PENDING`
 
+#### Scenario: Unrecoverable Kubernetes error on deploy
+- **WHEN** a deploy operation encounters an unrecoverable Kubernetes API error (HTTP 404, 401, or 403)
+- **THEN** the deployment is marked as `STOPPED` and a `DeploymentException` is thrown. Disposable resources are marked for cleanup.
+
+#### Scenario: Transient Kubernetes error on deploy
+- **WHEN** a deploy operation encounters a transient Kubernetes API error (e.g., HTTP 500)
+- **THEN** a `DeploymentException` is thrown but the deployment status is **not** changed to `STOPPED`. Disposable resources are marked for cleanup.
+
 ### Requirement: Deactivate a deployment (undeploy)
 The system SHALL remove Kubernetes resources for a deployment while preserving its configuration record. Status transitions to `STOPPING`, then `STOPPED`.
 
@@ -168,6 +176,10 @@ Status: **Implemented**
 #### Scenario: Successful undeploy
 - **WHEN** `POST /api/v1/deployments/{id}/undeploy` is called
 - **THEN** Kubernetes resources are removed and status transitions to `STOPPING`, eventually reaching `STOPPED`
+
+#### Scenario: Kubernetes 404 on resource deletion during undeploy
+- **WHEN** a Kubernetes resource (service, CiliumNetworkPolicy, etc.) returns HTTP 404 during deletion
+- **THEN** the error is treated as "already deleted" and the undeploy proceeds without failure
 
 ### Requirement: Deployment carries common base configuration
 All deployment types SHALL carry these fields:
