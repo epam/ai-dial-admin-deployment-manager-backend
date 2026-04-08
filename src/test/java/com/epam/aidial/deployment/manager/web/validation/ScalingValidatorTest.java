@@ -70,6 +70,31 @@ class ScalingValidatorTest {
     }
 
     @Test
+    void shouldBeValidWhenScaleToZeroDelaySetAndMinReplicasZero() {
+        ScalingDto dto = new ScalingDto();
+        dto.setMinReplicas(0);
+        dto.setMaxReplicas(2);
+        dto.setScaleToZeroDelaySeconds(300);
+        dto.setStrategy(new ScalingStrategyDto(ScalingStrategyTypeDto.ACTIVE_REQUESTS, 50));
+
+        assertThat(validator.isValid(dto, context)).isTrue();
+        verifyNoInteractions(context);
+    }
+
+    @Test
+    void shouldFailWhenScaleToZeroDelaySetAndMinReplicasNotZero() {
+        ScalingDto dto = new ScalingDto();
+        dto.setMinReplicas(1);
+        dto.setMaxReplicas(3);
+        dto.setScaleToZeroDelaySeconds(300);
+        dto.setStrategy(new ScalingStrategyDto(ScalingStrategyTypeDto.ACTIVE_REQUESTS, 50));
+
+        assertThat(validator.isValid(dto, context)).isFalse();
+        verify(context).buildConstraintViolationWithTemplate(
+                "minReplicas must be 0 when scaleToZeroDelaySeconds is set");
+    }
+
+    @Test
     void shouldFailWhenMinGreaterThanMax() {
         ScalingDto dto = new ScalingDto();
         dto.setMinReplicas(3);
