@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
@@ -179,15 +180,15 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
                 .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
 
         var initialScale = Math.max(scaling.getMinReplicas(), 1);
-        annotations.put("autoscaling.knative.dev/initial-scale", String.valueOf(initialScale));
-        annotations.put("autoscaling.knative.dev/min-scale", String.valueOf(scaling.getMinReplicas()));
-        annotations.put("autoscaling.knative.dev/max-scale", String.valueOf(scaling.getMaxReplicas()));
+        annotations.put(KnativeAnnotations.INITIAL_SCALE, String.valueOf(initialScale));
+        annotations.put(KnativeAnnotations.MIN_SCALE, String.valueOf(scaling.getMinReplicas()));
+        annotations.put(KnativeAnnotations.MAX_SCALE, String.valueOf(scaling.getMaxReplicas()));
         log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Knative deployment '{}'",
                 scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
 
         if (scaling.getScaleToZeroDelaySeconds() != null) {
             var delayStr = scaling.getScaleToZeroDelaySeconds() + "s";
-            annotations.put("autoscaling.knative.dev/scale-to-zero-pod-retention-period", delayStr);
+            annotations.put(KnativeAnnotations.SCALE_TO_ZERO_RETENTION, delayStr);
             log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for Knative deployment '{}'",
                     delayStr, name);
         }
@@ -199,7 +200,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
             var target = scaling.getStrategy().getThreshold();
             revisionSpecChain.data().setContainerConcurrency((long) target);
-            annotations.put("autoscaling.knative.dev/target", String.valueOf(target));
+            annotations.put(KnativeAnnotations.AUTOSCALING_TARGET, String.valueOf(target));
             log.trace("Applied strategy ACTIVE_REQUESTS: target={} for deployment '{}'",
                     scaling.getStrategy().getThreshold(), name);
         } else {
@@ -214,7 +215,7 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         if (progressDeadline != null) {
             var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
                     .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
-            annotations.put("serving.knative.dev/progress-deadline", progressDeadline);
+            annotations.put(KnativeAnnotations.PROGRESS_DEADLINE, progressDeadline);
         }
     }
 

@@ -30,6 +30,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +40,7 @@ class InferenceManifestGeneratorTest {
 
     private static final String MODEL_FORMAT = "huggingface";
     private static final String DM_PREFIX = "dm-";
+    private static final int STARTUP_TIMEOUT_SEC = 3600;
 
     @Mock
     private AppProperties appconfig;
@@ -56,6 +60,7 @@ class InferenceManifestGeneratorTest {
         var baseService = objectMapper.readValue(baseServiceJson, InferenceService.class);
 
         when(appconfig.cloneInferenceServiceConfig()).thenReturn(baseService);
+        lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
     }
 
     @Test
@@ -71,7 +76,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -93,7 +98,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -115,7 +120,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -136,7 +141,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -157,7 +162,7 @@ class InferenceManifestGeneratorTest {
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
@@ -175,7 +180,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, containerPort, null
+                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -196,7 +201,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, args, null, null
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -215,7 +220,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -235,7 +240,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -255,7 +260,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, command, Collections.emptyList(), null, null
+                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -278,7 +283,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC
         );
 
         // Then
@@ -287,22 +292,22 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withoutProbe_doesNotSetProgressDeadlineAnnotation() {
+    void testServiceConfig_withoutProbe_setsFallbackProgressDeadlineAnnotation() {
         // Given
-        var deploymentName = "no-deadline-inference-app";
-        var storageUri = "s3://my-bucket/no-deadline-model";
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealCalculator = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
+        var deploymentName = "fallback-deadline-inference-app";
+        var storageUri = "s3://my-bucket/fallback-deadline-model";
 
         // When
-        var generatedService = manifestGenerator.serviceConfig(
+        var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC
         );
 
-        // Then
+        // Then: fallback deadline = 3600 + 30 = 3630s
         var annotations = generatedService.getMetadata().getAnnotations();
-        if (annotations != null) {
-            assertThat(annotations).doesNotContainKey("serving.knative.dev/progress-deadline");
-        }
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "3630s");
     }
 
     @Test
@@ -318,7 +323,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC
         );
 
         // Then: predictor model has startup probe with expected path, port and timing

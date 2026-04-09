@@ -31,6 +31,11 @@ public class NimMappers {
             NIMService::getMetadata,
             NIMService::setMetadata);
 
+    public static final FieldMapper<ObjectMeta, Map<String, String>> METADATA_ANNOTATIONS_FIELD = new FieldMapper<>(
+            HashMap::new,
+            ObjectMeta::getAnnotations,
+            ObjectMeta::setAnnotations);
+
     public static final FieldMapper<NIMService, NIMServiceSpec> SERVICE_SPEC_FIELD = new FieldMapper<>(
             NIMServiceSpec::new,
             NIMService::getSpec,

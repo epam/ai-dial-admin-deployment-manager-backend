@@ -28,17 +28,23 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class NimManifestGeneratorTest {
 
     private static final String DM_PREFIX = "dm-";
+    private static final int STARTUP_TIMEOUT_SEC = 3600;
 
     @Mock
     private AppProperties appconfig;
     @Mock
     private NimProbeConverter nimProbeConverter;
+    @Mock
+    private ProgressDeadlineCalculator progressDeadlineCalculator;
     @InjectMocks
     private NimManifestGenerator manifestGenerator;
 
@@ -51,6 +57,7 @@ class NimManifestGeneratorTest {
         var baseService = objectMapper.readValue(baseServiceJson, NIMService.class);
 
         when(appconfig.cloneNimServiceConfig()).thenReturn(baseService);
+        lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
     }
 
     private void stubNimServiceExposeIngressConfig() {
@@ -80,7 +87,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -102,7 +109,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                false, null, null, null
+                STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -124,7 +131,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
-                customGrpcPort, null, false, null, null, null
+                customGrpcPort, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -147,7 +154,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                false, null, null, null
+                STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
@@ -172,7 +179,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                httpPort, null, null, true, clusterHost, null, null
+                httpPort, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
         );
 
         // Then: expose.ingress is set with host, tls secret, backend
@@ -208,7 +215,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, true, clusterHost, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
         );
 
         // Then: expose.ingress has annotations from nim-service-expose-ingress-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
@@ -231,7 +238,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then: expose.ingress is not set
@@ -243,7 +250,9 @@ class NimManifestGeneratorTest {
     @Test
     void testServiceConfig_withProbeProperties_setsStartupProbeOnSpec() {
         // Given: generator with real NimProbeConverter so probe is built from properties
-        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()));
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
+                realCalculator);
         var deploymentName = "probe-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
@@ -252,7 +261,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, probeProperties, false, null, null, null
+                8000, null, probeProperties, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then: spec has startup probe with expected enabled, path, port and timing
@@ -281,7 +290,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, command, args
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, args
         );
 
         // Then
@@ -300,7 +309,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, command, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, null
         );
 
         // Then
@@ -318,12 +327,32 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
         );
 
         // Then
         assertThat(generatedService.getSpec().getCommand()).isNull();
         assertThat(generatedService.getSpec().getArgs()).isNull();
+    }
+
+    @Test
+    void testServiceConfig_withoutProbe_setsFallbackProgressDeadlineAnnotation() {
+        // Given: generator with real calculator so fallback deadline is computed
+        var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
+        var generatorWithRealCalculator = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
+                realCalculator);
+        var deploymentName = "fallback-deadline-nim-app";
+        var imageName = "my-registry.io/probe-image:v1";
+
+        // When: no probe properties provided
+        var generatedService = generatorWithRealCalculator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+        );
+
+        // Then: fallback deadline = 3600 + 30 = 3630s
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "3630s");
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
