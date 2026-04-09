@@ -38,6 +38,14 @@ Note: calling `deploy` on an already-active deployment (PENDING, RUNNING, CRASHE
 | `STOPPING` | Undeploy requested; Kubernetes resources are being removed |
 | `STOPPED` | Undeployed; configuration retained but no Kubernetes resources |
 
+### Knative ready grace period
+
+For Knative-based deployments (MCP, Interceptor, Adapter, Application), a configurable **ready grace period** (`K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC`, default: 15s) prevents false `CRASHED` status during transient readiness probe failures. On some cloud providers (e.g., GKE), networking setup can take several seconds during which the Knative `Ready` condition is temporarily `False` before flipping to `True`.
+
+During the grace period after the `Ready` condition transitions to `False`, the system reports `PENDING` instead of `CRASHED`. Once the grace period expires and the condition is still `False`, the status transitions to `CRASHED`. Setting the grace period to `0` disables this behavior.
+
+This does not apply to NIM or KServe deployments, which have distinct failure states in their respective operators and only map definitive failures to `CRASHED`.
+
 ## Requirements
 
 ### Requirement: List deployments
