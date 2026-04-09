@@ -58,7 +58,7 @@ When KServe is enabled, the system SHALL generate a KServe InferenceService mani
 
 - **Predictor model spec**: `storageUri` (model location), `modelFormat` (framework), env vars (plain + sensitive via Secret), resource limits/requests, startup probe, custom `command`/`args`, container port
 - **Scaling**: `minReplicas` and `maxReplicas` on predictor (from base `Scaling` config); `autoscaling.knative.dev/initial-scale` annotation on service metadata; scale metric (`CONCURRENCY` for `ACTIVE_REQUESTS` strategy); `autoscaling.knative.dev/scale-to-zero-pod-retention-period` for scale-to-zero delay
-- **Progress deadline annotation**: `serving.knative.dev/progress-deadline` set on service metadata when a startup probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe))
+- **Progress deadline annotation**: `serving.knative.dev/progress-deadline` always set on service metadata — computed from startup probe parameters when a probe is configured, or from the deployment type's `startup-timeout` + buffer when no probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe-or-startup-timeout))
 - **Model name argument**: `--model_name` automatically added to args if not already present
 - **Naming**: Resources named using the stored `serviceName` from the deployment record
 - **Startup probe**: converted from domain `ProbeProperties` to KServe `StartupProbe` by `KserveProbeConverter`
@@ -86,6 +86,7 @@ When NIM is enabled, the system SHALL generate NIM-specific Kubernetes resources
 - **Resources**: limits/requests; default 1 NVIDIA GPU (`nvidia.com/gpu`) added to limits
 - **Service expose**: standard port (default: 8000), optional gRPC port, service type `ClusterIP`
 - **Startup probe**: converted from domain `ProbeProperties` to NIM `StartupProbe` by `NimProbeConverter` (sets `enabled: true` on the NIM probe wrapper)
+- **Progress deadline annotation**: `serving.knative.dev/progress-deadline` always set on service metadata — computed from startup probe parameters when a probe is configured, or from the deployment type's `startup-timeout` + buffer when no probe is configured (see [Progress Deadline](#requirement-progress-deadline-annotation-computed-from-startup-probe-or-startup-timeout))
 - **Replicas**: default 1 (from configuration)
 - **Storage**: PVC configuration (default: 20Gi)
 
@@ -103,32 +104,39 @@ Status: **Implemented**
 - **WHEN** a NIM deployment has `probeProperties.enabled = true`
 - **THEN** `NimProbeConverter` converts the probe to a NIM `StartupProbe` (with `enabled: true`) and sets it on the NIM service spec
 
-### Requirement: Progress deadline annotation computed from startup probe
-When a deployment has a startup probe configured, the system SHALL automatically compute and set the `serving.knative.dev/progress-deadline` annotation on the generated manifest. This prevents KNative from terminating long-starting deployments (e.g., large model downloads) before they are ready.
+### Requirement: Progress deadline annotation computed from startup probe or startup timeout
+The system SHALL automatically compute and set the `serving.knative.dev/progress-deadline` annotation on generated manifests. This prevents Kubernetes from terminating long-starting deployments (e.g., large model downloads) before they are ready.
 
 The annotation is set on:
-- **KNative Service**: RevisionTemplate metadata annotations
-- **KServe InferenceService**: Service-level metadata annotations
+- **KNative Service**: RevisionTemplate metadata annotations (only when a startup probe is configured)
+- **KServe InferenceService**: Service-level metadata annotations (always)
+- **NIM Service**: Service-level metadata annotations (always)
 
-The formula is: `progressDeadline = initialDelaySeconds + ((failureThreshold - 1) * periodSeconds) + timeoutSeconds + bufferSeconds`
+**When a startup probe is configured**, the deadline is computed from the probe parameters: `progressDeadline = initialDelaySeconds + ((failureThreshold - 1) * periodSeconds) + timeoutSeconds + bufferSeconds`
 
 When probe fields are not explicitly set, configurable defaults are used (matching Kubernetes defaults): `initialDelaySeconds=0`, `periodSeconds=10`, `failureThreshold=3`. A configurable buffer (default: 30s) is added to account for image pull time, readiness probe, and scheduling overhead.
 
-When no startup probe is configured, no annotation is set and KNative's built-in default of 600s applies.
+**When no startup probe is configured** (KServe and NIM only), the deadline falls back to the deployment type's `startup-timeout` value plus buffer: `progressDeadline = startupTimeout + bufferSeconds`. This ensures that the Kubernetes-level timeout aligns with the application-level health check timeout.
+
+For KNative deployments (MCP, Interceptor, Adapter, Application), when no startup probe is configured, no annotation is set and KNative's built-in default of 600s applies.
 
 Status: **Implemented**
 
 #### Scenario: Progress deadline set from startup probe
 - **WHEN** a deployment has `probeProperties.enabled = true` with startup probe timing fields
-- **THEN** the `serving.knative.dev/progress-deadline` annotation is computed and set on the manifest
+- **THEN** the `serving.knative.dev/progress-deadline` annotation is computed from probe parameters and set on the manifest
 
 #### Scenario: Default probe values used for missing fields
 - **WHEN** a startup probe does not specify `initialDelaySeconds`, `periodSeconds`, or `failureThreshold`
 - **THEN** the configurable default values are used in the formula
 
-#### Scenario: No annotation without startup probe
-- **WHEN** a deployment does not have a startup probe configured
-- **THEN** no `serving.knative.dev/progress-deadline` annotation is set
+#### Scenario: Fallback deadline for KServe and NIM without startup probe
+- **WHEN** a KServe or NIM deployment does not have a startup probe configured
+- **THEN** the `serving.knative.dev/progress-deadline` annotation is set to `startupTimeout + bufferSeconds`
+
+#### Scenario: No annotation for KNative without startup probe
+- **WHEN** a KNative deployment (MCP, Interceptor, Adapter, Application) does not have a startup probe configured
+- **THEN** no `serving.knative.dev/progress-deadline` annotation is set and KNative's built-in default of 600s applies
 
 ### Requirement: Strategy selected per deployment type
 The system SHALL automatically select the correct manifest generation strategy based on deployment type and enabled feature flags.
@@ -169,7 +177,7 @@ Status: **Implemented**
 - Base probe converter: `com.epam.aidial.deployment.manager.service.manifest.ProbeConverter` — translates `ProbeProperties` to Fabric8 `io.fabric8.kubernetes.api.model.Probe`
 - KServe probe converter: `com.epam.aidial.deployment.manager.service.manifest.KserveProbeConverter` — converts Fabric8 `Probe` or `ProbeProperties` to `io.kserve.serving.v1beta1...StartupProbe`
 - NIM probe converter: `com.epam.aidial.deployment.manager.service.manifest.NimProbeConverter` — converts Fabric8 `Probe` or `ProbeProperties` to `com.nvidia.apps.v1alpha1.nimservicespec.StartupProbe` (with `enabled: true`)
-- Progress deadline calculator: `com.epam.aidial.deployment.manager.service.manifest.ProgressDeadlineCalculator` — computes KNative progress deadline from startup probe config with configurable defaults and buffer
+- Progress deadline calculator: `com.epam.aidial.deployment.manager.service.manifest.ProgressDeadlineCalculator` — computes progress deadline from startup probe config with configurable defaults and buffer, or falls back to startup timeout + buffer when no probe is configured
 - Manifest field navigation: `KnativeMappers`, `InferenceMappers`, `NimMappers` (MappingChain pattern)
 - KNative client: `com.epam.aidial.deployment.manager.kubernetes.knative.*`
 - NIM client: `com.epam.aidial.deployment.manager.kubernetes.nim.*`

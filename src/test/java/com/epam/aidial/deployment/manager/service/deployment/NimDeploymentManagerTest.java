@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import org.junit.jupiter.api.AfterEach;
@@ -281,6 +282,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 any(Boolean.class),
                 any(),
                 any(),
@@ -329,6 +331,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 any(Boolean.class),
                 any(),
                 any(),
@@ -380,7 +383,7 @@ class NimDeploymentManagerTest {
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(nimManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), anyInt(), eq(true), any(), any(), any()
         )).thenThrow(new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured"));
 
         // When/Then: generator receives useExternalUrl=true and blank clusterHost, throws IllegalArgumentException
@@ -389,7 +392,7 @@ class NimDeploymentManagerTest {
                 .hasMessageContaining("Failed to deploy service")
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasRootCauseMessage("External NIM URL is enabled but cluster host is not configured");
-        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), eq(true), any(), any(), any());
+        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), anyInt(), eq(true), any(), any(), any());
     }
 
     @Test
@@ -409,6 +412,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 eq(true),
                 eq(CLUSTER_HOST),
                 any(),
@@ -432,6 +436,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 eq(true),
                 eq(CLUSTER_HOST),
                 any(),
@@ -483,6 +488,7 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
+                anyInt(),
                 any(Boolean.class),
                 any(),
                 any(),
@@ -506,6 +512,142 @@ class NimDeploymentManagerTest {
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("Failed to deploy service");
 
+        verify(disposableResourceManager).markNimServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
+    }
+
+    @Test
+    void deploy_shouldMarkStoppedOnUnrecoverableK8sErrorFromCreateService() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        NIMService serviceSpec = new NIMService();
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(nimManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
+                any(),
+                any(),
+                any(),
+                eq(IMAGE_NAME),
+                anyInt(),
+                any(),
+                any(),
+                anyInt(),
+                any(Boolean.class),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+        doThrow(new KubernetesClientException("Not Found", 404, null))
+                .when(k8sNimClient).createService(eq(NAMESPACE), any());
+
+        // When
+        nimDeploymentManager.deploy(DEPLOYMENT_ID);
+
+        var synchronizations = TransactionSynchronizationManager.getSynchronizations();
+        assertThatThrownBy(() -> {
+            for (TransactionSynchronization sync : synchronizations) {
+                sync.afterCommit();
+            }
+        })
+                .isInstanceOf(DeploymentException.class)
+                .hasMessageContaining("Failed to deploy service");
+
+        // Then
+        verify(deploymentRepository).updateStatusInNewTransaction(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPED));
+        verify(disposableResourceManager).markNimServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
+    }
+
+    @Test
+    void deploy_shouldMarkStoppedOnUnrecoverableK8sErrorFromCreateCiliumNetworkPolicy() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        NIMService serviceSpec = new NIMService();
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(nimManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
+                any(),
+                any(),
+                any(),
+                eq(IMAGE_NAME),
+                anyInt(),
+                any(),
+                any(),
+                anyInt(),
+                any(Boolean.class),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        doThrow(new KubernetesClientException("Forbidden", 403, null))
+                .when(k8sClient).createCiliumNetworkPolicy(eq(NAMESPACE), any());
+
+        // When
+        nimDeploymentManager.deploy(DEPLOYMENT_ID);
+
+        var synchronizations = TransactionSynchronizationManager.getSynchronizations();
+        assertThatThrownBy(() -> {
+            for (TransactionSynchronization sync : synchronizations) {
+                sync.afterCommit();
+            }
+        })
+                .isInstanceOf(DeploymentException.class)
+                .hasMessageContaining("Failed to deploy service");
+
+        // Then
+        verify(deploymentRepository).updateStatusInNewTransaction(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPED));
+        verify(disposableResourceManager).markNimServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
+    }
+
+    @Test
+    void deploy_shouldNotMarkStoppedOnTransientK8sError() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        NIMService serviceSpec = new NIMService();
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(nimManifestGenerator.serviceConfig(
+                eq(DEPLOYMENT_ID),
+                eq(SERVICE_NAME),
+                any(),
+                any(),
+                any(),
+                eq(IMAGE_NAME),
+                anyInt(),
+                any(),
+                any(),
+                anyInt(),
+                any(Boolean.class),
+                any(),
+                any(),
+                any()
+        )).thenReturn(serviceSpec);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+        doThrow(new KubernetesClientException("Internal Server Error", 500, null))
+                .when(k8sNimClient).createService(eq(NAMESPACE), any());
+
+        // When
+        nimDeploymentManager.deploy(DEPLOYMENT_ID);
+
+        var synchronizations = TransactionSynchronizationManager.getSynchronizations();
+        assertThatThrownBy(() -> {
+            for (TransactionSynchronization sync : synchronizations) {
+                sync.afterCommit();
+            }
+        })
+                .isInstanceOf(DeploymentException.class)
+                .hasMessageContaining("Failed to deploy service");
+
+        // Then - should NOT update status to STOPPED for transient errors
+        verify(deploymentRepository, never()).updateStatusInNewTransaction(any(), any());
         verify(disposableResourceManager).markNimServiceResourceForCleanup(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), eq(NAMESPACE));
     }
 

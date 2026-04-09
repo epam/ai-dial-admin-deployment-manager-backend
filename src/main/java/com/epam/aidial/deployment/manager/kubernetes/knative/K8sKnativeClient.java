@@ -24,9 +24,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @LogExecution
 public class K8sKnativeClient extends AbstractK8sResourceClient<Service, ServiceList> {
 
-    private static final String KNATIVE_SERVICE = "serving.knative.dev/service";
-    private static final String CREATOR_ANNOTATION = "serving.knative.dev/creator";
-
     private final KnativeClient knativeClient;
 
     public K8sKnativeClient(KnativeClient knativeClient, K8sClient k8sClient) {
@@ -41,7 +38,7 @@ public class K8sKnativeClient extends AbstractK8sResourceClient<Service, Service
 
     @Override
     protected String getLabelKey() {
-        return KNATIVE_SERVICE;
+        return KnativeAnnotations.SERVICE;
     }
 
     @Override
@@ -75,8 +72,8 @@ public class K8sKnativeClient extends AbstractK8sResourceClient<Service, Service
                 var newAnnotations = Optional.ofNullable(service.getMetadata().getAnnotations())
                         .orElse(new HashMap<>());
 
-                if (immutableAnnotations.containsKey(CREATOR_ANNOTATION)) {
-                    newAnnotations.put(CREATOR_ANNOTATION, immutableAnnotations.get(CREATOR_ANNOTATION));
+                if (immutableAnnotations.containsKey(KnativeAnnotations.CREATOR)) {
+                    newAnnotations.put(KnativeAnnotations.CREATOR, immutableAnnotations.get(KnativeAnnotations.CREATOR));
                     service.getMetadata().setAnnotations(newAnnotations);
                 }
             }

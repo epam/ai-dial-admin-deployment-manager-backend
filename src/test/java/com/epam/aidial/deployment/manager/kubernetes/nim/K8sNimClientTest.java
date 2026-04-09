@@ -175,6 +175,24 @@ class K8sNimClientTest {
     }
 
     @Test
+    void deleteService_shouldTreatNotFoundAsDeleted() {
+        // Given
+        when(nimClient.services()).thenReturn(nimServiceOperation);
+        when(nimServiceOperation.inNamespace(NAMESPACE)).thenReturn(namespacedNimServiceOperation);
+        when(namespacedNimServiceOperation.withName(SERVICE_NAME)).thenReturn(nimServiceResource);
+        when(nimServiceResource.delete()).thenThrow(new KubernetesClientException("Not Found", 404, null));
+
+        // When — should not throw
+        k8sNimClient.deleteService(NAMESPACE, SERVICE_NAME);
+
+        // Then
+        verify(nimClient).services();
+        verify(nimServiceOperation).inNamespace(NAMESPACE);
+        verify(namespacedNimServiceOperation).withName(SERVICE_NAME);
+        verify(nimServiceResource).delete();
+    }
+
+    @Test
     void deleteService_shouldReturnFalseWhenExceptionOccurs() {
         // Given
         when(nimClient.services()).thenReturn(nimServiceOperation);
