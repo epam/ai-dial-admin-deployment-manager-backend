@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.epam.aidial.deployment.manager.utils.mapping.ListMapper;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
 import com.google.cloud.tools.jib.api.ImageReference;
@@ -36,6 +37,8 @@ import java.util.List;
 @Component
 @LogExecution
 public class NimManifestGenerator extends DeployableManifestGenerator {
+
+    private static final String NIM_SERVED_MODEL_NAME_ENV = "NIM_SERVED_MODEL_NAME";
 
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
@@ -81,6 +84,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         var envListMapper = specChain.getList(NimMappers.SERVICE_SPEC_ENVS_FIELD, NimMappers.ENV_VAR_NAME);
         applySimpleEnvs(envListMapper, envs, Env::setValue);
         applySensitiveEnvs(envListMapper, sensitiveEnv, Env::setValueFrom, this::buildNimSecretRef);
+        setServedModelNameIfNotSet(name, envs, sensitiveEnv, envListMapper);
 
         var resourceLimitsChain = specChain.get(NimMappers.SERVICE_SPEC_RESOURCES_FIELD)
                 .get(NimMappers.RESOURCES_LIMITS_FIELD);
@@ -181,6 +185,20 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         var imageReference = ImageReference.parse(imageName);
         serviceImage.setRepository(imageReference.getRegistry() + "/" + imageReference.getRepository());
         serviceImage.setTag(imageReference.getTag().orElse("latest"));
+    }
+
+    private void setServedModelNameIfNotSet(String deploymentName,
+                                            List<SimpleEnvVar> simpleEnvs,
+                                            List<SensitiveEnvVar> sensitiveEnvs,
+                                            ListMapper<Env> envListMapper) {
+        boolean alreadySet = simpleEnvs.stream().anyMatch(e -> NIM_SERVED_MODEL_NAME_ENV.equals(e.getName()))
+                || sensitiveEnvs.stream().anyMatch(e -> NIM_SERVED_MODEL_NAME_ENV.equals(e.getName()));
+        if (alreadySet) {
+            log.debug("Environment variable {} is already set for NIM deployment '{}', skipping.",
+                    NIM_SERVED_MODEL_NAME_ENV, deploymentName);
+            return;
+        }
+        envListMapper.get(NIM_SERVED_MODEL_NAME_ENV).data().setValue(deploymentName);
     }
 
     private ValueFrom buildNimSecretRef(SensitiveEnvVar env) {

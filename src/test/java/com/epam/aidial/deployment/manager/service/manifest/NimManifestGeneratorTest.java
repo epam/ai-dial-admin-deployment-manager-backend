@@ -336,6 +336,80 @@ class NimManifestGeneratorTest {
     }
 
     @Test
+    void shouldNotOverrideServedModelName_whenProvidedAsSimpleEnvVar() {
+        // Given
+        var deploymentName = "nim-with-custom-model";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var customModelName = "my-custom-model";
+        var simpleEnvs = List.of(new SimpleEnvVar("NIM_SERVED_MODEL_NAME", new SimpleEnvVarValue(customModelName)));
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, Collections.emptyList(), resources, imageName,
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+        );
+
+        // Then
+        var envList = generatedService.getSpec().getEnv();
+        assertThat(envList)
+                .filteredOn(env -> "NIM_SERVED_MODEL_NAME".equals(env.getName()))
+                .hasSize(1)
+                .first()
+                .satisfies(env -> assertThat(env.getValue()).isEqualTo(customModelName));
+    }
+
+    @Test
+    void shouldNotOverrideServedModelName_whenProvidedAsSensitiveEnvVar() {
+        // Given
+        var deploymentName = "nim-with-secret-model";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var sensitiveEnvs = List.of(new SensitiveEnvVar("NIM_SERVED_MODEL_NAME", null, "model-secret", "model-key"));
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), sensitiveEnvs, resources, imageName,
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+        );
+
+        // Then — should have the sensitive env var (with valueFrom), not a simple value override
+        var envList = generatedService.getSpec().getEnv();
+        assertThat(envList)
+                .filteredOn(env -> "NIM_SERVED_MODEL_NAME".equals(env.getName()))
+                .hasSize(1)
+                .first()
+                .satisfies(env -> {
+                    assertThat(env.getValue()).isNull();
+                    assertThat(env.getValueFrom()).isNotNull();
+                    assertThat(env.getValueFrom().getSecretKeyRef().getName()).isEqualTo("model-secret");
+                    assertThat(env.getValueFrom().getSecretKeyRef().getKey()).isEqualTo("model-key");
+                });
+    }
+
+    @Test
+    void shouldSetServedModelName_whenNotProvidedByUser() {
+        // Given
+        var deploymentName = "my-nim-deployment";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+        );
+
+        // Then
+        var envList = generatedService.getSpec().getEnv();
+        assertThat(envList)
+                .filteredOn(env -> "NIM_SERVED_MODEL_NAME".equals(env.getName()))
+                .hasSize(1)
+                .first()
+                .satisfies(env -> assertThat(env.getValue()).isEqualTo(deploymentName));
+    }
+
+    @Test
     void testServiceConfig_withoutProbe_setsFallbackProgressDeadlineAnnotation() {
         // Given: generator with real calculator so fallback deadline is computed
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);

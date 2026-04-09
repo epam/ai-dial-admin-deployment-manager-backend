@@ -20,6 +20,9 @@
           "name" : "my-secret"
         }
       }
+    }, {
+      "name" : "NIM_SERVED_MODEL_NAME",
+      "value" : "basic-nim-app"
     } ],
     "expose" : {
       "service" : {
