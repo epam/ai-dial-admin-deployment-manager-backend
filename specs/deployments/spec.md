@@ -38,6 +38,14 @@ Note: calling `deploy` on an already-active deployment (PENDING, RUNNING, CRASHE
 | `STOPPING` | Undeploy requested; Kubernetes resources are being removed |
 | `STOPPED` | Undeployed; configuration retained but no Kubernetes resources |
 
+### Knative ready grace period
+
+For Knative-based deployments (MCP, Interceptor, Adapter, Application), a configurable **ready grace period** (`K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC`, default: 15s) prevents false `CRASHED` status during transient readiness probe failures. On some cloud providers (e.g., GKE), networking setup can take several seconds during which the Knative `Ready` condition is temporarily `False` before flipping to `True`.
+
+During the grace period after the `Ready` condition transitions to `False`, the system reports `PENDING` instead of `CRASHED`. Once the grace period expires and the condition is still `False`, the status transitions to `CRASHED`. Setting the grace period to `0` disables this behavior.
+
+This does not apply to NIM or KServe deployments, which have distinct failure states in their respective operators and only map definitive failures to `CRASHED`.
+
 ## Requirements
 
 ### Requirement: List deployments
@@ -226,9 +234,9 @@ All deployment types SHALL carry these fields:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. |
+| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. Must be 0 when `scaleToZeroDelaySeconds` is set; must be > 0 when `scaleToZeroDelaySeconds` is not set. |
 | `maxReplicas` | int | Yes | Maximum replica count. `@Min(1)`. |
-| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. |
+| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. When set, `minReplicas` must be 0; when not set, `minReplicas` must be > 0. |
 | `strategy` | ScalingStrategyDto | Conditional | Scaling strategy. Nullable. Required when `minReplicas != maxReplicas` (unless `minReplicas=0, maxReplicas=1`). Must be null when `minReplicas == maxReplicas` or when `minReplicas=0, maxReplicas=1`. |
 
 **`ScalingStrategyDto` structure:**
@@ -394,7 +402,7 @@ The `source` JSON column lives on the base `DeploymentEntity`, storing a `Persis
 - Scaling DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingDto` (minReplicas, maxReplicas, scaleToZeroDelaySeconds, strategy)
 - Scaling strategy DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyDto` ($type as `ScalingStrategyTypeDto`, threshold)
 - Scaling strategy type enum: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyTypeDto` (PENDING_REQUESTS, ACTIVE_REQUESTS, HARDWARE_USAGE)
-- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts)
+- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts; validates minReplicas/scaleToZeroDelaySeconds cross-field constraints)
 - Scaling DTO mapper: `com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapper`
 - Domain scaling model: `com.epam.aidial.deployment.manager.model.Scaling`, `com.epam.aidial.deployment.manager.model.ScalingStrategy`, `com.epam.aidial.deployment.manager.model.ScalingStrategyType`
 - Probe properties DTO: `com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto`

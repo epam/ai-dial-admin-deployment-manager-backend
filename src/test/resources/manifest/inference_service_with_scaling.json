@@ -4,7 +4,8 @@
   "metadata": {
     "annotations": {
       "autoscaling.knative.dev/scale-to-zero-pod-retention-period": "600s",
-      "autoscaling.knative.dev/initial-scale": "1"
+      "autoscaling.knative.dev/initial-scale": "1",
+      "serving.knative.dev/progress-deadline": "3630s"
     },
     "name": "dm-scaling-inference-app"
   },

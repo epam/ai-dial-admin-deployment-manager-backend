@@ -40,6 +40,25 @@ public class ProgressDeadlineCalculator {
         if (probe == null || !probe.isEnabled()) {
             return null;
         }
+        return computeFromProbe(probe);
+    }
+
+    /**
+     * Returns progress deadline duration string (e.g. "1800s").
+     * When a probe is configured, computes the deadline from probe parameters.
+     * When no probe is configured, falls back to {@code fallbackTimeoutSeconds + bufferSeconds}.
+     */
+    public String compute(@Nullable ProbeProperties probe, int fallbackTimeoutSeconds) {
+        if (probe == null || !probe.isEnabled()) {
+            int deadline = fallbackTimeoutSeconds + bufferSeconds;
+            log.debug("No probe configured, using fallback progress deadline: {}s (fallback={}, buffer={})",
+                    deadline, fallbackTimeoutSeconds, bufferSeconds);
+            return deadline + "s";
+        }
+        return computeFromProbe(probe);
+    }
+
+    private String computeFromProbe(ProbeProperties probe) {
         int initial = probe.getInitialDelaySeconds() != null
                 ? probe.getInitialDelaySeconds() : defaultInitialDelay;
         int period = probe.getPeriodSeconds() != null

@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -37,11 +38,14 @@ import java.util.List;
 public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private final NimProbeConverter nimProbeConverter;
+    private final ProgressDeadlineCalculator progressDeadlineCalculator;
 
     public NimManifestGenerator(AppProperties appconfig,
-                                NimProbeConverter nimProbeConverter) {
+                                NimProbeConverter nimProbeConverter,
+                                ProgressDeadlineCalculator progressDeadlineCalculator) {
         super(appconfig);
         this.nimProbeConverter = nimProbeConverter;
+        this.progressDeadlineCalculator = progressDeadlineCalculator;
     }
 
     @SneakyThrows
@@ -55,6 +59,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             int containerPort,
             @Nullable Integer containerGrpcPort,
             @Nullable ProbeProperties probeProperties,
+            int startupTimeoutSec,
             boolean useExternalUrl,
             @Nullable String clusterHost,
             @Nullable List<String> command,
@@ -99,6 +104,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         }
 
         applyStartupProbe(name, specChain, probeProperties);
+        applyProgressDeadline(probeProperties, startupTimeoutSec, config);
 
         return config.data();
     }
@@ -158,6 +164,15 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             log.debug("Applying startup probe for NIM deployment '{}': {}", name, probe);
             specChain.data().setStartupProbe(probe);
         }
+    }
+
+    private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
+                                       int startupTimeoutSec,
+                                       MappingChain<NIMService> config) {
+        var progressDeadline = progressDeadlineCalculator.compute(probeProperties, startupTimeoutSec);
+        var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
+                .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
+        annotations.put(KnativeAnnotations.PROGRESS_DEADLINE, progressDeadline);
     }
 
     @SneakyThrows
