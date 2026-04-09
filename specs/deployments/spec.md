@@ -38,6 +38,14 @@ Note: calling `deploy` on an already-active deployment (PENDING, RUNNING, CRASHE
 | `STOPPING` | Undeploy requested; Kubernetes resources are being removed |
 | `STOPPED` | Undeployed; configuration retained but no Kubernetes resources |
 
+### Knative ready grace period
+
+For Knative-based deployments (MCP, Interceptor, Adapter, Application), a configurable **ready grace period** (`K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC`, default: 15s) prevents false `CRASHED` status during transient readiness probe failures. On some cloud providers (e.g., GKE), networking setup can take several seconds during which the Knative `Ready` condition is temporarily `False` before flipping to `True`.
+
+During the grace period after the `Ready` condition transitions to `False`, the system reports `PENDING` instead of `CRASHED`. Once the grace period expires and the condition is still `False`, the status transitions to `CRASHED`. Setting the grace period to `0` disables this behavior.
+
+This does not apply to NIM or KServe deployments, which have distinct failure states in their respective operators and only map definitive failures to `CRASHED`.
+
 ## Requirements
 
 ### Requirement: List deployments
@@ -160,6 +168,14 @@ Status: **Implemented**
 - **WHEN** `POST /api/v1/deployments/{id}/deploy` is called on a `CRASHED` deployment
 - **THEN** Kubernetes resources are updated and status transitions to `PENDING`
 
+#### Scenario: Unrecoverable Kubernetes error on deploy
+- **WHEN** a deploy operation encounters an unrecoverable Kubernetes API error (HTTP 404, 401, or 403)
+- **THEN** the deployment is marked as `STOPPED` and a `DeploymentException` is thrown. Disposable resources are marked for cleanup.
+
+#### Scenario: Transient Kubernetes error on deploy
+- **WHEN** a deploy operation encounters a transient Kubernetes API error (e.g., HTTP 500)
+- **THEN** a `DeploymentException` is thrown but the deployment status is **not** changed to `STOPPED`. Disposable resources are marked for cleanup.
+
 ### Requirement: Deactivate a deployment (undeploy)
 The system SHALL remove Kubernetes resources for a deployment while preserving its configuration record. Status transitions to `STOPPING`, then `STOPPED`.
 
@@ -168,6 +184,10 @@ Status: **Implemented**
 #### Scenario: Successful undeploy
 - **WHEN** `POST /api/v1/deployments/{id}/undeploy` is called
 - **THEN** Kubernetes resources are removed and status transitions to `STOPPING`, eventually reaching `STOPPED`
+
+#### Scenario: Kubernetes 404 on resource deletion during undeploy
+- **WHEN** a Kubernetes resource (service, CiliumNetworkPolicy, etc.) returns HTTP 404 during deletion
+- **THEN** the error is treated as "already deleted" and the undeploy proceeds without failure
 
 ### Requirement: Deployment carries common base configuration
 All deployment types SHALL carry these fields:
@@ -214,9 +234,9 @@ All deployment types SHALL carry these fields:
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. |
+| `minReplicas` | int | Yes | Minimum replica count. `@Min(0)`. Must be 0 when `scaleToZeroDelaySeconds` is set; must be > 0 when `scaleToZeroDelaySeconds` is not set. |
 | `maxReplicas` | int | Yes | Maximum replica count. `@Min(1)`. |
-| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. |
+| `scaleToZeroDelaySeconds` | Integer | No | Idle time (seconds) before scaling to zero. `@Min(1)`. When set, `minReplicas` must be 0; when not set, `minReplicas` must be > 0. |
 | `strategy` | ScalingStrategyDto | Conditional | Scaling strategy. Nullable. Required when `minReplicas != maxReplicas` (unless `minReplicas=0, maxReplicas=1`). Must be null when `minReplicas == maxReplicas` or when `minReplicas=0, maxReplicas=1`. |
 
 **`ScalingStrategyDto` structure:**
@@ -382,7 +402,7 @@ The `source` JSON column lives on the base `DeploymentEntity`, storing a `Persis
 - Scaling DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingDto` (minReplicas, maxReplicas, scaleToZeroDelaySeconds, strategy)
 - Scaling strategy DTO: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyDto` ($type as `ScalingStrategyTypeDto`, threshold)
 - Scaling strategy type enum: `com.epam.aidial.deployment.manager.web.dto.ScalingStrategyTypeDto` (PENDING_REQUESTS, ACTIVE_REQUESTS, HARDWARE_USAGE)
-- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts)
+- Scaling validator: `com.epam.aidial.deployment.manager.web.validation.ScalingValidator` (validates strategy presence rules based on replica counts; validates minReplicas/scaleToZeroDelaySeconds cross-field constraints)
 - Scaling DTO mapper: `com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapper`
 - Domain scaling model: `com.epam.aidial.deployment.manager.model.Scaling`, `com.epam.aidial.deployment.manager.model.ScalingStrategy`, `com.epam.aidial.deployment.manager.model.ScalingStrategyType`
 - Probe properties DTO: `com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto`

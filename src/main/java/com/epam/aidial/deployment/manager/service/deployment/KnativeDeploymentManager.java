@@ -25,6 +25,7 @@ import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthC
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
 import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -36,6 +37,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,6 +55,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     private final HealthCheckProvider healthCheckProvider;
 
     private final String serviceContainer;
+    private final int readyGracePeriodSec;
 
     public KnativeDeploymentManager(
             K8sClient k8sClient,
@@ -76,6 +79,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         this.healthCheckProvider = healthCheckProvider;
         this.k8sKnativeClient = k8sKnativeClient;
         this.serviceContainer = serviceContainer;
+        this.readyGracePeriodSec = knativeDeployProperties.getReadyGracePeriod();
     }
 
     @Override
@@ -217,6 +221,11 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         if (KubernetesConditionConstants.STATUS_TRUE.equals(readyCondition.getStatus())) {
             return DeploymentStatus.RUNNING;
         } else if (KubernetesConditionConstants.STATUS_FALSE.equals(readyCondition.getStatus())) {
+            if (isWithinReadyGracePeriod(readyCondition)) {
+                log.debug("Ready=False within grace period (lastTransitionTime: {}). Treating as PENDING",
+                        readyCondition.getLastTransitionTime());
+                return DeploymentStatus.PENDING;
+            }
             return DeploymentStatus.CRASHED;
         } else {
             return DeploymentStatus.PENDING;
@@ -262,6 +271,18 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var readyCondition = readyConditionOptional.get();
         return KubernetesConditionConstants.STATUS_TRUE.equals(readyCondition.getStatus());
+    }
+
+    private boolean isWithinReadyGracePeriod(Condition readyCondition) {
+        if (readyGracePeriodSec <= 0) {
+            return false;
+        }
+        var transitionTime = K8sParseUtils.parseInstant(readyCondition.getLastTransitionTime());
+        if (transitionTime == null) {
+            return false;
+        }
+        var elapsed = Duration.between(transitionTime, Instant.now());
+        return elapsed.getSeconds() < readyGracePeriodSec;
     }
 
     private Condition findReadyCondition(List<Condition> conditions) {

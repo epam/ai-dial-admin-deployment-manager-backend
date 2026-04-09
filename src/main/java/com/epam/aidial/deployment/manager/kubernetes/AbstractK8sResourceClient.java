@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -116,6 +117,11 @@ public abstract class AbstractK8sResourceClient<T extends HasMetadata, L extends
                         getResourceName(), name, namespace);
             }
         } catch (KubernetesClientException e) {
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                log.warn("{} '{}' or its resource type not found in namespace '{}' (404). Treating as deleted.",
+                        getResourceName(), name, namespace);
+                return;
+            }
             log.warn("Failed to delete {} '{}' in namespace '{}': {} (Code: {})",
                     getResourceName(), name, namespace, e.getMessage(), e.getCode(), e);
             throw e;

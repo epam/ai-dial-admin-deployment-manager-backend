@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.kubernetes;
 
+import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -13,6 +14,7 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.api.model.batch.v1.JobList;
 import io.fabric8.kubernetes.api.model.batch.v1.JobStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.BatchAPIGroupDSL;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
@@ -32,9 +34,11 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -42,6 +46,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("rawtypes")
 @ExtendWith(MockitoExtension.class)
 class K8sClientTest {
 
@@ -50,6 +55,7 @@ class K8sClientTest {
     private static final String SECRET_NAME = "test-secret";
     private static final String JOB_NAME = "test-job";
     private static final String POD_NAME = "test-pod";
+    private static final String CNP_NAME = "test-cnp";
     private static final long TIMEOUT_SEC = 60;
 
     @Mock
@@ -82,6 +88,12 @@ class K8sClientTest {
     private Resource<ConfigMap> configMapResource;
     @Mock
     private ScalableResource<Job> scalableJobResource;
+    @Mock
+    private MixedOperation cnpOperation;
+    @Mock
+    private NonNamespaceOperation namespacedCnpOperation;
+    @Mock
+    private Resource cnpResource;
 
     private K8sClient k8sClient;
 
@@ -442,6 +454,49 @@ class K8sClientTest {
         verify(v1BatchApiGroupDsl.jobs()).inNamespace(NAMESPACE);
         verify(namespacedJobOperation).withName(JOB_NAME);
         verify(scalableJobResource).delete();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void deleteCiliumNetworkPolicy_shouldDeleteSuccessfully() {
+        // Given
+        when(kubernetesClient.resources(CiliumNetworkPolicy.class)).thenReturn(cnpOperation);
+        when(cnpOperation.inNamespace(NAMESPACE)).thenReturn(namespacedCnpOperation);
+        when(namespacedCnpOperation.withName(CNP_NAME)).thenReturn(cnpResource);
+
+        // When
+        k8sClient.deleteCiliumNetworkPolicy(NAMESPACE, CNP_NAME);
+
+        // Then
+        verify(cnpResource).delete();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void deleteCiliumNetworkPolicy_shouldTreatNotFoundAsDeleted() {
+        // Given
+        when(kubernetesClient.resources(CiliumNetworkPolicy.class)).thenReturn(cnpOperation);
+        when(cnpOperation.inNamespace(NAMESPACE)).thenReturn(namespacedCnpOperation);
+        when(namespacedCnpOperation.withName(CNP_NAME)).thenReturn(cnpResource);
+        when(cnpResource.delete()).thenThrow(new KubernetesClientException("Not Found", 404, null));
+
+        // When — should not throw
+        assertThatCode(() -> k8sClient.deleteCiliumNetworkPolicy(NAMESPACE, CNP_NAME))
+                .doesNotThrowAnyException();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void deleteCiliumNetworkPolicy_shouldRethrowNon404KubernetesException() {
+        // Given
+        when(kubernetesClient.resources(CiliumNetworkPolicy.class)).thenReturn(cnpOperation);
+        when(cnpOperation.inNamespace(NAMESPACE)).thenReturn(namespacedCnpOperation);
+        when(namespacedCnpOperation.withName(CNP_NAME)).thenReturn(cnpResource);
+        when(cnpResource.delete()).thenThrow(new KubernetesClientException("Internal Server Error", 500, null));
+
+        // When & Then
+        assertThrows(KubernetesClientException.class,
+                () -> k8sClient.deleteCiliumNetworkPolicy(NAMESPACE, CNP_NAME));
     }
 
     @SuppressWarnings("unchecked")
