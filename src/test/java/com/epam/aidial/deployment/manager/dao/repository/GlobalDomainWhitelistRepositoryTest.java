@@ -10,8 +10,8 @@ import org.mockito.ArgumentCaptor;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -36,7 +36,7 @@ public class GlobalDomainWhitelistRepositoryTest {
 
         List<String> result = repository.getAllowedDomains();
 
-        assertEquals(List.of("a.com", "b.com"), result);
+        assertThat(result).containsExactly("a.com", "b.com");
         verify(jpaRepository).findAll();
     }
 
@@ -44,8 +44,9 @@ public class GlobalDomainWhitelistRepositoryTest {
     void getAllowedDomains_throwsIfNoWhitelist() {
         when(jpaRepository.findAll()).thenReturn(Collections.emptyList());
 
-        var ex = assertThrows(GlobalDomainWhitelistNotFoundException.class, () -> repository.getAllowedDomains());
-        assertEquals("Global domain whitelist not found", ex.getMessage());
+        assertThatThrownBy(() -> repository.getAllowedDomains())
+                .isInstanceOf(GlobalDomainWhitelistNotFoundException.class)
+                .hasMessage("Global domain whitelist not found");
     }
 
     @Test
@@ -54,8 +55,9 @@ public class GlobalDomainWhitelistRepositoryTest {
         var entity2 = new DomainWhitelistEntity();
         when(jpaRepository.findAll()).thenReturn(List.of(entity1, entity2));
 
-        var ex = assertThrows(IllegalStateException.class, () -> repository.getAllowedDomains());
-        assertEquals("More than 1 global domain whitelist found", ex.getMessage());
+        assertThatThrownBy(() -> repository.getAllowedDomains())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("More than 1 global domain whitelist found");
     }
 
     @Test
@@ -70,10 +72,10 @@ public class GlobalDomainWhitelistRepositoryTest {
 
         List<String> result = repository.updateAllowedDomains(List.of("new.com", "another.com"));
 
-        assertEquals(List.of("new.com", "another.com"), result);
+        assertThat(result).containsExactly("new.com", "another.com");
 
         var captor = ArgumentCaptor.forClass(DomainWhitelistEntity.class);
         verify(jpaRepository).saveAndFlush(captor.capture());
-        assertEquals(List.of("new.com", "another.com"), captor.getValue().getAllowedDomains());
+        assertThat(captor.getValue().getAllowedDomains()).containsExactly("new.com", "another.com");
     }
 }

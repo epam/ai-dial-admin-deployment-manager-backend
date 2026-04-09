@@ -6,8 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -24,7 +23,7 @@ class TopicsValidatorTest {
 
     @Test
     void shouldBeValidWhenTopicsNull() {
-        assertTrue(validator.isValid(null, context));
+        assertThat(validator.isValid(null, context)).isTrue();
         verifyNoInteractions(context);
     }
 
@@ -32,14 +31,14 @@ class TopicsValidatorTest {
     void shouldBeValidForNonBlankTrimmedTopicsWithinMaxLength() {
         List<String> topics = List.of("topic1", "another-topic", "t".repeat(255));
 
-        assertTrue(validator.isValid(topics, context));
+        assertThat(validator.isValid(topics, context)).isTrue();
     }
 
     @Test
     void shouldBeInvalidWhenTopicIsBlank() {
         List<String> topics = List.of("valid", "   ");
 
-        assertFalse(validator.isValid(topics, context));
+        assertThat(validator.isValid(topics, context)).isFalse();
     }
 
     @Test
@@ -47,14 +46,14 @@ class TopicsValidatorTest {
         String longTopic = "t".repeat(256);
         List<String> topics = List.of("valid", longTopic);
 
-        assertFalse(validator.isValid(topics, context));
+        assertThat(validator.isValid(topics, context)).isFalse();
     }
 
     @Test
     void shouldBeInvalidWhenTopicHasLeadingOrTrailingSpaces() {
         List<String> topics = List.of(" valid", "valid ", "\tvalid", "valid\t");
 
-        assertFalse(validator.isValid(topics, context));
+        assertThat(validator.isValid(topics, context)).isFalse();
     }
 }
 

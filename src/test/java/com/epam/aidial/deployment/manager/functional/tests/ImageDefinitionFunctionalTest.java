@@ -21,7 +21,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -31,6 +30,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -63,12 +63,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         imageDef.setId(actualImageDef.getId());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(imageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(imageDef);
     }
 
     @Test
@@ -83,7 +83,7 @@ public abstract class ImageDefinitionFunctionalTest {
         var createdImageDef = service.createImageDefinition(imageDef);
 
         // Then
-        Assertions.assertEquals(extractedAuthor, createdImageDef.getAuthor());
+        assertThat(createdImageDef.getAuthor()).isEqualTo(extractedAuthor);
         verify(securityClaimsExtractor).getEmail();
     }
 
@@ -106,7 +106,7 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then 1
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
         UUID imageDefId = imageDefs.getFirst().getId();
 
         // When 2
@@ -120,9 +120,9 @@ public abstract class ImageDefinitionFunctionalTest {
         boolean isDeploymentPresent = deploymentService.getDeployment(deployment.getId()).isPresent();
 
         // Then 2
-        Assertions.assertTrue(imageDefs.isEmpty());
-        Assertions.assertFalse(isImageDefPresent);
-        Assertions.assertFalse(isDeploymentPresent);
+        assertThat(imageDefs.isEmpty()).isTrue();
+        assertThat(isImageDefPresent).isFalse();
+        assertThat(isDeploymentPresent).isFalse();
     }
 
     @Test
@@ -135,7 +135,7 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then 1
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
         imageDef = imageDefs.getFirst();
 
         // When 2
@@ -147,7 +147,7 @@ public abstract class ImageDefinitionFunctionalTest {
         imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then 2
-        Assertions.assertEquals(imageDef, imageDefs.getFirst());
+        assertThat(imageDefs.getFirst()).isEqualTo(imageDef);
     }
 
     @Test
@@ -159,9 +159,9 @@ public abstract class ImageDefinitionFunctionalTest {
         var createdImageDef = service.createImageDefinition(imageDef);
 
         // Then - After Create
-        Assertions.assertNotNull(createdImageDef.getCreatedAt());
-        Assertions.assertNotNull(createdImageDef.getUpdatedAt());
-        Assertions.assertEquals(createdImageDef.getCreatedAt(), createdImageDef.getUpdatedAt());
+        assertThat(createdImageDef.getCreatedAt()).isNotNull();
+        assertThat(createdImageDef.getUpdatedAt()).isNotNull();
+        assertThat(createdImageDef.getUpdatedAt()).isEqualTo(createdImageDef.getCreatedAt());
         var creationTime = createdImageDef.getCreatedAt();
 
         // Given - Update same entity at a later time
@@ -175,9 +175,9 @@ public abstract class ImageDefinitionFunctionalTest {
         var updatedImageDef = service.updateImageDefinition(createdImageDef.getId(), createdImageDef);
 
         // Then - After Update
-        Assertions.assertEquals(createdImageDef, updatedImageDef, "Updated object should match input");
-        Assertions.assertEquals(creationTime, updatedImageDef.getCreatedAt(), "CreatedAt should not change");
-        Assertions.assertNotEquals(creationTime, updatedImageDef.getUpdatedAt(), "UpdatedAt should reflect new time");
+        assertThat(updatedImageDef).as("Updated object should match input").isEqualTo(createdImageDef);
+        assertThat(updatedImageDef.getCreatedAt()).as("CreatedAt should not change").isEqualTo(creationTime);
+        assertThat(updatedImageDef.getUpdatedAt()).as("UpdatedAt should reflect new time").isNotEqualTo(creationTime);
     }
 
     @Test
@@ -190,11 +190,11 @@ public abstract class ImageDefinitionFunctionalTest {
         var createdImageDefs = List.copyOf(service.getAllImageDefinitions());
 
         // Then - After Create
-        Assertions.assertEquals(1, createdImageDefs.size());
+        assertThat(createdImageDefs.size()).isEqualTo(1);
         var createdImageDef = createdImageDefs.getFirst();
-        Assertions.assertNotNull(createdImageDef.getCreatedAt());
-        Assertions.assertNotNull(createdImageDef.getUpdatedAt());
-        Assertions.assertEquals(createdImageDef.getCreatedAt(), createdImageDef.getUpdatedAt());
+        assertThat(createdImageDef.getCreatedAt()).isNotNull();
+        assertThat(createdImageDef.getUpdatedAt()).isNotNull();
+        assertThat(createdImageDef.getUpdatedAt()).isEqualTo(createdImageDef.getCreatedAt());
         var creationTime = createdImageDef.getCreatedAt();
 
         // Given - Update
@@ -209,11 +209,11 @@ public abstract class ImageDefinitionFunctionalTest {
         var updatedImageDefs = List.copyOf(service.getAllImageDefinitions());
 
         // Then - After Update
-        Assertions.assertEquals(1, updatedImageDefs.size());
+        assertThat(updatedImageDefs.size()).isEqualTo(1);
         var updatedImageDef = updatedImageDefs.getFirst();
-        Assertions.assertEquals(createdImageDef, updatedImageDef, "Fetched entity should match updated one");
-        Assertions.assertEquals(creationTime, updatedImageDef.getCreatedAt(), "CreatedAt should remain unchanged");
-        Assertions.assertNotEquals(creationTime, updatedImageDef.getUpdatedAt(), "UpdatedAt should be updated");
+        assertThat(updatedImageDef).as("Fetched entity should match updated one").isEqualTo(createdImageDef);
+        assertThat(updatedImageDef.getCreatedAt()).as("CreatedAt should remain unchanged").isEqualTo(creationTime);
+        assertThat(updatedImageDef.getUpdatedAt()).as("UpdatedAt should be updated").isNotEqualTo(creationTime);
     }
 
     @Test
@@ -228,12 +228,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageType.MCP).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         mcpImageDef.setId(actualImageDef.getId());
         mcpImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(mcpImageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(mcpImageDef);
     }
 
     @Test
@@ -257,12 +257,12 @@ public abstract class ImageDefinitionFunctionalTest {
                 .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
-        Assertions.assertEquals(2, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(2);
 
         ImageDefinition actualImageDef = imageDefs.get(interceptorImageDef2.getVersion());
         interceptorImageDef2.setId(actualImageDef.getId());
         interceptorImageDef2.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(interceptorImageDef2, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(interceptorImageDef2);
     }
 
     @Test
@@ -286,7 +286,7 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByName(name).stream().toList();
 
         // Then
-        Assertions.assertEquals(2, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(2);
     }
 
     @Test
@@ -299,12 +299,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         imageDef.setId(actualImageDef.getId());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(imageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(imageDef);
     }
 
     @Test
@@ -317,12 +317,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         imageDef.setId(actualImageDef.getId());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(imageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(imageDef);
     }
 
     @Test
@@ -337,12 +337,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageType.ADAPTER).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         adapterImageDef.setId(actualImageDef.getId());
         adapterImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(adapterImageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(adapterImageDef);
     }
 
     @Test
@@ -366,15 +366,15 @@ public abstract class ImageDefinitionFunctionalTest {
                 .collect(Collectors.toMap(ImageDefinition::getVersion, def -> def));
 
         // Then
-        Assertions.assertEquals(2, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(2);
 
         ImageDefinition actualImageDef1 = imageDefs.get(adapterImageDef1.getVersion());
         adapterImageDef1.setId(actualImageDef1.getId());
-        Assertions.assertEquals(adapterImageDef1, actualImageDef1);
+        assertThat(actualImageDef1).isEqualTo(adapterImageDef1);
 
         ImageDefinition actualImageDef2 = imageDefs.get(adapterImageDef2.getVersion());
         adapterImageDef2.setId(actualImageDef2.getId());
-        Assertions.assertEquals(adapterImageDef2, actualImageDef2);
+        assertThat(actualImageDef2).isEqualTo(adapterImageDef2);
     }
 
     @Test
@@ -387,12 +387,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitions().stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         imageDef.setId(actualImageDef.getId());
         imageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(imageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(imageDef);
     }
 
     @Test
@@ -407,12 +407,12 @@ public abstract class ImageDefinitionFunctionalTest {
         List<ImageDefinition> imageDefs = service.getAllImageDefinitionsByType(ImageType.APPLICATION).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, imageDefs.size());
+        assertThat(imageDefs.size()).isEqualTo(1);
 
         ImageDefinition actualImageDef = imageDefs.getFirst();
         applicationImageDef.setId(actualImageDef.getId());
         applicationImageDef.setBuildStatus(ImageStatus.NOT_BUILT);
-        Assertions.assertEquals(applicationImageDef, actualImageDef);
+        assertThat(actualImageDef).isEqualTo(applicationImageDef);
     }
 
     @Test
@@ -441,26 +441,26 @@ public abstract class ImageDefinitionFunctionalTest {
         var interceptorViews = service.getImageDefinitionViewsByType(ImageType.INTERCEPTOR).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, adapterViews.size());
+        assertThat(adapterViews.size()).isEqualTo(1);
         var adapterView = adapterViews.getFirst();
-        Assertions.assertEquals("adapter-model", adapterView.getName());
-        Assertions.assertEquals(2, adapterView.getAvailableVersions().size());
-        Assertions.assertEquals(createdAdapter1.getId(), adapterView.getSelectedId());
+        assertThat(adapterView.getName()).isEqualTo("adapter-model");
+        assertThat(adapterView.getAvailableVersions().size()).isEqualTo(2);
+        assertThat(adapterView.getSelectedId()).isEqualTo(createdAdapter1.getId());
 
-        Assertions.assertEquals(1, interceptorViews.size());
+        assertThat(interceptorViews.size()).isEqualTo(1);
         var interceptorView = interceptorViews.getFirst();
-        Assertions.assertEquals("interceptor-model", interceptorView.getName());
-        Assertions.assertEquals(1, interceptorView.getAvailableVersions().size());
-        Assertions.assertEquals(createdInterceptor.getId(), interceptorView.getSelectedId());
+        assertThat(interceptorView.getName()).isEqualTo("interceptor-model");
+        assertThat(interceptorView.getAvailableVersions().size()).isEqualTo(1);
+        assertThat(interceptorView.getSelectedId()).isEqualTo(createdInterceptor.getId());
 
         List<UUID> adapterVersionIds = adapterViews.stream()
                 .flatMap(v -> v.getAvailableVersions().stream())
                 .map(ImageDefinitionViewElement::getId)
                 .toList();
 
-        Assertions.assertTrue(adapterVersionIds.contains(createdAdapter1.getId()));
-        Assertions.assertTrue(adapterVersionIds.contains(createdAdapter2.getId()));
-        Assertions.assertFalse(adapterVersionIds.contains(createdInterceptor.getId()));
+        assertThat(adapterVersionIds.contains(createdAdapter1.getId())).isTrue();
+        assertThat(adapterVersionIds.contains(createdAdapter2.getId())).isTrue();
+        assertThat(adapterVersionIds.contains(createdInterceptor.getId())).isFalse();
     }
 
     @Test
@@ -480,9 +480,9 @@ public abstract class ImageDefinitionFunctionalTest {
 
         // Then
         var buildLogs = imageDefWithLogs.getBuildLogs();
-        Assertions.assertEquals(3, buildLogs.size()); // limit is overriden in @TestPropertySource
-        Assertions.assertTrue(buildLogs.contains("Log 4"));
-        Assertions.assertFalse(buildLogs.contains("Log 1"));
+        assertThat(buildLogs.size()).isEqualTo(3); // limit is overriden in @TestPropertySource
+        assertThat(buildLogs.contains("Log 4")).isTrue();
+        assertThat(buildLogs.contains("Log 1")).isFalse();
     }
 
     @Test
@@ -527,23 +527,23 @@ public abstract class ImageDefinitionFunctionalTest {
         var views = service.getImageDefinitionViews().stream().toList();
 
         // Then
-        Assertions.assertEquals(2, views.size());
+        assertThat(views.size()).isEqualTo(2);
 
         var testModelView = views.stream()
                 .filter(v -> v.getName().equals("test-model"))
                 .findFirst()
                 .orElseThrow();
 
-        Assertions.assertEquals(created1.getId(), testModelView.getSelectedId());
-        Assertions.assertEquals(3, testModelView.getAvailableVersions().size());
+        assertThat(testModelView.getSelectedId()).isEqualTo(created1.getId());
+        assertThat(testModelView.getAvailableVersions().size()).isEqualTo(3);
 
         var anotherModelView = views.stream()
                 .filter(v -> v.getName().equals("another-model"))
                 .findFirst()
                 .orElseThrow();
 
-        Assertions.assertEquals(2, anotherModelView.getAvailableVersions().size());
-        Assertions.assertEquals(created4.getId(), anotherModelView.getSelectedId());
+        assertThat(anotherModelView.getAvailableVersions().size()).isEqualTo(2);
+        assertThat(anotherModelView.getSelectedId()).isEqualTo(created4.getId());
     }
 
     @Test
@@ -573,26 +573,26 @@ public abstract class ImageDefinitionFunctionalTest {
         var interceptorViews = service.getImageDefinitionViewsByType(ImageType.INTERCEPTOR).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, mcpViews.size());
+        assertThat(mcpViews.size()).isEqualTo(1);
         var mcpView = mcpViews.getFirst();
-        Assertions.assertEquals("mcp-model", mcpView.getName());
-        Assertions.assertEquals(2, mcpView.getAvailableVersions().size());
-        Assertions.assertEquals(createdMcp1.getId(), mcpView.getSelectedId());
+        assertThat(mcpView.getName()).isEqualTo("mcp-model");
+        assertThat(mcpView.getAvailableVersions().size()).isEqualTo(2);
+        assertThat(mcpView.getSelectedId()).isEqualTo(createdMcp1.getId());
 
-        Assertions.assertEquals(1, interceptorViews.size());
+        assertThat(interceptorViews.size()).isEqualTo(1);
         var interceptorView = interceptorViews.getFirst();
-        Assertions.assertEquals("interceptor-model", interceptorView.getName());
-        Assertions.assertEquals(1, interceptorView.getAvailableVersions().size());
-        Assertions.assertEquals(createdInterceptor.getId(), interceptorView.getSelectedId());
+        assertThat(interceptorView.getName()).isEqualTo("interceptor-model");
+        assertThat(interceptorView.getAvailableVersions().size()).isEqualTo(1);
+        assertThat(interceptorView.getSelectedId()).isEqualTo(createdInterceptor.getId());
 
         List<UUID> mcpVersionIds = mcpViews.stream()
                 .flatMap(v -> v.getAvailableVersions().stream())
                 .map(ImageDefinitionViewElement::getId)
                 .toList();
 
-        Assertions.assertTrue(mcpVersionIds.contains(createdMcp1.getId()));
-        Assertions.assertTrue(mcpVersionIds.contains(createdMcp2.getId()));
-        Assertions.assertFalse(mcpVersionIds.contains(createdInterceptor.getId()));
+        assertThat(mcpVersionIds.contains(createdMcp1.getId())).isTrue();
+        assertThat(mcpVersionIds.contains(createdMcp2.getId())).isTrue();
+        assertThat(mcpVersionIds.contains(createdInterceptor.getId())).isFalse();
     }
 
     @Test
@@ -605,10 +605,10 @@ public abstract class ImageDefinitionFunctionalTest {
         var created = service.createImageDefinition(imageDef);
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
 
-        Assertions.assertInstanceOf(GitDockerfileImageSource.class, fetched.getSource());
+        assertThat(fetched.getSource()).isInstanceOf(GitDockerfileImageSource.class);
         var fetchedSource = (GitDockerfileImageSource) fetched.getSource();
-        Assertions.assertInstanceOf(McpRegistryRef.class, fetchedSource.getExternalRegistryRef());
-        Assertions.assertEquals("my-server", ((McpRegistryRef) fetchedSource.getExternalRegistryRef()).packageName());
+        assertThat(fetchedSource.getExternalRegistryRef()).isInstanceOf(McpRegistryRef.class);
+        assertThat(((McpRegistryRef) fetchedSource.getExternalRegistryRef()).packageName()).isEqualTo("my-server");
     }
 
     @Test
@@ -620,10 +620,10 @@ public abstract class ImageDefinitionFunctionalTest {
         var created = service.createImageDefinition(imageDef);
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
 
-        Assertions.assertInstanceOf(DockerImageSource.class, fetched.getSource());
+        assertThat(fetched.getSource()).isInstanceOf(DockerImageSource.class);
         var fetchedSource = (DockerImageSource) fetched.getSource();
-        Assertions.assertInstanceOf(GitHubRef.class, fetchedSource.getExternalRegistryRef());
-        Assertions.assertEquals("org/repo", ((GitHubRef) fetchedSource.getExternalRegistryRef()).repo());
+        assertThat(fetchedSource.getExternalRegistryRef()).isInstanceOf(GitHubRef.class);
+        assertThat(((GitHubRef) fetchedSource.getExternalRegistryRef()).repo()).isEqualTo("org/repo");
     }
 
     @Test
@@ -635,10 +635,10 @@ public abstract class ImageDefinitionFunctionalTest {
         var created = service.createImageDefinition(imageDef);
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
 
-        Assertions.assertInstanceOf(DockerImageSource.class, fetched.getSource());
+        assertThat(fetched.getSource()).isInstanceOf(DockerImageSource.class);
         var fetchedSource = (DockerImageSource) fetched.getSource();
-        Assertions.assertInstanceOf(GenericRef.class, fetchedSource.getExternalRegistryRef());
-        Assertions.assertEquals("https://example.com/pkg", ((GenericRef) fetchedSource.getExternalRegistryRef()).url());
+        assertThat(fetchedSource.getExternalRegistryRef()).isInstanceOf(GenericRef.class);
+        assertThat(((GenericRef) fetchedSource.getExternalRegistryRef()).url()).isEqualTo("https://example.com/pkg");
     }
 
     @Test
@@ -648,9 +648,9 @@ public abstract class ImageDefinitionFunctionalTest {
         var created = service.createImageDefinition(imageDef);
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
 
-        Assertions.assertInstanceOf(DockerImageSource.class, fetched.getSource());
+        assertThat(fetched.getSource()).isInstanceOf(DockerImageSource.class);
         var fetchedSource = (DockerImageSource) fetched.getSource();
-        Assertions.assertNull(fetchedSource.getExternalRegistryRef());
+        assertThat(fetchedSource.getExternalRegistryRef()).isNull();
     }
 
     @Test
@@ -666,8 +666,8 @@ public abstract class ImageDefinitionFunctionalTest {
 
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
         var fetchedSource = (DockerImageSource) fetched.getSource();
-        Assertions.assertInstanceOf(GitHubRef.class, fetchedSource.getExternalRegistryRef());
-        Assertions.assertEquals("new/repo", ((GitHubRef) fetchedSource.getExternalRegistryRef()).repo());
+        assertThat(fetchedSource.getExternalRegistryRef()).isInstanceOf(GitHubRef.class);
+        assertThat(((GitHubRef) fetchedSource.getExternalRegistryRef()).repo()).isEqualTo("new/repo");
     }
 
     @Test
@@ -683,7 +683,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
         var fetchedSource = (DockerImageSource) fetched.getSource();
-        Assertions.assertNull(fetchedSource.getExternalRegistryRef());
+        assertThat(fetchedSource.getExternalRegistryRef()).isNull();
     }
 
     @Test
@@ -705,15 +705,15 @@ public abstract class ImageDefinitionFunctionalTest {
         service.createImageDefinition(imgDef3);
 
         var allDefs = service.getAllImageDefinitions().stream().toList();
-        Assertions.assertEquals(3, allDefs.size());
+        assertThat(allDefs.size()).isEqualTo(3);
 
         for (var def : allDefs) {
             var src = (DockerImageSource) def.getSource();
             switch (def.getName()) {
-                case "img-with-mcp-ref" -> Assertions.assertInstanceOf(McpRegistryRef.class, src.getExternalRegistryRef());
-                case "img-with-generic-ref" -> Assertions.assertInstanceOf(GenericRef.class, src.getExternalRegistryRef());
-                case "img-no-ref" -> Assertions.assertNull(src.getExternalRegistryRef());
-                default -> Assertions.fail("Unexpected image definition: " + def.getName());
+                case "img-with-mcp-ref" -> assertThat(src.getExternalRegistryRef()).isInstanceOf(McpRegistryRef.class);
+                case "img-with-generic-ref" -> assertThat(src.getExternalRegistryRef()).isInstanceOf(GenericRef.class);
+                case "img-no-ref" -> assertThat(src.getExternalRegistryRef()).isNull();
+                default -> org.assertj.core.api.Assertions.fail("Unexpected image definition: " + def.getName());
             }
         }
     }

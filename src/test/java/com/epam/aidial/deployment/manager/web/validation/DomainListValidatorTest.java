@@ -11,8 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -35,7 +34,7 @@ class DomainListValidatorTest {
     @ParameterizedTest
     @MethodSource("validDomainsProvider")
     void validDomains_shouldReturnTrue(List<String> domains) {
-        assertTrue(domainValidator.isValid(domains, context));
+        assertThat(domainValidator.isValid(domains, context)).isTrue();
     }
 
     static Stream<Arguments> validDomainsProvider() {
@@ -55,91 +54,91 @@ class DomainListValidatorTest {
 
     @Test
     void domainsWithSchema_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("http://example.com"), context));
+        assertThat(domainValidator.isValid(List.of("http://example.com"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'http://example.com' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("https://example.com"), context));
+        assertThat(domainValidator.isValid(List.of("https://example.com"), context)).isFalse();
     }
 
     @Test
     void domainsWithPath_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("example.com/path"), context));
+        assertThat(domainValidator.isValid(List.of("example.com/path"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'example.com/path' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("sub.domain.org/another"), context));
+        assertThat(domainValidator.isValid(List.of("sub.domain.org/another"), context)).isFalse();
     }
 
     @Test
     void domainsWithQuery_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("example.com?param=value"), context));
+        assertThat(domainValidator.isValid(List.of("example.com?param=value"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'example.com?param=value' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("domain.org?foo=bar"), context));
+        assertThat(domainValidator.isValid(List.of("domain.org?foo=bar"), context)).isFalse();
     }
 
     @Test
     void domainsWithFragment_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("example.com#section"), context));
+        assertThat(domainValidator.isValid(List.of("example.com#section"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'example.com#section' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("domain.org#top"), context));
+        assertThat(domainValidator.isValid(List.of("domain.org#top"), context)).isFalse();
     }
 
     @Test
     void domainsWithSpaces_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("example .com"), context));
+        assertThat(domainValidator.isValid(List.of("example .com"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'example .com' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of(" example.com"), context));
-        assertFalse(domainValidator.isValid(List.of("example.com "), context));
+        assertThat(domainValidator.isValid(List.of(" example.com"), context)).isFalse();
+        assertThat(domainValidator.isValid(List.of("example.com "), context)).isFalse();
     }
 
     @Test
     void domainsWithInvalidCharacters_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("exa$mple.com"), context));
+        assertThat(domainValidator.isValid(List.of("exa$mple.com"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'exa$mple.com' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("example!.com"), context));
-        assertFalse(domainValidator.isValid(List.of("*.example.com"), context));
-        assertFalse(domainValidator.isValid(List.of(".example.com"), context));
+        assertThat(domainValidator.isValid(List.of("example!.com"), context)).isFalse();
+        assertThat(domainValidator.isValid(List.of("*.example.com"), context)).isFalse();
+        assertThat(domainValidator.isValid(List.of(".example.com"), context)).isFalse();
     }
 
     @Test
     void domainsWithLeadingOrTrailingDash_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("-example.com"), context));
+        assertThat(domainValidator.isValid(List.of("-example.com"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain '-example.com' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("example-.com"), context));
+        assertThat(domainValidator.isValid(List.of("example-.com"), context)).isFalse();
     }
 
     @Test
     void domainsWithConsecutiveDots_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("example..com"), context));
+        assertThat(domainValidator.isValid(List.of("example..com"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'example..com' is not a valid domain name");
 
-        assertFalse(domainValidator.isValid(List.of("next..example.com"), context));
+        assertThat(domainValidator.isValid(List.of("next..example.com"), context)).isFalse();
     }
 
     @Test
     void nullOrEmptyDomain_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(Collections.singletonList(null), context));
+        assertThat(domainValidator.isValid(Collections.singletonList(null), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain must not be null");
 
-        assertFalse(domainValidator.isValid(List.of(""), context));
+        assertThat(domainValidator.isValid(List.of(""), context)).isFalse();
     }
 
     @Test
     void domainsWithInvalidSize_shouldReturnFalse() {
-        assertFalse(domainValidator.isValid(List.of("a.b"), context));
+        assertThat(domainValidator.isValid(List.of("a.b"), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate("domain 'a.b' must be between 4 and 253 characters long");
 
@@ -147,7 +146,7 @@ class DomainListValidatorTest {
         String longDomain = "example.example.example.example.example.example.example.example.example.example.example."
                 + "example.example.example.example.example.example.example.example.example.example.example."
                 + "example.example.example.example.example.example.example.example.example.example.example.example.";
-        assertFalse(domainValidator.isValid(List.of(longDomain), context));
+        assertThat(domainValidator.isValid(List.of(longDomain), context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(
                 String.format("domain '%s' must be between 4 and 253 characters long", longDomain));

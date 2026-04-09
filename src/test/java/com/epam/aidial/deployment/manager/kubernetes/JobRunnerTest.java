@@ -32,8 +32,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -101,7 +100,7 @@ class JobRunnerTest {
         boolean result = jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then
-        assertTrue(result);
+        assertThat(result).isTrue();
         verifyResourcesCreated(true);
         verifyJobPhaseCallbacks(JobPhase.CREATED, JobPhase.RUNNING, JobPhase.SUCCEEDED);
     }
@@ -115,7 +114,7 @@ class JobRunnerTest {
         boolean result = jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then
-        assertFalse(result);
+        assertThat(result).isFalse();
         verifyResourcesCreated(true);
         verifyJobPhaseCallbacks(JobPhase.CREATED, JobPhase.RUNNING, JobPhase.FAILED);
     }
@@ -129,7 +128,7 @@ class JobRunnerTest {
         boolean result = jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then
-        assertFalse(result);
+        assertThat(result).isFalse();
         verifyResourcesCreated(false);
         verifyJobPhaseCallbacks(JobPhase.CREATED, JobPhase.RUNNING, JobPhase.FAILED);
     }

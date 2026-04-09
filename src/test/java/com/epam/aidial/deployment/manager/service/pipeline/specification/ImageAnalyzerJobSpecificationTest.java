@@ -28,9 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,7 +69,7 @@ class ImageAnalyzerJobSpecificationTest {
         String jobId = jobSpecification.getJobId();
 
         // Then
-        assertEquals(JOB_ID, jobId);
+        assertThat(jobId).isEqualTo(JOB_ID);
     }
 
     @Test
@@ -80,7 +78,7 @@ class ImageAnalyzerJobSpecificationTest {
         String namespace = jobSpecification.getNamespace();
 
         // Then
-        assertEquals(NAMESPACE, namespace);
+        assertThat(namespace).isEqualTo(NAMESPACE);
     }
 
     @Test
@@ -93,9 +91,9 @@ class ImageAnalyzerJobSpecificationTest {
         List<ConfigMap> configMaps = jobSpecification.getConfigMaps();
 
         // Then
-        assertNotNull(configMaps);
-        assertEquals(1, configMaps.size());
-        assertEquals(expectedConfigMap.getMetadata().getName(), configMaps.get(0).getMetadata().getName());
+        assertThat(configMaps).isNotNull();
+        assertThat(configMaps).hasSize(1);
+        assertThat(configMaps.get(0).getMetadata().getName()).isEqualTo(expectedConfigMap.getMetadata().getName());
     }
 
     @Test
@@ -109,9 +107,9 @@ class ImageAnalyzerJobSpecificationTest {
         List<Secret> secrets = jobSpecification.getSecrets();
 
         // Then
-        assertNotNull(secrets);
-        assertEquals(1, secrets.size());
-        assertEquals(mockSecret, secrets.get(0));
+        assertThat(secrets).isNotNull();
+        assertThat(secrets).hasSize(1);
+        assertThat(secrets.get(0)).isEqualTo(mockSecret);
 
         verify(manifestGenerator).dialRegistryAuthSecretConfig(expectedSecretName);
     }
@@ -126,22 +124,22 @@ class ImageAnalyzerJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job);
-        assertNotNull(job.getMetadata());
-        assertNotNull(job.getSpec());
-        assertNotNull(job.getSpec().getTemplate());
-        assertNotNull(job.getSpec().getTemplate().getSpec());
-        assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(1, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertThat(job).isNotNull();
+        assertThat(job.getMetadata()).isNotNull();
+        assertThat(job.getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).hasSize(1);
 
         Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
         List<String> args = container.getArgs();
-        assertNotNull(args);
-        assertTrue(args.contains(IMAGE_URI));
-        assertTrue(args.contains("-o"));
-        assertTrue(args.contains("template"));
-        assertTrue(args.contains("-t"));
-        assertTrue(args.contains("/templates/distro.tmpl"));
+        assertThat(args).isNotNull();
+        assertThat(args).contains(IMAGE_URI);
+        assertThat(args).contains("-o");
+        assertThat(args).contains("template");
+        assertThat(args).contains("-t");
+        assertThat(args).contains("/templates/distro.tmpl");
     }
 
     @Test
@@ -163,16 +161,16 @@ class ImageAnalyzerJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
-        assertTrue(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0);
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0).isTrue();
 
         Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        assertNotNull(container.getVolumeMounts());
-        assertTrue(container.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getMountPath().equals("/config/config.json")));
+        assertThat(container.getVolumeMounts()).isNotNull();
+        assertThat(container.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getMountPath().equals("/config/config.json"))).isTrue();
 
-        assertTrue(container.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+        assertThat(container.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY))).isTrue();
     }
 
     private Job createDefaultJob() {

@@ -30,11 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class K8sClientFunctionalTest {
 
@@ -90,24 +86,24 @@ public abstract class K8sClientFunctionalTest {
         Secret createdSecret = k8sClient.createSecret(TEST_NAMESPACE, secret);
 
         // Then - Create
-        assertNotNull(createdSecret);
-        assertEquals(secretName, createdSecret.getMetadata().getName());
+        assertThat(createdSecret).isNotNull();
+        assertThat(createdSecret.getMetadata().getName()).isEqualTo(secretName);
 
         // When - Find
         Optional<Secret> foundSecret = k8sClient.findSecret(TEST_NAMESPACE, secretName);
 
         // Then - Find
-        assertTrue(foundSecret.isPresent());
-        assertEquals(secretName, foundSecret.get().getMetadata().getName());
-        assertEquals(data.get("username"), foundSecret.get().getData().get("username"));
-        assertEquals(data.get("password"), foundSecret.get().getData().get("password"));
+        assertThat(foundSecret.isPresent()).isTrue();
+        assertThat(foundSecret.get().getMetadata().getName()).isEqualTo(secretName);
+        assertThat(foundSecret.get().getData().get("username")).isEqualTo(data.get("username"));
+        assertThat(foundSecret.get().getData().get("password")).isEqualTo(data.get("password"));
 
         // When - Delete
         k8sClient.deleteSecret(TEST_NAMESPACE, secretName);
 
         // Then - Delete
         foundSecret = k8sClient.findSecret(TEST_NAMESPACE, secretName);
-        assertFalse(foundSecret.isPresent());
+        assertThat(foundSecret.isPresent()).isFalse();
     }
 
     @Test
@@ -129,9 +125,9 @@ public abstract class K8sClientFunctionalTest {
         ConfigMap createdConfigMap = k8sClient.createConfigMap(TEST_NAMESPACE, configMap);
 
         // Then - Create
-        assertNotNull(createdConfigMap);
-        assertEquals(configMapName, createdConfigMap.getMetadata().getName());
-        assertEquals(data.get("config.json"), createdConfigMap.getData().get("config.json"));
+        assertThat(createdConfigMap).isNotNull();
+        assertThat(createdConfigMap.getMetadata().getName()).isEqualTo(configMapName);
+        assertThat(createdConfigMap.getData().get("config.json")).isEqualTo(data.get("config.json"));
 
         // When - Delete
         k8sClient.deleteConfigMap(TEST_NAMESPACE, configMapName);
@@ -141,7 +137,7 @@ public abstract class K8sClientFunctionalTest {
                 .inNamespace(TEST_NAMESPACE)
                 .withName(configMapName)
                 .get();
-        assertNull(deletedConfigMap);
+        assertThat(deletedConfigMap).isNull();
     }
 
     @Test
@@ -173,8 +169,8 @@ public abstract class K8sClientFunctionalTest {
         Job createdJob = k8sClient.createJob(TEST_NAMESPACE, job);
 
         // Then - Create
-        assertNotNull(createdJob);
-        assertEquals(jobName, createdJob.getMetadata().getName());
+        assertThat(createdJob).isNotNull();
+        assertThat(createdJob.getMetadata().getName()).isEqualTo(jobName);
 
         // When - Wait
         Predicate<Job> jobIsFinished = j -> JobPhase.fromJob(j)
@@ -184,10 +180,10 @@ public abstract class K8sClientFunctionalTest {
         Job completedJob = k8sClient.waitJob(TEST_NAMESPACE, job, jobIsFinished, 300);
 
         // Then - Job completed
-        assertNotNull(completedJob);
-        assertNotNull(completedJob.getStatus());
+        assertThat(completedJob).isNotNull();
+        assertThat(completedJob.getStatus()).isNotNull();
 
-        assertTrue(completedJob.getStatus().getSucceeded() > 0);
+        assertThat(completedJob.getStatus().getSucceeded() > 0).isTrue();
 
         // When - Delete
         k8sClient.deleteJob(TEST_NAMESPACE, jobName);
@@ -197,14 +193,14 @@ public abstract class K8sClientFunctionalTest {
                 .inNamespace(TEST_NAMESPACE)
                 .withName(jobName)
                 .get();
-        assertNull(deletedJob);
+        assertThat(deletedJob).isNull();
 
         // When - Events
         var eventsOperation = k8sClient.getAllEventsBase(TEST_NAMESPACE);
         var events = eventsOperation.list().getItems();
 
         // Then - Events
-        assertFalse(events.isEmpty());
+        assertThat(events.isEmpty()).isFalse();
     }
 
     @Test
@@ -248,8 +244,8 @@ public abstract class K8sClientFunctionalTest {
         PodList jobPods = k8sClient.getJobPods(TEST_NAMESPACE, jobName);
 
         // Then - getJobPods
-        assertNotNull(jobPods);
-        assertFalse(jobPods.getItems().isEmpty());
+        assertThat(jobPods).isNotNull();
+        assertThat(jobPods.getItems().isEmpty()).isFalse();
 
         Pod pod = jobPods.getItems().get(0);
         String podName = pod.getMetadata().getName();
@@ -260,14 +256,14 @@ public abstract class K8sClientFunctionalTest {
         Pod foundPod = k8sClient.getPod(TEST_NAMESPACE, podName, labels);
 
         // Then - getPod
-        assertNotNull(foundPod);
-        assertEquals(podName, foundPod.getMetadata().getName());
+        assertThat(foundPod).isNotNull();
+        assertThat(foundPod.getMetadata().getName()).isEqualTo(podName);
 
         // When - getPodResource
         PodResource podResource = k8sClient.getPodResource(TEST_NAMESPACE, podName);
 
         // Then - getPodResource
-        assertNotNull(podResource);
+        assertThat(podResource).isNotNull();
 
         // When - waitPod
         Predicate<Pod> podIsRunning = p -> PodPhase.fromPod(p)
@@ -277,16 +273,16 @@ public abstract class K8sClientFunctionalTest {
         Pod completedPod = k8sClient.waitPod(TEST_NAMESPACE, pod, podIsRunning, 300);
 
         // Then - waitPod
-        assertNotNull(completedPod);
+        assertThat(completedPod).isNotNull();
 
         String podPhase = completedPod.getStatus().getPhase();
-        assertTrue("Failed".equals(podPhase) || "Running".equals(podPhase));
+        assertThat("Failed".equals(podPhase) || "Running".equals(podPhase)).isTrue();
 
         // When - Delete
         boolean deleted = k8sClient.deletePod(TEST_NAMESPACE, podName);
 
         // Then - Pod
-        assertTrue(deleted);
+        assertThat(deleted).isTrue();
 
         // Cleanup
         k8sClient.deleteJob(TEST_NAMESPACE, jobName);
@@ -328,10 +324,10 @@ public abstract class K8sClientFunctionalTest {
         PodList podList = k8sClient.getPods(TEST_NAMESPACE, labels);
 
         // Then
-        assertNotNull(podList);
-        assertFalse(podList.getItems().isEmpty());
-        assertEquals(1, podList.getItems().size());
-        assertEquals(podName, podList.getItems().get(0).getMetadata().getName());
+        assertThat(podList).isNotNull();
+        assertThat(podList.getItems().isEmpty()).isFalse();
+        assertThat(podList.getItems().size()).isEqualTo(1);
+        assertThat(podList.getItems().get(0).getMetadata().getName()).isEqualTo(podName);
 
         // Cleanup
         kubernetesClient.pods().inNamespace(TEST_NAMESPACE).withName(podName).delete();

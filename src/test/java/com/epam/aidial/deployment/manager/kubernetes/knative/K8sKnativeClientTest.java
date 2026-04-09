@@ -24,8 +24,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,7 +70,7 @@ class K8sKnativeClientTest {
         PodList result = k8sKnativeClient.getServicePods(NAMESPACE, SERVICE_NAME);
 
         // Then
-        assertSame(expectedPodList, result);
+        assertThat(result).isSameAs(expectedPodList);
         verify(k8sClient).getPods(NAMESPACE, serviceLabels);
     }
 
@@ -86,7 +86,7 @@ class K8sKnativeClientTest {
         Pod result = k8sKnativeClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME);
 
         // Then
-        assertSame(expectedPod, result);
+        assertThat(result).isSameAs(expectedPod);
         verify(k8sClient).getPod(NAMESPACE, POD_NAME, serviceLabels);
     }
 
@@ -129,7 +129,7 @@ class K8sKnativeClientTest {
         Service result = k8sKnativeClient.waitService(NAMESPACE, SERVICE_NAME, predicate, TIMEOUT_SEC);
 
         // Then
-        assertSame(expectedService, result);
+        assertThat(result).isSameAs(expectedService);
         verify(knativeClient).services();
         verify(knativeServiceOperation).inNamespace(NAMESPACE);
         verify(namespacedKnativeServiceOperation).withName(SERVICE_NAME);
@@ -217,7 +217,8 @@ class K8sKnativeClientTest {
         when(knativeServiceResource.delete()).thenThrow(new KubernetesClientException("Test exception", 500, null));
 
         // When & Then
-        assertThrows(KubernetesClientException.class, () -> k8sKnativeClient.deleteService(NAMESPACE, SERVICE_NAME));
+        assertThatThrownBy(() -> k8sKnativeClient.deleteService(NAMESPACE, SERVICE_NAME))
+                .isInstanceOf(KubernetesClientException.class);
 
         // Then
         verify(knativeClient).services();
@@ -239,7 +240,8 @@ class K8sKnativeClientTest {
         when(knativeServiceResource.delete()).thenThrow(new RuntimeException("Unexpected error"));
 
         // When & Then
-        assertThrows(RuntimeException.class, () -> k8sKnativeClient.deleteService(NAMESPACE, SERVICE_NAME));
+        assertThatThrownBy(() -> k8sKnativeClient.deleteService(NAMESPACE, SERVICE_NAME))
+                .isInstanceOf(RuntimeException.class);
 
         // Then
         verify(knativeClient).services();

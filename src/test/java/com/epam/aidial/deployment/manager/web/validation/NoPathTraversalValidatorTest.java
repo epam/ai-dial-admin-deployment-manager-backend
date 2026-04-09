@@ -7,8 +7,7 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -43,7 +42,7 @@ class NoPathTraversalValidatorTest {
     })
     void shouldReturnTrue_WhenPathIsValid(String path) {
         boolean isValid = validator.isValid(path, context);
-        assertTrue(isValid, "Expected path to be valid: " + path);
+        assertThat(isValid).as("Expected path to be valid: " + path).isTrue();
     }
 
     @ParameterizedTest
@@ -76,7 +75,7 @@ class NoPathTraversalValidatorTest {
     private void assertInvalid(String path, String expectedMessage) {
         // 1. Check return value
         boolean isValid = validator.isValid(path, context);
-        assertFalse(isValid, "Expected path to be INVALID: " + path);
+        assertThat(isValid).as("Expected path to be INVALID: " + path).isFalse();
 
         // 2. Verify default message was disabled
         verify(context).disableDefaultConstraintViolation();

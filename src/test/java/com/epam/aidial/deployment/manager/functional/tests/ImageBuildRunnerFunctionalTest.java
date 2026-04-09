@@ -13,7 +13,6 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -26,6 +25,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -63,15 +64,15 @@ public abstract class ImageBuildRunnerFunctionalTest {
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
         var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
-        Assertions.assertTrue(tempDisposableResources.isEmpty());
+        assertThat(tempDisposableResources.isEmpty()).isTrue();
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
-        Assertions.assertTrue(maybeRetrievedImageDef.isPresent());
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
 
         var retrievedImageDef = maybeRetrievedImageDef.get();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(imageNameCaptor.getValue(), retrievedImageDef.getImageName());
-        Assertions.assertFalse(retrievedImageDef.getBuildLogs().isEmpty());
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(imageNameCaptor.getValue());
+        assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
     }
 
     @Test
@@ -87,15 +88,11 @@ public abstract class ImageBuildRunnerFunctionalTest {
         when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
                 .thenReturn(false);
 
-        // When
-        var exception = Assertions.assertThrows(
-                NotImplementedException.class,
-                () -> imageBuildRunner.buildImage(imageDefinitionId)
-        );
-
-        // Then
+        // When & Then
         String expectedMessage = "Image build is not implemented for InterceptorImageDefinition image definition and GitDockerfileImageSource source yet";
-        Assertions.assertEquals(expectedMessage, exception.getMessage());
+        assertThatThrownBy(() -> imageBuildRunner.buildImage(imageDefinitionId))
+                .isInstanceOf(NotImplementedException.class)
+                .hasMessage(expectedMessage);
     }
 
     @Test
@@ -119,16 +116,16 @@ public abstract class ImageBuildRunnerFunctionalTest {
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
         var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
-        Assertions.assertTrue(tempDisposableResources.isEmpty());
+        assertThat(tempDisposableResources.isEmpty()).isTrue();
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
-        Assertions.assertTrue(maybeRetrievedImageDef.isPresent());
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
 
         var retrievedImageDef = maybeRetrievedImageDef.get();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(imageNameCaptor.getValue(), retrievedImageDef.getImageName());
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(imageNameCaptor.getValue());
 
-        Assertions.assertFalse(retrievedImageDef.getBuildLogs().isEmpty());
+        assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
     }
 
     @Test
@@ -153,15 +150,15 @@ public abstract class ImageBuildRunnerFunctionalTest {
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
         var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
-        Assertions.assertTrue(tempDisposableResources.isEmpty());
+        assertThat(tempDisposableResources.isEmpty()).isTrue();
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
-        Assertions.assertTrue(maybeRetrievedImageDef.isPresent());
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
 
         var retrievedImageDef = maybeRetrievedImageDef.get();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(imageNameCaptor.getValue(), retrievedImageDef.getImageName());
-        Assertions.assertFalse(retrievedImageDef.getBuildLogs().isEmpty());
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(imageNameCaptor.getValue());
+        assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
     }
 
     @Test
@@ -191,14 +188,14 @@ public abstract class ImageBuildRunnerFunctionalTest {
         verify(disposableResourceManager, times(2)).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
         var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
-        Assertions.assertTrue(tempDisposableResources.isEmpty());
+        assertThat(tempDisposableResources.isEmpty()).isTrue();
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
-        Assertions.assertTrue(maybeRetrievedImageDef.isPresent());
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
 
         var retrievedImageDef = maybeRetrievedImageDef.get();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(imageNameCaptor.getValue(), retrievedImageDef.getImageName());
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(imageNameCaptor.getValue());
     }
 
     @Test
@@ -226,14 +223,14 @@ public abstract class ImageBuildRunnerFunctionalTest {
         verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
 
         var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
-        Assertions.assertTrue(tempDisposableResources.isEmpty());
+        assertThat(tempDisposableResources.isEmpty()).isTrue();
 
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
-        Assertions.assertTrue(maybeRetrievedImageDef.isPresent());
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
 
         var retrievedImageDef = maybeRetrievedImageDef.get();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(imageNameCaptor.getValue(), retrievedImageDef.getImageName());
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(imageNameCaptor.getValue());
     }
 
     @ParameterizedTest
@@ -259,11 +256,11 @@ public abstract class ImageBuildRunnerFunctionalTest {
 
         // Then
         var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDef.getId());
-        Assertions.assertTrue(maybeRetrievedImageDef.isPresent());
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
 
         var retrievedImageDef = maybeRetrievedImageDef.get();
-        Assertions.assertEquals(ImageStatus.BUILD_FAILED, retrievedImageDef.getBuildStatus());
-        Assertions.assertTrue(retrievedImageDef.getBuildLogs().stream().anyMatch(log -> log.contains("Image build has failed: " + expectedExMessage)));
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_FAILED);
+        assertThat(retrievedImageDef.getBuildLogs().stream().anyMatch(log -> log.contains("Image build has failed: " + expectedExMessage))).isTrue();
     }
 
     private static Stream<Arguments> getNonMcpImageDefinitions() {

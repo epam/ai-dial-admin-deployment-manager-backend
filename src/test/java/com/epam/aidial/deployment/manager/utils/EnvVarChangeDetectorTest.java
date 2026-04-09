@@ -16,26 +16,25 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class EnvVarChangeDetectorTest {
 
     @Test
     void testNullMetadata() {
         List<EnvVar> list = Collections.singletonList(createSimpleEnvVar("VAR1", "value1"));
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, null));
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(null, null));
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(new ArrayList<>(), null));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, null)).isTrue();
+        assertThat(EnvVarChangeDetector.areEnvsChanged(null, null)).isFalse();
+        assertThat(EnvVarChangeDetector.areEnvsChanged(new ArrayList<>(), null)).isFalse();
     }
 
     @Test
     void testNullEnvsList() {
         DeploymentMetadata metadata = new DeploymentMetadata();
         metadata.setEnvs(Collections.singletonList(createEnvVarDefinition("VAR1", "value1", EnvVarMountType.CONTENT)));
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(null, metadata));
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(new ArrayList<>(), new DeploymentMetadata(null)));
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(null, new DeploymentMetadata(new ArrayList<>())));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(null, metadata)).isTrue();
+        assertThat(EnvVarChangeDetector.areEnvsChanged(new ArrayList<>(), new DeploymentMetadata(null))).isFalse();
+        assertThat(EnvVarChangeDetector.areEnvsChanged(null, new DeploymentMetadata(new ArrayList<>()))).isFalse();
     }
 
     @Test
@@ -48,7 +47,7 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("VAR2", "value2", EnvVarMountType.CONTENT)
         ));
 
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     @Test
@@ -60,7 +59,7 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("VAR2", "value1", EnvVarMountType.CONTENT)
         ));
 
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     @Test
@@ -72,7 +71,7 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("VAR1", "value2", EnvVarMountType.CONTENT)
         ));
 
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     @Test
@@ -88,7 +87,7 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("VAR2", "value2", EnvVarMountType.CONTENT)
         ));
 
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
     }
 
     @Test
@@ -104,7 +103,7 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("VAR1", "value1", EnvVarMountType.CONTENT)
         ));
 
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
     }
 
     @Test
@@ -116,14 +115,14 @@ public class EnvVarChangeDetectorTest {
                 createFileEnvVarDefinition("file.txt")
         ));
 
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
 
         // Different file name
         metadata.setEnvs(Collections.singletonList(
                 createFileEnvVarDefinition("different.txt")
         ));
 
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     @Test
@@ -141,9 +140,9 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("SECRET_VAR", "value", EnvVarMountType.SECURE_CONTENT)
         ));
         
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
     }
-    
+
     @Test
     void testNullMountType() {
         List<EnvVar> list = Collections.singletonList(createSimpleEnvVar("VAR1", "value1"));
@@ -152,9 +151,9 @@ public class EnvVarChangeDetectorTest {
         EnvVarDefinition definition = createEnvVarDefinition("VAR1", "value1", null);
         metadata.setEnvs(Collections.singletonList(definition));
         
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
-    
+
     @Test
     void testMountTypeCompatibilitySimpleEnvVar() {
         List<EnvVar> list = Collections.singletonList(createSimpleEnvVar("VAR1", "value1"));
@@ -164,21 +163,21 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("VAR1", "value1", EnvVarMountType.CONTENT)
         ));
         
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
-        
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
+
         metadata.setEnvs(Collections.singletonList(
                 createEnvVarDefinition("VAR1", "value1", EnvVarMountType.SECURE_CONTENT)
         ));
-        
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
-        
+
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
+
         metadata.setEnvs(Collections.singletonList(
                 createEnvVarDefinition("VAR1", "value1", EnvVarMountType.SECURE_FILE)
         ));
-        
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
-    
+
     @Test
     void testMountTypeCompatibilitySensitiveEnvVar() {
         List<EnvVar> list = Collections.singletonList(createSensitiveEnvVar());
@@ -188,19 +187,19 @@ public class EnvVarChangeDetectorTest {
                 createEnvVarDefinition("SECRET_VAR", "value", EnvVarMountType.SECURE_CONTENT)
         ));
         
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
-        
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
+
         metadata.setEnvs(Collections.singletonList(
                 createEnvVarDefinition("SECRET_VAR", "value", EnvVarMountType.CONTENT)
         ));
-        
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
-        
+
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
+
         metadata.setEnvs(Collections.singletonList(
                 createEnvVarDefinition("SECRET_VAR", "value", EnvVarMountType.SECURE_FILE)
         ));
-        
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     @Test
@@ -215,17 +214,17 @@ public class EnvVarChangeDetectorTest {
         definition.setDescription("Test description");
         metadata.setEnvs(Collections.singletonList(definition));
 
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
 
         definition.setMountType(EnvVarMountType.CONTENT);
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
 
         definition.setMountType(EnvVarMountType.SECURE_CONTENT);
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
 
         definition.setMountType(EnvVarMountType.SECURE_FILE);
         definition.setValue(new FileEnvVarValue("different-file.txt", "secret content"));
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     @Test
@@ -242,14 +241,14 @@ public class EnvVarChangeDetectorTest {
         definition.setMountType(EnvVarMountType.CONTENT);
         metadata.setEnvs(Collections.singletonList(definition));
 
-        assertFalse(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isFalse();
 
         definition.setValue(new SimpleEnvVarValue("value"));
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
 
         envVar.setValue(new SimpleEnvVarValue("value"));
         definition.setValue(null);
-        assertTrue(EnvVarChangeDetector.areEnvsChanged(list, metadata));
+        assertThat(EnvVarChangeDetector.areEnvsChanged(list, metadata)).isTrue();
     }
 
     private SimpleEnvVar createSimpleEnvVar(String name, String value) {

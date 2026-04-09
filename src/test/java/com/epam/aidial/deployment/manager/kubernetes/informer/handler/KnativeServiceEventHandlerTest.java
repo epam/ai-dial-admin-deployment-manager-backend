@@ -17,9 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -67,11 +65,11 @@ class KnativeServiceEventHandlerTest {
         verify(knativeDeploymentManager, times(1)).reconcile(configCaptor.capture());
 
         var reconcileConfig = configCaptor.getValue();
-        assertEquals(deploymentId.toString(), reconcileConfig.getDeploymentId());
-        assertEquals(service, reconcileConfig.getService());
-        assertEquals(INITIATOR, reconcileConfig.getInitiator());
-        assertFalse(reconcileConfig.isServiceIsMissing());
-        assertTrue(reconcileConfig.isIgnorePendingOnServiceNotFound());
+        assertThat(reconcileConfig.getDeploymentId()).isEqualTo(deploymentId.toString());
+        assertThat(reconcileConfig.getService()).isEqualTo(service);
+        assertThat(reconcileConfig.getInitiator()).isEqualTo(INITIATOR);
+        assertThat(reconcileConfig.isServiceIsMissing()).isFalse();
+        assertThat(reconcileConfig.isIgnorePendingOnServiceNotFound()).isTrue();
     }
 
     @Test

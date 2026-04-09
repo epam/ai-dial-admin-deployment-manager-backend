@@ -16,7 +16,6 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -25,6 +24,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class FullWorkflowFunctionalTest {
 
@@ -63,27 +64,27 @@ public abstract class FullWorkflowFunctionalTest {
 
         // Deploy
         var deployedDeployment = deploymentService.deploy(createdDeployment.getId());
-        Assertions.assertNotNull(deployedDeployment);
+        assertThat(deployedDeployment).isNotNull();
 
         waitForDeployment(deployedDeployment.getId(), DeploymentStatus.RUNNING, "Deploy timed out");
 
         var maybeRunningDeployment = deploymentService.getDeployment(deployedDeployment.getId());
-        Assertions.assertTrue(maybeRunningDeployment.isPresent());
+        assertThat(maybeRunningDeployment.isPresent()).isTrue();
 
         var runningDeployment = maybeRunningDeployment.get();
-        Assertions.assertNotNull(runningDeployment.getUrl());
+        assertThat(runningDeployment.getUrl()).isNotNull();
 
         // Undeploy
         var undeployedDeployment = deploymentService.undeploy(createdDeployment.getId());
-        Assertions.assertNotNull(undeployedDeployment);
+        assertThat(undeployedDeployment).isNotNull();
 
         waitForDeployment(deployedDeployment.getId(), DeploymentStatus.STOPPED, "Undeploy timed out");
 
         var maybeStoppedDeployment = deploymentService.getDeployment(deployedDeployment.getId());
-        Assertions.assertTrue(maybeStoppedDeployment.isPresent());
+        assertThat(maybeStoppedDeployment.isPresent()).isTrue();
 
         var stoppedDeployment = maybeStoppedDeployment.get();
-        Assertions.assertNull(stoppedDeployment.getUrl());
+        assertThat(stoppedDeployment.getUrl()).isNull();
 
         // Delete deployment
         deploymentService.deleteDeployment(deployedDeployment.getId());
@@ -91,7 +92,7 @@ public abstract class FullWorkflowFunctionalTest {
         waitForDeployment(deployedDeployment.getId(), null, "Deletion timed out");
 
         var maybeDeletedDeployment = deploymentService.getDeployment(deployedDeployment.getId());
-        Assertions.assertTrue(maybeDeletedDeployment.isEmpty());
+        assertThat(maybeDeletedDeployment.isEmpty()).isTrue();
     }
 
     private UUID waitForImageBuild(UUID imageId) throws Exception {

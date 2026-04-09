@@ -10,7 +10,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 class DataEncryptorTest {
 
@@ -37,7 +36,7 @@ class DataEncryptorTest {
         byte[] decryptedKey = DataEncryptor.decryptedKey(base64MasterKey, base64EncryptedKey);
 
         // Then
-        assertArrayEquals(encryptionKey.getEncoded(), decryptedKey, "Decrypted key does not match the original encryption key");
+        assertThat(decryptedKey).as("Decrypted key does not match the original encryption key").isEqualTo(encryptionKey.getEncoded());
     }
 
     @Test

@@ -56,7 +56,6 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -75,6 +74,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -145,21 +145,21 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         // Then - Build image
         var jobSpec = specCaptor.getValue();
 
-        Assertions.assertNotNull(jobSpec);
-        Assertions.assertEquals("default", jobSpec.getNamespace());
+        assertThat(jobSpec).isNotNull();
+        assertThat(jobSpec.getNamespace()).isEqualTo("default");
 
         var expectedJobSpecProvider = getExpectedJobSpec(imageDefinition);
         var expectedJobSpec = expectedJobSpecProvider.apply(image.getId().toString());
-        Assertions.assertEquals(expectedJobSpec, jobSpec.getJob().getSpec());
+        assertThat(jobSpec.getJob().getSpec()).isEqualTo(expectedJobSpec);
 
         var jobSecret = jobSpec.getSecrets().getFirst();
         var expectedJobSecret = createJobSecret(getAuthValueFromSecret(jobSecret), jobSecret.getMetadata().getName());
-        Assertions.assertEquals(List.of(expectedJobSecret), jobSpec.getSecrets());
+        assertThat(jobSpec.getSecrets()).containsExactly(expectedJobSecret);
 
         if (compareConfigMaps) {
             var source = ((DockerImageSource) imageDefinition.getSource());
             var expectedJobConfigMap = createJobConfigMap(image.getId().toString(), source.getImageUri(), source.getEntrypoint());
-            Assertions.assertEquals(List.of(expectedJobConfigMap), jobSpec.getConfigMaps());
+            assertThat(jobSpec.getConfigMaps()).containsExactly(expectedJobConfigMap);
         }
 
         // Given - Create deployment
@@ -187,8 +187,8 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         var secret = secretCaptor.getValue();
         var secretName = secret.getMetadata().getName();
         var expectedSecret = createSecret(secretName);
-        Assertions.assertEquals(expectedSecret, secret);
-        Assertions.assertNotNull(createdDeployment);
+        assertThat(secret).isEqualTo(expectedSecret);
+        assertThat(createdDeployment).isNotNull();
 
 
         // Given - Deploy
@@ -213,16 +213,16 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
         var serviceName = service.getMetadata().getName();
         var imageName = service.getSpec().getTemplate().getSpec().getContainers().getFirst().getImage();
         var expectedService = createKnativeService(serviceName, imageName, secretName);
-        Assertions.assertEquals(expectedService, service);
+        assertThat(service).isEqualTo(expectedService);
 
         var ciliumNetworkPolicy = cnpCaptor.getValue();
         var expectedPorts = Set.of(deployment.getContainerPort());
         var expectedCiliumNetworkPolicy = ciliumNetworkPolicyCreator.create("default", "serving.knative.dev/service",
                 serviceName, deployment.getAllowedDomains(), expectedPorts);
-        Assertions.assertEquals(Serialization.asYaml(expectedCiliumNetworkPolicy), Serialization.asYaml(ciliumNetworkPolicy));
+        assertThat(Serialization.asYaml(ciliumNetworkPolicy)).isEqualTo(Serialization.asYaml(expectedCiliumNetworkPolicy));
 
-        Assertions.assertNotNull(deployedDeployment);
-        Assertions.assertTrue(StringUtils.isNotBlank(deployedDeployment.getServiceName()));
+        assertThat(deployedDeployment).isNotNull();
+        assertThat(StringUtils.isNotBlank(deployedDeployment.getServiceName())).isTrue();
     }
 
     private static Stream<Arguments> getFullWorkflowParams() {

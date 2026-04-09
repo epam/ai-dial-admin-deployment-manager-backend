@@ -34,10 +34,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -103,7 +100,7 @@ class ImageWrapperBuildJobSpecificationTest {
         String jobId = jobSpecification.getJobId();
 
         // Then
-        assertEquals(BUILD_ID, jobId);
+        assertThat(jobId).isEqualTo(BUILD_ID);
     }
 
     @Test
@@ -112,7 +109,7 @@ class ImageWrapperBuildJobSpecificationTest {
         String namespace = jobSpecification.getNamespace();
 
         // Then
-        assertEquals(NAMESPACE, namespace);
+        assertThat(namespace).isEqualTo(NAMESPACE);
     }
 
     @Test
@@ -128,9 +125,9 @@ class ImageWrapperBuildJobSpecificationTest {
         List<ConfigMap> configMaps = jobSpecification.getConfigMaps();
 
         // Then
-        assertNotNull(configMaps);
-        assertEquals(1, configMaps.size());
-        assertEquals(expectedConfigMap.getMetadata().getName(), configMaps.getFirst().getMetadata().getName());
+        assertThat(configMaps).isNotNull();
+        assertThat(configMaps).hasSize(1);
+        assertThat(configMaps.getFirst().getMetadata().getName()).isEqualTo(expectedConfigMap.getMetadata().getName());
     }
 
     @Test
@@ -144,9 +141,9 @@ class ImageWrapperBuildJobSpecificationTest {
         List<Secret> secrets = jobSpecification.getSecrets();
 
         // Then
-        assertNotNull(secrets);
-        assertEquals(1, secrets.size());
-        assertEquals(mockSecret, secrets.getFirst());
+        assertThat(secrets).isNotNull();
+        assertThat(secrets).hasSize(1);
+        assertThat(secrets.getFirst()).isEqualTo(mockSecret);
 
         verify(manifestGenerator).dialRegistryAuthSecretConfig(expectedSecretName);
     }
@@ -164,24 +161,24 @@ class ImageWrapperBuildJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job);
-        assertNotNull(job.getMetadata());
-        assertNotNull(job.getSpec());
-        assertNotNull(job.getSpec().getTemplate());
-        assertNotNull(job.getSpec().getTemplate().getSpec());
-        assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(2, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertThat(job).isNotNull();
+        assertThat(job.getMetadata()).isNotNull();
+        assertThat(job.getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).hasSize(2);
 
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> buildArgs = buildContainer.getArgs();
-        assertNotNull(buildArgs);
-        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates")));
-        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates")));
+        assertThat(buildArgs).isNotNull();
+        assertThat(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates"))).isTrue();
+        assertThat(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates"))).isTrue();
         Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
         List<EnvVar> pushEnvVars = pushContainer.getEnv();
-        assertNotNull(pushEnvVars);
-        assertTrue(pushEnvVars.stream()
-                .anyMatch(envVar -> envVar.getName().equals("TARGET_IMAGE") && envVar.getValue().equals(SOURCE_IMAGE_URI)));
+        assertThat(pushEnvVars).isNotNull();
+        assertThat(pushEnvVars.stream()
+                .anyMatch(envVar -> envVar.getName().equals("TARGET_IMAGE") && envVar.getValue().equals(SOURCE_IMAGE_URI))).isTrue();
     }
 
     @Test
@@ -197,24 +194,24 @@ class ImageWrapperBuildJobSpecificationTest {
         Job job = createJobSpecification(ImageBuilder.BUILDKIT).getJob();
 
         // Then
-        assertNotNull(job);
-        assertNotNull(job.getMetadata());
-        assertNotNull(job.getSpec());
-        assertNotNull(job.getSpec().getTemplate());
-        assertNotNull(job.getSpec().getTemplate().getSpec());
-        assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(2, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertThat(job).isNotNull();
+        assertThat(job.getMetadata()).isNotNull();
+        assertThat(job.getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).hasSize(2);
 
         Container buildContainer = getContainerByName(job, BUILDER_CONTAINER_NAME);
         List<String> buildArgs = buildContainer.getArgs();
-        assertNotNull(buildArgs);
-        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates")));
-        assertTrue(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates")));
+        assertThat(buildArgs).isNotNull();
+        assertThat(buildArgs.stream().anyMatch(arg -> arg.equals("dockerfile=/templates"))).isTrue();
+        assertThat(buildArgs.stream().anyMatch(arg -> arg.equals("context=/templates"))).isTrue();
         Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
         List<EnvVar> pushEnvVars = pushContainer.getEnv();
-        assertNotNull(pushEnvVars);
-        assertTrue(pushEnvVars.stream()
-                .anyMatch(envVar -> envVar.getName().equals("TARGET_IMAGE") && envVar.getValue().equals(SOURCE_IMAGE_URI)));
+        assertThat(pushEnvVars).isNotNull();
+        assertThat(pushEnvVars.stream()
+                .anyMatch(envVar -> envVar.getName().equals("TARGET_IMAGE") && envVar.getValue().equals(SOURCE_IMAGE_URI))).isTrue();
     }
 
     @Test
@@ -231,16 +228,16 @@ class ImageWrapperBuildJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
-        assertFalse(job.getSpec().getTemplate().getSpec().getVolumes().isEmpty());
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes()).isNotEmpty();
 
         Container pushContainer = getContainerByName(job, PUSH_CONTAINER_NAME);
-        assertNotNull(pushContainer.getVolumeMounts());
-        assertTrue(pushContainer.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH)));
+        assertThat(pushContainer.getVolumeMounts()).isNotNull();
+        assertThat(pushContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_PATH))).isTrue();
 
-        assertTrue(pushContainer.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+        assertThat(pushContainer.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY))).isTrue();
     }
 
     private Job createDefaultJob() {

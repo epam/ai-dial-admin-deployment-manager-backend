@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -102,12 +102,9 @@ class McpHealthCheckerTest {
     void waitReady_shouldThrowIllegalArgumentExceptionForNonMcpImageDefinition() {
         var adapterDepl = AdapterDeployment.builder().build();
 
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> mcpHealthChecker.waitReady(SERVICE_URL, adapterDepl, TIMEOUT)
-        );
-
-        assertThat(exception).hasMessageContaining("McpHealthChecker only supports MCP deployments");
+        assertThatThrownBy(() -> mcpHealthChecker.waitReady(SERVICE_URL, adapterDepl, TIMEOUT))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("McpHealthChecker only supports MCP deployments");
         verify(retryTemplateFactory, never()).apply(any());
         verify(mcpEndpointPathResolver, never()).resolveEndpointPath(any());
         verify(mcpClientFactory, never()).create(anyString(), anyString(), any());
@@ -118,12 +115,8 @@ class McpHealthCheckerTest {
         var initializationException = new RuntimeException("Connection failed");
         when(retryTemplate.execute(any())).thenThrow(initializationException);
 
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
-                () -> mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT)
-        );
-
-        assertThat(exception)
+        assertThatThrownBy(() -> mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT))
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("MCP service failed to become ready at URL: %s. Reason: %s".formatted(SERVICE_URL, "Connection failed"));
         verify(retryTemplateFactory).apply(TIMEOUT);
         verify(mcpEndpointPathResolver).resolveEndpointPath(mcpDeployment);

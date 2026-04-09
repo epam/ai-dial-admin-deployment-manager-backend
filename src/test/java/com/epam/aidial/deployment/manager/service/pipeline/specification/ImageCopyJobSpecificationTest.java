@@ -26,9 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +68,7 @@ class ImageCopyJobSpecificationTest {
         String jobId = jobSpecification.getJobId();
 
         // Then
-        assertEquals(JOB_ID, jobId);
+        assertThat(jobId).isEqualTo(JOB_ID);
     }
 
     @Test
@@ -79,7 +77,7 @@ class ImageCopyJobSpecificationTest {
         String namespace = jobSpecification.getNamespace();
 
         // Then
-        assertEquals(NAMESPACE, namespace);
+        assertThat(namespace).isEqualTo(NAMESPACE);
     }
 
     @Test
@@ -88,8 +86,8 @@ class ImageCopyJobSpecificationTest {
         List<ConfigMap> configMaps = jobSpecification.getConfigMaps();
 
         // Then
-        assertNotNull(configMaps);
-        assertTrue(configMaps.isEmpty());
+        assertThat(configMaps).isNotNull();
+        assertThat(configMaps).isEmpty();
     }
 
     @Test
@@ -103,9 +101,9 @@ class ImageCopyJobSpecificationTest {
         List<Secret> secrets = jobSpecification.getSecrets();
 
         // Then
-        assertNotNull(secrets);
-        assertEquals(1, secrets.size());
-        assertEquals(mockSecret, secrets.get(0));
+        assertThat(secrets).isNotNull();
+        assertThat(secrets).hasSize(1);
+        assertThat(secrets.get(0)).isEqualTo(mockSecret);
 
         verify(manifestGenerator).dialRegistryAuthSecretConfig(expectedSecretName);
     }
@@ -120,22 +118,22 @@ class ImageCopyJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job);
-        assertNotNull(job.getMetadata());
-        assertNotNull(job.getSpec());
-        assertNotNull(job.getSpec().getTemplate());
-        assertNotNull(job.getSpec().getTemplate().getSpec());
-        assertNotNull(job.getSpec().getTemplate().getSpec().getContainers());
-        assertEquals(1, job.getSpec().getTemplate().getSpec().getContainers().size());
+        assertThat(job).isNotNull();
+        assertThat(job.getMetadata()).isNotNull();
+        assertThat(job.getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getContainers()).hasSize(1);
 
         Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
         List<String> args = container.getArgs();
-        assertNotNull(args);
-        assertTrue(args.contains("copy"));
-        assertTrue(args.contains("docker://" + SOURCE_IMAGE_NAME));
-        assertTrue(args.contains("docker://" + TARGET_IMAGE_NAME));
-        assertTrue(args.contains("--authfile"));
-        assertTrue(args.contains(DOCKER_CONFIG_FILE));
+        assertThat(args).isNotNull();
+        assertThat(args).contains("copy");
+        assertThat(args).contains("docker://" + SOURCE_IMAGE_NAME);
+        assertThat(args).contains("docker://" + TARGET_IMAGE_NAME);
+        assertThat(args).contains("--authfile");
+        assertThat(args).contains(DOCKER_CONFIG_FILE);
     }
 
     @Test
@@ -161,16 +159,16 @@ class ImageCopyJobSpecificationTest {
         Job job = jobSpecification.getJob();
 
         // Then
-        assertNotNull(job.getSpec().getTemplate().getSpec().getVolumes());
-        assertTrue(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0);
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes()).isNotNull();
+        assertThat(job.getSpec().getTemplate().getSpec().getVolumes().size() > 0).isTrue();
 
         Container container = job.getSpec().getTemplate().getSpec().getContainers().get(0);
-        assertNotNull(container.getVolumeMounts());
-        assertTrue(container.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_FILE)));
+        assertThat(container.getVolumeMounts()).isNotNull();
+        assertThat(container.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getMountPath().equals(DOCKER_CONFIG_FILE))).isTrue();
 
-        assertTrue(container.getVolumeMounts().stream()
-                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY)));
+        assertThat(container.getVolumeMounts().stream()
+                .anyMatch(vm -> vm.getSubPath() != null && vm.getSubPath().equals(ManifestGenerator.DOCKER_CONFIG_KEY))).isTrue();
     }
 
     private Job createDefaultJob() {

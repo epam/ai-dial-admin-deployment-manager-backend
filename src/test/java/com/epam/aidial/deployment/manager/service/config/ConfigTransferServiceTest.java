@@ -26,7 +26,6 @@ import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -172,14 +171,10 @@ class ConfigTransferServiceTest {
         );
         MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile(ZIP_NAME, zipBytes);
 
-        // When
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> configTransferService.importConfig(multipartFile, ConflictResolutionPolicy.OVERWRITE)
-        );
-
-        // Then
-        assertThat(exception.getMessage()).isEqualTo("No valid export configuration file 'config.json' found in the ZIP archive.");
+        // When/Then
+        assertThatThrownBy(() -> configTransferService.importConfig(multipartFile, ConflictResolutionPolicy.OVERWRITE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No valid export configuration file 'config.json' found in the ZIP archive.");
         verify(configImporter, never()).importConfig(any(ExportConfig.class), any(ConflictResolutionPolicy.class));
     }
 
@@ -223,14 +218,10 @@ class ConfigTransferServiceTest {
         );
         MultipartFile multipartFile = ConfigExportImportTestHelper.createZipMultipartFile(ZIP_NAME, zipBytes);
 
-        // When
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> configTransferService.getImportConfigPreview(multipartFile, ConflictResolutionPolicy.OVERWRITE)
-        );
-
-        // Then
-        assertThat(exception.getMessage()).isEqualTo("No valid export configuration file 'config.json' found in the ZIP archive.");
+        // When/Then
+        assertThatThrownBy(() -> configTransferService.getImportConfigPreview(multipartFile, ConflictResolutionPolicy.OVERWRITE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No valid export configuration file 'config.json' found in the ZIP archive.");
         verify(configImportPreviewer, never()).previewImport(any(), any());
     }
 
