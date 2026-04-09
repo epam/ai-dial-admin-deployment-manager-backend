@@ -108,7 +108,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 deployment.getCommand(),
                 deployment.getArgs(),
                 containerPort,
-                deployment.getProbeProperties());
+                deployment.getProbeProperties(),
+                startupTimeoutSec);
     }
 
     @Override

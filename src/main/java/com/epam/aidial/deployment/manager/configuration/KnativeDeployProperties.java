@@ -12,5 +12,6 @@ public class KnativeDeployProperties {
     private int startupTimeout;
     private int undeployTimeout;
     private long informerResyncInterval;
+    private int readyGracePeriod;
 }
 

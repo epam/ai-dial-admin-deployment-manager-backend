@@ -3,7 +3,8 @@
   "kind": "InferenceService",
   "metadata": {
     "annotations": {
-      "autoscaling.knative.dev/initial-scale": "1"
+      "autoscaling.knative.dev/initial-scale": "1",
+      "serving.knative.dev/progress-deadline": "3630s"
     },
     "name": "dm-scale-zero-delay-app"
   },
