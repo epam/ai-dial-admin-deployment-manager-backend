@@ -974,7 +974,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldCreateDeploymentWithMcpRegistryRef() {
         var createDeployment = CreateMcpDeployment.builder()
                 .id("deploy-mcp-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server")))
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server", null)))
                 .displayName("Deployment with MCP ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())
@@ -1032,7 +1032,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldUpdateDeploymentExternalRef() {
         var createDeployment = CreateMcpDeployment.builder()
                 .id("deploy-update-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("old-pkg")))
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("old-pkg", null)))
                 .displayName("Deployment to update ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())
@@ -1061,7 +1061,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldClearDeploymentExternalRef() {
         var createDeployment = CreateMcpDeployment.builder()
                 .id("deploy-clear-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-pkg")))
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-pkg", null)))
                 .displayName("Deployment to clear ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())
@@ -1086,10 +1086,31 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
+    public void shouldCreateDeploymentWithVersionedMcpRegistryRef() {
+        var createDeployment = CreateMcpDeployment.builder()
+                .id("deploy-mcp-versioned-ref")
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server", "1.0.0")))
+                .displayName("Deployment with versioned MCP ref")
+                .resources(new Resources())
+                .metadata(new DeploymentMetadata())
+                .allowedDomains(List.of())
+                .build();
+
+        var deployment = deploymentService.createDeployment(createDeployment);
+        var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
+
+        var source = (ImageReferenceSource) fetched.getSource();
+        Assertions.assertInstanceOf(McpRegistryRef.class, source.externalRegistryRef());
+        var ref = (McpRegistryRef) source.externalRegistryRef();
+        Assertions.assertEquals("my-server", ref.packageName());
+        Assertions.assertEquals("1.0.0", ref.version());
+    }
+
+    @Test
     public void shouldListDeployments_withMixedExternalRefs() {
         var dep1 = CreateMcpDeployment.builder()
                 .id("deploy-list-ref")
-                .source(new ImageReferenceSource("registry.test/img1:1.0", new McpRegistryRef("pkg-1")))
+                .source(new ImageReferenceSource("registry.test/img1:1.0", new McpRegistryRef("pkg-1", null)))
                 .displayName("Dep with ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())

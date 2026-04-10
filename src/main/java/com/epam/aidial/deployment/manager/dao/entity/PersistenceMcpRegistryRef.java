@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.dao.entity;
 
 public record PersistenceMcpRegistryRef(
-        String packageName
+        String packageName,
+        String version
 ) implements PersistenceExternalRegistryRef {
 }

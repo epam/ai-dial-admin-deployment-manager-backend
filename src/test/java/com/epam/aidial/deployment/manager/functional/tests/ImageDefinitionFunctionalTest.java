@@ -599,7 +599,7 @@ public abstract class ImageDefinitionFunctionalTest {
     public void shouldCreateImageDefinitionWithMcpRegistryRef() {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
         var source = new GitDockerfileImageSource("http://test-uri", "main", null, null, List.of("entry"), null);
-        source.setExternalRegistryRef(new McpRegistryRef("my-server"));
+        source.setExternalRegistryRef(new McpRegistryRef("my-server", null));
         imageDef.setSource(source);
 
         var created = service.createImageDefinition(imageDef);
@@ -609,6 +609,71 @@ public abstract class ImageDefinitionFunctionalTest {
         var fetchedSource = (GitDockerfileImageSource) fetched.getSource();
         Assertions.assertInstanceOf(McpRegistryRef.class, fetchedSource.getExternalRegistryRef());
         Assertions.assertEquals("my-server", ((McpRegistryRef) fetchedSource.getExternalRegistryRef()).packageName());
+    }
+
+    @Test
+    public void shouldCreateImageDefinitionWithVersionedMcpRegistryRef() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("github/github", "2025.4.1"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        Assertions.assertInstanceOf(McpRegistryRef.class, fetchedSource.getExternalRegistryRef());
+        var ref = (McpRegistryRef) fetchedSource.getExternalRegistryRef();
+        Assertions.assertEquals("github/github", ref.packageName());
+        Assertions.assertEquals("2025.4.1", ref.version());
+    }
+
+    @Test
+    public void shouldCreateImageDefinitionWithMcpRegistryRefWithoutVersion() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-server", null));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+
+        var fetchedSource = (DockerImageSource) fetched.getSource();
+        var ref = (McpRegistryRef) fetchedSource.getExternalRegistryRef();
+        Assertions.assertEquals("my-server", ref.packageName());
+        Assertions.assertNull(ref.version());
+    }
+
+    @Test
+    public void shouldUpdateImageDefinitionMcpRegistryRefVersion() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-server", "1.0.0"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+
+        created.setSource(new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-server", "2.0.0")));
+        service.updateImageDefinition(created.getId(), created);
+
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+        var ref = (McpRegistryRef) ((DockerImageSource) fetched.getSource()).getExternalRegistryRef();
+        Assertions.assertEquals("my-server", ref.packageName());
+        Assertions.assertEquals("2.0.0", ref.version());
+    }
+
+    @Test
+    public void shouldClearImageDefinitionMcpRegistryRefVersion() {
+        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-server", "1.0.0"));
+        imageDef.setSource(source);
+
+        var created = service.createImageDefinition(imageDef);
+
+        created.setSource(new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-server", null)));
+        service.updateImageDefinition(created.getId(), created);
+
+        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
+        var ref = (McpRegistryRef) ((DockerImageSource) fetched.getSource()).getExternalRegistryRef();
+        Assertions.assertEquals("my-server", ref.packageName());
+        Assertions.assertNull(ref.version());
     }
 
     @Test
@@ -656,7 +721,7 @@ public abstract class ImageDefinitionFunctionalTest {
     @Test
     public void shouldUpdateImageDefinitionExternalRef() {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
-        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("old-pkg"));
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("old-pkg", null));
         imageDef.setSource(source);
 
         var created = service.createImageDefinition(imageDef);
@@ -673,7 +738,7 @@ public abstract class ImageDefinitionFunctionalTest {
     @Test
     public void shouldClearImageDefinitionExternalRef() {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
-        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-pkg"));
+        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-pkg", null));
         imageDef.setSource(source);
 
         var created = service.createImageDefinition(imageDef);
@@ -690,7 +755,7 @@ public abstract class ImageDefinitionFunctionalTest {
     public void shouldListImageDefinitions_withMixedExternalRefs() {
         var imgDef1 = FunctionalTestHelper.createMcpImageDefinition();
         imgDef1.setName("img-with-mcp-ref");
-        imgDef1.setSource(new DockerImageSource("http://test-1", List.of("e"), new McpRegistryRef("pkg-1")));
+        imgDef1.setSource(new DockerImageSource("http://test-1", List.of("e"), new McpRegistryRef("pkg-1", null)));
 
         var imgDef2 = FunctionalTestHelper.createInterceptorImageDefinition();
         imgDef2.setName("img-with-generic-ref");
