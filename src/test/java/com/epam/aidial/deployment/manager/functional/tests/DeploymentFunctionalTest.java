@@ -1073,10 +1073,10 @@ public abstract class DeploymentFunctionalTest {
         var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
 
         var source = (ImageReferenceSource) fetched.getSource();
-        Assertions.assertInstanceOf(McpRegistryRef.class, source.externalRegistryRef());
+        assertThat(source.externalRegistryRef()).isInstanceOf(McpRegistryRef.class);
         var ref = (McpRegistryRef) source.externalRegistryRef();
-        Assertions.assertEquals("my-server", ref.packageName());
-        Assertions.assertEquals("1.0.0", ref.version());
+        assertThat(ref.packageName()).isEqualTo("my-server");
+        assertThat(ref.version()).isEqualTo("1.0.0");
     }
 
     @Test

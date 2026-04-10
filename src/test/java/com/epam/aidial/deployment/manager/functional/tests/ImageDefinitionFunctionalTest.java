@@ -621,10 +621,10 @@ public abstract class ImageDefinitionFunctionalTest {
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
 
         var fetchedSource = (DockerImageSource) fetched.getSource();
-        Assertions.assertInstanceOf(McpRegistryRef.class, fetchedSource.getExternalRegistryRef());
+        assertThat(fetchedSource.getExternalRegistryRef()).isInstanceOf(McpRegistryRef.class);
         var ref = (McpRegistryRef) fetchedSource.getExternalRegistryRef();
-        Assertions.assertEquals("github/github", ref.packageName());
-        Assertions.assertEquals("2025.4.1", ref.version());
+        assertThat(ref.packageName()).isEqualTo("github/github");
+        assertThat(ref.version()).isEqualTo("2025.4.1");
     }
 
     @Test
@@ -638,8 +638,8 @@ public abstract class ImageDefinitionFunctionalTest {
 
         var fetchedSource = (DockerImageSource) fetched.getSource();
         var ref = (McpRegistryRef) fetchedSource.getExternalRegistryRef();
-        Assertions.assertEquals("my-server", ref.packageName());
-        Assertions.assertNull(ref.version());
+        assertThat(ref.packageName()).isEqualTo("my-server");
+        assertThat(ref.version()).isNull();
     }
 
     @Test
@@ -655,8 +655,8 @@ public abstract class ImageDefinitionFunctionalTest {
 
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
         var ref = (McpRegistryRef) ((DockerImageSource) fetched.getSource()).getExternalRegistryRef();
-        Assertions.assertEquals("my-server", ref.packageName());
-        Assertions.assertEquals("2.0.0", ref.version());
+        assertThat(ref.packageName()).isEqualTo("my-server");
+        assertThat(ref.version()).isEqualTo("2.0.0");
     }
 
     @Test
@@ -672,8 +672,8 @@ public abstract class ImageDefinitionFunctionalTest {
 
         var fetched = service.getImageDefinition(created.getId()).orElseThrow();
         var ref = (McpRegistryRef) ((DockerImageSource) fetched.getSource()).getExternalRegistryRef();
-        Assertions.assertEquals("my-server", ref.packageName());
-        Assertions.assertNull(ref.version());
+        assertThat(ref.packageName()).isEqualTo("my-server");
+        assertThat(ref.version()).isNull();
     }
 
     @Test
