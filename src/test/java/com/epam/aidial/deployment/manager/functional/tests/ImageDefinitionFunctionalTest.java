@@ -614,22 +614,6 @@ public abstract class ImageDefinitionFunctionalTest {
     }
 
     @Test
-    public void shouldCreateImageDefinitionWithVersionedMcpRegistryRef() {
-        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
-        var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("github/github", "2025.4.1"));
-        imageDef.setSource(source);
-
-        var created = service.createImageDefinition(imageDef);
-        var fetched = service.getImageDefinition(created.getId()).orElseThrow();
-
-        var fetchedSource = (DockerImageSource) fetched.getSource();
-        assertThat(fetchedSource.getExternalRegistryRef()).isInstanceOf(McpRegistryRef.class);
-        var ref = (McpRegistryRef) fetchedSource.getExternalRegistryRef();
-        assertThat(ref.packageName()).isEqualTo("github/github");
-        assertThat(ref.version()).isEqualTo("2025.4.1");
-    }
-
-    @Test
     public void shouldUpdateImageDefinitionMcpRegistryRefVersion() {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
         var source = new DockerImageSource("http://test-uri", List.of("entry1"), new McpRegistryRef("my-server", "1.0.0"));

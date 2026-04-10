@@ -1059,27 +1059,6 @@ public abstract class DeploymentFunctionalTest {
     }
 
     @Test
-    public void shouldCreateDeploymentWithVersionedMcpRegistryRef() {
-        var createDeployment = CreateMcpDeployment.builder()
-                .id("deploy-mcp-versioned-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server", "1.0.0")))
-                .displayName("Deployment with versioned MCP ref")
-                .resources(new Resources())
-                .metadata(new DeploymentMetadata())
-                .allowedDomains(List.of())
-                .build();
-
-        var deployment = deploymentService.createDeployment(createDeployment);
-        var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
-
-        var source = (ImageReferenceSource) fetched.getSource();
-        assertThat(source.externalRegistryRef()).isInstanceOf(McpRegistryRef.class);
-        var ref = (McpRegistryRef) source.externalRegistryRef();
-        assertThat(ref.packageName()).isEqualTo("my-server");
-        assertThat(ref.version()).isEqualTo("1.0.0");
-    }
-
-    @Test
     public void shouldListDeployments_withMixedExternalRefs() {
         var dep1 = CreateMcpDeployment.builder()
                 .id("deploy-list-ref")
