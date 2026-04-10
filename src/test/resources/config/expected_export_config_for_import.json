@@ -11,7 +11,8 @@
         "entrypoint": [],
         "externalRegistryRef": {
           "$type": "mcp-registry",
-          "packageName": "export-test-pkg"
+          "packageName": "export-test-pkg",
+          "version": "1.0.0"
         }
       },
       "imageBuilder": "buildkit",

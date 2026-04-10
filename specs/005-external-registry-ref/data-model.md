@@ -16,7 +16,7 @@ Polymorphic discriminated interface. Discriminator: `$type`.
 
 | Subtype | Discriminator value | Field | Semantic constraint |
 |---------|---------------------|-------|---------------------|
-| `McpRegistryRef` | `"mcp-registry"` | `packageName: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
+| `McpRegistryRef` | `"mcp-registry"` | `packageName: String`, `version: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
 | `GitHubRef` | `"github"` | `repo: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
 | `GenericRef` | `"generic"` | `url: String` | non-blank (enforced via `@NotBlank` on **DTO layer** only) |
 
