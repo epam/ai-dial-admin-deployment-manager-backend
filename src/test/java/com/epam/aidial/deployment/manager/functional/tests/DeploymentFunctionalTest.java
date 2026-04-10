@@ -38,7 +38,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.apache.commons.collections4.CollectionUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -50,7 +49,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -125,19 +125,19 @@ public abstract class DeploymentFunctionalTest {
         var deployments = deploymentService.getAllDeployments();
 
         // Then
-        Assertions.assertEquals(1, deployments.size());
-        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
-        Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
-        Assertions.assertInstanceOf(InternalImageSource.class, deployment.getSource());
+        assertThat(deployments.size()).isEqualTo(1);
+        assertThat(deployment.getDisplayName()).isEqualTo(createDeployment.getDisplayName());
+        assertThat(deployment.getDescription()).isEqualTo(createDeployment.getDescription());
+        assertThat(deployment.getSource()).isInstanceOf(InternalImageSource.class);
         var deploymentSource = (InternalImageSource) deployment.getSource();
-        Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), deploymentSource.imageDefinitionId());
-        Assertions.assertEquals(imageDefinitionName, deploymentSource.imageDefinitionName());
-        Assertions.assertEquals(imageDefinitionVersion, deploymentSource.imageDefinitionVersion());
-        Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
-        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
+        assertThat(deploymentSource.imageDefinitionId()).isEqualTo(((InternalImageSource) createDeployment.getSource()).imageDefinitionId());
+        assertThat(deploymentSource.imageDefinitionName()).isEqualTo(imageDefinitionName);
+        assertThat(deploymentSource.imageDefinitionVersion()).isEqualTo(imageDefinitionVersion);
+        assertThat(deployment.getResources()).isEqualTo(createDeployment.getResources());
+        assertThat(deployment.getStatus()).isEqualTo(DeploymentStatus.NOT_DEPLOYED);
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
-        Assertions.assertNotNull(deployment.getId());
-        Assertions.assertNull(deployment.getServiceName());
+        assertThat(deployment.getId()).isNotNull();
+        assertThat(deployment.getServiceName()).isNull();
     }
 
     @Test
@@ -155,19 +155,19 @@ public abstract class DeploymentFunctionalTest {
         var deployments = deploymentService.getAllDeployments();
 
         // Then
-        Assertions.assertEquals(1, deployments.size());
-        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
-        Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
-        Assertions.assertInstanceOf(InternalImageSource.class, deployment.getSource());
+        assertThat(deployments.size()).isEqualTo(1);
+        assertThat(deployment.getDisplayName()).isEqualTo(createDeployment.getDisplayName());
+        assertThat(deployment.getDescription()).isEqualTo(createDeployment.getDescription());
+        assertThat(deployment.getSource()).isInstanceOf(InternalImageSource.class);
         var adapterDeploymentSource = (InternalImageSource) deployment.getSource();
-        Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), adapterDeploymentSource.imageDefinitionId());
-        Assertions.assertEquals(adapterImageDef.getName(), adapterDeploymentSource.imageDefinitionName());
-        Assertions.assertEquals(adapterImageDef.getVersion(), adapterDeploymentSource.imageDefinitionVersion());
-        Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
-        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
+        assertThat(adapterDeploymentSource.imageDefinitionId()).isEqualTo(((InternalImageSource) createDeployment.getSource()).imageDefinitionId());
+        assertThat(adapterDeploymentSource.imageDefinitionName()).isEqualTo(adapterImageDef.getName());
+        assertThat(adapterDeploymentSource.imageDefinitionVersion()).isEqualTo(adapterImageDef.getVersion());
+        assertThat(deployment.getResources()).isEqualTo(createDeployment.getResources());
+        assertThat(deployment.getStatus()).isEqualTo(DeploymentStatus.NOT_DEPLOYED);
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
-        Assertions.assertNotNull(deployment.getId());
-        Assertions.assertNull(deployment.getServiceName());
+        assertThat(deployment.getId()).isNotNull();
+        assertThat(deployment.getServiceName()).isNull();
     }
 
     @Test
@@ -185,19 +185,19 @@ public abstract class DeploymentFunctionalTest {
         var deployments = deploymentService.getAllDeployments();
 
         // Then
-        Assertions.assertEquals(1, deployments.size());
-        Assertions.assertEquals(createDeployment.getDisplayName(), deployment.getDisplayName());
-        Assertions.assertEquals(createDeployment.getDescription(), deployment.getDescription());
-        Assertions.assertInstanceOf(InternalImageSource.class, deployment.getSource());
+        assertThat(deployments.size()).isEqualTo(1);
+        assertThat(deployment.getDisplayName()).isEqualTo(createDeployment.getDisplayName());
+        assertThat(deployment.getDescription()).isEqualTo(createDeployment.getDescription());
+        assertThat(deployment.getSource()).isInstanceOf(InternalImageSource.class);
         var applicationDeploymentSource = (InternalImageSource) deployment.getSource();
-        Assertions.assertEquals(((InternalImageSource) createDeployment.getSource()).imageDefinitionId(), applicationDeploymentSource.imageDefinitionId());
-        Assertions.assertEquals(applicationImageDef.getName(), applicationDeploymentSource.imageDefinitionName());
-        Assertions.assertEquals(applicationImageDef.getVersion(), applicationDeploymentSource.imageDefinitionVersion());
-        Assertions.assertEquals(createDeployment.getResources(), deployment.getResources());
-        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, deployment.getStatus());
+        assertThat(applicationDeploymentSource.imageDefinitionId()).isEqualTo(((InternalImageSource) createDeployment.getSource()).imageDefinitionId());
+        assertThat(applicationDeploymentSource.imageDefinitionName()).isEqualTo(applicationImageDef.getName());
+        assertThat(applicationDeploymentSource.imageDefinitionVersion()).isEqualTo(applicationImageDef.getVersion());
+        assertThat(deployment.getResources()).isEqualTo(createDeployment.getResources());
+        assertThat(deployment.getStatus()).isEqualTo(DeploymentStatus.NOT_DEPLOYED);
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
-        Assertions.assertNotNull(deployment.getId());
-        Assertions.assertNull(deployment.getServiceName());
+        assertThat(deployment.getId()).isNotNull();
+        assertThat(deployment.getServiceName()).isNull();
     }
 
     @Test
@@ -218,9 +218,9 @@ public abstract class DeploymentFunctionalTest {
         var applicationDeployments = deploymentService.getAllDeploymentsByType(List.of(DeploymentTypeDto.APPLICATION)).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, applicationDeployments.size());
-        Assertions.assertEquals(applicationDeployment.getId(), applicationDeployments.getFirst().getId());
-        Assertions.assertEquals("application-deployment", applicationDeployments.getFirst().getDisplayName());
+        assertThat(applicationDeployments.size()).isEqualTo(1);
+        assertThat(applicationDeployments.getFirst().getId()).isEqualTo(applicationDeployment.getId());
+        assertThat(applicationDeployments.getFirst().getDisplayName()).isEqualTo("application-deployment");
     }
 
     @Test
@@ -235,7 +235,7 @@ public abstract class DeploymentFunctionalTest {
         var savedDeployment = deploymentService.createDeployment(createDeployment);
 
         // Then 1
-        Assertions.assertEquals(extractedAuthor, savedDeployment.getAuthor());
+        assertThat(savedDeployment.getAuthor()).isEqualTo(extractedAuthor);
         verify(securityClaimsExtractor).getEmail();
     }
 
@@ -247,12 +247,9 @@ public abstract class DeploymentFunctionalTest {
         createDeployment.setSource(new InternalImageSource(nonExistingImageDefinitionId, null, null, null));
 
         // When & Then
-        var exception = assertThrows(
-                EntityNotFoundException.class,
-                () -> deploymentService.createDeployment(createDeployment)
-        );
-
-        Assertions.assertEquals("ImageDefinition not found: '%s'".formatted(nonExistingImageDefinitionId), exception.getMessage());
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("ImageDefinition not found: '%s'".formatted(nonExistingImageDefinitionId));
     }
 
     @Test
@@ -262,14 +259,11 @@ public abstract class DeploymentFunctionalTest {
         disposableResourceManager.saveKnativeServiceResource(createDeployment.getId(), "some-service", "some-namespace");
 
         // When & Then
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> deploymentService.createDeployment(createDeployment)
-        );
-
         var message = "Failed to create deployment with ID '%s'. There are resources awaiting deletion associated with this ID."
                 .formatted(createDeployment.getId());
-        Assertions.assertEquals(message, exception.getMessage());
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(message);
     }
 
     @Test
@@ -284,15 +278,9 @@ public abstract class DeploymentFunctionalTest {
         createDeployment.getMetadata().getEnvs().add(updatedEnv6);
 
         // When & Then
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> deploymentService.createDeployment(createDeployment)
-        );
-
-        Assertions.assertEquals(
-                "Env variable 'env6' should contain base64-encoded file content. Actual content: not-encoded-content",
-                exception.getMessage()
-        );
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Env variable 'env6' should contain base64-encoded file content. Actual content: not-encoded-content");
     }
 
     @Test
@@ -307,15 +295,9 @@ public abstract class DeploymentFunctionalTest {
         createDeployment.getMetadata().getEnvs().add(reservedEnv);
 
         // When & Then
-        var exception = assertThrows(
-                IllegalArgumentException.class,
-                () -> deploymentService.createDeployment(createDeployment)
-        );
-
-        Assertions.assertEquals(
-                "Environment variable name 'PORT' is reserved and cannot be used",
-                exception.getMessage()
-        );
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Environment variable name 'PORT' is reserved and cannot be used");
     }
 
     @Test
@@ -331,17 +313,17 @@ public abstract class DeploymentFunctionalTest {
         var maybeDeployment = deploymentService.getDeployment(savedDeployment.getId());
 
         // Then
-        Assertions.assertTrue(maybeDeployment.isPresent());
+        assertThat(maybeDeployment.isPresent()).isTrue();
         Deployment retrievedDeployment = maybeDeployment.get();
-        Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
-        Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
-        Assertions.assertInstanceOf(InternalImageSource.class, retrievedDeployment.getSource());
+        assertThat(retrievedDeployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(retrievedDeployment.getDisplayName()).isEqualTo(savedDeployment.getDisplayName());
+        assertThat(retrievedDeployment.getSource()).isInstanceOf(InternalImageSource.class);
         var retrievedSource = (InternalImageSource) retrievedDeployment.getSource();
-        Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(), retrievedSource.imageDefinitionId());
-        Assertions.assertEquals(imageDefinitionName, retrievedSource.imageDefinitionName());
-        Assertions.assertEquals(imageDefinitionVersion, retrievedSource.imageDefinitionVersion());
+        assertThat(retrievedSource.imageDefinitionId()).isEqualTo(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId());
+        assertThat(retrievedSource.imageDefinitionName()).isEqualTo(imageDefinitionName);
+        assertThat(retrievedSource.imageDefinitionVersion()).isEqualTo(imageDefinitionVersion);
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
-        Assertions.assertNull(retrievedDeployment.getServiceName());
+        assertThat(retrievedDeployment.getServiceName()).isNull();
     }
 
     @Test
@@ -355,12 +337,11 @@ public abstract class DeploymentFunctionalTest {
         var maybeDeployment = deploymentService.getDeployment(savedDeployment.getId(), false);
 
         // Then
-        Assertions.assertTrue(maybeDeployment.isPresent());
+        assertThat(maybeDeployment.isPresent()).isTrue();
         Deployment retrievedDeployment = maybeDeployment.get();
-        Assertions.assertEquals(savedDeployment.getId(), retrievedDeployment.getId());
-        Assertions.assertEquals(savedDeployment.getDisplayName(), retrievedDeployment.getDisplayName());
-        Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(),
-                ((InternalImageSource) retrievedDeployment.getSource()).imageDefinitionId());
+        assertThat(retrievedDeployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(retrievedDeployment.getDisplayName()).isEqualTo(savedDeployment.getDisplayName());
+        assertThat(((InternalImageSource) retrievedDeployment.getSource()).imageDefinitionId()).isEqualTo(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, retrievedDeployment.getEnvs());
     }
 
@@ -381,10 +362,10 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
-        Assertions.assertEquals("Updated description", updatedDeployment.getDescription());
-        Assertions.assertEquals("updated-author", updatedDeployment.getAuthor());
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
+        assertThat(updatedDeployment.getDisplayName()).isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getDescription()).isEqualTo("Updated description");
+        assertThat(updatedDeployment.getAuthor()).isEqualTo("updated-author");
+        assertThat(updatedDeployment.getId()).isEqualTo(savedDeployment.getId());
     }
 
     @Test
@@ -407,11 +388,11 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
-        Assertions.assertEquals(DeploymentStatus.RUNNING, updatedDeployment.getStatus());
-        Assertions.assertEquals("http://test.com", updatedDeployment.getUrl());
-        Assertions.assertEquals("saved-service-name", updatedDeployment.getServiceName());
+        assertThat(updatedDeployment.getDisplayName()).isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(updatedDeployment.getStatus()).isEqualTo(DeploymentStatus.RUNNING);
+        assertThat(updatedDeployment.getUrl()).isEqualTo("http://test.com");
+        assertThat(updatedDeployment.getServiceName()).isEqualTo("saved-service-name");
     }
 
     @Test
@@ -429,15 +410,12 @@ public abstract class DeploymentFunctionalTest {
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         updateRequest.setDisplayName("updated-deployment");
 
-        var exception = assertThrows(
-                IllegalStateException.class,
-                () -> deploymentService.updateDeployment(savedDeployment.getId(), updateRequest)
-        );
-
         // Then
         var expectedMessage = "Deployment '%s' has an intermediate status '%s'. Update is not allowed"
                 .formatted(savedDeployment.getId(), DeploymentStatus.PENDING);
-        Assertions.assertEquals(expectedMessage, exception.getMessage());
+        assertThatThrownBy(() -> deploymentService.updateDeployment(savedDeployment.getId(), updateRequest))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(expectedMessage);
     }
 
     @Test
@@ -480,10 +458,10 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
-        Assertions.assertEquals(newImageDefinitionId, ((InternalImageSource) updatedDeployment.getSource()).imageDefinitionId());
-        Assertions.assertEquals(DeploymentStatus.PENDING, updatedDeployment.getStatus());
+        assertThat(updatedDeployment.getDisplayName()).isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(((InternalImageSource) updatedDeployment.getSource()).imageDefinitionId()).isEqualTo(newImageDefinitionId);
+        assertThat(updatedDeployment.getStatus()).isEqualTo(DeploymentStatus.PENDING);
 
         verify(resource, times(1)).update();
     }
@@ -529,9 +507,9 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then - deployment metadata was updated in DB
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
-        Assertions.assertEquals(allowedDomains, updatedDeployment.getAllowedDomains());
+        assertThat(updatedDeployment.getDisplayName()).isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(updatedDeployment.getAllowedDomains()).isEqualTo(allowedDomains);
 
         // Then - Cilium network policy was updated (domains change only triggers policy update)
         verify(ciliumNetworkPolicyResource, times(1)).update();
@@ -578,9 +556,9 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName());
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId());
-        Assertions.assertEquals(DeploymentStatus.STOPPING, updatedDeployment.getStatus());
+        assertThat(updatedDeployment.getDisplayName()).isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(updatedDeployment.getStatus()).isEqualTo(DeploymentStatus.STOPPING);
 
         // Manually trigger reconciliation to update status from STOPPING to STOPPED
         var deploymentToReconcile = deploymentRepository.getById(savedDeployment.getId()).orElseThrow();
@@ -650,9 +628,9 @@ public abstract class DeploymentFunctionalTest {
         var savedDeployment = deploymentService.createDeployment(createDeployment);
 
         // Then - After Create
-        Assertions.assertNotNull(savedDeployment.getCreatedAt());
-        Assertions.assertNotNull(savedDeployment.getUpdatedAt());
-        Assertions.assertEquals(savedDeployment.getCreatedAt(), savedDeployment.getUpdatedAt());
+        assertThat(savedDeployment.getCreatedAt()).isNotNull();
+        assertThat(savedDeployment.getUpdatedAt()).isNotNull();
+        assertThat(savedDeployment.getUpdatedAt()).isEqualTo(savedDeployment.getCreatedAt());
         var creationTime = savedDeployment.getCreatedAt();
 
         // Given - Update same entity at a later time
@@ -667,11 +645,11 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployment = deploymentService.updateDeployment(savedDeployment.getId(), updateRequest);
 
         // Then - After Update
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName(), "Name should be updated");
-        Assertions.assertEquals("Updated description", updatedDeployment.getDescription(), "Description should be updated");
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId(), "ID should remain the same");
-        Assertions.assertEquals(creationTime, updatedDeployment.getCreatedAt(), "CreatedAt should not change");
-        Assertions.assertNotEquals(creationTime, updatedDeployment.getUpdatedAt(), "UpdatedAt should be updated to new time");
+        assertThat(updatedDeployment.getDisplayName()).as("Name should be updated").isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getDescription()).as("Description should be updated").isEqualTo("Updated description");
+        assertThat(updatedDeployment.getId()).as("ID should remain the same").isEqualTo(savedDeployment.getId());
+        assertThat(updatedDeployment.getCreatedAt()).as("CreatedAt should not change").isEqualTo(creationTime);
+        assertThat(updatedDeployment.getUpdatedAt()).as("UpdatedAt should be updated to new time").isNotEqualTo(creationTime);
     }
 
     @Test
@@ -684,11 +662,11 @@ public abstract class DeploymentFunctionalTest {
         var deployments = List.copyOf(deploymentService.getAllDeployments());
 
         // Then - After Create
-        Assertions.assertEquals(1, deployments.size(), "There should be exactly one deployment");
+        assertThat(deployments.size()).as("There should be exactly one deployment").isEqualTo(1);
         var savedDeployment = deployments.getFirst();
-        Assertions.assertNotNull(savedDeployment.getCreatedAt());
-        Assertions.assertNotNull(savedDeployment.getUpdatedAt());
-        Assertions.assertEquals(savedDeployment.getCreatedAt(), savedDeployment.getUpdatedAt());
+        assertThat(savedDeployment.getCreatedAt()).isNotNull();
+        assertThat(savedDeployment.getUpdatedAt()).isNotNull();
+        assertThat(savedDeployment.getUpdatedAt()).isEqualTo(savedDeployment.getCreatedAt());
         var creationTime = savedDeployment.getCreatedAt();
 
         mockSecretMetaData(savedDeployment);
@@ -704,13 +682,13 @@ public abstract class DeploymentFunctionalTest {
         var updatedDeployments = List.copyOf(deploymentService.getAllDeployments());
 
         // Then - After Update
-        Assertions.assertEquals(1, updatedDeployments.size(), "There should still be exactly one deployment");
+        assertThat(updatedDeployments.size()).as("There should still be exactly one deployment").isEqualTo(1);
         var updatedDeployment = updatedDeployments.getFirst();
-        Assertions.assertEquals(savedDeployment.getId(), updatedDeployment.getId(), "Deployment ID should remain unchanged");
-        Assertions.assertEquals("updated-deployment", updatedDeployment.getDisplayName(), "Name should be updated");
-        Assertions.assertEquals("Updated description", updatedDeployment.getDescription(), "Description should be updated");
-        Assertions.assertEquals(creationTime, updatedDeployment.getCreatedAt(), "CreatedAt should remain unchanged");
-        Assertions.assertNotEquals(creationTime, updatedDeployment.getUpdatedAt(), "UpdatedAt should be updated to new time");
+        assertThat(updatedDeployment.getId()).as("Deployment ID should remain unchanged").isEqualTo(savedDeployment.getId());
+        assertThat(updatedDeployment.getDisplayName()).as("Name should be updated").isEqualTo("updated-deployment");
+        assertThat(updatedDeployment.getDescription()).as("Description should be updated").isEqualTo("Updated description");
+        assertThat(updatedDeployment.getCreatedAt()).as("CreatedAt should remain unchanged").isEqualTo(creationTime);
+        assertThat(updatedDeployment.getUpdatedAt()).as("UpdatedAt should be updated to new time").isNotEqualTo(creationTime);
     }
 
     @Test
@@ -727,8 +705,8 @@ public abstract class DeploymentFunctionalTest {
         var maybeDeploymentAfterDeletion = deploymentService.getDeployment(savedDeployment.getId());
 
         // Then
-        Assertions.assertTrue(maybeDeployment.isPresent());
-        Assertions.assertFalse(maybeDeploymentAfterDeletion.isPresent());
+        assertThat(maybeDeployment.isPresent()).isTrue();
+        assertThat(maybeDeploymentAfterDeletion.isPresent()).isFalse();
     }
 
     @SuppressWarnings("unchecked")
@@ -755,11 +733,10 @@ public abstract class DeploymentFunctionalTest {
         var deployment = deploymentService.deploy(savedDeployment.getId());
 
         // Then
-        Assertions.assertEquals(savedDeployment.getId(), deployment.getId());
-        Assertions.assertEquals(savedDeployment.getDisplayName(), deployment.getDisplayName());
-        Assertions.assertEquals(K8sNamingUtils.generateName(savedDeployment.getId()), deployment.getServiceName());
-        Assertions.assertEquals(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId(),
-                ((InternalImageSource) deployment.getSource()).imageDefinitionId());
+        assertThat(deployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(deployment.getDisplayName()).isEqualTo(savedDeployment.getDisplayName());
+        assertThat(deployment.getServiceName()).isEqualTo(K8sNamingUtils.generateName(savedDeployment.getId()));
+        assertThat(((InternalImageSource) deployment.getSource()).imageDefinitionId()).isEqualTo(((InternalImageSource) savedDeployment.getSource()).imageDefinitionId());
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
     }
 
@@ -801,9 +778,9 @@ public abstract class DeploymentFunctionalTest {
 
         // Then
         assertEnvsAreEqual(expectedEnvVars, deployment.getEnvs());
-        Assertions.assertEquals(savedDeployment.getId(), deployment.getId());
-        Assertions.assertEquals(savedDeployment.getDisplayName(), deployment.getDisplayName());
-        Assertions.assertEquals(DeploymentStatus.STOPPING, deployment.getStatus());
+        assertThat(deployment.getId()).isEqualTo(savedDeployment.getId());
+        assertThat(deployment.getDisplayName()).isEqualTo(savedDeployment.getDisplayName());
+        assertThat(deployment.getStatus()).isEqualTo(DeploymentStatus.STOPPING);
 
         // Manually trigger reconciliation to update status from STOPPING to STOPPED
         var deploymentToReconcile = deploymentRepository.getById(savedDeployment.getId()).orElseThrow();
@@ -832,7 +809,7 @@ public abstract class DeploymentFunctionalTest {
         var deployments = deploymentService.getAllDeployments(imageDefinitionId);
 
         // Then
-        Assertions.assertEquals(2, deployments.size());
+        assertThat(deployments.size()).isEqualTo(2);
     }
 
     @Test
@@ -857,8 +834,8 @@ public abstract class DeploymentFunctionalTest {
         var deployments = deploymentService.getAllDeploymentsByType(List.of(DeploymentTypeDto.MCP)).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, deployments.size());
-        Assertions.assertEquals(deployment1.getId(), deployments.getFirst().getId());
+        assertThat(deployments.size()).isEqualTo(1);
+        assertThat(deployments.getFirst().getId()).isEqualTo(deployment1.getId());
     }
 
     @Test
@@ -879,9 +856,9 @@ public abstract class DeploymentFunctionalTest {
         var adapterDeployments = deploymentService.getAllDeploymentsByType(List.of(DeploymentTypeDto.ADAPTER)).stream().toList();
 
         // Then
-        Assertions.assertEquals(1, adapterDeployments.size());
-        Assertions.assertEquals(adapterDeployment.getId(), adapterDeployments.getFirst().getId());
-        Assertions.assertEquals("adapter-deployment", adapterDeployments.getFirst().getDisplayName());
+        assertThat(adapterDeployments.size()).isEqualTo(1);
+        assertThat(adapterDeployments.getFirst().getId()).isEqualTo(adapterDeployment.getId());
+        assertThat(adapterDeployments.getFirst().getDisplayName()).isEqualTo("adapter-deployment");
     }
 
     @Test
@@ -905,16 +882,15 @@ public abstract class DeploymentFunctionalTest {
         );
 
         // Then
-        Assertions.assertNotNull(clonedDeployment.getId());
-        Assertions.assertNotEquals(originalDeployment.getId(), clonedDeployment.getId());
-        Assertions.assertEquals("cloned-deployment", clonedDeployment.getDisplayName());
-        Assertions.assertEquals(originalDeployment.getDescription(), clonedDeployment.getDescription());
-        Assertions.assertEquals(((InternalImageSource) originalDeployment.getSource()).imageDefinitionId(),
-                ((InternalImageSource) clonedDeployment.getSource()).imageDefinitionId());
-        Assertions.assertEquals(originalDeployment.getResources(), clonedDeployment.getResources());
-        Assertions.assertEquals(originalDeployment.getContainerPort(), clonedDeployment.getContainerPort());
-        Assertions.assertEquals(DeploymentStatus.NOT_DEPLOYED, clonedDeployment.getStatus());
-        Assertions.assertNull(clonedDeployment.getServiceName());
+        assertThat(clonedDeployment.getId()).isNotNull();
+        assertThat(clonedDeployment.getId()).isNotEqualTo(originalDeployment.getId());
+        assertThat(clonedDeployment.getDisplayName()).isEqualTo("cloned-deployment");
+        assertThat(clonedDeployment.getDescription()).isEqualTo(originalDeployment.getDescription());
+        assertThat(((InternalImageSource) clonedDeployment.getSource()).imageDefinitionId()).isEqualTo(((InternalImageSource) originalDeployment.getSource()).imageDefinitionId());
+        assertThat(clonedDeployment.getResources()).isEqualTo(originalDeployment.getResources());
+        assertThat(clonedDeployment.getContainerPort()).isEqualTo(originalDeployment.getContainerPort());
+        assertThat(clonedDeployment.getStatus()).isEqualTo(DeploymentStatus.NOT_DEPLOYED);
+        assertThat(clonedDeployment.getServiceName()).isNull();
         assertEnvsAreEqual(expectedEnvVars, clonedDeployment.getEnvs());
     }
 
@@ -925,12 +901,9 @@ public abstract class DeploymentFunctionalTest {
         var newDeploymentId = String.valueOf(UUID.randomUUID());
 
         // When & Then
-        var exception = assertThrows(
-                EntityNotFoundException.class,
-                () -> deploymentService.duplicateDeployment(nonExistingDeploymentId, newDeploymentId, "cloned-deployment")
-        );
-
-        Assertions.assertEquals("Etalon deployment not found by id: '%s'".formatted(nonExistingDeploymentId), exception.getMessage());
+        assertThatThrownBy(() -> deploymentService.duplicateDeployment(nonExistingDeploymentId, newDeploymentId, "cloned-deployment"))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Etalon deployment not found by id: '%s'".formatted(nonExistingDeploymentId));
     }
 
     private void mockSecretMetaData(Deployment deployment) {
@@ -943,15 +916,15 @@ public abstract class DeploymentFunctionalTest {
     }
 
     private void assertEnvsAreEqual(List<EnvVar> expectedEnvVars, List<EnvVar> actualEnvVars) {
-        Assertions.assertEquals(expectedEnvVars.size(), actualEnvVars.size());
+        assertThat(actualEnvVars.size()).isEqualTo(expectedEnvVars.size());
         // Verifying auto-generated 'k8sSecretName' is not null & removing it for easier comparison
         actualEnvVars.forEach(envVar -> {
             if (envVar instanceof SensitiveEnvVar sensitiveEnvVar) {
-                Assertions.assertNotNull(sensitiveEnvVar.getK8sSecretName());
+                assertThat(sensitiveEnvVar.getK8sSecretName()).isNotNull();
                 sensitiveEnvVar.setK8sSecretName(null);
             }
         });
-        Assertions.assertTrue(CollectionUtils.isEqualCollection(expectedEnvVars, actualEnvVars));
+        assertThat(CollectionUtils.isEqualCollection(expectedEnvVars, actualEnvVars)).isTrue();
     }
 
     private void waitForDeployment(String deploymentId, DeploymentStatus expectedStatus, String errorMessage) throws Exception {
@@ -984,11 +957,11 @@ public abstract class DeploymentFunctionalTest {
         var deployment = deploymentService.createDeployment(createDeployment);
         var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
 
-        Assertions.assertInstanceOf(ImageReferenceSource.class, fetched.getSource());
+        assertThat(fetched.getSource()).isInstanceOf(ImageReferenceSource.class);
         var source = (ImageReferenceSource) fetched.getSource();
-        Assertions.assertEquals("registry.test/image:1.0", source.imageReference());
-        Assertions.assertInstanceOf(McpRegistryRef.class, source.externalRegistryRef());
-        Assertions.assertEquals("my-server", ((McpRegistryRef) source.externalRegistryRef()).packageName());
+        assertThat(source.imageReference()).isEqualTo("registry.test/image:1.0");
+        assertThat(source.externalRegistryRef()).isInstanceOf(McpRegistryRef.class);
+        assertThat(((McpRegistryRef) source.externalRegistryRef()).packageName()).isEqualTo("my-server");
     }
 
     @Test
@@ -1006,8 +979,8 @@ public abstract class DeploymentFunctionalTest {
         var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
 
         var source = (ImageReferenceSource) fetched.getSource();
-        Assertions.assertInstanceOf(GenericRef.class, source.externalRegistryRef());
-        Assertions.assertEquals("https://example.com/pkg", ((GenericRef) source.externalRegistryRef()).url());
+        assertThat(source.externalRegistryRef()).isInstanceOf(GenericRef.class);
+        assertThat(((GenericRef) source.externalRegistryRef()).url()).isEqualTo("https://example.com/pkg");
     }
 
     @Test
@@ -1025,7 +998,7 @@ public abstract class DeploymentFunctionalTest {
         var fetched = deploymentService.getDeployment(deployment.getId()).orElseThrow();
 
         var source = (ImageReferenceSource) fetched.getSource();
-        Assertions.assertNull(source.externalRegistryRef());
+        assertThat(source.externalRegistryRef()).isNull();
     }
 
     @Test
@@ -1053,8 +1026,8 @@ public abstract class DeploymentFunctionalTest {
 
         var fetched = deploymentService.getDeployment("deploy-update-ref").orElseThrow();
         var source = (ImageReferenceSource) fetched.getSource();
-        Assertions.assertInstanceOf(GitHubRef.class, source.externalRegistryRef());
-        Assertions.assertEquals("new/repo", ((GitHubRef) source.externalRegistryRef()).repo());
+        assertThat(source.externalRegistryRef()).isInstanceOf(GitHubRef.class);
+        assertThat(((GitHubRef) source.externalRegistryRef()).repo()).isEqualTo("new/repo");
     }
 
     @Test
@@ -1082,7 +1055,7 @@ public abstract class DeploymentFunctionalTest {
 
         var fetched = deploymentService.getDeployment("deploy-clear-ref").orElseThrow();
         var source = (ImageReferenceSource) fetched.getSource();
-        Assertions.assertNull(source.externalRegistryRef());
+        assertThat(source.externalRegistryRef()).isNull();
     }
 
     @Test
@@ -1134,14 +1107,14 @@ public abstract class DeploymentFunctionalTest {
         var imageRefDeployments = allDeployments.stream()
                 .filter(d -> d.getSource() instanceof ImageReferenceSource)
                 .toList();
-        Assertions.assertEquals(2, imageRefDeployments.size());
+        assertThat(imageRefDeployments.size()).isEqualTo(2);
 
         for (var dep : imageRefDeployments) {
             var source = (ImageReferenceSource) dep.getSource();
             if ("deploy-list-ref".equals(dep.getId())) {
-                Assertions.assertInstanceOf(McpRegistryRef.class, source.externalRegistryRef());
+                assertThat(source.externalRegistryRef()).isInstanceOf(McpRegistryRef.class);
             } else {
-                Assertions.assertNull(source.externalRegistryRef());
+                assertThat(source.externalRegistryRef()).isNull();
             }
         }
     }

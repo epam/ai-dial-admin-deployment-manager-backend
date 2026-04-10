@@ -34,12 +34,9 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -117,7 +114,7 @@ class K8sClientTest {
         PodList result = k8sClient.getJobPods(NAMESPACE, JOB_NAME);
 
         // Then
-        assertSame(expectedPodList, result);
+        assertThat(result).isSameAs(expectedPodList);
         verify(namespacedPodOperation).withLabels(eq(jobLabels));
         verify(namespacedPodOperation).list();
     }
@@ -137,7 +134,7 @@ class K8sClientTest {
         PodList result = k8sClient.getPods(NAMESPACE, labels);
 
         // Then
-        assertSame(expectedPodList, result);
+        assertThat(result).isSameAs(expectedPodList);
         verify(namespacedPodOperation).withLabels(eq(labels));
         verify(namespacedPodOperation).list();
     }
@@ -160,7 +157,7 @@ class K8sClientTest {
         Pod result = k8sClient.getPod(NAMESPACE, POD_NAME, labels);
 
         // Then
-        assertSame(expectedPod, result);
+        assertThat(result).isSameAs(expectedPod);
         verify(podResource).get();
     }
 
@@ -178,7 +175,7 @@ class K8sClientTest {
         Pod result = k8sClient.getPod(NAMESPACE, POD_NAME, labels);
 
         // Then
-        assertNull(result);
+        assertThat(result).isNull();
         verify(podResource).get();
     }
 
@@ -202,7 +199,7 @@ class K8sClientTest {
         Pod result = k8sClient.getPod(NAMESPACE, POD_NAME, requestedLabels);
 
         // Then
-        assertNull(result);
+        assertThat(result).isNull();
         verify(podResource).get();
     }
 
@@ -217,7 +214,7 @@ class K8sClientTest {
         PodResource result = k8sClient.getPodResource(NAMESPACE, POD_NAME);
 
         // Then
-        assertSame(podResource, result);
+        assertThat(result).isSameAs(podResource);
         verify(podOperation).inNamespace(NAMESPACE);
         verify(namespacedPodOperation).withName(POD_NAME);
     }
@@ -235,7 +232,7 @@ class K8sClientTest {
         boolean result = k8sClient.deletePod(NAMESPACE, POD_NAME);
 
         // Then
-        assertTrue(result);
+        assertThat(result).isTrue();
         verify(podResource).withGracePeriod(0);
         verify(podResource).delete();
     }
@@ -253,7 +250,7 @@ class K8sClientTest {
         boolean result = k8sClient.deletePod(NAMESPACE, POD_NAME);
 
         // Then
-        assertFalse(result);
+        assertThat(result).isFalse();
         verify(podResource).withGracePeriod(0);
         verify(podResource).delete();
     }
@@ -284,7 +281,7 @@ class K8sClientTest {
         Pod result = k8sClient.waitPod(NAMESPACE, inputPod, predicate, 60);
 
         // Then
-        assertSame(expectedPod, result);
+        assertThat(result).isSameAs(expectedPod);
         verify(podOperation).inNamespace(NAMESPACE);
         verify(namespacedPodOperation).withName(POD_NAME);
         verify(podResource).waitUntilCondition(eq(predicate), eq(TIMEOUT_SEC), eq(TimeUnit.SECONDS));
@@ -302,7 +299,7 @@ class K8sClientTest {
         Optional<Secret> result = k8sClient.findSecret(NAMESPACE, SECRET_NAME);
 
         // Then
-        assertFalse(result.isPresent());
+        assertThat(result.isPresent()).isFalse();
         verify(secretOperation).inNamespace(NAMESPACE);
         verify(namespacedSecretOperation).withName(SECRET_NAME);
         verify(secretResource).get();
@@ -322,8 +319,8 @@ class K8sClientTest {
         Optional<Secret> result = k8sClient.findSecret(NAMESPACE, SECRET_NAME);
 
         // Then
-        assertTrue(result.isPresent());
-        assertSame(expectedSecret, result.get());
+        assertThat(result.isPresent()).isTrue();
+        assertThat(result.get()).isSameAs(expectedSecret);
         verify(secretOperation).inNamespace(NAMESPACE);
         verify(namespacedSecretOperation).withName(SECRET_NAME);
         verify(secretResource).get();
@@ -348,7 +345,7 @@ class K8sClientTest {
         Secret result = k8sClient.createSecret(NAMESPACE, inputSecret);
 
         // Then
-        assertSame(createdSecret, result);
+        assertThat(result).isSameAs(createdSecret);
         verify(secretOperation).inNamespace(NAMESPACE);
         verify(namespacedSecretOperation).resource(inputSecret);
         verify(secretResource).create();
@@ -389,7 +386,7 @@ class K8sClientTest {
         ConfigMap result = k8sClient.createConfigMap(NAMESPACE, inputConfigMap);
 
         // Then
-        assertSame(createdConfigMap, result);
+        assertThat(result).isSameAs(createdConfigMap);
         verify(configMapOperation).inNamespace(NAMESPACE);
         verify(namespacedConfigMapOperation).resource(inputConfigMap);
         verify(configMapResource).create();
@@ -432,7 +429,7 @@ class K8sClientTest {
         Job result = k8sClient.createJob(NAMESPACE, inputJob);
 
         // Then
-        assertSame(createdJob, result);
+        assertThat(result).isSameAs(createdJob);
         verify(v1BatchApiGroupDsl.jobs()).inNamespace(NAMESPACE);
         verify(namespacedJobOperation).resource(inputJob);
         verify(scalableJobResource).create();
@@ -495,8 +492,8 @@ class K8sClientTest {
         when(cnpResource.delete()).thenThrow(new KubernetesClientException("Internal Server Error", 500, null));
 
         // When & Then
-        assertThrows(KubernetesClientException.class,
-                () -> k8sClient.deleteCiliumNetworkPolicy(NAMESPACE, CNP_NAME));
+        assertThatThrownBy(() -> k8sClient.deleteCiliumNetworkPolicy(NAMESPACE, CNP_NAME))
+                .isInstanceOf(KubernetesClientException.class);
     }
 
     @SuppressWarnings("unchecked")
@@ -528,7 +525,7 @@ class K8sClientTest {
         Job result = k8sClient.waitJob(NAMESPACE, inputJob, predicate, 60);
 
         // Then
-        assertSame(expectedJob, result);
+        assertThat(result).isSameAs(expectedJob);
         verify(v1BatchApiGroupDsl.jobs()).inNamespace(NAMESPACE);
         verify(namespacedJobOperation).withName(JOB_NAME);
         verify(scalableJobResource).waitUntilCondition(eq(predicate), eq(TIMEOUT_SEC), eq(TimeUnit.SECONDS));

@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -126,10 +126,9 @@ class McpServiceTest {
         when(deploymentService.getDeployment(DEPLOYMENT_ID)).thenReturn(Optional.empty());
 
         // When/Then
-        var exception = assertThrows(EntityNotFoundException.class,
-                () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
-
-        assertThat(exception).hasMessageContaining("Deployment not found by id");
+        assertThatThrownBy(() -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Deployment not found by id");
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verifyNoInteractions(mcpClientFactory, mcpSyncClient);
     }
@@ -142,10 +141,9 @@ class McpServiceTest {
         when(deploymentService.getDeployment(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
 
         // When/Then
-        var exception = assertThrows(IllegalStateException.class,
-                () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
-
-        assertThat(exception).hasMessageContaining("Deployment is not deployed yet");
+        assertThatThrownBy(() -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Deployment is not deployed yet");
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verifyNoInteractions(mcpClientFactory, mcpSyncClient);
     }
@@ -158,10 +156,9 @@ class McpServiceTest {
         when(deploymentService.getDeployment(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
 
         // When/Then
-        var exception = assertThrows(IllegalStateException.class,
-                () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
-
-        assertThat(exception).hasMessageContaining("Deployment does not have URL yet");
+        assertThatThrownBy(() -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Deployment does not have URL yet");
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verifyNoInteractions(mcpClientFactory, mcpSyncClient);
     }
@@ -178,10 +175,10 @@ class McpServiceTest {
         Mockito.doThrow(new TestException("Test exception")).when(mcpSyncClient).initialize();
 
         // When/Then
-        var exception = assertThrows(McpClientException.class, () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
-
-        assertThat(exception).hasMessageContaining("Failed to connect to MCP server");
-        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThatThrownBy(() -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR))
+                .isInstanceOf(McpClientException.class)
+                .hasMessageContaining("Failed to connect to MCP server")
+                .satisfies(ex -> assertThat(((McpClientException) ex).getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR));
 
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verify(mcpClientFactory).create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE);
@@ -201,10 +198,10 @@ class McpServiceTest {
         Mockito.doThrow(new McpHttpClientTransportAuthorizationException("Test exception", null)).when(mcpSyncClient).initialize();
 
         // When/Then
-        var exception = assertThrows(McpClientException.class, () -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR));
-
-        assertThat(exception).hasMessageContaining("Failed to connect to MCP server");
-        assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThatThrownBy(() -> mcpService.getTools(DEPLOYMENT_ID, NEXT_CURSOR))
+                .isInstanceOf(McpClientException.class)
+                .hasMessageContaining("Failed to connect to MCP server")
+                .satisfies(ex -> assertThat(((McpClientException) ex).getHttpStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
 
         verify(deploymentService).getDeployment(DEPLOYMENT_ID);
         verify(mcpClientFactory).create(DEPLOYMENT_URL, endpointPath, McpTransport.SSE);

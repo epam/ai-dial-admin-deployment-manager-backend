@@ -22,8 +22,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -68,7 +68,7 @@ class K8sNimClientTest {
         PodList result = k8sNimClient.getServicePods(NAMESPACE, SERVICE_NAME);
 
         // Then
-        assertSame(expectedPodList, result);
+        assertThat(result).isSameAs(expectedPodList);
         verify(k8sClient).getPods(NAMESPACE, serviceLabels);
     }
 
@@ -84,7 +84,7 @@ class K8sNimClientTest {
         Pod result = k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME);
 
         // Then
-        assertSame(expectedPod, result);
+        assertThat(result).isSameAs(expectedPod);
         verify(k8sClient).getPod(NAMESPACE, POD_NAME, serviceLabels);
     }
 
@@ -127,7 +127,7 @@ class K8sNimClientTest {
         NIMService result = k8sNimClient.waitService(NAMESPACE, SERVICE_NAME, predicate, TIMEOUT_SEC);
 
         // Then
-        assertSame(expectedService, result);
+        assertThat(result).isSameAs(expectedService);
         verify(nimClient).services();
         verify(nimServiceOperation).inNamespace(NAMESPACE);
         verify(namespacedNimServiceOperation).withName(SERVICE_NAME);
@@ -202,7 +202,8 @@ class K8sNimClientTest {
 
         // When
 
-        assertThrows(KubernetesClientException.class, () -> k8sNimClient.deleteService(NAMESPACE, SERVICE_NAME));
+        assertThatThrownBy(() -> k8sNimClient.deleteService(NAMESPACE, SERVICE_NAME))
+                .isInstanceOf(KubernetesClientException.class);
 
         // Then
         verify(nimClient).services();
@@ -220,7 +221,8 @@ class K8sNimClientTest {
         when(nimServiceResource.delete()).thenThrow(new RuntimeException("Unexpected error"));
 
         // When
-        assertThrows(RuntimeException.class, () -> k8sNimClient.deleteService(NAMESPACE, SERVICE_NAME));
+        assertThatThrownBy(() -> k8sNimClient.deleteService(NAMESPACE, SERVICE_NAME))
+                .isInstanceOf(RuntimeException.class);
 
         // Then
         verify(nimClient).services();

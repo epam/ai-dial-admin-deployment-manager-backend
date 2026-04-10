@@ -24,9 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class K8sKnativeClientFunctionalTest {
 
@@ -81,16 +79,16 @@ public abstract class K8sKnativeClientFunctionalTest {
         var createdService = k8sKnativeClient.waitService(TEST_NAMESPACE, testId, readyPredicate, 120);
 
         // Then - Create
-        assertNotNull(createdService, "Service should be created");
-        assertNotNull(createdService.getStatus(), "Service status should not be null");
-        assertNull(createdService.getMetadata().getDeletionTimestamp(), "Service deletion timestamp should be null");
+        assertThat(createdService).as("Service should be created").isNotNull();
+        assertThat(createdService.getStatus()).as("Service status should not be null").isNotNull();
+        assertThat(createdService.getMetadata().getDeletionTimestamp()).as("Service deletion timestamp should be null").isNull();
 
         // When - Get pods
         var podList = k8sKnativeClient.getServicePods(TEST_NAMESPACE, testId);
 
         // Then - Get pods
-        assertNotNull(podList, "PodList should not be null");
-        assertTrue(podList.getItems().size() > 0, "There should be at least one pod for the service");
+        assertThat(podList).as("PodList should not be null").isNotNull();
+        assertThat(podList.getItems().size() > 0).as("There should be at least one pod for the service").isTrue();
 
         // When - Delete
         k8sKnativeClient.deleteService(TEST_NAMESPACE, testId);
@@ -104,14 +102,14 @@ public abstract class K8sKnativeClientFunctionalTest {
                 .get();
         if (serviceAfterDeletion != null) {
             boolean isMarkedForDeletion = StringUtils.isNotEmpty(serviceAfterDeletion.getMetadata().getDeletionTimestamp());
-            assertTrue(isMarkedForDeletion);
+            assertThat(isMarkedForDeletion).isTrue();
         }
 
         var podListAfterDeletion = k8sKnativeClient.getServicePods(TEST_NAMESPACE, testId);
         if (podListAfterDeletion != null) {
             boolean isMarkedForDeletion = podListAfterDeletion.getItems().stream()
                     .allMatch(pod -> StringUtils.isNotEmpty(pod.getMetadata().getDeletionTimestamp()));
-            assertTrue(isMarkedForDeletion);
+            assertThat(isMarkedForDeletion).isTrue();
         }
     }
 

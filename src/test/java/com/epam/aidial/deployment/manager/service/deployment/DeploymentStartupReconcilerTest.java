@@ -16,7 +16,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -145,7 +145,7 @@ class DeploymentStartupReconcilerTest {
         when(deploymentRepository.getAllActiveDeploymentsPaged(anyInt(), anyInt()))
                 .thenThrow(new RuntimeException("Database error"));
 
-        assertThrows(RuntimeException.class, () -> startupReconciler.init());
+        assertThatThrownBy(() -> startupReconciler.init()).isInstanceOf(RuntimeException.class);
     }
 
     private Deployment createDeployment(String id, DeploymentStatus status) {

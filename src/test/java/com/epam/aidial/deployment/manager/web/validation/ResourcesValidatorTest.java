@@ -7,8 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
@@ -40,7 +39,7 @@ class ResourcesValidatorTest {
 
     @Test
     void testNullResources() {
-        assertTrue(validator.isValid(null, context));
+        assertThat(validator.isValid(null, context)).isTrue();
     }
 
     @Test
@@ -48,7 +47,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(null);
         when(dto.requests()).thenReturn(Map.of(CPU, "1"));
-        assertTrue(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isTrue();
     }
 
     @Test
@@ -56,7 +55,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "2"));
         when(dto.requests()).thenReturn(null);
-        assertTrue(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isTrue();
     }
 
     @Test
@@ -64,7 +63,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "2"));
         when(dto.requests()).thenReturn(Map.of(MEMORY, "1"));
-        assertTrue(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isTrue();
     }
 
     @Test
@@ -72,7 +71,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "2", MEMORY, "4"));
         when(dto.requests()).thenReturn(Map.of(CPU, "1", MEMORY, "2"));
-        assertTrue(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isTrue();
     }
 
     @Test
@@ -80,7 +79,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "0.5", MEMORY, "4", NVIDIA_GPU, "0"));
         when(dto.requests()).thenReturn(Map.of(CPU, "0.5", MEMORY, "4", NVIDIA_GPU, "0"));
-        assertTrue(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isTrue();
     }
 
     @Test
@@ -88,7 +87,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "1", MEMORY, "2"));
         when(dto.requests()).thenReturn(Map.of(CPU, "2", MEMORY, "2"));
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains(CPU));
     }
@@ -98,7 +97,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "2", MEMORY, "4"));
         when(dto.requests()).thenReturn(Map.of(CPU, "1m", MEMORY, "2"));
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
     }
 
     @Test
@@ -106,7 +105,7 @@ class ResourcesValidatorTest {
         var dto = mock(ResourcesDto.class);
         when(dto.limits()).thenReturn(Map.of(CPU, "", MEMORY, "4"));
         when(dto.requests()).thenReturn(Map.of(CPU, "1", MEMORY, ""));
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
     }
 
     @Test
@@ -115,7 +114,7 @@ class ResourcesValidatorTest {
         when(dto.limits()).thenReturn(Map.of(CPU, "0", MEMORY, "4"));
         when(dto.requests()).thenReturn(Map.of(CPU, "1", MEMORY, "2"));
 
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must be greater than 0"));
     }
@@ -126,7 +125,7 @@ class ResourcesValidatorTest {
         when(dto.limits()).thenReturn(Map.of(NVIDIA_GPU, "0"));
         when(dto.requests()).thenReturn(Map.of(NVIDIA_GPU, "-1"));
 
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must be greater than or equal to 0"));
     }
@@ -137,7 +136,7 @@ class ResourcesValidatorTest {
         when(dto.limits()).thenReturn(Map.of(CPU, "11"));
         when(dto.requests()).thenReturn(Map.of(CPU, "5"));
 
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must not exceed"));
     }
@@ -150,7 +149,7 @@ class ResourcesValidatorTest {
         when(dto.limits()).thenReturn(Map.of(MEMORY, overLimit));
         when(dto.requests()).thenReturn(Map.of(MEMORY, "1000"));
 
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must not exceed"));
     }
@@ -161,7 +160,7 @@ class ResourcesValidatorTest {
         when(dto.limits()).thenReturn(Map.of(NVIDIA_GPU, "20"));
         when(dto.requests()).thenReturn(Map.of(NVIDIA_GPU, "5"));
 
-        assertFalse(validator.isValid(dto, context));
+        assertThat(validator.isValid(dto, context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must not exceed"));
     }

@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.service.pipeline.ImageCopyPipeline;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import lombok.SneakyThrows;
 import org.apache.commons.collections4.CollectionUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -18,6 +17,8 @@ import org.springframework.test.util.AopTestUtils;
 
 import java.time.Instant;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -47,10 +48,10 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
 
         // Then
-        Assertions.assertEquals(ImageStatus.NOT_BUILT, createdImageDef.getBuildStatus());
-        Assertions.assertNull(createdImageDef.getImageName());
-        Assertions.assertNull(createdImageDef.getBuiltAt());
-        Assertions.assertTrue(CollectionUtils.isEmpty(createdImageDef.getBuildLogs()));
+        assertThat(createdImageDef.getBuildStatus()).isEqualTo(ImageStatus.NOT_BUILT);
+        assertThat(createdImageDef.getImageName()).isNull();
+        assertThat(createdImageDef.getBuiltAt()).isNull();
+        assertThat(CollectionUtils.isEmpty(createdImageDef.getBuildLogs())).isTrue();
     }
 
     @Test
@@ -75,10 +76,10 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // Then - Check immediately after build starts
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        Assertions.assertEquals(ImageStatus.BUILDING, retrievedImageDef.getBuildStatus());
-        Assertions.assertFalse(retrievedImageDef.getBuildLogs().isEmpty());
-        Assertions.assertTrue(retrievedImageDef.getBuildLogs().stream()
-                .anyMatch(log -> log.contains("Image build started")));
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILDING);
+        assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
+        assertThat(retrievedImageDef.getBuildLogs().stream()
+                .anyMatch(log -> log.contains("Image build started"))).isTrue();
     }
 
     @Test
@@ -97,10 +98,10 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
         var logs = retrievedImageDef.getBuildLogs();
-        Assertions.assertEquals(3, logs.size());
-        Assertions.assertEquals("Log line 1", logs.get(0));
-        Assertions.assertEquals("Log line 2", logs.get(1));
-        Assertions.assertEquals("Log line 3", logs.get(2));
+        assertThat(logs.size()).isEqualTo(3);
+        assertThat(logs.get(0)).isEqualTo("Log line 1");
+        assertThat(logs.get(1)).isEqualTo("Log line 2");
+        assertThat(logs.get(2)).isEqualTo("Log line 3");
     }
 
     @Test
@@ -122,10 +123,10 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // Then
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(testImageName, retrievedImageDef.getImageName());
-        Assertions.assertEquals(Instant.ofEpochMilli(testTimestamp), retrievedImageDef.getBuiltAt());
-        Assertions.assertEquals(2, retrievedImageDef.getBuildLogs().size());
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(testImageName);
+        assertThat(retrievedImageDef.getBuiltAt()).isEqualTo(Instant.ofEpochMilli(testTimestamp));
+        assertThat(retrievedImageDef.getBuildLogs().size()).isEqualTo(2);
     }
 
     @Test
@@ -144,11 +145,9 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         updatedImageDef.setName("updated-name");
 
         // Then - Should throw exception
-        var exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
-                () -> imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef)
-        );
-        Assertions.assertTrue(exception.getMessage().contains("Cannot update image definition with status BUILD_SUCCESSFUL"));
+        assertThatThrownBy(() -> imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot update image definition with status BUILD_SUCCESSFUL");
     }
 
     @Test
@@ -167,11 +166,9 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         updatedImageDef.setName("updated-name");
 
         // Then - Should throw exception
-        var exception = Assertions.assertThrows(
-                IllegalArgumentException.class,
-                () -> imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef)
-        );
-        Assertions.assertTrue(exception.getMessage().contains("Cannot update image definition with status BUILDING"));
+        assertThatThrownBy(() -> imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot update image definition with status BUILDING");
     }
 
     @Test
@@ -181,7 +178,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDefinitionId = imageDef.getId();
 
         // Ensure status is NOT_BUILT or BUILDING
-        Assertions.assertEquals(ImageStatus.NOT_BUILT, imageDef.getBuildStatus());
+        assertThat(imageDef.getBuildStatus()).isEqualTo(ImageStatus.NOT_BUILT);
 
         // When - Update
         imageDef.setName("updated-name");
@@ -189,8 +186,8 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var updatedImageDef = imageDefinitionService.updateImageDefinition(imageDefinitionId, imageDef);
 
         // Then - Should succeed
-        Assertions.assertEquals("updated-name", updatedImageDef.getName());
-        Assertions.assertEquals("updated-description", updatedImageDef.getDescription());
+        assertThat(updatedImageDef.getName()).isEqualTo("updated-name");
+        assertThat(updatedImageDef.getDescription()).isEqualTo("updated-description");
     }
 
     @Test
@@ -210,8 +207,8 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var result = imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef);
 
         // Then - Should succeed & reset build status
-        Assertions.assertEquals("updated-name", result.getName());
-        Assertions.assertEquals(ImageStatus.NOT_BUILT, result.getBuildStatus());
+        assertThat(result.getName()).isEqualTo("updated-name");
+        assertThat(result.getBuildStatus()).isEqualTo(ImageStatus.NOT_BUILT);
     }
 
     @Test
@@ -221,16 +218,16 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDefinitionId = imageDef.getId();
 
         // When - Transition through statuses
-        Assertions.assertEquals(ImageStatus.NOT_BUILT, imageDef.getBuildStatus());
+        assertThat(imageDef.getBuildStatus()).isEqualTo(ImageStatus.NOT_BUILT);
 
         imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
         var buildingDef = imageDefinitionService.getImageDefinition(imageDefinitionId).orElseThrow();
-        Assertions.assertEquals(ImageStatus.BUILDING, buildingDef.getBuildStatus());
+        assertThat(buildingDef.getBuildStatus()).isEqualTo(ImageStatus.BUILDING);
 
         imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
         var successfulDef = imageDefinitionService.getImageDefinition(imageDefinitionId).orElseThrow();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, successfulDef.getBuildStatus());
-        Assertions.assertTrue(successfulDef.getBuildStatus().isFinal());
+        assertThat(successfulDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(successfulDef.getBuildStatus().isFinal()).isTrue();
     }
 
     @Test
@@ -248,10 +245,10 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // Then
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        Assertions.assertEquals(ImageStatus.BUILD_SUCCESSFUL, retrievedImageDef.getBuildStatus());
-        Assertions.assertEquals(2, retrievedImageDef.getBuildLogs().size());
-        Assertions.assertEquals("Log 1", retrievedImageDef.getBuildLogs().get(0));
-        Assertions.assertEquals("Log 2", retrievedImageDef.getBuildLogs().get(1));
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getBuildLogs().size()).isEqualTo(2);
+        assertThat(retrievedImageDef.getBuildLogs().get(0)).isEqualTo("Log 1");
+        assertThat(retrievedImageDef.getBuildLogs().get(1)).isEqualTo("Log 2");
     }
 
     @Test
@@ -269,10 +266,10 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // Then
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
-        Assertions.assertEquals(ImageStatus.BUILD_FAILED, retrievedImageDef.getBuildStatus());
-        Assertions.assertTrue(retrievedImageDef.getBuildStatus().isFinal());
-        Assertions.assertEquals(2, retrievedImageDef.getBuildLogs().size());
-        Assertions.assertNull(retrievedImageDef.getImageName()); // Should not have image name on failure
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_FAILED);
+        assertThat(retrievedImageDef.getBuildStatus().isFinal()).isTrue();
+        assertThat(retrievedImageDef.getBuildLogs().size()).isEqualTo(2);
+        assertThat(retrievedImageDef.getImageName()).isNull(); // Should not have image name on failure
     }
 }
 
