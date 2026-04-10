@@ -107,7 +107,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 - **FR-003**: The system MUST support an optional `externalRegistryRef` field on `ImageReferenceSource` (used in deployments that reference a Docker image directly, without an image definition).
 - **FR-004**: The `externalRegistryRef` field MUST NOT exist on registry-bound source types (`HuggingFaceSource`, `NgcRegistrySource`). These types use separate DTO hierarchies that do not declare the field; if a client includes it in a request payload, the field is silently discarded by the deserializer (standard Jackson `ignoreUnknown` behavior). No explicit rejection or validation error is raised — the field simply has no effect.
 - **FR-005**: The `externalRegistryRef` MUST be a **polymorphic discriminated value**. The system MUST support the following typed subtypes, each with its own named field(s):
-  - **`McpRegistryRef`**: `{ packageName: String }` — identifies a package/card in the MCP registry.
+  - **`McpRegistryRef`**: `{ packageName: String, version: String }` — identifies a specific version of a package/card in the MCP registry.
   - **`GitHubRef`**: `{ repo: String }` — identifies a GitHub repository (expected format: `owner/repo`).
   - **`GenericRef`**: `{ url: String }` — a URL pointing to any registry or catalog not covered by a typed subtype. This is the extensibility path for registries that do not yet have a dedicated subtype, including HuggingFace when referenced from a general source.
 - **FR-006**: For all typed subtypes, the identifying field MUST be a non-empty string; the system MUST reject requests where it is blank. No further format validation is applied — expected formats (e.g., `owner/repo` for `GitHubRef.repo`, a fully-qualified URL for `GenericRef.url`) are documented conventions enforced by clients, not by the system.
@@ -121,7 +121,7 @@ An operator needs to clear an external registry reference from a source (e.g., t
 ### Key Entities
 
 - **ExternalRegistryRef** (abstract, polymorphic): A discriminated informational value attached to a general source, identifying the source artifact's entry in an external catalog or registry. Subtypes:
-  - **`McpRegistryRef`**: Field `packageName` (String, non-empty) — identifies an MCP registry package or tool card.
+  - **`McpRegistryRef`**: Fields `packageName` (String, non-empty) and `version` (String, non-empty) — identifies a specific version of an MCP registry package or tool card.
   - **`GitHubRef`**: Field `repo` (String, non-empty; format `owner/repo`) — identifies a GitHub repository used as the canonical catalog or documentation reference.
   - **`GenericRef`**: Field `url` (String, non-empty; conventionally a fully-qualified URL) — catch-all for any registry not covered by a typed subtype; enables reference of new registries without system code changes.
 - **DockerImageSource** (existing): Extended to carry an optional `ExternalRegistryRef`.

@@ -14,7 +14,8 @@ The `externalRegistryRef` field in source DTOs is a polymorphic object identifie
 ```json
 {
   "$type": "mcp-registry",
-  "packageName": "my-mcp-server"
+  "packageName": "my-mcp-server",
+  "version": "1.0.0"
 }
 ```
 
@@ -22,6 +23,7 @@ The `externalRegistryRef` field in source DTOs is a polymorphic object identifie
 |-------|------|----------|------------|
 | `$type` | `"mcp-registry"` | yes | fixed discriminator |
 | `packageName` | string | yes | non-blank |
+| `version` | string | yes | non-blank |
 
 ---
 
