@@ -274,7 +274,7 @@ class ImageDefinitionControllerTest extends AbstractControllerNoneSecureTest {
                 Arguments.of(
                         "docker source.externalRegistryRef.packageName is blank",
                         (Consumer<ImageDefinitionRequestDto>) (request -> request.setSource(
-                                new DockerImageSourceDto("host.com/image:tag", null, new McpRegistryRefDto("", null)))),
+                                new DockerImageSourceDto("host.com/image:tag", null, new McpRegistryRefDto("", "1.0.0")))),
                         "Field [source.externalRegistryRef.packageName]: must not be blank\n"
                 ),
                 Arguments.of(

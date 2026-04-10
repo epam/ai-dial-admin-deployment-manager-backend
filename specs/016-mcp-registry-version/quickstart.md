@@ -6,8 +6,8 @@
 ## What to change
 
 1. **Add `version` field to 3 records** (one per layer):
-   - `McpRegistryRefDto.java` — add `@Nullable @Pattern(regexp = ".*\\S.*", message = "must not be blank") String version`
-   - `McpRegistryRef.java` — add `@Nullable String version`
+   - `McpRegistryRefDto.java` — add `@NotBlank String version`
+   - `McpRegistryRef.java` — add `String version`
    - `PersistenceMcpRegistryRef.java` — add `String version`
 
 2. **Update tests** to cover version scenarios:

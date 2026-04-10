@@ -16,12 +16,12 @@ File:    model/McpRegistryRef.java
 ```java
 public record McpRegistryRef(
     String packageName,
-    @Nullable String version
+    String version
 ) implements ExternalRegistryRef {}
 ```
 
 - `packageName`: String, non-blank, required — identifies an MCP registry package (unchanged)
-- `version`: String, nullable, optional — identifies a specific published version of the package (new)
+- `version`: String, non-blank, required — identifies a specific published version of the package (new)
 
 ---
 
@@ -36,17 +36,17 @@ File:    web/dto/McpRegistryRefDto.java
 ```java
 public record McpRegistryRefDto(
     @NotBlank String packageName,
-    @Nullable @Pattern(regexp = ".*\\S.*", message = "must not be blank") String version
+    @NotBlank String version
 ) implements ExternalRegistryRefDto {}
 ```
 
 - `packageName`: `@NotBlank`, required (unchanged)
-- `version`: `@Nullable @Pattern(regexp = ".*\\S.*")`, optional — null is valid; when provided, must contain at least one non-whitespace character (new)
+- `version`: `@NotBlank`, required — must contain at least one non-whitespace character (new)
 
 Validation behavior:
-- `null` → valid (`@Pattern` skips null per Jakarta Bean Validation spec)
-- `""` → invalid (rejected by pattern)
-- `"  "` → invalid (rejected by pattern)
+- `null` → invalid (rejected by `@NotBlank`)
+- `""` → invalid (rejected by `@NotBlank`)
+- `"  "` → invalid (rejected by `@NotBlank`)
 - `"1.0.0"` → valid
 
 ---
@@ -67,7 +67,7 @@ public record PersistenceMcpRegistryRef(
 ```
 
 - `packageName`: String (unchanged)
-- `version`: String, nullable (Jackson handles null naturally) (new)
+- `version`: String, required (new)
 
 No validation annotations at persistence layer — consistent with existing pattern.
 
@@ -85,7 +85,7 @@ The `version` field lives inside the JSON blob of `externalRegistryRef`, which i
 - `image_definition.source` (JSON/JSONB)
 - `deployment.source` (JSON/JSONB)
 
-No Flyway migration files needed. Jackson deserializes missing fields as `null` for existing rows.
+No Flyway migration files needed. The `version` field is required for all new records.
 
 ---
 
@@ -93,7 +93,5 @@ No Flyway migration files needed. Jackson deserializes missing fields as `null` 
 
 | Scenario | Behavior |
 |----------|----------|
-| Existing row with `McpRegistryRef` (no `version` in JSON) | `version` deserializes as `null`; API response omits or returns `null` |
 | New row with `McpRegistryRef` and `version` | `version` is serialized in JSON and returned in API responses |
-| Update existing `McpRegistryRef` to add `version` | `version` is persisted on next save |
-| Update existing `McpRegistryRef` to remove `version` (send without it) | `version` becomes `null` on next save |
+| Update existing `McpRegistryRef` to change `version` | New `version` is persisted on next save |

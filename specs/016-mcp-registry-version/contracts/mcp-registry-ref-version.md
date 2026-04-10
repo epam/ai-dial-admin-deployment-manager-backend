@@ -7,7 +7,7 @@
 
 ## McpRegistryRefDto — Updated Schema
 
-### With version
+### Example
 
 ```json
 {
@@ -17,22 +17,13 @@
 }
 ```
 
-### Without version (backward compatible)
-
-```json
-{
-  "$type": "mcp-registry",
-  "packageName": "github/github"
-}
-```
-
 ### Field reference
 
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
 | `$type` | `"mcp-registry"` | yes | fixed discriminator |
 | `packageName` | string | yes | non-blank (`@NotBlank`) |
-| `version` | string | no | nullable; when provided, must contain at least one non-whitespace character |
+| `version` | string | yes | non-blank (`@NotBlank`) |
 
 ---
 
@@ -85,17 +76,3 @@ Sending a blank `version` returns HTTP 400:
 
 Sending `version` as empty string (`""`) returns HTTP 400 with the same pattern.
 
----
-
-## Clearing the version
-
-To remove a version from an existing `McpRegistryRef`, send the ref without the `version` field:
-
-```json
-{
-  "$type": "mcp-registry",
-  "packageName": "owner/mcp-server"
-}
-```
-
-The stored version is cleared; subsequent reads return `McpRegistryRef` with only `packageName`.

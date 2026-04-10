@@ -12,7 +12,6 @@ No NEEDS CLARIFICATION items were identified during planning. The feature is ful
 **Decision**: Add `version` as a new component to the existing `McpRegistryRef`, `McpRegistryRefDto`, and `PersistenceMcpRegistryRef` Java records. No database migration needed.
 
 **Rationale**: `ExternalRegistryRef` is serialized as JSON inside the `source` column on both `image_definition` and `deployment` tables. Jackson naturally handles the new field:
-- Existing rows without `version` in their JSON → deserialized as `null` (backward compatible)
 - New rows with `version` → serialized with the field included
 
 **Alternatives considered**:
@@ -20,13 +19,13 @@ No NEEDS CLARIFICATION items were identified during planning. The feature is ful
 
 ## Decision: Validation approach for version field
 
-**Decision**: Use `@NullOrNotBlank` custom validator (project already has precedents for nullable-but-not-blank validation) or conditional validation. If no `@NullOrNotBlank` exists, use `@jakarta.annotation.Nullable` without `@NotBlank`, and handle empty-string rejection via a custom validation approach consistent with how the project validates similar optional fields.
+**Decision**: Use `@NotBlank` annotation on the `version` field in `McpRegistryRefDto`. The field is required.
 
-**Rationale**: The field is optional (null is valid) but when provided must be non-blank. Standard `@NotBlank` rejects null, which is not desired.
+**Rationale**: The field is required and must be non-blank. `@NotBlank` is the standard Jakarta Bean Validation annotation for this — it rejects null, empty strings, and whitespace-only strings.
 
 **Alternatives considered**:
-- `@NotBlank` → Rejected. Would make the field required, breaking backward compatibility.
-- No validation (accept empty strings) → Rejected. Spec requires non-blank when provided.
+- `@Nullable @Pattern` → Rejected. The version field is required, not optional.
+- No validation (accept empty strings) → Rejected. Spec requires non-blank.
 
 ## Decision: MapStruct mapper changes
 

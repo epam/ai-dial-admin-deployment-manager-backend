@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add an optional `version` field to `McpRegistryRef` across all three architectural layers (DTO, Model, Persistence) so that operators can reference a specific published version of an MCP registry package, not just the package name. The field is purely informational metadata — no database migration is needed because `ExternalRegistryRef` is stored as JSON inside the existing `source` column. Jackson handles missing fields as `null` for backward compatibility.
+Add a required `version` field to `McpRegistryRef` across all three architectural layers (DTO, Model, Persistence) so that operators can reference a specific published version of an MCP registry package, not just the package name. The field is purely informational metadata — no database migration is needed because `ExternalRegistryRef` is stored as JSON inside the existing `source` column.
 
 ## Technical Context
 
@@ -17,7 +17,7 @@ Add an optional `version` field to `McpRegistryRef` across all three architectur
 **Project Type**: Web service (REST API)
 **Performance Goals**: N/A — informational metadata field, no performance impact
 **Constraints**: Google Java Style (180 chars), `-Werror`, Checkstyle 10.21.4
-**Scale/Scope**: Minimal — adding one optional field to one subtype across 3 layers (3 records + tests)
+**Scale/Scope**: Minimal — adding one required field to one subtype across 3 layers (3 records + tests)
 
 ## Constitution Check
 
@@ -56,9 +56,9 @@ specs/016-mcp-registry-version/
 
 ```text
 src/main/java/com/epam/aidial/deployment/manager/
-├── web/dto/McpRegistryRefDto.java              # Add optional version field
-├── model/McpRegistryRef.java                   # Add optional version field
-├── dao/entity/PersistenceMcpRegistryRef.java   # Add optional version field
+├── web/dto/McpRegistryRefDto.java              # Add required version field
+├── model/McpRegistryRef.java                   # Add required version field
+├── dao/entity/PersistenceMcpRegistryRef.java   # Add required version field
 
 src/test/java/com/epam/aidial/deployment/manager/
 ├── functional/tests/ImageDefinitionFunctionalTest.java  # Add version test scenarios
@@ -66,7 +66,7 @@ src/test/java/com/epam/aidial/deployment/manager/
 ├── functional/tests/ConfigExportImportFunctionalTest.java # Verify version in export/import
 ```
 
-**Structure Decision**: No new files or directories in source code. Only field additions to 3 existing records and test updates.
+**Structure Decision**: No new files or directories in source code. Only required field additions to 3 existing records and test updates.
 
 ## Complexity Tracking
 

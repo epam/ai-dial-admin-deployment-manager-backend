@@ -947,7 +947,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldCreateDeploymentWithMcpRegistryRef() {
         var createDeployment = CreateMcpDeployment.builder()
                 .id("deploy-mcp-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server", null)))
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-server", "1.0.0")))
                 .displayName("Deployment with MCP ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())
@@ -1005,7 +1005,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldUpdateDeploymentExternalRef() {
         var createDeployment = CreateMcpDeployment.builder()
                 .id("deploy-update-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("old-pkg", null)))
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("old-pkg", "1.0.0")))
                 .displayName("Deployment to update ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())
@@ -1034,7 +1034,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldClearDeploymentExternalRef() {
         var createDeployment = CreateMcpDeployment.builder()
                 .id("deploy-clear-ref")
-                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-pkg", null)))
+                .source(new ImageReferenceSource("registry.test/image:1.0", new McpRegistryRef("my-pkg", "1.0.0")))
                 .displayName("Deployment to clear ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())
@@ -1083,7 +1083,7 @@ public abstract class DeploymentFunctionalTest {
     public void shouldListDeployments_withMixedExternalRefs() {
         var dep1 = CreateMcpDeployment.builder()
                 .id("deploy-list-ref")
-                .source(new ImageReferenceSource("registry.test/img1:1.0", new McpRegistryRef("pkg-1", null)))
+                .source(new ImageReferenceSource("registry.test/img1:1.0", new McpRegistryRef("pkg-1", "1.0.0")))
                 .displayName("Dep with ref")
                 .resources(new Resources())
                 .metadata(new DeploymentMetadata())

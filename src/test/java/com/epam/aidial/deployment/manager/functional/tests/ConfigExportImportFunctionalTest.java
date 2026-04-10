@@ -401,7 +401,7 @@ public abstract class ConfigExportImportFunctionalTest {
         mcp1.setName(MCP_IMAGE_NAME);
         mcp1.setVersion(VERSION);
         mcp1.setDescription("MCP for export/import test");
-        mcp1.setSource(new DockerImageSource("test-registry/mcp-exp:1.0", List.of(), new McpRegistryRef("export-test-pkg", null)));
+        mcp1.setSource(new DockerImageSource("test-registry/mcp-exp:1.0", List.of(), new McpRegistryRef("export-test-pkg", "1.0.0")));
         mcp1.setImageBuilder(ImageBuilder.BUILDKIT);
         mcp1.setLicense("MIT");
         mcp1.setTopics(List.of("topic1"));

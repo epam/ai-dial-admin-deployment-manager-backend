@@ -17,16 +17,16 @@
 
 ## Phase 1: Foundational (Record Changes)
 
-**Purpose**: Add the `version` field to all three layers of the `McpRegistryRef` type. This is the single code change that enables all user stories.
+**Purpose**: Add the required `version` field to all three layers of the `McpRegistryRef` type. This is the single code change that enables all user stories.
 
 **⚠️ CRITICAL**: All user story test work depends on this phase being complete.
 
-- [x] T001 [P] Add optional `version` field to `McpRegistryRefDto` record in `src/main/java/com/epam/aidial/deployment/manager/web/dto/McpRegistryRefDto.java` — add `@Nullable @Pattern(regexp = ".*\\S.*", message = "must not be blank") String version` as second record component after `packageName`
-- [x] T002 [P] Add optional `version` field to `McpRegistryRef` record in `src/main/java/com/epam/aidial/deployment/manager/model/McpRegistryRef.java` — add `@Nullable String version` as second record component after `packageName`
-- [x] T003 [P] Add optional `version` field to `PersistenceMcpRegistryRef` record in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/PersistenceMcpRegistryRef.java` — add `String version` as second record component after `packageName`
+- [x] T001 [P] Add required `version` field to `McpRegistryRefDto` record in `src/main/java/com/epam/aidial/deployment/manager/web/dto/McpRegistryRefDto.java` — add `@NotBlank String version` as second record component after `packageName`
+- [x] T002 [P] Add required `version` field to `McpRegistryRef` record in `src/main/java/com/epam/aidial/deployment/manager/model/McpRegistryRef.java` — add `String version` as second record component after `packageName`
+- [x] T003 [P] Add required `version` field to `PersistenceMcpRegistryRef` record in `src/main/java/com/epam/aidial/deployment/manager/dao/entity/PersistenceMcpRegistryRef.java` — add `String version` as second record component after `packageName`
 - [x] T004 Run `./gradlew checkstyleMain` to verify code style compliance and `./gradlew compileJava compileTestJava` to verify compilation (MapStruct mapper generation) succeeds with the new field
 
-**Checkpoint**: All three records have the `version` field. MapStruct auto-generates updated mapper code. No runtime changes yet — existing tests should still pass.
+**Checkpoint**: All three records have the required `version` field. MapStruct auto-generates updated mapper code.
 
 ---
 
@@ -39,9 +39,9 @@
 ### Tests for User Story 1
 
 - [x] T005 [US1] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test creating an image definition with `McpRegistryRef` that includes both `packageName` and `version`; assert the response returns both fields
-- [x] T006 [US1] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test creating an image definition with `McpRegistryRef` that includes only `packageName` (no `version`); assert `version` is absent/null in response
-- [x] T007 [US1] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/DeploymentFunctionalTest.java` — test creating a deployment with `ImageReferenceSource` carrying a `McpRegistryRef` with `packageName` and `version`; assert both fields returned
-- [x] T008 [US1] Add validation test — test that sending `McpRegistryRef` with blank `version` (empty string or whitespace) returns HTTP 400
+- [x] T006 [US1] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/DeploymentFunctionalTest.java` — test creating a deployment with `ImageReferenceSource` carrying a `McpRegistryRef` with `packageName` and `version`; assert both fields returned
+- [x] T007 [US1] Add validation test — test that sending `McpRegistryRef` with blank `version` (empty string or whitespace) returns HTTP 400
+- [x] T008 [US1] Add validation test — test that sending `McpRegistryRef` without `version` (null) returns HTTP 400
 
 **Checkpoint**: User Story 1 tests pass. Versioned `McpRegistryRef` can be written and read via API.
 
@@ -49,31 +49,29 @@
 
 ## Phase 3: User Story 2 — Read Version from Existing MCP Registry References (Priority: P1)
 
-**Goal**: Clients reading image definitions and deployments see the `version` field when present, and it is absent for legacy records.
+**Goal**: Clients reading image definitions and deployments see the `version` field in all `McpRegistryRef` records.
 
-**Independent Test**: Seed records with and without `version`. Fetch via list and single-get endpoints. Assert correct presence/absence.
+**Independent Test**: Seed records with `McpRegistryRef` including `version`. Fetch via list and single-get endpoints. Assert version is present.
 
 ### Tests for User Story 2
 
-- [x] T009 [US2] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test that listing image definitions returns `version` for records that have it and omits it for records that don't
-- [x] T010 [US2] Add backward-compatibility test — test that an image definition created without `version` in its `McpRegistryRef` can be read without errors and `version` is null
+- [x] T009 [US2] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test that listing image definitions returns `version` for all records with `McpRegistryRef`
 
-**Checkpoint**: Read path verified for both versioned and non-versioned `McpRegistryRef` records.
+**Checkpoint**: Read path verified for `McpRegistryRef` records with required `version`.
 
 ---
 
-## Phase 4: User Story 3 — Clear or Update Version on an MCP Registry Reference (Priority: P2)
+## Phase 4: User Story 3 — Update Version on an MCP Registry Reference (Priority: P2)
 
-**Goal**: Operators can change or remove the `version` from an existing `McpRegistryRef`.
+**Goal**: Operators can change the `version` on an existing `McpRegistryRef`.
 
-**Independent Test**: Create a record with version. Update to different version. Assert new version. Update without version. Assert version absent.
+**Independent Test**: Create a record with version. Update to different version. Assert new version returned.
 
 ### Tests for User Story 3
 
-- [x] T011 [US3] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test updating an image definition's `McpRegistryRef` from `version: "1.0.0"` to `version: "2.0.0"`; assert new version returned
-- [x] T012 [US3] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test clearing `version` by sending `McpRegistryRef` with only `packageName`; assert `version` is absent in response
+- [x] T010 [US3] Add test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ImageDefinitionFunctionalTest.java` — test updating an image definition's `McpRegistryRef` from `version: "1.0.0"` to `version: "2.0.0"`; assert new version returned
 
-**Checkpoint**: Full CRUD lifecycle for the `version` field verified.
+**Checkpoint**: Update lifecycle for the `version` field verified.
 
 ---
 
@@ -81,10 +79,10 @@
 
 **Purpose**: Export/import verification and final validation.
 
-- [x] T013 [P] Add export/import test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ConfigExportImportFunctionalTest.java` — test that a record with versioned `McpRegistryRef` survives export and import round-trip with `version` intact
-- [x] T014 Run `./gradlew checkstyleMain checkstyleTest` to verify full code style compliance
-- [x] T015 Run `./gradlew testFast` to verify all tests pass (H2)
-- [x] T016 Run `./gradlew clean build` for full build validation including all testcontainers tests
+- [x] T011 [P] Add export/import test in `src/test/java/com/epam/aidial/deployment/manager/functional/tests/ConfigExportImportFunctionalTest.java` — test that a record with versioned `McpRegistryRef` survives export and import round-trip with `version` intact
+- [x] T012 Run `./gradlew checkstyleMain checkstyleTest` to verify full code style compliance
+- [x] T013 Run `./gradlew testFast` to verify all tests pass (H2)
+- [x] T014 Run `./gradlew clean build` for full build validation including all testcontainers tests
 
 ---
 
@@ -112,8 +110,8 @@
 ### Parallel Opportunities
 
 - T001, T002, T003: All modify different files — fully parallelizable
-- T005-T008 (US1 tests) and T009-T010 (US2 tests) touch different test methods — could run in parallel after Phase 1
-- T013 (export/import) is independent of US-specific tests
+- T005-T008 (US1 tests) and T009 (US2 tests) touch different test methods — could run in parallel after Phase 1
+- T011 (export/import) is independent of US-specific tests
 
 ---
 
@@ -121,9 +119,9 @@
 
 ```bash
 # Launch all record changes together (different files):
-Task T001: "Add version to McpRegistryRefDto"
-Task T002: "Add version to McpRegistryRef"
-Task T003: "Add version to PersistenceMcpRegistryRef"
+Task T001: "Add required version to McpRegistryRefDto"
+Task T002: "Add required version to McpRegistryRef"
+Task T003: "Add required version to PersistenceMcpRegistryRef"
 # Then verify:
 Task T004: "Run checkstyle + compile"
 ```
@@ -143,8 +141,8 @@ Task T004: "Run checkstyle + compile"
 
 1. Phase 1 → Records updated, compiles clean
 2. + Phase 2 (US1) → Versioned write/read works → MVP!
-3. + Phase 3 (US2) → Read path verified for mixed records
-4. + Phase 4 (US3) → Update/clear lifecycle verified
+3. + Phase 3 (US2) → Read path verified
+4. + Phase 4 (US3) → Update lifecycle verified
 5. + Phase 5 → Export/import + full build green
 
 ---
@@ -154,5 +152,4 @@ Task T004: "Run checkstyle + compile"
 - No MapStruct mapper changes needed — auto-mapped by field name
 - No database migration needed — JSON column handles new field naturally
 - No controller or service changes — records are the only source code modified
-- Existing tests should continue to pass after Phase 1 (backward compatible)
 - Commit after each phase for clean history
