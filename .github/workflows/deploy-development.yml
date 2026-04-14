@@ -19,7 +19,7 @@ jobs:
             gitlab-project-id: "2957"
 
     name: Deploy to ${{ matrix.environment-name }}
-    uses: epam/ai-dial-ci/.github/workflows/deploy-development.yml@3.1.3
+    uses: epam/ai-dial-ci/.github/workflows/deploy-development.yml@3.2.0
     with:
       gitlab-project-id: ${{ matrix.gitlab-project-id }}
       environment-name: ${{ matrix.environment-name }}
@@ -27,4 +27,4 @@ jobs:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_ACCESS_TOKEN: ${{ secrets.DEPLOY_ACCESS_TOKEN }}
       DEPLOY_TRIGGER_TOKEN: ${{ secrets.DEPLOY_TRIGGER_TOKEN }}
-      
+
