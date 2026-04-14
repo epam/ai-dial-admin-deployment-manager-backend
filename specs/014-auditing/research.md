@@ -26,6 +26,8 @@
 
 **Rationale**: The current repo's `SecurityClaimsExtractor` is a `@Service` with instance methods. The reference repo's version uses static methods. The Envers listener is NOT a Spring bean (instantiated by Hibernate), so it cannot use constructor injection. The `ApplicationContextAware` pattern lets the listener fetch Spring beans without modifying `SecurityClaimsExtractor`.
 
+**Author fallback for unauthenticated/system operations**: When `SecurityClaimsExtractor.getAuthor()` returns null, the listener checks `SecurityContextHolder.getContext().getAuthentication()`: if an `Authentication` object is present (unauthenticated HTTP request), the author is set to `"unknown"`; if no `Authentication` exists (system operation — K8s informer, scheduled task, build pipeline), the author is set to `"system"`.
+
 **Alternatives considered**:
 - Make `SecurityClaimsExtractor` methods static: Would work but changes the existing API, breaking all injection sites. Rejected.
 - ThreadLocal for security context: Adds unnecessary complexity; `SecurityContextHolder` already works across threads.
@@ -47,6 +49,8 @@
 **Rationale**: Ensures all audit records within a single transaction share the exact same millisecond timestamp. Required for correlating changes that occur together. Also used by the custom `DateTimeProvider` for `@CreatedDate`/`@LastModifiedDate` fields.
 
 **Impact**: The existing `@EnableJpaAuditing` configuration in `JpaConfiguration` will be updated to reference a `transactionDateTimeProvider` bean that reads from `TransactionTimestampContext`. This changes how `@CreatedDate`/`@LastModifiedDate` values are assigned — from "current time at flush" to "transaction start time." All timestamps within a transaction will be identical, which is the desired behavior for audit consistency.
+
+**AOP ordering**: The aspect must fire INSIDE the transaction boundary (after `TransactionInterceptor` starts the transaction) because `bindIfAbsent()` calls `TransactionSynchronizationManager.registerSynchronization()`, which requires an active transaction. Without explicit ordering, both the aspect and `TransactionInterceptor` default to `Ordered.LOWEST_PRECEDENCE`, making execution order non-deterministic. Fix: `@EnableTransactionManagement(order = Ordered.LOWEST_PRECEDENCE - 10, proxyTargetClass = true)` on `JpaConfiguration` to give the transaction interceptor higher precedence, and `@Order(Ordered.LOWEST_PRECEDENCE)` on the aspect. `proxyTargetClass = true` is required to preserve Spring Boot's default CGLIB proxy behavior (without it, `@EnableTransactionManagement` defaults to JDK interface proxies, which breaks constructor injection of concrete service classes).
 
 ## Decision 6: Fields to Exclude from Envers Auditing
 

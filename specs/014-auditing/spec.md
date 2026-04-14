@@ -89,7 +89,7 @@ The system preserves the full state of every audited entity at each point of cha
 
 ### Edge Cases
 
-- What happens when an unauthenticated request modifies data (e.g., internal API calls)? The system records "unknown" or "system" as the author.
+- What happens when an unauthenticated request modifies data (e.g., internal API calls)? The system records `"unknown"` as the author when an HTTP request is present but authentication is missing or invalid, and `"system"` when no security context exists at all (e.g., K8s informer callbacks, scheduled tasks, build pipeline operations).
 - What happens when multiple entities are modified within a single transaction? All resulting activity entries share the same revision number and timestamp.
 - What happens when the same entity is modified multiple times within a single transaction? The system deduplicates activities, keeping the most specific activity type (Create or Delete takes precedence over Update).
 - What happens when an entity modification fails and the transaction rolls back? No audit records are created because they are part of the same transaction.

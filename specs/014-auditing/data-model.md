@@ -10,8 +10,8 @@ Custom Envers revision entity mapped to `revinfo` table. Extends the default Env
 |-------------|--------------|--------------------------|----------------------------------------|
 | `id`        | INTEGER      | PK, auto-increment       | Revision number                        |
 | `timestamp` | BIGINT       | NOT NULL                 | Transaction timestamp (epoch millis)   |
-| `author`    | VARCHAR(255) |                          | Username from security context         |
-| `email`     | VARCHAR(320) |                          | Email from security context            |
+| `author`    | VARCHAR(255) |                          | Username from security context; `"unknown"` for unauthenticated HTTP requests; `"system"` for system operations (no security context) |
+| `email`     | VARCHAR(320) |                          | Email from security context (null for unknown/system authors) |
 
 **Relationships**: One-to-many to `AuditActivityEntity` (cascade ALL, orphan removal).
 

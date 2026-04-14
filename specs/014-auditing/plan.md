@@ -35,7 +35,7 @@ Add a two-tier auditing system to the Deployment Manager backend, replicating th
 | **API Conventions** | PASS | Endpoints under `/api/v1/`, OpenAPI annotations, `ErrorView` for errors. |
 | **Testing Conventions** | PASS | `shouldDoX()` naming, AssertJ, H2 + Testcontainers functional tests. |
 | **Multi-Vendor Database** | PASS | Migrations in all three dialect dirs. Dot-separator naming (`V1.55`). |
-| **Configuration Defaults** | PASS | New properties in `application.yml` only; no Java field initializers. |
+| **Configuration Defaults** | PASS | New properties in `application.yml` only; no Java field initializers. `PageRequestDto` uses primitive `int` defaults for `page`/`size` — these are request DTO defaults, not `@ConfigurationProperties`. |
 | **Anti-Patterns** | PASS | No business logic in entities, no silent swallowing, no `@Transactional` on controllers. |
 | **Configuration Documentation** | PASS | Task to update `docs/configuration.md` with new Envers properties. |
 | **Schema Documentation** | PASS | Task to run `./gradlew generateDbSchema` after migrations. |
@@ -128,6 +128,8 @@ docs/
 |-----------|------------|------------------------------|
 | Custom `PageRequestDto` instead of Spring `Pageable` in controller | Reference repo uses POST body with complex filter/sort/range criteria; user explicitly requested "same patterns and endpoints" | Spring `Pageable` + `@RequestParam` cannot express range filters or typed filter objects in a POST body; service layer internally uses `PageRequest` (implements `Pageable`) |
 | `TransactionTimestampContext`/`Aspect` skip `@LogExecution` | These fire on every `@Transactional` method — logging each invocation would be extremely noisy | Adding `@LogExecution` and then suppressing via log level defeats the purpose; ArchUnit exclusion is explicit |
+| `@EnableTransactionManagement(order)` override on `JpaConfiguration` | `TransactionTimestampAspect` must fire INSIDE the transaction (after `TransactionInterceptor` starts it) because `registerSynchronization()` requires an active transaction; without explicit ordering, both default to `LOWEST_PRECEDENCE` making execution order non-deterministic | Relying on Spring's undefined default ordering — works in some environments but not others |
+| Primitive `int` for `PageRequestDto.page`/`size` | Explicit JSON `null` for `Integer` fields overwrites the Java default, causing NPE on `PageRequest.of()` auto-unboxing | Wrapper `Integer` with `@NotNull` — adds a validation annotation when the simpler fix is using primitives |
 | Field whitelist validation in `AuditActivityService` | User-controlled filter/sort field names passed to JPA Criteria API could cause 500 errors or info leakage | Relying solely on global `IllegalArgumentException` handler — messages from JPA may reveal internal entity structure |
 | `@Max(100)` on `PageRequestDto.size` | Unbounded page size is a DoS vector — prevents loading entire activity table into memory | No cap at all, or relying on downstream database/ORM limits — too risky |
 | WARN logging in `transactionDateTimeProvider` fallback | Fallback to `Instant.now()` could cause timestamp drift between audit records and `@CreatedDate`/`@LastModifiedDate` fields — WARN makes this visible | Silent fallback — harder to diagnose timestamp inconsistencies in production |
