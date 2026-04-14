@@ -21,7 +21,7 @@ Custom Envers revision entity mapped to `revinfo` table. Extends the default Env
 
 ### AuditActivityEntity
 
-Denormalized activity feed table. One record per tracked change event, linked to a revision.
+Denormalized activity feed mapped to `audit_activity` table. One record per tracked change event, linked to a revision.
 
 | Column              | Type         | Constraints       | Description                          |
 |---------------------|--------------|-------------------|--------------------------------------|
@@ -141,6 +141,6 @@ All migrations at version **V1.55** across three dialects (H2, POSTGRES, MS_SQL_
 | `mcp_image_definition_aud`        | MCP image def audit            |
 | `domain_whitelist_aud`            | Domain whitelist audit         |
 | `deployment_topics_aud`           | Deployment topics audit        |
-| `audit_activity_entity`           | Denormalized activity feed     |
+| `audit_activity`                  | Denormalized activity feed     |
 
 Total: 16 new tables per dialect.

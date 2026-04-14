@@ -40,11 +40,13 @@ List activities with pagination, sorting, and filtering.
 
 | Field            | Type    | Required | Default           | Description                                |
 |------------------|---------|----------|-------------------|--------------------------------------------|
-| `page`           | integer | No       | 0                 | Zero-based page number                     |
-| `size`           | integer | No       | 20                | Page size                                  |
-| `sort.field`     | string  | No       | epochTimestampMs  | Field to sort by                           |
+| `page`           | integer | No       | 0                 | Zero-based page number (min: 0)            |
+| `size`           | integer | No       | 20                | Page size (min: 1, max: 100)               |
+| `sort.field`     | string  | No       | epochTimestampMs  | Field to sort by (must be an allowed field) |
 | `sort.direction` | string  | No       | DESC              | ASC or DESC                                |
-| `filters`        | array   | No       | []                | Filter criteria (AND logic between filters). Each filter has `field` + `value` for equality, or `field` + `from`/`to` for range |
+| `filters`        | array   | No       | []                | Filter criteria (AND logic between filters). Each filter has `field` (required, non-blank) + `value` for equality, or `field` + `from`/`to` for range |
+
+**Allowed fields** (for both filtering and sorting): `activityId`, `activityType`, `resourceType`, `resourceId`, `initiatedAuthor`, `initiatedEmail`, `epochTimestampMs`. Requests with unrecognized field names return 400 Bad Request.
 
 **Filterable fields**: `activityId`, `activityType`, `resourceType`, `resourceId`, `initiatedAuthor`, `initiatedEmail` (all case-insensitive string matches), and `epochTimestampMs` (range filter with `from`/`to` epoch milliseconds — supports greater-than-or-equal / less-than-or-equal semantics; either bound may be omitted for open-ended ranges).
 

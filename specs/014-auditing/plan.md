@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add a two-tier auditing system to the Deployment Manager backend, replicating the proven architecture from `ai-dial-admin-backend`. Tier 1 uses Hibernate Envers to automatically snapshot full entity state on every change into `*_aud` tables. Tier 2 uses a custom `EntityTrackingRevisionListener` to build a curated, denormalized activity feed (`audit_activity_entity`) capturing WHO, WHEN, WHAT, and HOW for each change — exposed via a filterable REST API at `POST /api/v1/activities` and `GET /api/v1/activities/{activityId}`.
+Add a two-tier auditing system to the Deployment Manager backend, replicating the proven architecture from `ai-dial-admin-backend`. Tier 1 uses Hibernate Envers to automatically snapshot full entity state on every change into `*_aud` tables. Tier 2 uses a custom `EntityTrackingRevisionListener` to build a curated, denormalized activity feed (`audit_activity`) capturing WHO, WHEN, WHAT, and HOW for each change — exposed via a filterable REST API at `POST /api/v1/activities` and `GET /api/v1/activities/{activityId}`.
 
 ## Technical Context
 
@@ -63,16 +63,17 @@ src/main/java/com/epam/aidial/deployment/manager/
 ├── dao/
 │   ├── audit/
 │   │   ├── entity/
-│   │   │   ├── AuditActivityEntity.java           # Activity feed JPA entity
-│   │   │   └── AuditRevisionEntity.java          # Custom REVINFO entity (@RevisionEntity)
-│   │   ├── jpa/
-│   │   │   ├── AuditActivityJpaRepository.java    # Spring Data + JpaSpecificationExecutor
-│   │   │   └── AuditJpaPackage.java               # Package marker for @EnableJpaRepositories
+│   │   │   ├── AuditActivityEntity.java           # Activity feed JPA entity (@Table "audit_activity")
+│   │   │   ├── AuditEntityPackage.java            # Package marker for @EntityScan
+│   │   │   └── AuditRevisionEntity.java           # Custom REVINFO entity (@RevisionEntity)
 │   │   ├── listener/
-│   │   │   └── AuditRevisionListener.java        # EntityTrackingRevisionListener
+│   │   │   └── AuditRevisionListener.java         # EntityTrackingRevisionListener
 │   │   └── mapper/
-│   │       ├── AuditActivityMapper.java           # Concrete entity class → ActivityResourceType
-│   │       └── PersistenceAuditActivityMapper.java # MapStruct: entity ↔ domain
+│   │       └── AuditActivityMapper.java           # Concrete entity class → ActivityResourceType
+│   ├── jpa/
+│   │   └── AuditActivityJpaRepository.java        # Spring Data + JpaSpecificationExecutor (scanned via JpaPackage)
+│   ├── mapper/
+│   │   └── PersistenceAuditActivityMapper.java    # MapStruct: entity → domain
 │   ├── entity/
 │   │   ├── deployment/
 │   │   │   └── DeploymentEntity.java              # MODIFY: add @Audited
@@ -81,12 +82,12 @@ src/main/java/com/epam/aidial/deployment/manager/
 │   └── ...
 ├── model/
 │   └── audit/
-│       ├── AuditActivity.java                     # Domain model
+│       ├── AuditActivity.java                     # Domain model (uses enum types for activityType/resourceType)
 │       ├── ActivityType.java                      # Enum: Create, Update, Delete
-│       └── ActivityResourceType.java              # Enum: 13 resource types
+│       └── ActivityResourceType.java              # Enum: 11 resource types
 ├── service/
 │   └── audit/
-│       └── AuditActivityService.java              # Query service with Specification filtering
+│       └── AuditActivityService.java              # Query service with Specification filtering + field whitelist validation
 ├── transaction/
 │   └── timestamp/
 │       ├── TransactionTimestampAspect.java        # AOP @Before on @Transactional
@@ -119,7 +120,7 @@ docs/
 └── configuration.md                               # MODIFY: document new properties
 ```
 
-**Structure Decision**: New auditing code follows the existing layered architecture. `dao.audit` sub-package groups all Envers-specific code. `transaction.timestamp` is new cross-cutting infrastructure. Domain model enums in `model.audit` are accessible from both dao and service layers. Page DTOs in `web.dto.audit` since they're specific to the audit feature.
+**Structure Decision**: New auditing code follows the existing layered architecture. `dao.audit` sub-package groups Envers-specific entities, listener, and mapper. `AuditActivityJpaRepository` and `PersistenceAuditActivityMapper` live alongside existing repos/mappers in `dao.jpa` and `dao.mapper` respectively (scanned by existing package markers, no separate `AuditJpaPackage` needed). `transaction.timestamp` is new cross-cutting infrastructure. Domain model enums in `model.audit` are accessible from both dao and service layers. Page DTOs in `web.dto.audit` since they're specific to the audit feature.
 
 ## Complexity Tracking
 
@@ -127,3 +128,6 @@ docs/
 |-----------|------------|------------------------------|
 | Custom `PageRequestDto` instead of Spring `Pageable` in controller | Reference repo uses POST body with complex filter/sort/range criteria; user explicitly requested "same patterns and endpoints" | Spring `Pageable` + `@RequestParam` cannot express range filters or typed filter objects in a POST body; service layer internally uses `PageRequest` (implements `Pageable`) |
 | `TransactionTimestampContext`/`Aspect` skip `@LogExecution` | These fire on every `@Transactional` method — logging each invocation would be extremely noisy | Adding `@LogExecution` and then suppressing via log level defeats the purpose; ArchUnit exclusion is explicit |
+| Field whitelist validation in `AuditActivityService` | User-controlled filter/sort field names passed to JPA Criteria API could cause 500 errors or info leakage | Relying solely on global `IllegalArgumentException` handler — messages from JPA may reveal internal entity structure |
+| `@Max(100)` on `PageRequestDto.size` | Unbounded page size is a DoS vector — prevents loading entire activity table into memory | No cap at all, or relying on downstream database/ORM limits — too risky |
+| WARN logging in `transactionDateTimeProvider` fallback | Fallback to `Instant.now()` could cause timestamp drift between audit records and `@CreatedDate`/`@LastModifiedDate` fields — WARN makes this visible | Silent fallback — harder to diagnose timestamp inconsistencies in production |

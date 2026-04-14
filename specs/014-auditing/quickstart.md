@@ -8,7 +8,7 @@ The feature should be built bottom-up in this sequence, with each layer verifiab
 
 1. Add `hibernate-envers` and `uuid-creator` to `build.gradle`
 2. Add Envers properties to `application.yml`
-3. Update `JpaConfiguration` — add audit JPA package to `@EnableJpaRepositories`, add `transactionDateTimeProvider` bean
+3. Update `JpaConfiguration` — add `AuditEntityPackage` to `@EntityScan`, add `transactionDateTimeProvider` bean with WARN-level fallback logging
 4. **Verify**: `./gradlew clean build` — project compiles, existing tests pass
 
 ### Step 2: Transaction Timestamp Infrastructure
@@ -21,7 +21,7 @@ The feature should be built bottom-up in this sequence, with each layer verifiab
 ### Step 3: Flyway Migrations
 
 1. Create `V1.55__CreateAuditTables.sql` in all three dialect directories (H2, POSTGRES, MS_SQL_SERVER)
-2. Include: `revinfo`, all 14 `*_aud` tables, `deployment_topics_aud`, `audit_activity_entity`
+2. Include: `revinfo`, all 14 `*_aud` tables, `deployment_topics_aud`, `audit_activity`
 3. **Verify**: `./gradlew testFast` — Flyway applies migration, Hibernate validates schema matches entities
 
 ### Step 4: Core Audit Entities and Enums
@@ -38,19 +38,19 @@ The feature should be built bottom-up in this sequence, with each layer verifiab
 1. Create `AuditRevisionListener` implementing `EntityTrackingRevisionListener` and `ApplicationContextAware`
 2. Implement `newRevision()` — extract author/email, set timestamp
 3. Implement `entityChanged()` — build activities, handle deduplication
-4. **Verify**: Write a test that creates/updates/deletes a deployment and asserts `audit_activity_entity` rows appear with correct data
+4. **Verify**: Write a test that creates/updates/deletes a deployment and asserts `audit_activity` rows appear with correct data
 
 ### Step 6: Activity Query Layer
 
-1. Create `AuditActivityJpaRepository` (extends `JpaSpecificationExecutor`)
-2. Create `AuditActivityService` with specification-based filtering
-3. Create domain model `AuditActivity`
+1. Create `AuditActivityJpaRepository` in `dao.jpa` (extends `JpaSpecificationExecutor`)
+2. Create `AuditActivityService` with specification-based filtering and field whitelist validation
+3. Create domain model `AuditActivity` (uses enum types for `activityType`/`resourceType`)
 4. Create persistence mapper (`PersistenceAuditActivityMapper` — MapStruct)
 5. **Verify**: Write a service-level test that filters activities by type and resource
 
 ### Step 7: REST API
 
-1. Create `PageRequestDto`, `PageDto` (web DTOs)
+1. Create `PageRequestDto` (with `@Min`/`@Max`/`@NotBlank` validation), `PageDto` (web DTOs)
 2. Create `AuditActivityDto`
 3. Create `AuditActivityDtoMapper` (MapStruct)
 4. Create `AuditActivityController` with POST and GET endpoints
