@@ -46,8 +46,10 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule daoLayerMustNotAccessService = noClasses()
             .that().resideInAPackage("..dao..")
+            .and().resideOutsideOfPackage("..dao.audit.listener..")
             .should().accessClassesThat().resideInAPackage("..service..")
-            .because("the dao layer must not depend on the service layer — dependency direction is service → dao");
+            .because("the dao layer must not depend on the service layer — dependency direction is service → dao"
+                    + " (audit revision listener excluded: Hibernate Envers listener requires cross-layer access)");
 
     @ArchTest
     static final ArchRule daoLayerMustNotAccessWeb = FreezingArchRule.freeze(noClasses()
@@ -105,9 +107,12 @@ class ArchitectureTest {
             .and().haveSimpleNameNotEndingWith("MapperImpl")
             .and().haveSimpleNameNotEndingWith("Properties")
             .and().resideOutsideOfPackage("..configuration..")
+            .and().resideOutsideOfPackage("..transaction.timestamp..")
+            .and().resideOutsideOfPackage("..dao.audit.listener..")
             .and().areNotAnnotatedWith(Aspect.class)
             .should().beAnnotatedWith(LogExecution.class)
-            .because("@LogExecution must be placed on every @Component class");
+            .because("@LogExecution must be placed on every @Component class"
+                    + " (transaction timestamp components excluded: per-transaction logging would be excessively noisy)");
 
     @ArchTest
     static final ArchRule repositoriesMustHaveLogExecution = classes()
