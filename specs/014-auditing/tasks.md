@@ -237,3 +237,21 @@ T025: Create AuditActivityController
 - **Domain model type safety**: `AuditActivity` uses `ActivityType`/`ActivityResourceType` enums (not String); MapStruct handles enum→String at the DTO boundary
 - **Input validation**: Field whitelist in `AuditActivityService`, `@Max(100)` on page size, `@NotBlank` on filter field, `IllegalArgumentException` safety net around JPA queries
 - **Table naming**: Activity feed table is `audit_activity` (not `audit_activity_entity`) — consistent with project naming conventions
+
+---
+
+## Post-014 Refactor: Page-Model Alignment with admin-backend
+
+Subsequent to the original 014 implementation, the page-related DTOs and classes for the list-activities endpoint were refactored to match the `ai-dial-admin-backend` (`cfg` package) shape verbatim. This section captures the delta; T020–T025 above reflect the original shape.
+
+- **Domain model (new)**: `model/page/PageRequestModel`, `model/page/Sort`, `model/page/SortDirection`, `model/page/filter/Filter`, `model/page/filter/FilterOperator` (operators `eq`, `ne`, `le`, `lt`, `ge`, `gt`, `co`, `nc`). Generic `model/Page<T>` wrapper (`total`, `totalPages`, `Collection<T> data`).
+- **Web DTO relocation + rename**: `web/dto/audit/PageRequestDto` → `web/dto/page/PageRequestDto` with renamed fields (`page → pageNumber`, `size → pageSize`, `sort → sorts: List<SortDto>`); `web/dto/audit/PageDto` → `web/dto/PageDto` (`Collection<T> data`, `@SuperBuilder`). New DTOs: `web/dto/page/SortDto { column, SortDirection direction }`, `web/dto/page/filter/FilterDto { column, FilterOperatorDto operator, value }`, `web/dto/page/filter/FilterOperatorDto`.
+- **Mappers (new)**: `web/mapper/PageDtoMapper` (DTO → domain); `dao/mapper/PageEntityMapper` (domain → JPA `PageRequest` + `Specification<T>` list, with `SpecificationContext` record for case-insensitive columns). Ports admin-backend's `PageEntityMapper` verbatim.
+- **Service**: `AuditActivityService.getActivitiesList` now accepts `PageRequestModel` (not raw DTO) and returns domain `Page<AuditActivity>`. Filtering/pagination delegated to `PageEntityMapper`. Whitelist retained against `ALLOWED_FIELDS`; case-insensitive lookups for all columns except `epochTimestampMs`.
+- **Controller**: injects `PageDtoMapper`; converts `PageRequestDto` → `PageRequestModel`, then assembles `PageDto<AuditActivityDto>` from the domain `Page<AuditActivity>`.
+- **Entity**: `AuditActivityEntity.revision` switched from `@ManyToOne AuditRevisionEntity` to scalar `@Column Integer revision`. `AuditRevisionEntity.activities` keeps `@OneToMany(mappedBy="revision")` (matches admin-backend — verified to boot cleanly with Envers + scalar FK). Listener now assigns `rev.getId()` instead of the entity instance.
+- **PersistenceAuditActivityMapper**: removed `@Mapping(target="revision", source="revision.id")` — direct scalar-to-scalar mapping.
+- **Page-size cap**: retained at 100 (vs admin-backend's 1000) — deliberate deviation.
+- **Default sort**: removed — empty `sorts` yields unsorted `PageRequest` (matches admin-backend).
+- **No Flyway migration**: DB column `revision INT` is unchanged; the switch is JPA-metadata only.
+- **Contract**: see updated `contracts/activities-api.md`.

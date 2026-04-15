@@ -14,41 +14,73 @@ List activities with pagination, sorting, and filtering.
 
 ```json
 {
-  "page": 0,
-  "size": 20,
-  "sort": {
-    "field": "epochTimestampMs",
-    "direction": "DESC"
-  },
+  "pageNumber": 0,
+  "pageSize": 20,
+  "sorts": [
+    {
+      "column": "epochTimestampMs",
+      "direction": "DESC"
+    }
+  ],
   "filters": [
     {
-      "field": "resourceType",
+      "column": "resourceType",
+      "operator": "eq",
       "value": "McpDeployment"
     },
     {
-      "field": "activityType",
+      "column": "activityType",
+      "operator": "eq",
       "value": "Create"
     },
     {
-      "field": "epochTimestampMs",
-      "from": 1775000000000,
-      "to": 1776000000000
+      "column": "epochTimestampMs",
+      "operator": "ge",
+      "value": "1775000000000"
+    },
+    {
+      "column": "epochTimestampMs",
+      "operator": "le",
+      "value": "1776000000000"
     }
   ]
 }
 ```
 
-| Field            | Type    | Required | Default           | Description                                |
-|------------------|---------|----------|-------------------|--------------------------------------------|
-| `page`           | integer | No       | 0                 | Zero-based page number (min: 0)            |
-| `size`           | integer | No       | 20                | Page size (min: 1, max: 100)               |
-| `sort.field`     | string  | No       | epochTimestampMs  | Field to sort by (must be an allowed field) |
-| `sort.direction` | string  | No       | DESC              | ASC or DESC                                |
-| `filters`        | array   | No       | []                | Filter criteria (AND logic between filters). Each filter has `field` (required, non-blank) + `value` for equality, or `field` + `from`/`to` for range |
+| Field              | Type    | Required | Default | Description                                                    |
+|--------------------|---------|----------|---------|----------------------------------------------------------------|
+| `pageNumber`       | integer | No       | 0       | Zero-based page number (min: 0)                                |
+| `pageSize`         | integer | No       | 20      | Page size (min: 1, max: 100)                                   |
+| `sorts`            | array   | No       | `[]`    | Ordered list of sort directives (AND combined, first is primary) |
+| `sorts[].column`   | string  | Yes\*    | —       | Column to sort by (must be an allowed column)                  |
+| `sorts[].direction`| string  | Yes\*    | —       | `ASC` or `DESC`                                                |
+| `filters`          | array   | No       | `[]`    | Filter criteria (AND logic between filters)                    |
+| `filters[].column` | string  | Yes\*    | —       | Column to filter on (must be an allowed column)                |
+| `filters[].operator`| string | Yes\*    | —       | One of `eq`, `ne`, `lt`, `le`, `gt`, `ge`, `co`, `nc`          |
+| `filters[].value`  | string  | Yes\*    | —       | Comparison value (always String; see notes below)              |
 
-**Allowed fields** (for both filtering and sorting): `activityId`, `activityType`, `resourceType`, `resourceId`, `initiatedAuthor`, `initiatedEmail`, `epochTimestampMs`. Requests with unrecognized field names return 400 Bad Request.
+\* Required only when the element is present. Sending an empty `sorts` or `filters` array is valid.
 
-**Filterable fields**: `activityId`, `activityType`, `resourceType`, `resourceId`, `initiatedAuthor`, `initiatedEmail` (all case-insensitive string matches), and `epochTimestampMs` (range filter with `from`/`to` epoch milliseconds — supports greater-than-or-equal / less-than-or-equal semantics; either bound may be omitted for open-ended ranges).
+**Default order**: When `sorts` is empty, results are returned in the database's natural order — **not** sorted by timestamp. Clients requiring deterministic ordering must send an explicit `sorts` entry.
+
+**Allowed columns** (for both filtering and sorting): `activityId`, `activityType`, `resourceType`, `resourceId`, `initiatedAuthor`, `initiatedEmail`, `epochTimestampMs`. Requests with unrecognized column names return `400 Bad Request`.
+
+**Case-insensitive columns**: `activityId`, `activityType`, `resourceType`, `resourceId`, `initiatedAuthor`, `initiatedEmail`. Filter values are compared using SQL `LOWER(...)` on both sides. `epochTimestampMs` is compared as-is (String-valued but ordered lexicographically, which matches numeric order for 13-digit epoch-milli timestamps).
+
+### Operators
+
+| Operator | Semantics                        | SQL equivalent      |
+|----------|----------------------------------|---------------------|
+| `eq`     | Equal                            | `=`                 |
+| `ne`     | Not equal                        | `<>`                |
+| `lt`     | Less than                        | `<`                 |
+| `le`     | Less than or equal               | `<=`                |
+| `gt`     | Greater than                     | `>`                 |
+| `ge`     | Greater than or equal            | `>=`                |
+| `co`     | Contains (substring)             | `LIKE '%value%'`    |
+| `nc`     | Does not contain (substring)     | `NOT LIKE '%value%'`|
+
+**Ranges** (including timestamp ranges) are expressed as two filters on the same column, one with `ge`/`gt` and one with `le`/`lt`.
 
 ### Response (200 OK)
 

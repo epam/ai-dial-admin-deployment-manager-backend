@@ -104,7 +104,7 @@ public class AuditRevisionListener implements EntityTrackingRevisionListener, Ap
                 .epochTimestampMs(rev.getTimestamp())
                 .initiatedAuthor(rev.getAuthor())
                 .initiatedEmail(rev.getEmail())
-                .revision(rev)
+                .revision(rev.getId())
                 .build();
 
         rev.getActivities().add(activity);
