@@ -452,7 +452,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         // let the mocked service return some dummy emitter – its concrete behaviour
         // is irrelevant for the controller test
-        when(deploymentLogsService.streamLogs(any(), any(), any())).thenReturn(completedEmitter());
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
                         get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName))
@@ -463,7 +463,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture());
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), any());
 
         var cfg = cfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isNull();
@@ -482,7 +482,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         // let the mocked service return some dummy emitter – its concrete behaviour
         // is irrelevant for the controller test
-        when(deploymentLogsService.streamLogs(any(), any(), any())).thenReturn(completedEmitter());
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
                         get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName)
@@ -496,7 +496,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture());
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), any());
 
         var cfg = cfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isEqualTo(sinceTime);
@@ -704,7 +704,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_with_restart_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9, finishedAt);
+        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9, finishedAt, List.of());
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -720,7 +720,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, finishedAt);
+        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, finishedAt, List.of());
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -736,7 +736,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null, finishedAt);
+        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null, finishedAt, List.of());
 
         when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 

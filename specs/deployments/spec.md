@@ -316,17 +316,25 @@ Status: **Implemented**
 - **THEN** only pods in a running/ready state are returned
 
 ### Requirement: Stream pod logs via SSE
-The system SHALL stream real-time log output from a specific pod via SSE, with optional control parameters.
+The system SHALL stream real-time log output from a specific container in a pod via SSE, with optional control parameters. Any container (including init containers) can be targeted by name.
 
 Status: **Implemented**
 
-#### Scenario: Pod log stream
-- **WHEN** `GET /api/v1/deployments/{id}/pods/{podId}/logs` is called
-- **THEN** an SSE connection is opened and live log lines from the pod are streamed
+#### Scenario: Pod log stream (default container)
+- **WHEN** `GET /api/v1/deployments/{id}/pods/{podId}/logs` is called without `containerName`
+- **THEN** an SSE connection is opened and live log lines from the default container are streamed
+
+#### Scenario: Pod log stream with container name
+- **WHEN** the log endpoint is called with `containerName` specifying an init container or regular container
+- **THEN** log lines from the specified container are streamed
 
 #### Scenario: Pod log stream with parameters
 - **WHEN** the log endpoint is called with `sinceTime`, `sinceSeconds`, `tail`, or `previous` parameters
 - **THEN** the log stream is filtered or bounded according to the specified parameters
+
+#### Scenario: Init container log stream
+- **WHEN** the log endpoint is called with `containerName` targeting a terminated init container (without `previous`)
+- **THEN** the init container's logs are streamed (terminated is a valid loggable state for init containers)
 
 ### Requirement: Internal deployment lookup
 The system SHALL expose an unauthenticated internal API for service-to-service retrieval of a deployment by ID.

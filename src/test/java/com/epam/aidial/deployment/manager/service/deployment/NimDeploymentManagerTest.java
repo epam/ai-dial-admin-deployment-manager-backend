@@ -225,7 +225,7 @@ class NimDeploymentManagerTest {
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
+        ContainerResource result = nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -241,7 +241,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
         // When / Then
-        assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -258,7 +258,7 @@ class NimDeploymentManagerTest {
         when(k8sNimClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
-        assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> nimDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container not found for pod");
     }

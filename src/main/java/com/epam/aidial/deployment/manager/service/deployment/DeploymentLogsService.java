@@ -32,11 +32,12 @@ public class DeploymentLogsService {
 
     public SseEmitter streamLogs(String id,
                                  String podName,
-                                 PodLogReaderConfiguration cfg) {
+                                 PodLogReaderConfiguration cfg,
+                                 String containerName) {
 
         try {
             var containerResource = deploymentManagerProvider.provide(id)
-                    .getContainerResourceForLogs(id, podName, cfg.previous());
+                    .getContainerResourceForLogs(id, podName, containerName, cfg.previous());
 
             return sseEmitterFactory.createEmitter(
                     id,

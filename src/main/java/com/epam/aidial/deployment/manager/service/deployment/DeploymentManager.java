@@ -39,13 +39,15 @@ public interface DeploymentManager<S> {
 
     /**
      * Resolves a container resource for log streaming and performs a pre-flight validation:
-     * - when {@code previous == false}: container must be in {@code Running} state
+     * - when {@code previous == false}: container must be in {@code Running} state (or terminated for init containers)
      * - when {@code previous == true}: container must have a previous terminated instance available
      *
      * <p>This avoids opening a log stream that immediately yields a Kubernetes {@code Status} error
      * (e.g. when the container is still {@code PodInitializing}).</p>
+     *
+     * @param containerName optional container name; when {@code null}, uses the default container for the deployment type
      */
-    ContainerResource getContainerResourceForLogs(String id, String podName, boolean previous);
+    ContainerResource getContainerResourceForLogs(String id, String podName, String containerName, boolean previous);
 
     List<SensitiveEnvVar> provisionSecrets(String deploymentId, EnvPartition envPartition);
 

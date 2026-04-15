@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.mapper;
 
+import com.epam.aidial.deployment.manager.model.ContainerDetails;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
@@ -29,6 +30,7 @@ import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
+import com.epam.aidial.deployment.manager.web.dto.ContainerDetailsDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentStatusDto;
@@ -327,6 +329,10 @@ public abstract class DeploymentDtoMapper {
     public abstract DeploymentInfoDto toDeploymentInfoDto(Deployment model);
 
     public abstract List<PodInfoDto> toPodInfoDto(List<PodInfo> model);
+
+    public abstract ContainerDetailsDto toContainerDetailsDto(ContainerDetails model);
+
+    public abstract List<ContainerDetailsDto> toContainerDetailsDto(List<ContainerDetails> model);
 
     protected Resources toResources(ResourcesDto dto) {
         if (dto == null) {

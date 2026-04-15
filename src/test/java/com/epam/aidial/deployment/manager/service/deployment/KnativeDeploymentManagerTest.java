@@ -276,7 +276,7 @@ class KnativeDeploymentManagerTest {
         when(podResource.inContainer(SERVICE_CONTAINER)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = knativeDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
+        ContainerResource result = knativeDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -292,7 +292,7 @@ class KnativeDeploymentManagerTest {
         when(k8sKnativeClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
         // When / Then
-        assertThatThrownBy(() -> knativeDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> knativeDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }

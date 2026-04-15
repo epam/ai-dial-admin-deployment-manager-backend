@@ -84,7 +84,7 @@ class DeploymentLogsServiceTest {
                 .build();
 
         when(deploymentManagerProvider.provide(DEPLOYMENT_ID)).thenReturn(deploymentManager);
-        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false)).thenReturn(containerResource);
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false)).thenReturn(containerResource);
     }
 
     @Test
@@ -99,7 +99,7 @@ class DeploymentLogsServiceTest {
         )).thenReturn(sseEmitter);
 
         // When
-        SseEmitter result = deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        SseEmitter result = deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
 
         // Then
         assertThat(result).isEqualTo(sseEmitter);
@@ -114,7 +114,7 @@ class DeploymentLogsServiceTest {
 
         // Verify container resource was retrieved
         verify(deploymentManagerProvider).provide(DEPLOYMENT_ID);
-        verify(deploymentManager).getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
+        verify(deploymentManager).getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false);
 
         // Verify log reader was created and used
         verify(podLogReaderFactory).create(logReaderConfig);
@@ -143,7 +143,7 @@ class DeploymentLogsServiceTest {
         )).thenReturn(sseEmitter);
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
         verify(sseEmitterFactory).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
@@ -171,7 +171,7 @@ class DeploymentLogsServiceTest {
         )).thenReturn(sseEmitter);
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
         verify(sseEmitterFactory).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
@@ -204,7 +204,7 @@ class DeploymentLogsServiceTest {
         doThrow(new IOException("Test exception")).when(sseEmitter).send(any(SseEmitter.SseEventBuilder.class));
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
         verify(sseEmitterFactory).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
@@ -236,7 +236,7 @@ class DeploymentLogsServiceTest {
         )).thenReturn(sseEmitter);
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
         verify(sseEmitterFactory).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
@@ -264,7 +264,7 @@ class DeploymentLogsServiceTest {
         });
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
 
         // Then
         // Simulate closing the SafeAutoCloseable returned by the emitter consumer
@@ -325,7 +325,7 @@ class DeploymentLogsServiceTest {
         )).thenReturn(sseEmitter);
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, tailConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, tailConfig, null);
         verify(sseEmitterFactory).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
@@ -338,7 +338,7 @@ class DeploymentLogsServiceTest {
         verify(tailReader).readLogs(eq(containerResource), any(Consumer.class));
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, sinceSecondsConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, sinceSecondsConfig, null);
         verify(sseEmitterFactory, times(2)).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
@@ -354,12 +354,12 @@ class DeploymentLogsServiceTest {
     @Test
     void streamLogs_shouldReturnErrorEmitterWhenPodNotFound() {
         // Given
-        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .thenThrow(new EntityNotFoundException("Pod could not be found " + POD_NAME));
         when(sseEmitterFactory.createErrorEmitter(eq(DEPLOYMENT_ID), anyString(), anyString())).thenReturn(sseEmitter);
 
         // When
-        SseEmitter result = deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        SseEmitter result = deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
 
         // Then
         assertThat(result).isEqualTo(sseEmitter);
@@ -388,7 +388,7 @@ class DeploymentLogsServiceTest {
         )).thenReturn(sseEmitter);
 
         // When
-        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig);
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, null);
         verify(sseEmitterFactory).createEmitter(
                 eq(DEPLOYMENT_ID),
                 eq("Deployment-test-pod"),
