@@ -84,12 +84,17 @@ class DeploymentLogsServiceTest {
                 .build();
 
         when(deploymentManagerProvider.provide(DEPLOYMENT_ID)).thenReturn(deploymentManager);
-        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false)).thenReturn(containerResource);
+    }
+
+    private void stubDefaultContainerResource() {
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
+                .thenReturn(containerResource);
     }
 
     @Test
     void streamLogs_shouldCreateEmitterAndStartLogStreaming() {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         when(sseEmitterFactory.createEmitter(
@@ -127,6 +132,7 @@ class DeploymentLogsServiceTest {
     @Test
     void streamLogs_shouldSendLogsToEmitter() throws IOException {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         doAnswer(invocation -> {
@@ -159,6 +165,7 @@ class DeploymentLogsServiceTest {
     @Test
     void streamLogs_shouldHandleExceptionDuringLogReading() {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         doThrow(new RuntimeException("Test exception")).when(podLogReader)
@@ -186,6 +193,7 @@ class DeploymentLogsServiceTest {
     @Test
     void streamLogs_shouldHandleExceptionDuringSendingEvents() throws IOException {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         doAnswer(invocation -> {
@@ -219,6 +227,7 @@ class DeploymentLogsServiceTest {
     @Test
     void streamLogs_shouldCompleteEmitterWhenLogReadingFinishes() {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         doAnswer(invocation -> {
@@ -251,6 +260,7 @@ class DeploymentLogsServiceTest {
     @Test
     void streamLogs_shouldCancelFutureWhenClosed() {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         when(sseEmitterFactory.createEmitter(
@@ -315,6 +325,7 @@ class DeploymentLogsServiceTest {
         PodLogReader tailReader = mock(PodLogReader.class);
         PodLogReader sinceSecondsReader = mock(PodLogReader.class);
 
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(tailConfig)).thenReturn(tailReader);
         when(podLogReaderFactory.create(sinceSecondsConfig)).thenReturn(sinceSecondsReader);
 
@@ -369,8 +380,61 @@ class DeploymentLogsServiceTest {
     }
 
     @Test
+    void streamLogs_shouldForwardContainerNameToDeploymentManager() {
+        // Given
+        var customContainer = "init-db-migrations";
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, customContainer, false))
+                .thenReturn(containerResource);
+        when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
+        when(sseEmitterFactory.createEmitter(eq(DEPLOYMENT_ID), anyString(), any(Function.class)))
+                .thenReturn(sseEmitter);
+
+        // When
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, logReaderConfig, customContainer);
+
+        verify(sseEmitterFactory).createEmitter(
+                eq(DEPLOYMENT_ID),
+                eq("Deployment-test-pod"),
+                emitterConsumerCaptor.capture()
+        );
+        emitterConsumerCaptor.getValue().apply(sseEmitter);
+
+        // Then
+        verify(deploymentManager).getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, customContainer, false);
+    }
+
+    @Test
+    void streamLogs_shouldForwardPreviousFlagToDeploymentManager() {
+        // Given: previous=true must propagate to the manager so the pre-flight check uses the right rule
+        var prevConfig = PodLogReaderConfiguration.builder()
+                .maxLogCount(100)
+                .maxLogSize(1000)
+                .previous(true)
+                .build();
+        when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, true))
+                .thenReturn(containerResource);
+        when(podLogReaderFactory.create(prevConfig)).thenReturn(podLogReader);
+        when(sseEmitterFactory.createEmitter(eq(DEPLOYMENT_ID), anyString(), any(Function.class)))
+                .thenReturn(sseEmitter);
+
+        // When
+        deploymentLogsService.streamLogs(DEPLOYMENT_ID, POD_NAME, prevConfig, null);
+
+        verify(sseEmitterFactory).createEmitter(
+                eq(DEPLOYMENT_ID),
+                eq("Deployment-test-pod"),
+                emitterConsumerCaptor.capture()
+        );
+        emitterConsumerCaptor.getValue().apply(sseEmitter);
+
+        // Then
+        verify(deploymentManager).getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, true);
+    }
+
+    @Test
     void streamLogs_shouldHandleBatchesOfLogs() throws IOException {
         // Given
+        stubDefaultContainerResource();
         when(podLogReaderFactory.create(logReaderConfig)).thenReturn(podLogReader);
 
         doAnswer(invocation -> {
