@@ -5,7 +5,6 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
-import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.pipeline.step.ImageAnalysisStep;
 import com.epam.aidial.deployment.manager.service.pipeline.step.WrapperImageBuildStep;
@@ -32,8 +31,7 @@ public class ImageWrapperBuildPipeline {
         try {
             run(imageDefinition);
         } catch (Exception e) {
-            imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_FAILED);
-            imageDefinitionService.addBuildLog(imageDefinitionId, "Image build has failed: %s".formatted(e.getMessage()));
+            imageDefinitionService.failBuild(imageDefinitionId, "Image build has failed: %s".formatted(e.getMessage()));
         } finally {
             disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
         }
@@ -46,9 +44,7 @@ public class ImageWrapperBuildPipeline {
 
         var distroInfo = imageAnalysisStep.analyse(imageDefinition, imageSource.getImageUri());
         var wrapperImageName = wrapperImageBuildStep.build(imageDefinition, imageSource.getEntrypoint(), imageSource.getImageUri(), distroInfo);
-        imageDefinitionService.updateBuildStatus(imageDefinition.getId(), ImageStatus.BUILD_SUCCESSFUL);
-        imageDefinitionService.setImageName(imageDefinition.getId(), wrapperImageName);
-        imageDefinitionService.setBuiltAt(imageDefinition.getId(), System.currentTimeMillis());
+        imageDefinitionService.completeBuildSuccessfully(imageDefinition.getId(), wrapperImageName, System.currentTimeMillis());
     }
 
 }

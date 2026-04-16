@@ -6,13 +6,13 @@ import com.epam.aidial.deployment.manager.dao.entity.ApplicationImageDefinitionE
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.McpImageDefinitionEntity;
+import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageStatus;
 import com.epam.aidial.deployment.manager.dao.jpa.ImageDefinitionJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionMapper;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionViewMapper;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
-import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,8 +97,7 @@ public class ImageDefinitionRepository {
     }
 
     public ImageDefinition updateImageDefinition(UUID id, ImageDefinition updatedImageDefinition) {
-        var existingEntity = imageDefinitionJpaRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+        var existingEntity = findImageDefinitionById(id);
 
         mapper.updateEntityFromDomain(updatedImageDefinition, existingEntity);
 
@@ -107,31 +106,46 @@ public class ImageDefinitionRepository {
         return mapper.toImageDefinition(savedEntity);
     }
 
-    public void updateBuildStatus(UUID id, ImageStatus buildStatus) {
-        var persistenceStatus = mapper.toImageStatusDto(buildStatus);
-        imageDefinitionJpaRepository.updateBuildStatus(id, persistenceStatus);
-        log.debug("Build status updated for image definition '{}' to: {}", id, buildStatus);
-    }
-
-    public void setImageName(UUID id, String imageName) {
-        imageDefinitionJpaRepository.setImageName(id, imageName);
-        log.debug("Image name set for image definition '{}' to: {}", id, imageName);
-    }
-
-    public void setBuiltAt(UUID id, Long builtAt) {
-        imageDefinitionJpaRepository.setBuiltAt(id, builtAt);
-        log.debug("BuiltAt set for image definition '{}' to: {}", id, builtAt);
-    }
-
-    public void resetBuildLogs(UUID id) {
-        imageDefinitionJpaRepository.resetBuildLogs(id);
-        log.debug("Build logs reset for image definition '{}'", id);
-    }
-
     public void addBuildLogs(UUID id, List<String> logs) {
-        var entity = imageDefinitionJpaRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+        var entity = findImageDefinitionById(id);
+        appendBuildLogs(entity, logs);
+        imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Build logs added for image definition '{}', {} log entries added", id, logs.size());
+    }
 
+    public void startBuild(UUID id) {
+        var entity = findImageDefinitionById(id);
+        entity.setBuildStatus(PersistenceImageStatus.BUILDING);
+        entity.setBuildLogs(new ArrayList<>());
+        appendBuildLogs(entity, List.of("Image build started"));
+        imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Build started for image definition '{}'", id);
+    }
+
+    public void completeBuildSuccessfully(UUID id, String imageName, long builtAt) {
+        var entity = findImageDefinitionById(id);
+        entity.setBuildStatus(PersistenceImageStatus.BUILD_SUCCESSFUL);
+        entity.setImageName(imageName);
+        entity.setBuiltAt(builtAt);
+        imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Build completed successfully for image definition '{}': imageName={}, builtAt={}",
+                id, imageName, builtAt);
+    }
+
+    public void failBuild(UUID id, String errorLog) {
+        var entity = findImageDefinitionById(id);
+        entity.setBuildStatus(PersistenceImageStatus.BUILD_FAILED);
+        appendBuildLogs(entity, List.of(errorLog));
+        imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Build failed for image definition '{}'", id);
+    }
+
+    private ImageDefinitionEntity findImageDefinitionById(UUID id) {
+        return imageDefinitionJpaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+    }
+
+    private void appendBuildLogs(ImageDefinitionEntity entity, List<String> logs) {
         if (entity.getBuildLogs() == null) {
             entity.setBuildLogs(new ArrayList<>());
         }
@@ -143,9 +157,6 @@ public class ImageDefinitionRepository {
         if (excess > 0) {
             buildLogs.subList(0, excess).clear(); // Remove oldest entries
         }
-
-        imageDefinitionJpaRepository.saveAndFlush(entity);
-        log.debug("Build logs added for image definition '{}', {} log entries added", id, logs.size());
     }
 
     public List<ImageDefinitionView> getAllImageDefinitionViews() {

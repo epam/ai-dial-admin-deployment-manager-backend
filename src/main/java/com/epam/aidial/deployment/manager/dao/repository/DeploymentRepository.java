@@ -177,20 +177,28 @@ public class DeploymentRepository {
                 PersistenceImageType.valueOf(imageType.name()),
                 imageDefinition.getName(),
                 imageDefinition.getVersion());
-        deploymentJpaRepository.updateImageDefinitionAndSourceForDeployments(
-                imageDefinition.getId(), source, deploymentIds);
+        var entities = deploymentJpaRepository.findAllByIdIn(deploymentIds);
+        for (var entity : entities) {
+            entity.setImageDefinitionId(imageDefinition.getId());
+            entity.setSource(source);
+        }
+        deploymentJpaRepository.saveAllAndFlush(entities);
         log.debug("Image definition updated for deployments: {}", deploymentIds);
     }
 
     @Transactional
     public void updateStatus(String id, DeploymentStatus status) {
-        deploymentJpaRepository.updateStatus(id, PersistenceDeploymentStatus.valueOf(status.name()));
+        var entity = findDeploymentById(id);
+        entity.setStatus(PersistenceDeploymentStatus.valueOf(status.name()));
+        deploymentJpaRepository.saveAndFlush(entity);
         log.debug("Status updated for deployment '{}' to: {}", id, status);
     }
 
     @Transactional
     public void updateServiceName(String id, String serviceName) {
-        deploymentJpaRepository.updateServiceName(id, serviceName);
+        var entity = findDeploymentById(id);
+        entity.setServiceName(serviceName);
+        deploymentJpaRepository.saveAndFlush(entity);
         log.debug("Service name updated for deployment '{}' to: {}", id, serviceName);
     }
 

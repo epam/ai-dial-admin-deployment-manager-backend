@@ -115,11 +115,6 @@ public class ImageDefinitionService {
     }
 
     @Transactional
-    public void updateBuildStatus(UUID id, ImageStatus buildStatus) {
-        imageDefinitionRepository.updateBuildStatus(id, buildStatus);
-    }
-
-    @Transactional
     public void addBuildLog(UUID id, String log) {
         addBuildLogs(id, List.of(log));
     }
@@ -130,18 +125,18 @@ public class ImageDefinitionService {
     }
 
     @Transactional
-    public void setImageName(UUID id, String imageName) {
-        imageDefinitionRepository.setImageName(id, imageName);
+    public void startBuild(UUID id) {
+        imageDefinitionRepository.startBuild(id);
     }
 
     @Transactional
-    public void setBuiltAt(UUID id, long timestamp) {
-        imageDefinitionRepository.setBuiltAt(id, timestamp);
+    public void completeBuildSuccessfully(UUID id, String imageName, long builtAt) {
+        imageDefinitionRepository.completeBuildSuccessfully(id, imageName, builtAt);
     }
 
     @Transactional
-    public void resetBuildLogs(UUID id) {
-        imageDefinitionRepository.resetBuildLogs(id);
+    public void failBuild(UUID id, String errorLog) {
+        imageDefinitionRepository.failBuild(id, errorLog);
     }
 
     public void deleteImageDefinitionAsync(UUID id) {

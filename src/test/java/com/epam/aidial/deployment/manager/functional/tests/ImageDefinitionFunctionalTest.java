@@ -110,7 +110,7 @@ public abstract class ImageDefinitionFunctionalTest {
         UUID imageDefId = imageDefs.getFirst().getId();
 
         // When 2
-        service.updateBuildStatus(imageDefId, ImageStatus.BUILD_SUCCESSFUL);
+        service.completeBuildSuccessfully(imageDefId, "test-image", System.currentTimeMillis());
         CreateDeployment createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefId);
         Deployment deployment = deploymentService.createDeployment(createDeployment);
 
@@ -435,7 +435,7 @@ public abstract class ImageDefinitionFunctionalTest {
         var createdAdapter2 = service.createImageDefinition(adapterImageDef2);
         var createdInterceptor = service.createImageDefinition(interceptorImageDef);
 
-        service.updateBuildStatus(createdAdapter1.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        service.completeBuildSuccessfully(createdAdapter1.getId(), "test-image", System.currentTimeMillis());
 
         var adapterViews = service.getImageDefinitionViewsByType(ImageType.ADAPTER).stream().toList();
         var interceptorViews = service.getImageDefinitionViewsByType(ImageType.INTERCEPTOR).stream().toList();
@@ -520,8 +520,8 @@ public abstract class ImageDefinitionFunctionalTest {
         service.createImageDefinition(imageDef2);
         service.createImageDefinition(imageDef3);
 
-        service.updateBuildStatus(created0.getId(), ImageStatus.BUILD_SUCCESSFUL);
-        service.updateBuildStatus(created1.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        service.completeBuildSuccessfully(created0.getId(), "test-image", System.currentTimeMillis());
+        service.completeBuildSuccessfully(created1.getId(), "test-image", System.currentTimeMillis());
 
         // When
         var views = service.getImageDefinitionViews().stream().toList();
@@ -566,7 +566,7 @@ public abstract class ImageDefinitionFunctionalTest {
         var createdMcp2 = service.createImageDefinition(mcpImageDef2);
         var createdInterceptor = service.createImageDefinition(interceptorImageDef);
 
-        service.updateBuildStatus(createdMcp1.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        service.completeBuildSuccessfully(createdMcp1.getId(), "test-image", System.currentTimeMillis());
 
         // When
         var mcpViews = service.getImageDefinitionViewsByType(ImageType.MCP).stream().toList();

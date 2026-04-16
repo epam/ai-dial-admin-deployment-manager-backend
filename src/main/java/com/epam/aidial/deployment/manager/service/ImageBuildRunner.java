@@ -86,12 +86,8 @@ public class ImageBuildRunner {
     }
 
     private ImageDefinition startDockerImagePipeline(ImageDefinition imageDefinition, Consumer<UUID> pipeline) {
-        var buildStatus = ImageStatus.BUILDING;
-
-        imageDefinition.setBuildStatus(buildStatus);
-        imageDefinitionService.updateBuildStatus(imageDefinition.getId(), buildStatus);
-        imageDefinitionService.resetBuildLogs(imageDefinition.getId());
-        imageDefinitionService.addBuildLog(imageDefinition.getId(), "Image build started");
+        imageDefinition.setBuildStatus(ImageStatus.BUILDING);
+        imageDefinitionService.startBuild(imageDefinition.getId());
 
         executorService.execute(() -> pipeline.accept(imageDefinition.getId()));
 
