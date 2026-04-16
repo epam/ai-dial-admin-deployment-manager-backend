@@ -50,7 +50,7 @@ public abstract class ImageDefinitionFunctionalTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.clearInvocations(securityClaimsExtractor);
+        Mockito.reset(securityClaimsExtractor);
     }
 
     @Test

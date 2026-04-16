@@ -96,7 +96,7 @@ public abstract class DeploymentFunctionalTest {
 
         imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image", System.currentTimeMillis());
 
-        Mockito.clearInvocations(securityClaimsExtractor);
+        Mockito.reset(securityClaimsExtractor);
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
         var resource = Mockito.mock(Resource.class);
