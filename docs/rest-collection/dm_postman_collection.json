@@ -1649,6 +1649,62 @@
               ]
             },
             {
+              "name": "activities",
+              "item": [
+                {
+                  "name": "get activities",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"pageNumber\": 0,\n    \"filters\": [\n        {\n            \"column\": \"resourceType\",\n            \"value\": \"AdapterDeployment\",\n            \"operator\": \"eq\"\n        }\n    ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/activities",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "activities"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get activity",
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/activities/{{ACTIVITY_ID}}",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "activities",
+                        "{{ACTIVITY_ID}}"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
               "name": "healthcheck",
               "protocolProfileBehavior": {
                 "followRedirects": true,
@@ -1792,6 +1848,10 @@
     {
       "key": "POD_ID",
       "value": "test_pod_id"
+    },
+    {
+      "key": "ACTIVITY_ID",
+      "value": "some_activity"
     }
   ]
 }
