@@ -13,13 +13,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class TransactionTimestampAspect {
 
-    @Before("@annotation(transactional)")
-    public void bindTimestamp(jakarta.transaction.Transactional transactional) {
+    @Before("@annotation(jakarta.transaction.Transactional) || @within(jakarta.transaction.Transactional)")
+    public void bindTimestamp() {
         bindIfAbsent();
     }
 
-    @Before("@annotation(transactional)")
-    public void bindTimestampSpring(org.springframework.transaction.annotation.Transactional transactional) {
+    @Before("@annotation(org.springframework.transaction.annotation.Transactional)"
+            + " || @within(org.springframework.transaction.annotation.Transactional)")
+    public void bindTimestampSpring() {
         bindIfAbsent();
     }
 

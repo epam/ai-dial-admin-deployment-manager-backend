@@ -195,8 +195,8 @@ class PageEntityMapperTest {
             case ge -> when(criteriaBuilder.greaterThanOrEqualTo(path, "val")).thenReturn(predicate);
             case lt -> when(criteriaBuilder.lessThan(path, "val")).thenReturn(predicate);
             case le -> when(criteriaBuilder.lessThanOrEqualTo(path, "val")).thenReturn(predicate);
-            case co -> when(criteriaBuilder.like(path, "%val%")).thenReturn(predicate);
-            case nc -> when(criteriaBuilder.notLike(path, "%val%")).thenReturn(predicate);
+            case co -> when(criteriaBuilder.like(path, "%val%", '\\')).thenReturn(predicate);
+            case nc -> when(criteriaBuilder.notLike(path, "%val%", '\\')).thenReturn(predicate);
             default -> throw new IllegalArgumentException("Unexpected operator: " + operator);
         }
 

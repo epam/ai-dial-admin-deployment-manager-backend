@@ -73,14 +73,18 @@ public interface PageEntityMapper {
                     return criteriaBuilder.lessThanOrEqualTo(column, value);
                 }
                 case co -> {
-                    return criteriaBuilder.like(column, "%" + value + "%");
+                    return criteriaBuilder.like(column, "%" + escapeLikeWildcards(value) + "%", '\\');
                 }
                 case nc -> {
-                    return criteriaBuilder.notLike(column, "%" + value + "%");
+                    return criteriaBuilder.notLike(column, "%" + escapeLikeWildcards(value) + "%", '\\');
                 }
                 default -> throw new IllegalArgumentException("Operator " + filter.getOperator() + " is not supported");
             }
         };
+    }
+
+    private static String escapeLikeWildcards(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     Sort.Direction mapDirection(SortDirection direction);
