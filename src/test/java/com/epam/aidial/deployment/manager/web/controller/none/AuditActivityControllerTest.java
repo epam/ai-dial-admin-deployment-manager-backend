@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.web.controller.AuditActivityController
 import com.epam.aidial.deployment.manager.web.dto.audit.AuditActivityDto;
 import com.epam.aidial.deployment.manager.web.mapper.AuditActivityDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.PageDtoMapper;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
