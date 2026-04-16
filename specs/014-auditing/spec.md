@@ -87,6 +87,58 @@ The system preserves the full state of every audited entity at each point of cha
 
 ---
 
+### User Story 6 - List Revision History (Priority: P2)
+
+An administrator wants to see a paginated, filterable list of all revisions (transaction snapshots) to understand the timeline of system changes, identify who made changes, and correlate groups of related modifications.
+
+**Why this priority**: Revision listing provides a higher-level view of system change history, complementing the activity feed. Useful for compliance and investigation but not required for day-to-day audit queries.
+
+**Independent Test**: Can be tested by performing several CRUD operations to generate revisions, then querying the revision list endpoint to verify results include correct metadata (id, timestamp, author, email).
+
+**Acceptance Scenarios**:
+
+1. **Given** multiple CRUD operations have been performed, **When** the administrator queries the revision list endpoint with no filters, **Then** all revisions are returned with correct pagination metadata.
+2. **Given** revisions exist from multiple authors, **When** the administrator filters by author, **Then** only revisions by that author are returned.
+3. **Given** revisions span a time range, **When** the administrator filters by timestamp range, **Then** only revisions within that range are returned.
+4. **Given** revisions exist, **When** the administrator sorts by timestamp DESC, **Then** the most recent revisions appear first.
+
+---
+
+### User Story 7 - Query Specific Revision (Priority: P2)
+
+An administrator wants to look up a specific revision by its ID or find the most recent revision at a given point in time, for audit investigation or compliance reporting.
+
+**Why this priority**: Enables point-in-time lookups, which are essential for correlating revisions with external events (e.g., incident timestamps). Lower priority than activity listing but required for full audit capability.
+
+**Independent Test**: Can be tested by creating revisions, then querying by known ID and by timestamp to verify correct results and 404 behavior.
+
+**Acceptance Scenarios**:
+
+1. **Given** a revision exists with a known ID, **When** the administrator queries by ID, **Then** the full revision record is returned.
+2. **Given** no revision exists with the provided ID, **When** the administrator queries by ID, **Then** the system returns a 404 response.
+3. **Given** revisions exist at timestamps T1 and T3, **When** the administrator queries by timestamp T2 (where T1 < T2 < T3), **Then** the revision at T1 is returned (most recent at or before T2).
+4. **Given** no revisions exist before the provided timestamp, **When** the administrator queries by timestamp, **Then** the system returns a 404 response.
+
+---
+
+### User Story 8 - View Entity Snapshot at Revision (Priority: P2)
+
+An administrator wants to view the state of a specific entity (deployment, image definition, domain whitelist) as it was at a particular revision, for audit investigation, compliance reporting, or change comparison.
+
+**Why this priority**: Entity snapshots expose the historical data captured by Envers, enabling administrators to see what an entity looked like at any past point. Supports compliance use cases and troubleshooting configuration regressions.
+
+**Independent Test**: Can be tested by creating a deployment, modifying it, then querying the snapshot at the first revision to verify the original state is returned.
+
+**Acceptance Scenarios**:
+
+1. **Given** a deployment was created at revision R1 and updated at revision R2, **When** the administrator requests the deployment snapshot at R1, **Then** the original state is returned.
+2. **Given** a deployment was created at revision R1, **When** the administrator requests the deployment snapshot at a revision before R1, **Then** the system returns a 404 response.
+3. **Given** multiple deployments existed at revision R, **When** the administrator requests all deployments at revision R, **Then** all deployments that existed at that point are returned.
+4. **Given** an image definition was deleted at revision R2, **When** the administrator requests all image definitions at revision R1 (before deletion), **Then** the deleted image definition is included in the results.
+5. **Given** the domain whitelist had specific values at revision R, **When** the administrator requests the whitelist snapshot at R, **Then** the historical whitelist values are returned.
+
+---
+
 ### Edge Cases
 
 - What happens when an unauthenticated request modifies data (e.g., internal API calls)? The system records `"unknown"` as the author when an HTTP request is present but authentication is missing or invalid, and `"system"` when no security context exists at all (e.g., K8s informer callbacks, scheduled tasks, build pipeline operations).
@@ -94,6 +146,9 @@ The system preserves the full state of every audited entity at each point of cha
 - What happens when the same entity is modified multiple times within a single transaction? The system deduplicates activities, keeping the most specific activity type (Create or Delete takes precedence over Update).
 - What happens when an entity modification fails and the transaction rolls back? No audit records are created because they are part of the same transaction.
 - What happens when the activity table grows very large? Pagination ensures the API remains responsive regardless of total activity count.
+- What happens when querying a snapshot at a revision where the entity did not yet exist? The system returns a 404 response.
+- What happens when querying all entities at a revision before any were created? The system returns an empty list.
+- What happens when querying a revision by timestamp before any revisions exist? The system returns a 404 response.
 
 ## Requirements *(mandatory)*
 
@@ -110,6 +165,10 @@ The system preserves the full state of every audited entity at each point of cha
 - **FR-009**: System MUST audit the following resource types: AdapterDeployment, ApplicationDeployment, InterceptorDeployment, McpDeployment, NimDeployment, InferenceDeployment, AdapterImageDefinition, ApplicationImageDefinition, InterceptorImageDefinition, McpImageDefinition, and DomainWhitelist. DisposableResource and ComponentRemoval are excluded as internal housekeeping entities. Base types (Deployment, ImageDefinition) are audited at the database level via Envers but are not exposed as activity resource types — entities are always persisted as concrete subtypes.
 - **FR-010**: System MUST manage audit schema changes through versioned database migrations compatible with all supported database dialects (H2, PostgreSQL, MS SQL Server).
 - **FR-011**: System MUST NOT create audit records when a transaction rolls back.
+- **FR-012**: System MUST expose a revision list endpoint (`POST /api/v1/history/revisions`) that returns revisions with pagination, sorting, and filtering on id, timestamp, author, and email (see `contracts/revisions-api.md`).
+- **FR-013**: System MUST expose a revision query endpoint (`POST /api/v1/history/revisions/query`) that accepts a polymorphic request to find a revision by ID or by timestamp (most recent at or before the given timestamp).
+- **FR-014**: Each audited entity controller MUST expose a snapshot endpoint (`GET /{id}/revision/{revision}`) that returns the entity DTO as it existed at the specified revision.
+- **FR-015**: Each audited entity controller MUST expose a collection snapshot endpoint (`GET /revision/{revision}`) that returns all entities of that type as they existed at the specified revision.
 
 ### Key Entities
 
@@ -127,6 +186,9 @@ The system preserves the full state of every audited entity at each point of cha
 - **SC-004**: Administrators can retrieve a filtered page of activities within 2 seconds under normal operating conditions.
 - **SC-005**: The activity list endpoint supports at least 5 simultaneous filter criteria without degradation.
 - **SC-006**: Activity deduplication correctly collapses multiple modifications to the same resource within one transaction into a single activity entry.
+- **SC-007**: Revision list endpoint returns correct paginated results with filtering within 2 seconds under normal operating conditions.
+- **SC-008**: Revision query by timestamp returns the most recent revision at or before the given timestamp, or 404 if none exists.
+- **SC-009**: Entity snapshot endpoints return the correct historical state matching the Envers audit trail for all audited entity types.
 
 ## Assumptions
 
@@ -139,3 +201,6 @@ The system preserves the full state of every audited entity at each point of cha
 - Activity endpoints are accessible to all authenticated users (no `@FullAdminOnly` restriction), matching the reference implementation pattern.
 - No UI changes are in scope — this feature provides the backend API only.
 - Existing entities that already have `@CreatedDate`/`@LastModifiedDate` fields will retain those alongside the new audit tracking — the two mechanisms serve different purposes (current state timestamps vs. full change history).
+- Revision listing follows the same REST conventions as the reference implementation: `POST /api/v1/history/revisions` for filtered listing with pagination and `POST /api/v1/history/revisions/query` for single-revision lookup.
+- Entity snapshot endpoints use Hibernate Envers `AuditReader` API to retrieve historical entity state. Envers correctly preserves JOINED inheritance hierarchies (e.g., querying `DeploymentEntity` at a revision returns the concrete subtype).
+- Snapshot endpoints return the same DTOs as the corresponding current-state endpoints (e.g., `DeploymentDto`, `ImageDefinitionDto`) — no `EntityRevisionDto` wrapper is needed since rollback is out of scope.

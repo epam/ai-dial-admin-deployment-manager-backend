@@ -1,7 +1,10 @@
 package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.entity.DomainWhitelistEntity;
 import com.epam.aidial.deployment.manager.dao.repository.GlobalDomainWhitelistRepository;
+import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +18,7 @@ import java.util.List;
 public class GlobalDomainWhitelistService {
 
     private final GlobalDomainWhitelistRepository repository;
+    private final HistoryService historyService;
 
     @Transactional(readOnly = true)
     public List<String> getDomainWhitelist() {
@@ -29,5 +33,14 @@ public class GlobalDomainWhitelistService {
     @Transactional
     public void setDomainWhitelistOrCreate(@NotNull List<String> allowedDomains) {
         repository.setAllowedDomainsOrCreate(allowedDomains);
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getDomainWhitelistSnapshot(Integer revision) {
+        return historyService.getEntitiesAtRevision(revision, DomainWhitelistEntity.class).stream()
+                .findFirst()
+                .map(DomainWhitelistEntity::getAllowedDomains)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Unable to find domain whitelist at revision " + revision));
     }
 }
