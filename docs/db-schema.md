@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-04-14T14:52:54.698165Z
+> Generated at: 2026-04-16T12:05:23.976888Z
 
 ## Tables
 
@@ -124,6 +124,7 @@
 **Indexes:**
 
 - `FK_AUDIT_ACTIVITY_REV_INDEX_4` on (REVISION)
+- `IDX_AUDIT_ACTIVITY_RESOURCE_TYPE_EPOCH` on (RESOURCE_TYPE, EPOCH_TIMESTAMP_MS)
 
 ## COMPONENT_REMOVAL
 
@@ -451,4 +452,8 @@
 | TIMESTAMP | BIGINT | No |  |  |
 | AUTHOR | VARCHAR(255) | Yes |  |  |
 | EMAIL | VARCHAR(320) | Yes |  |  |
+
+**Indexes:**
+
+- `IDX_REVINFO_TIMESTAMP_ID` on (TIMESTAMP, ID)
 

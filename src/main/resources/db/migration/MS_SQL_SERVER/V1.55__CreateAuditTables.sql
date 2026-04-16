@@ -204,3 +204,6 @@ CREATE TABLE audit_activity (
     CONSTRAINT pk_audit_activity PRIMARY KEY (activity_id),
     CONSTRAINT fk_audit_activity_rev FOREIGN KEY (revision) REFERENCES revinfo(id)
 );
+go
+
+CREATE INDEX idx_revinfo_timestamp_id ON revinfo(timestamp DESC, id DESC);
