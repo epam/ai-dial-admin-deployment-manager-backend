@@ -10,6 +10,12 @@ buildscript {
             classpath ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
                 because("previous versions have vulnerabilities")
             }
+            classpath ('io.netty:netty-codec-http2:4.2.11.Final') {
+                because("previous versions have vulnerabilities")
+            }
+            classpath ('io.netty:netty-codec-http:4.2.10.Final') {
+                because("previous versions have vulnerabilities")
+            }
         }
     }
 }
@@ -82,7 +88,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
     implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
 
-    implementation 'io.modelcontextprotocol.sdk:mcp:0.15.0'
+    implementation 'io.modelcontextprotocol.sdk:mcp:1.1.1'
     implementation 'com.google.cloud.tools:jib-core:0.27.3'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
@@ -110,10 +116,10 @@ dependencies {
         exclude group: 'org.apache.logging.log4j'
     }
     implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3'
-    implementation 'org.apache.logging.log4j:log4j-core:2.25.3'
+    implementation 'org.apache.logging.log4j:log4j-core:2.25.4'
     implementation 'org.apache.logging.log4j:log4j-jul:2.24.3'
 
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator:3.5.12'
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'io.opentelemetry:opentelemetry-sdk'
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
@@ -137,7 +143,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.18') {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.21') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
@@ -146,7 +152,7 @@ dependencies {
         implementation ('io.projectreactor.netty:reactor-netty-http:1.2.8') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('io.netty:netty-codec-http2:4.2.4.Final') {
+        implementation ('io.netty:netty-codec-http2:4.2.11.Final') {
             because("previous versions have vulnerabilities")
         }
         implementation("io.grpc:grpc-netty-shaded:1.75.0") {
@@ -155,19 +161,28 @@ dependencies {
         implementation ('io.netty:netty-codec:4.2.8.Final') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('io.netty:netty-codec-http:4.2.8.Final') {
+        implementation ('io.netty:netty-codec-http:4.2.10.Final') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('org.springframework:spring-webmvc:6.2.10') {
+        implementation ('org.springframework:spring-webmvc:6.2.17') {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework.security:spring-security-core:6.5.4') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('org.springframework.security:spring-security-web:6.5.9') {
             because("previous versions have vulnerabilities")
         }
         implementation ('org.springframework:spring-core:6.2.11') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('tools.jackson.core:jackson-core:3.1.1') {
+            because("previous versions have vulnerabilities")
+        }
+        checkstyle ('org.codehaus.plexus:plexus-utils:4.0.3') {
             because("previous versions have vulnerabilities")
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
