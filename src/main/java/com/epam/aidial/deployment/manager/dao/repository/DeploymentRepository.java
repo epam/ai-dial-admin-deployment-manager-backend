@@ -117,6 +117,12 @@ public class DeploymentRepository {
                 .map(mapper::toDomain);
     }
 
+    public List<Deployment> getByIds(List<String> ids) {
+        return deploymentJpaRepository.findAllById(ids).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
     public Optional<Deployment> getByServiceName(String serviceName) {
         return deploymentJpaRepository.findByServiceName(serviceName)
                 .map(mapper::toDomain);

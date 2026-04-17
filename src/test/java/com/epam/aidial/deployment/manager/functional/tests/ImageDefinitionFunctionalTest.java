@@ -99,7 +99,7 @@ public abstract class ImageDefinitionFunctionalTest {
         when(resource.create()).thenReturn(secret);
         when(kubernetesClient.secrets()).thenReturn(mixedOperation);
 
-        ImageDefinition imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
 
         // When 1
         service.createImageDefinition(imageDef);

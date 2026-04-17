@@ -177,8 +177,16 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
                 EnvVarMountType.CONTENT, "Sample DIAL URL");
         var sensEnv = new EnvVarDefinition("SENS_VAR_1", new SimpleEnvVarValue("some-sensitive-value"),
                 EnvVarMountType.SECURE_CONTENT, "Some sensitive value");
-        var deployment = FunctionalTestHelper.createRealInterceptorDeploymentRequest(deploymentName, List.of(dialUrlEnv, sensEnv));
+        var deployment = imageDefinition instanceof McpImageDefinition
+                ? FunctionalTestHelper.createRealMcpDeploymentRequest(deploymentName, List.of(dialUrlEnv, sensEnv))
+                : FunctionalTestHelper.createRealInterceptorDeploymentRequest(deploymentName, List.of(dialUrlEnv, sensEnv));
         deployment.setSource(new InternalImageSource(imageId, null, null, null));
+        if (deployment.getContainerPort() == null) {
+            deployment.setContainerPort(8080);
+        }
+        if (deployment.getAllowedDomains() == null || deployment.getAllowedDomains().isEmpty()) {
+            deployment.setAllowedDomains(List.of("github.com", "epam.com"));
+        }
 
         // When - Create deployment
         var createdDeployment = deploymentService.createDeployment(deployment);

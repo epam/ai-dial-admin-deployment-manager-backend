@@ -103,6 +103,10 @@ Status: **Implemented**
 - **WHEN** `POST /api/v1/deployments` is called with a source type that does not match the deployment type (e.g., `ngc_registry` for an MCP deployment, or `image_reference` for an Inference deployment)
 - **THEN** the system responds with 400 with a source type validation error
 
+#### Scenario: Image type does not match deployment type rejected
+- **WHEN** `POST /api/v1/deployments` (or `PUT /api/v1/deployments/{id}`) is called with an `internal_image` source whose resolved image definition type does not match the deployment type (e.g., an MCP deployment referencing an INTERCEPTOR image)
+- **THEN** the system responds with 400; the check applies whether the image is referenced by `imageDefinitionId` or by the `(imageDefinitionType, imageDefinitionName, imageDefinitionVersion)` triple, and a declared `imageDefinitionType` that conflicts with the deployment type is rejected before any database lookup
+
 #### Scenario: Create model-source deployment
 - **WHEN** `POST /api/v1/deployments` is called with `type: INFERENCE|NIM` and a model source reference
 - **THEN** a new deployment is persisted in `NOT_DEPLOYED` status with the model source; HTTP 201 is returned
@@ -150,6 +154,10 @@ Status: **Implemented**
 #### Scenario: Image version change
 - **WHEN** `POST /api/v1/deployments/change-image` is called with `imageDefinitionId` (UUID) and a non-empty list of deployment names (`deployments`)
 - **THEN** the specified deployments are updated to reference the new image definition version
+
+#### Scenario: Image type must match every target deployment
+- **WHEN** `POST /api/v1/deployments/change-image` is called and the target image's type (MCP/ADAPTER/INTERCEPTOR/APPLICATION) does not match one or more listed deployments' types
+- **THEN** the system loads the listed deployments in a single batch query, rejects the whole request with 400, and updates no deployments; missing deployment ids produce a 404 before type validation runs
 
 ### Requirement: Activate a deployment (deploy)
 The system SHALL create or update Kubernetes resources to make a deployment live. Status transitions to `PENDING` immediately, then `RUNNING` once healthy.
@@ -417,7 +425,7 @@ The `source` JSON column lives on the base `DeploymentEntity`, storing a `Persis
   - `InternalImageSource`, `ImageReferenceSource`, `HuggingFaceSource`, `NgcRegistrySource`
 - Persistence source model: `com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceSource` (sealed interface, stored as JSON)
   - `PersistenceInternalImageSource`, `PersistenceImageReferenceSource`, `PersistenceHuggingFaceSource`, `PersistenceNgcRegistrySource`
-- Source validation: `DeploymentService.validateSourceForDeploymentType()` — enforces source-to-deployment-type compatibility
+- Source validation: `com.epam.aidial.deployment.manager.service.deployment.DeploymentSourceValidator` — enforces source-to-deployment-type compatibility and image-type-to-deployment-type compatibility for `internal_image` sources; invoked by `DeploymentService` on create, update, and bulk image change
 - Image resolution: `KnativeDeploymentManager.resolveImageName()` — pattern-matches on Source variant
 - Export mix-in: `com.epam.aidial.deployment.manager.configuration.export.InternalImageSourceExportMixIn` — excludes `imageDefinitionId` from config export
 - URL resolution: `AbstractDeploymentManager.resolveServiceUrl()` — populated on RUNNING, cleared on undeploy
