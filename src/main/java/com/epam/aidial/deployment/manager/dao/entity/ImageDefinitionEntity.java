@@ -18,6 +18,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.envers.Audited;
+import org.hibernate.envers.NotAudited;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -73,6 +74,7 @@ public class ImageDefinitionEntity {
     @Enumerated(value = EnumType.STRING)
     private PersistenceImageStatus buildStatus;
 
+    @NotAudited
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "build_logs")
     private List<String> buildLogs;
