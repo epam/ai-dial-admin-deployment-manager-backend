@@ -102,7 +102,6 @@ CREATE TABLE image_definition_aud (
     updated_at_ms   BIGINT,
     image_name      VARCHAR(255),
     build_status    VARCHAR(255),
-    build_logs      JSONB,
     built_at_ms     BIGINT,
     author          VARCHAR(255),
     allowed_domains JSONB,

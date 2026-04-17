@@ -105,6 +105,7 @@ Status: **Implemented**
 - Image builder enum: `com.epam.aidial.deployment.manager.web.dto.ImageBuilderDto` (BUILDKIT, BUILDKIT_ROOTLESS)
 - Dispatcher: `com.epam.aidial.deployment.manager.service.ImageBuildRunner`
 - Log/status SSE service: `com.epam.aidial.deployment.manager.service.ImageBuildLogsService`
+- Build log persistence: stored in the dedicated `image_build_logs` table (keyed by `image_definition_id`, `ON DELETE CASCADE`), separate from `image_definition`. This keeps log appends out of the audit trail — see `specs/014-auditing/research.md` Decision 6.
 - Pipelines (in `com.epam.aidial.deployment.manager.service.pipeline`):
   - `ImageBuildFromGitPipeline`    — Git Dockerfile → BuildKit build → optional wrapper build (for LOCAL transport)
   - `ImageWrapperBuildPipeline`    — existing Docker image → image analysis step → wrapper image build step

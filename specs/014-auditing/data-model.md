@@ -88,6 +88,7 @@ Each subtype inherits `@Audited`. Envers creates `{table}_aud` with subtype-spec
 ### ImageDefinitionEntity (base)
 - Add `@Audited` at class level
 - Envers creates `image_definition_aud` with all base columns + `rev` + `revtype`
+- `buildLogs` is NOT a field of this entity. It lives on the non-audited `ImageBuildLogsEntity` (table `image_build_logs`, introduced in V1.56) so that appending build output does not generate `revinfo`, `image_definition_aud`, or activity rows. See `research.md` Decision 6.
 
 ### Image Definition Subtypes
 - `adapter_image_definition_aud` — no additional columns
@@ -122,7 +123,7 @@ For JOINED inheritance base tables, `revtype` is on the base `_aud` table only. 
 
 ## Migration Summary
 
-All migrations at version **V1.55** across three dialects (H2, POSTGRES, MS_SQL_SERVER):
+Audit tables at version **V1.55** across three dialects (H2, POSTGRES, MS_SQL_SERVER):
 
 | Table                             | Purpose                        |
 |-----------------------------------|--------------------------------|
@@ -134,13 +135,18 @@ All migrations at version **V1.55** across three dialects (H2, POSTGRES, MS_SQL_
 | `mcp_deployment_aud`              | MCP deployment audit           |
 | `nim_deployment_aud`              | NIM deployment audit           |
 | `inference_deployment_aud`        | Inference deployment audit     |
-| `image_definition_aud`            | Image definition base audit    |
+| `image_definition_aud`            | Image definition base audit (no `build_logs` column — logs are not audited; see Decision 6) |
 | `adapter_image_definition_aud`    | Adapter image def audit        |
 | `application_image_definition_aud`| Application image def audit    |
 | `interceptor_image_definition_aud`| Interceptor image def audit    |
 | `mcp_image_definition_aud`        | MCP image def audit            |
 | `domain_whitelist_aud`            | Domain whitelist audit         |
 | `deployment_topics_aud`           | Deployment topics audit        |
+| `image_definition_topics_aud`     | Image definition topics audit  |
 | `audit_activity`                  | Denormalized activity feed     |
 
-Total: 16 new tables per dialect.
+Follow-up migration at **V1.56**:
+
+| Table              | Purpose                                                                 |
+|--------------------|-------------------------------------------------------------------------|
+| `image_build_logs` | Non-audited sibling of `image_definition`, keyed by `image_definition_id` with `ON DELETE CASCADE`. Holds streamed build output so appends do not touch an `@Audited` entity. Backfilled from `image_definition.build_logs`; the old column is dropped. |

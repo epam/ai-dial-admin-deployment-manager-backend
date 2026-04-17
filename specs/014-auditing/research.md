@@ -54,14 +54,13 @@
 
 ## Decision 6: Fields to Exclude from Envers Auditing
 
-**Decision**: Audit all fields on all audited entities. Do NOT use `@NotAudited` on any fields initially.
+**Decision**: Audit all fields on audited entities, with one exception: `buildLogs` is moved off `ImageDefinitionEntity` entirely into a non-audited sibling entity `ImageBuildLogsEntity` (own table `image_build_logs`, introduced in V1.56). It is not referenced by `@Audited` code and not present in any `*_aud` table.
 
-**Rationale**: Full field auditing provides the most complete historical record. Fields like `status`, `url`, `errorMessage` on `DeploymentEntity` and `buildStatus`, `buildLogs` on `ImageDefinitionEntity` change due to system operations (K8s informers, build pipeline). These changes ARE legitimate audit events — an administrator should be able to see when a deployment went from PENDING to RUNNING. The activity layer can filter or categorize these if needed.
-
-**Risk**: `buildLogs` (JSONB, potentially large) could increase audit table size. Monitor and add `@NotAudited` to `buildLogs` later if storage becomes a concern.
+**Rationale**: Full field auditing provides the most complete historical record for configuration fields. Volatile per-build fields like `status`, `url`, `errorMessage` on `DeploymentEntity` and `buildStatus` on `ImageDefinitionEntity` change due to system operations (K8s informers, build pipeline) — those changes ARE legitimate audit events. `buildLogs`, however, is not configuration: it is streamed build output, excluded from `ImageDefinitionDto`, `@JsonIgnore`'d on export, and surfaced only through `ImageBuildDetailsDto`. Keeping it on the audited entity forced an Envers write on every append, and exposed the audit trail to Hibernate 6 dirty-check false positives on unrelated audited `@JdbcTypeCode(SqlTypes.JSON)` columns (`source`, `allowedDomains`) — JSON snapshot comparison is byte-level and Jackson re-serialization is not guaranteed byte-stable. Moving `buildLogs` to its own table removes the problem at the root: no Envers touch, no revision, no activity, no audit-table bloat.
 
 **Alternatives considered**:
-- Exclude volatile fields (`status`, `buildStatus`, `buildLogs`, `url`, `errorMessage`): Reduces noise but loses legitimate audit history. Rejected initially — can be refined later.
+- `@NotAudited` on `buildLogs` (kept on `ImageDefinitionEntity`): does not prevent Envers from writing revision/`*_aud` rows when dirty-check flags other audited JSON columns. Rejected.
+- Suppress audit activity via a listener-level ThreadLocal: addresses only the user-facing activity feed; `revinfo` and `image_definition_aud` rows still written. Rejected as a permanent fix.
 
 ## Decision 7: Default Activity API Filters
 

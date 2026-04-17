@@ -12,6 +12,7 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.AuditActivityService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,8 @@ public abstract class AuditFunctionalTest {
     private HistoryService historyService;
     @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUpAudit() {
@@ -81,6 +84,48 @@ public abstract class AuditFunctionalTest {
         assertThat(activities).anyMatch(a ->
                 a.getActivityType() == ActivityType.Delete
                         && a.getResourceId().equals(created.getId().toString()));
+    }
+
+    @Test
+    void addBuildLogs_doesNotGenerateActivity() {
+        ImageDefinition imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
+
+        int baselineCount = getAllActivities().size();
+
+        imageDefinitionService.addBuildLog(created.getId(), "log-line-1");
+        imageDefinitionService.addBuildLog(created.getId(), "log-line-2");
+        imageDefinitionService.addBuildLog(created.getId(), "log-line-3");
+
+        List<AuditActivity> activities = getAllActivities();
+        assertThat(activities).hasSize(baselineCount);
+
+        ImageDefinition reloaded = imageDefinitionService.getImageDefinition(created.getId()).orElseThrow();
+        assertThat(reloaded.getBuildLogs())
+                .containsExactly("log-line-1", "log-line-2", "log-line-3");
+    }
+
+    @Test
+    void addBuildLogs_doesNotWriteImageDefinitionAud() {
+        ImageDefinition imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
+
+        long baselineAudRows = countImageDefinitionAud(created.getId());
+
+        imageDefinitionService.addBuildLog(created.getId(), "log-line-1");
+        imageDefinitionService.addBuildLog(created.getId(), "log-line-2");
+        imageDefinitionService.addBuildLog(created.getId(), "log-line-3");
+
+        long afterAudRows = countImageDefinitionAud(created.getId());
+        assertThat(afterAudRows).isEqualTo(baselineAudRows);
+    }
+
+    private long countImageDefinitionAud(java.util.UUID id) {
+        Number count = (Number) entityManager
+                .createNativeQuery("SELECT COUNT(*) FROM image_definition_aud WHERE id = ?1")
+                .setParameter(1, id)
+                .getSingleResult();
+        return count.longValue();
     }
 
     @Test

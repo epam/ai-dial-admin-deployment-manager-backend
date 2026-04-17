@@ -25,6 +25,7 @@ import org.mapstruct.SubclassMapping;
 )
 public interface PersistenceImageDefinitionMapper {
 
+    @Mapping(target = "buildLogs", ignore = true)
     @SubclassMapping(source = AdapterImageDefinitionEntity.class, target = AdapterImageDefinition.class)
     @SubclassMapping(source = InterceptorImageDefinitionEntity.class, target = InterceptorImageDefinition.class)
     @SubclassMapping(source = McpImageDefinitionEntity.class, target = McpImageDefinition.class)
@@ -57,7 +58,7 @@ public interface PersistenceImageDefinitionMapper {
             );
         }
 
-        // do not update id, createdAt, updatedAt, buildStatus, imageName, buildLogs, builtAt, type
+        // do not update id, createdAt, updatedAt, buildStatus, imageName, builtAt, type
         existingEntity.setName(updatedEntity.getName());
         existingEntity.setDescription(updatedEntity.getDescription());
         existingEntity.setSource(updatedEntity.getSource());

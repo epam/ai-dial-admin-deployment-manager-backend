@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-04-16T12:05:23.976888Z
+> Generated at: 2026-04-17T15:25:27.349463Z
 
 ## Tables
 
@@ -22,6 +22,7 @@
 - [DISPOSABLE_RESOURCE](#disposable_resource)
 - [DOMAIN_WHITELIST](#domain_whitelist)
 - [DOMAIN_WHITELIST_AUD](#domain_whitelist_aud)
+- [IMAGE_BUILD_LOGS](#image_build_logs)
 - [IMAGE_DEFINITION](#image_definition)
 - [IMAGE_DEFINITION_AUD](#image_definition_aud)
 - [IMAGE_DEFINITION_TOPICS](#image_definition_topics)
@@ -124,7 +125,6 @@
 **Indexes:**
 
 - `FK_AUDIT_ACTIVITY_REV_INDEX_4` on (REVISION)
-- `IDX_AUDIT_ACTIVITY_RESOURCE_TYPE_EPOCH` on (RESOURCE_TYPE, EPOCH_TIMESTAMP_MS)
 
 ## COMPONENT_REMOVAL
 
@@ -255,6 +255,13 @@
 
 - `FK_DOMAIN_WHITELIST_AUD_REV_INDEX_6` on (REV)
 
+## IMAGE_BUILD_LOGS
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| IMAGE_DEFINITION_ID | UUID | No |  | PK, FK → IMAGE_DEFINITION.ID |
+| LOGS | JSON | Yes |  |  |
+
 ## IMAGE_DEFINITION
 
 | Column | Type | Nullable | Default | Key |
@@ -270,7 +277,6 @@
 | VERSION | VARCHAR(255) | No | '1.0.0' |  |
 | IMAGE_NAME | VARCHAR(255) | Yes |  |  |
 | BUILD_STATUS | VARCHAR(32) | Yes |  |  |
-| BUILD_LOGS | JSON | Yes |  |  |
 | BUILT_AT_MS | BIGINT | Yes |  |  |
 | TYPE | VARCHAR(20) | No |  |  |
 | ALLOWED_DOMAINS | JSON | No | JSON '[]' |  |
@@ -298,7 +304,6 @@
 | UPDATED_AT_MS | BIGINT | Yes |  |  |
 | IMAGE_NAME | VARCHAR(255) | Yes |  |  |
 | BUILD_STATUS | VARCHAR(255) | Yes |  |  |
-| BUILD_LOGS | JSON | Yes |  |  |
 | BUILT_AT_MS | BIGINT | Yes |  |  |
 | AUTHOR | VARCHAR(255) | Yes |  |  |
 | ALLOWED_DOMAINS | JSON | Yes |  |  |

@@ -3,10 +3,12 @@ package com.epam.aidial.deployment.manager.dao.repository;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.AdapterImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.ApplicationImageDefinitionEntity;
+import com.epam.aidial.deployment.manager.dao.entity.ImageBuildLogsEntity;
 import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.InterceptorImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.McpImageDefinitionEntity;
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceImageStatus;
+import com.epam.aidial.deployment.manager.dao.jpa.ImageBuildLogsJpaRepository;
 import com.epam.aidial.deployment.manager.dao.jpa.ImageDefinitionJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionMapper;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionViewMapper;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
 public class ImageDefinitionRepository {
 
     private final ImageDefinitionJpaRepository imageDefinitionJpaRepository;
+    private final ImageBuildLogsJpaRepository imageBuildLogsJpaRepository;
     private final PersistenceImageDefinitionViewMapper viewMapper;
     private final PersistenceImageDefinitionMapper mapper;
 
@@ -69,19 +72,19 @@ public class ImageDefinitionRepository {
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinitionById(UUID id) {
         return imageDefinitionJpaRepository.findById(id)
-                .map(mapper::toImageDefinition);
+                .map(this::toDomainWithBuildLogs);
     }
 
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinitionByTypeAndNameAndVersion(ImageType type, String name, String version) {
         var entityClass = detectEntityClass(type);
         return imageDefinitionJpaRepository.findByNameAndTypeAndVersion(name, entityClass, version)
-                .map(mapper::toImageDefinition);
+                .map(this::toDomainWithBuildLogs);
     }
 
     public Optional<ImageDefinition> getImageDefinitionForUpdateById(UUID id) {
         return imageDefinitionJpaRepository.findForUpdateById(id)
-                .map(mapper::toImageDefinition);
+                .map(this::toDomainWithBuildLogs);
     }
 
     public ImageDefinition saveImageDefinition(ImageDefinition imageDefinition) {
@@ -107,18 +110,18 @@ public class ImageDefinitionRepository {
     }
 
     public void addBuildLogs(UUID id, List<String> logs) {
-        var entity = findImageDefinitionById(id);
-        appendBuildLogs(entity, logs);
-        imageDefinitionJpaRepository.saveAndFlush(entity);
+        if (!imageDefinitionJpaRepository.existsById(id)) {
+            throw new EntityNotFoundException("Image definition not found by id: %s".formatted(id));
+        }
+        appendBuildLogs(id, logs);
         log.debug("Build logs added for image definition '{}', {} log entries added", id, logs.size());
     }
 
     public void startBuild(UUID id) {
         var entity = findImageDefinitionById(id);
         entity.setBuildStatus(PersistenceImageStatus.BUILDING);
-        entity.setBuildLogs(new ArrayList<>());
-        appendBuildLogs(entity, List.of("Image build started"));
         imageDefinitionJpaRepository.saveAndFlush(entity);
+        resetBuildLogs(id, List.of("Image build started"));
         log.debug("Build started for image definition '{}'", id);
     }
 
@@ -135,8 +138,8 @@ public class ImageDefinitionRepository {
     public void failBuild(UUID id, String errorLog) {
         var entity = findImageDefinitionById(id);
         entity.setBuildStatus(PersistenceImageStatus.BUILD_FAILED);
-        appendBuildLogs(entity, List.of(errorLog));
         imageDefinitionJpaRepository.saveAndFlush(entity);
+        appendBuildLogs(id, List.of(errorLog));
         log.debug("Build failed for image definition '{}'", id);
     }
 
@@ -145,14 +148,41 @@ public class ImageDefinitionRepository {
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
     }
 
-    private void appendBuildLogs(ImageDefinitionEntity entity, List<String> logs) {
-        if (entity.getBuildLogs() == null) {
-            entity.setBuildLogs(new ArrayList<>());
+    private ImageDefinition toDomainWithBuildLogs(ImageDefinitionEntity entity) {
+        ImageDefinition domain = mapper.toImageDefinition(entity);
+        imageBuildLogsJpaRepository.findById(entity.getId())
+                .ifPresent(logs -> domain.setBuildLogs(logs.getLogs()));
+        return domain;
+    }
+
+    private void appendBuildLogs(UUID id, List<String> newLogs) {
+        ImageBuildLogsEntity entity = imageBuildLogsJpaRepository.findById(id).orElseGet(() -> {
+            var fresh = new ImageBuildLogsEntity();
+            fresh.setImageDefinitionId(id);
+            fresh.setLogs(new ArrayList<>());
+            return fresh;
+        });
+        if (entity.getLogs() == null) {
+            entity.setLogs(new ArrayList<>());
         }
+        entity.getLogs().addAll(newLogs);
+        trimBuildLogs(entity.getLogs());
+        imageBuildLogsJpaRepository.saveAndFlush(entity);
+    }
 
-        List<String> buildLogs = entity.getBuildLogs();
-        buildLogs.addAll(logs);
+    private void resetBuildLogs(UUID id, List<String> initialLogs) {
+        ImageBuildLogsEntity entity = imageBuildLogsJpaRepository.findById(id).orElseGet(() -> {
+            var fresh = new ImageBuildLogsEntity();
+            fresh.setImageDefinitionId(id);
+            return fresh;
+        });
+        var logs = new ArrayList<>(initialLogs);
+        trimBuildLogs(logs);
+        entity.setLogs(logs);
+        imageBuildLogsJpaRepository.saveAndFlush(entity);
+    }
 
+    private void trimBuildLogs(List<String> buildLogs) {
         int excess = buildLogs.size() - buildLogsSizeLimit;
         if (excess > 0) {
             buildLogs.subList(0, excess).clear(); // Remove oldest entries
