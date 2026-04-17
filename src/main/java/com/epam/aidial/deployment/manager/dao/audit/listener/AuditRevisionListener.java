@@ -82,10 +82,6 @@ public class AuditRevisionListener implements EntityTrackingRevisionListener, Ap
         String dedupKey = resourceType + ":" + resourceId;
 
         Map<String, AuditActivityEntity> dedupMap = DEDUP_MAP.get();
-        if (dedupMap == null) {
-            dedupMap = new HashMap<>();
-            DEDUP_MAP.set(dedupMap);
-        }
 
         AuditActivityEntity existing = dedupMap.get(dedupKey);
         if (existing != null) {
