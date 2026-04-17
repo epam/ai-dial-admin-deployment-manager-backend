@@ -9,8 +9,6 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.Page;
 import com.epam.aidial.deployment.manager.model.audit.AuditRevision;
 import com.epam.aidial.deployment.manager.model.page.PageRequestModel;
-import com.epam.aidial.deployment.manager.model.page.Sort;
-import com.epam.aidial.deployment.manager.model.page.filter.Filter;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.envers.AuditReaderFactory;
@@ -42,7 +40,7 @@ public class HistoryService {
 
     @Transactional(readOnly = true)
     public Page<AuditRevision> getRevisionsList(PageRequestModel pageRequest) {
-        validateFields(pageRequest);
+        PageEntityMapper.validateFields(pageRequest, ALLOWED_FIELDS);
         var pageable = pageEntityMapper.toPageRequest(pageRequest);
         List<Specification<AuditRevisionEntity>> filters = pageEntityMapper.toSpecifications(pageRequest,
                 new PageEntityMapper.SpecificationContext(CASE_INSENSITIVE_COLUMNS));
@@ -93,26 +91,5 @@ public class HistoryService {
         return auditReader.createQuery()
                 .forEntitiesAtRevision(entityClass, revision)
                 .getResultList();
-    }
-
-    private void validateFields(PageRequestModel pageRequest) {
-        if (pageRequest.getFilters() != null) {
-            for (Filter filter : pageRequest.getFilters()) {
-                if (!ALLOWED_FIELDS.contains(filter.getColumn())) {
-                    throw new IllegalArgumentException(
-                            "Invalid filter column: " + filter.getColumn()
-                                    + ". Allowed columns: " + ALLOWED_FIELDS);
-                }
-            }
-        }
-        if (pageRequest.getSorts() != null) {
-            for (Sort sort : pageRequest.getSorts()) {
-                if (!ALLOWED_FIELDS.contains(sort.getColumn())) {
-                    throw new IllegalArgumentException(
-                            "Invalid sort column: " + sort.getColumn()
-                                    + ". Allowed columns: " + ALLOWED_FIELDS);
-                }
-            }
-        }
     }
 }

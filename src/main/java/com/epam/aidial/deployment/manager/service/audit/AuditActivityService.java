@@ -9,8 +9,6 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.Page;
 import com.epam.aidial.deployment.manager.model.audit.AuditActivity;
 import com.epam.aidial.deployment.manager.model.page.PageRequestModel;
-import com.epam.aidial.deployment.manager.model.page.Sort;
-import com.epam.aidial.deployment.manager.model.page.filter.Filter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -41,7 +39,7 @@ public class AuditActivityService {
 
     @Transactional(readOnly = true)
     public Page<AuditActivity> getActivitiesList(PageRequestModel pageRequest) {
-        validateFields(pageRequest);
+        PageEntityMapper.validateFields(pageRequest, ALLOWED_FIELDS);
         var pageable = pageEntityMapper.toPageRequest(pageRequest);
         List<Specification<AuditActivityEntity>> filters = pageEntityMapper.toSpecifications(pageRequest,
                 new PageEntityMapper.SpecificationContext(CASE_INSENSITIVE_COLUMNS));
@@ -65,26 +63,5 @@ public class AuditActivityService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Unable to find activity with id " + activityId));
         return persistenceAuditActivityMapper.toModel(entity);
-    }
-
-    private void validateFields(PageRequestModel pageRequest) {
-        if (pageRequest.getFilters() != null) {
-            for (Filter filter : pageRequest.getFilters()) {
-                if (!ALLOWED_FIELDS.contains(filter.getColumn())) {
-                    throw new IllegalArgumentException(
-                            "Invalid filter column: " + filter.getColumn()
-                                    + ". Allowed columns: " + ALLOWED_FIELDS);
-                }
-            }
-        }
-        if (pageRequest.getSorts() != null) {
-            for (Sort sort : pageRequest.getSorts()) {
-                if (!ALLOWED_FIELDS.contains(sort.getColumn())) {
-                    throw new IllegalArgumentException(
-                            "Invalid sort column: " + sort.getColumn()
-                                    + ". Allowed columns: " + ALLOWED_FIELDS);
-                }
-            }
-        }
     }
 }

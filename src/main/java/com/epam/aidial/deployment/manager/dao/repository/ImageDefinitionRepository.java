@@ -84,7 +84,7 @@ public class ImageDefinitionRepository {
 
     public Optional<ImageDefinition> getImageDefinitionForUpdateById(UUID id) {
         return imageDefinitionJpaRepository.findForUpdateById(id)
-                .map(this::toDomainWithBuildLogs);
+                .map(mapper::toImageDefinition);
     }
 
     public ImageDefinition saveImageDefinition(ImageDefinition imageDefinition) {

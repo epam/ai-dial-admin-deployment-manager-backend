@@ -17,6 +17,27 @@ import java.util.stream.Collectors;
 @Mapper(componentModel = "spring")
 public interface PageEntityMapper {
 
+    static void validateFields(PageRequestModel pageRequest, Set<String> allowedFields) {
+        if (pageRequest.getFilters() != null) {
+            for (Filter filter : pageRequest.getFilters()) {
+                if (!allowedFields.contains(filter.getColumn())) {
+                    throw new IllegalArgumentException(
+                            "Invalid filter column: " + filter.getColumn()
+                                    + ". Allowed columns: " + allowedFields);
+                }
+            }
+        }
+        if (pageRequest.getSorts() != null) {
+            for (var sort : pageRequest.getSorts()) {
+                if (!allowedFields.contains(sort.getColumn())) {
+                    throw new IllegalArgumentException(
+                            "Invalid sort column: " + sort.getColumn()
+                                    + ". Allowed columns: " + allowedFields);
+                }
+            }
+        }
+    }
+
     default PageRequest toPageRequest(PageRequestModel pageRequest) {
         int pageNumber = pageRequest.getPageNumber();
         int pageSize = pageRequest.getPageSize();
