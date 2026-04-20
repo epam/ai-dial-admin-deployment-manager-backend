@@ -205,7 +205,7 @@ public abstract class DeploymentFunctionalTest {
         // Given
         var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
         var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
-        imageDefinitionService.updateBuildStatus(createdMcpImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
         var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
         createMcpDeployment.setDisplayName("mcp-deployment");
         deploymentService.createDeployment(createMcpDeployment);
@@ -822,7 +822,7 @@ public abstract class DeploymentFunctionalTest {
         // Create deployment-1 of MCP type
         var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
         var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
-        imageDefinitionService.updateBuildStatus(createdMcpImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
         var createDeployment1 = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
         createDeployment1.setDisplayName("deployment-1");
         var deployment1 = deploymentService.createDeployment(createDeployment1);
@@ -845,7 +845,7 @@ public abstract class DeploymentFunctionalTest {
         // Given
         var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
         var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
-        imageDefinitionService.updateBuildStatus(createdMcpImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
         var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
         createMcpDeployment.setDisplayName("mcp-deployment");
         deploymentService.createDeployment(createMcpDeployment);
@@ -956,7 +956,7 @@ public abstract class DeploymentFunctionalTest {
         // Given — matching MCP image + MCP deployment
         var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
         var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
-        imageDefinitionService.updateBuildStatus(createdMcpImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
         var createDeployment = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
 
         // When
@@ -975,7 +975,7 @@ public abstract class DeploymentFunctionalTest {
 
         var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
         var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
-        imageDefinitionService.updateBuildStatus(createdMcpImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
 
         // When & Then — bulk change-image must reject the mismatch
         assertThatThrownBy(() -> deploymentService.updateImageDefinitionForDeployments(
