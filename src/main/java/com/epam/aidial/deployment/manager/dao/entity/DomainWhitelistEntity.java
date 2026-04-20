@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.envers.Audited;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -21,6 +22,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "domain_whitelist")
 @EntityListeners(AuditingEntityListener.class)
+@Audited
 @Data
 @NoArgsConstructor
 public class DomainWhitelistEntity {

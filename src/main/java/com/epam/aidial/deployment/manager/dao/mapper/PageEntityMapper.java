@@ -1,0 +1,115 @@
+package com.epam.aidial.deployment.manager.dao.mapper;
+
+import com.epam.aidial.deployment.manager.model.page.PageRequestModel;
+import com.epam.aidial.deployment.manager.model.page.SortDirection;
+import com.epam.aidial.deployment.manager.model.page.filter.Filter;
+import jakarta.persistence.criteria.Expression;
+import org.apache.commons.collections4.CollectionUtils;
+import org.mapstruct.Mapper;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Mapper(componentModel = "spring")
+public interface PageEntityMapper {
+
+    static void validateFields(PageRequestModel pageRequest, Set<String> allowedFields) {
+        if (pageRequest.getFilters() != null) {
+            for (Filter filter : pageRequest.getFilters()) {
+                if (!allowedFields.contains(filter.getColumn())) {
+                    throw new IllegalArgumentException(
+                            "Invalid filter column: " + filter.getColumn()
+                                    + ". Allowed columns: " + allowedFields);
+                }
+            }
+        }
+        if (pageRequest.getSorts() != null) {
+            for (var sort : pageRequest.getSorts()) {
+                if (!allowedFields.contains(sort.getColumn())) {
+                    throw new IllegalArgumentException(
+                            "Invalid sort column: " + sort.getColumn()
+                                    + ". Allowed columns: " + allowedFields);
+                }
+            }
+        }
+    }
+
+    default PageRequest toPageRequest(PageRequestModel pageRequest) {
+        int pageNumber = pageRequest.getPageNumber();
+        int pageSize = pageRequest.getPageSize();
+        if (CollectionUtils.isEmpty(pageRequest.getSorts())) {
+            return PageRequest.of(pageNumber, pageSize);
+        }
+        List<Sort.Order> orders = pageRequest.getSorts().stream()
+                .map(sort -> new Sort.Order(mapDirection(sort.getDirection()), sort.getColumn()))
+                .collect(Collectors.toList());
+        return PageRequest.of(pageNumber, pageSize, Sort.by(orders));
+    }
+
+    default <T> List<Specification<T>> toSpecifications(PageRequestModel pageRequest,
+                                                       SpecificationContext specificationContext) {
+        if (pageRequest == null || CollectionUtils.isEmpty(pageRequest.getFilters())) {
+            return List.of();
+        }
+        return pageRequest.getFilters().stream()
+                .map(filter -> this.<T>mapFilter(filter, specificationContext))
+                .collect(Collectors.toList());
+    }
+
+    private <T> Specification<T> mapFilter(Filter filter, SpecificationContext specificationContext) {
+        return (root, query, criteriaBuilder) -> {
+            if (filter == null) {
+                return null;
+            }
+            final Expression<String> column;
+            final String value;
+            if (specificationContext.caseInSensitiveColumns().contains(filter.getColumn())) {
+                column = criteriaBuilder.lower(root.get(filter.getColumn()));
+                value = filter.getValue().toLowerCase();
+            } else {
+                column = root.get(filter.getColumn());
+                value = filter.getValue();
+            }
+            switch (filter.getOperator()) {
+                case eq -> {
+                    return criteriaBuilder.equal(column, value);
+                }
+                case ne -> {
+                    return criteriaBuilder.notEqual(column, value);
+                }
+                case gt -> {
+                    return criteriaBuilder.greaterThan(column, value);
+                }
+                case ge -> {
+                    return criteriaBuilder.greaterThanOrEqualTo(column, value);
+                }
+                case lt -> {
+                    return criteriaBuilder.lessThan(column, value);
+                }
+                case le -> {
+                    return criteriaBuilder.lessThanOrEqualTo(column, value);
+                }
+                case co -> {
+                    return criteriaBuilder.like(column, "%" + escapeLikeWildcards(value) + "%", '\\');
+                }
+                case nc -> {
+                    return criteriaBuilder.notLike(column, "%" + escapeLikeWildcards(value) + "%", '\\');
+                }
+                default -> throw new IllegalArgumentException("Operator " + filter.getOperator() + " is not supported");
+            }
+        };
+    }
+
+    private static String escapeLikeWildcards(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    Sort.Direction mapDirection(SortDirection direction);
+
+    record SpecificationContext(Set<String> caseInSensitiveColumns) {
+    }
+}

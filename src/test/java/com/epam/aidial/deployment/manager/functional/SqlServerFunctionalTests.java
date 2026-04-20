@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.functional;
 
 import com.epam.aidial.deployment.manager.functional.config.SqlServerFunctionalTestConfiguration;
+import com.epam.aidial.deployment.manager.functional.tests.AuditFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigExportImportFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigImportValidationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalTest;
@@ -100,5 +101,9 @@ public class SqlServerFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class ConfigImportValidationTests extends ConfigImportValidationFunctionalTest {
+    }
+
+    @Nested
+    class AuditTests extends AuditFunctionalTest {
     }
 }

@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
+import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -20,17 +22,12 @@ import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
-import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
-import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.EnvVarChangeDetector;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
@@ -65,9 +62,11 @@ public class DeploymentService {
     private final ImageDefinitionService imageDefinitionService;
     private final ComponentCleanupService componentCleanupService;
     private final DeploymentMapper deploymentMapper;
+    private final PersistenceDeploymentMapper persistenceDeploymentMapper;
     private final DeploymentManagerProvider deploymentManagerProvider;
     private final SecurityClaimsExtractor securityClaimsExtractor;
     private final DisposableResourceManager disposableResourceManager;
+    private final HistoryService historyService;
 
     @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -109,12 +108,25 @@ public class DeploymentService {
         return deployment;
     }
 
+    @Transactional(readOnly = true)
+    public Deployment getDeploymentSnapshot(String id, Integer revision) {
+        DeploymentEntity entity = historyService.entitySnapshotAtRevision(revision, id, DeploymentEntity.class);
+        return persistenceDeploymentMapper.toDomain(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public Collection<Deployment> getAllDeploymentsAtRevision(Integer revision) {
+        return historyService.getEntitiesAtRevision(revision, DeploymentEntity.class).stream()
+                .map(persistenceDeploymentMapper::toDomain)
+                .toList();
+    }
+
     @Transactional
     public Deployment createDeployment(CreateDeployment request) {
         var id = request.getId();
-        validateSourceForDeploymentType(request);
 
         checkNoResourcesAreAssociatedWithId(id);
+        DeploymentSourceValidator.validateSourceForDeploymentType(request);
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
@@ -141,7 +153,7 @@ public class DeploymentService {
             throw new IllegalArgumentException("Deployment ID in request path '%s' and in request body '%s' do not match"
                     .formatted(id, request.getId()));
         }
-        validateSourceForDeploymentType(request);
+        DeploymentSourceValidator.validateSourceForDeploymentType(request);
 
         ImageDefinition imageDefinition = resolveImageDefinition(request).orElse(null);
 
@@ -230,6 +242,15 @@ public class DeploymentService {
     public void updateImageDefinitionForDeployments(UUID imageDefinitionId, List<String> deployments) {
         var imageDefinition = loadImageDefinitionOrThrow(imageDefinitionId);
         var imageType = ImageType.of(imageDefinition);
+
+        var loaded = deploymentRepository.getByIds(deployments);
+        if (loaded.size() != deployments.size()) {
+            var foundIds = loaded.stream().map(Deployment::getId).collect(Collectors.toSet());
+            var missing = deployments.stream().filter(id -> !foundIds.contains(id)).toList();
+            throw notFound("Deployment(s)", missing).get();
+        }
+        loaded.forEach(deployment -> DeploymentSourceValidator.validateImageTypeMatchesDeployment(deployment, imageType));
+
         deploymentRepository.updateImageDefinitionForDeployments(imageDefinition, imageType, deployments);
         deployments.forEach(this::rollingUpdate);
     }
@@ -312,22 +333,22 @@ public class DeploymentService {
             return Optional.empty();
         }
 
+        ImageDefinition definition = null;
         if (id != null) {
-            var definition = imageDefinitionService.getImageDefinition(id)
+            definition = imageDefinitionService.getImageDefinition(id)
                     .orElseThrow(notFound("ImageDefinition", id));
-            return Optional.ofNullable(definition);
-        }
-
-        if (type != null
+        } else if (type != null
                 && StringUtils.isNotBlank(name)
                 && StringUtils.isNotBlank(version)) {
-            var definition = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
+            definition = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
                     .orElseThrow(
                         () -> new EntityNotFoundException("ImageDefinition not found. Type='%s'. Name='%s'. Version='%s'".formatted(type, name, version)));
-            return Optional.ofNullable(definition);
         }
 
-        return Optional.empty();
+        if (definition != null) {
+            DeploymentSourceValidator.validateImageTypeMatchesDeployment(request, ImageType.of(definition));
+        }
+        return Optional.ofNullable(definition);
     }
 
     private void resolveAndSetImageDefinitionRef(CreateDeployment request, Deployment deployment) {
@@ -392,24 +413,6 @@ public class DeploymentService {
             return value.equals(reEncoded);
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    private static void validateSourceForDeploymentType(CreateDeployment request) {
-        Source source = request.getSource();
-        if (source == null) {
-            throw new IllegalArgumentException("Deployment '%s' source must not be null".formatted(request.getId()));
-        }
-
-        boolean valid = switch (request) {
-            case CreateNimDeployment ignored -> source instanceof NgcRegistrySource;
-            case CreateInferenceDeployment ignored -> source instanceof HuggingFaceSource;
-            default -> source instanceof InternalImageSource || source instanceof ImageReferenceSource;
-        };
-
-        if (!valid) {
-            throw new IllegalArgumentException("Invalid source type '%s' for deployment '%s' of type '%s'"
-                    .formatted(source.getClass().getSimpleName(), request.getId(), request.getClass().getSimpleName()));
         }
     }
 

@@ -5,7 +5,6 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
-import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.pipeline.step.ImageCopyStep;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +29,7 @@ public class ImageCopyPipeline {
         try {
             run(imageDefinition);
         } catch (Exception e) {
-            imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_FAILED);
-            imageDefinitionService.addBuildLog(imageDefinitionId, "Image copying has failed: %s".formatted(e.getMessage()));
+            imageDefinitionService.failBuild(imageDefinitionId, "Image copying has failed: %s".formatted(e.getMessage()));
         } finally {
             disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
         }
@@ -43,9 +41,7 @@ public class ImageCopyPipeline {
         }
 
         var imageName = imageCopyStep.copy(imageDefinition, dockerImageSource.getImageUri());
-        imageDefinitionService.updateBuildStatus(imageDefinition.getId(), ImageStatus.BUILD_SUCCESSFUL);
-        imageDefinitionService.setImageName(imageDefinition.getId(), imageName);
-        imageDefinitionService.setBuiltAt(imageDefinition.getId(), System.currentTimeMillis());
+        imageDefinitionService.completeBuildSuccessfully(imageDefinition.getId(), imageName, System.currentTimeMillis());
     }
 
 }

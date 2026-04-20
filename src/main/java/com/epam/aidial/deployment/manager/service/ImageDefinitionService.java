@@ -2,6 +2,8 @@ package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.entity.ImageDefinitionEntity;
+import com.epam.aidial.deployment.manager.dao.mapper.PersistenceImageDefinitionMapper;
 import com.epam.aidial.deployment.manager.dao.repository.ImageDefinitionRepository;
 import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -11,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +35,8 @@ public class ImageDefinitionService {
     private final ImageDefinitionRepository imageDefinitionRepository;
     private final ComponentCleanupService componentCleanupService;
     private final SecurityClaimsExtractor securityClaimsExtractor;
+    private final HistoryService historyService;
+    private final PersistenceImageDefinitionMapper persistenceImageDefinitionMapper;
 
     @Transactional(readOnly = true)
     public Collection<ImageDefinition> getAllImageDefinitions() {
@@ -71,6 +76,20 @@ public class ImageDefinitionService {
     @Transactional(readOnly = true)
     public Optional<ImageDefinition> getImageDefinitionByTypeAndNameAndVersion(ImageType type, String name, String version) {
         return imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(type, name, version);
+    }
+
+    @Transactional(readOnly = true)
+    public ImageDefinition getImageDefinitionSnapshot(UUID id, Integer revision) {
+        ImageDefinitionEntity entity = historyService.entitySnapshotAtRevision(
+                revision, id, ImageDefinitionEntity.class);
+        return persistenceImageDefinitionMapper.toImageDefinition(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public Collection<ImageDefinition> getAllImageDefinitionsAtRevision(Integer revision) {
+        return historyService.getEntitiesAtRevision(revision, ImageDefinitionEntity.class).stream()
+                .map(persistenceImageDefinitionMapper::toImageDefinition)
+                .toList();
     }
 
     @Transactional
@@ -115,11 +134,6 @@ public class ImageDefinitionService {
     }
 
     @Transactional
-    public void updateBuildStatus(UUID id, ImageStatus buildStatus) {
-        imageDefinitionRepository.updateBuildStatus(id, buildStatus);
-    }
-
-    @Transactional
     public void addBuildLog(UUID id, String log) {
         addBuildLogs(id, List.of(log));
     }
@@ -130,18 +144,18 @@ public class ImageDefinitionService {
     }
 
     @Transactional
-    public void setImageName(UUID id, String imageName) {
-        imageDefinitionRepository.setImageName(id, imageName);
+    public void startBuild(UUID id) {
+        imageDefinitionRepository.startBuild(id);
     }
 
     @Transactional
-    public void setBuiltAt(UUID id, long timestamp) {
-        imageDefinitionRepository.setBuiltAt(id, timestamp);
+    public void completeBuildSuccessfully(UUID id, String imageName, long builtAt) {
+        imageDefinitionRepository.completeBuildSuccessfully(id, imageName, builtAt);
     }
 
     @Transactional
-    public void resetBuildLogs(UUID id) {
-        imageDefinitionRepository.resetBuildLogs(id);
+    public void failBuild(UUID id, String errorLog) {
+        imageDefinitionRepository.failBuild(id, errorLog);
     }
 
     public void deleteImageDefinitionAsync(UUID id) {

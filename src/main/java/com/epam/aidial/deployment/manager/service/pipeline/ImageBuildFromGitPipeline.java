@@ -6,7 +6,6 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
-import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
@@ -41,8 +40,7 @@ public class ImageBuildFromGitPipeline {
         try {
             run(imageDefinition);
         } catch (Exception e) {
-            imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_FAILED);
-            imageDefinitionService.addBuildLog(imageDefinitionId, "Image build has failed: %s".formatted(e.getMessage()));
+            imageDefinitionService.failBuild(imageDefinitionId, "Image build has failed: %s".formatted(e.getMessage()));
         } finally {
             disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
         }
@@ -68,9 +66,7 @@ public class ImageBuildFromGitPipeline {
             throw new IllegalArgumentException("Unexpected MCP Image transport type: " + mcpImageDef.getTransportType());
         }
 
-        imageDefinitionService.updateBuildStatus(imageDefinition.getId(), ImageStatus.BUILD_SUCCESSFUL);
-        imageDefinitionService.setImageName(imageDefinition.getId(), imageName);
-        imageDefinitionService.setBuiltAt(imageDefinition.getId(), System.currentTimeMillis());
+        imageDefinitionService.completeBuildSuccessfully(imageDefinition.getId(), imageName, System.currentTimeMillis());
     }
 
 }

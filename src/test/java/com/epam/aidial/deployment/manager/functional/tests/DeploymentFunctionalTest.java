@@ -13,7 +13,7 @@ import com.epam.aidial.deployment.manager.model.EnvVarMountType;
 import com.epam.aidial.deployment.manager.model.FileEnvVarValue;
 import com.epam.aidial.deployment.manager.model.GenericRef;
 import com.epam.aidial.deployment.manager.model.GitHubRef;
-import com.epam.aidial.deployment.manager.model.ImageStatus;
+import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.McpRegistryRef;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -89,15 +89,15 @@ public abstract class DeploymentFunctionalTest {
     @SuppressWarnings("unchecked")
     @BeforeEach
     void setUp() {
-        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
         imageDefinitionId = createdImageDef.getId();
         imageDefinitionName = imageDef.getName();
         imageDefinitionVersion = imageDef.getVersion();
 
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image", System.currentTimeMillis());
 
-        Mockito.clearInvocations(securityClaimsExtractor);
+        Mockito.reset(securityClaimsExtractor);
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
         var resource = Mockito.mock(Resource.class);
@@ -145,7 +145,7 @@ public abstract class DeploymentFunctionalTest {
         // Given - adapter image definition
         var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
         var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
-        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdAdapterImageDef.getId(), "test-image", System.currentTimeMillis());
 
         var createDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -175,7 +175,7 @@ public abstract class DeploymentFunctionalTest {
         // Given - application image definition
         var applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
         var createdApplicationImageDef = imageDefinitionService.createImageDefinition(applicationImageDef);
-        imageDefinitionService.updateBuildStatus(createdApplicationImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdApplicationImageDef.getId(), "test-image", System.currentTimeMillis());
 
         var createDeployment = FunctionalTestHelper.createApplicationDeploymentRequest(createdApplicationImageDef.getId());
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -203,13 +203,16 @@ public abstract class DeploymentFunctionalTest {
     @Test
     public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsApplication() {
         // Given
-        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
+        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
         createMcpDeployment.setDisplayName("mcp-deployment");
         deploymentService.createDeployment(createMcpDeployment);
 
         var applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
         var createdApplicationImageDef = imageDefinitionService.createImageDefinition(applicationImageDef);
-        imageDefinitionService.updateBuildStatus(createdApplicationImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdApplicationImageDef.getId(), "test-image", System.currentTimeMillis());
         var createApplicationDeployment = FunctionalTestHelper.createApplicationDeploymentRequest(createdApplicationImageDef.getId());
         createApplicationDeployment.setDisplayName("application-deployment");
         var applicationDeployment = deploymentService.createDeployment(createApplicationDeployment);
@@ -425,10 +428,10 @@ public abstract class DeploymentFunctionalTest {
         var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         var savedDeployment = deploymentService.createDeployment(createDeployment);
 
-        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
         imageDef.setName(imageDef.getName() + "-updated");
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
-        imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
         var newImageDefinitionId = createdImageDef.getId();
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
@@ -583,10 +586,10 @@ public abstract class DeploymentFunctionalTest {
         var savedDeployment1 = deploymentService.createDeployment(createDeployment1);
         var savedDeployment2 = deploymentService.createDeployment(createDeployment2);
 
-        var imageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
         imageDef.setName(imageDef.getName() + "-updated");
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
-        imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
         var newImageDefinitionId = createdImageDef.getId();
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
@@ -817,16 +820,15 @@ public abstract class DeploymentFunctionalTest {
         // Given
 
         // Create deployment-1 of MCP type
-        var createDeployment1 = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
+        var createDeployment1 = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
         createDeployment1.setDisplayName("deployment-1");
         var deployment1 = deploymentService.createDeployment(createDeployment1);
 
-        // Create deployment-2 of Interceptor type
-        var imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
-        var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
-        imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
-
-        var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(createdImageDef.getId());
+        // Create deployment-2 of Interceptor type (use the interceptor image from setUp)
+        var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
         createDeployment2.setDisplayName("deployment-2");
         deploymentService.createDeployment(createDeployment2);
 
@@ -841,13 +843,16 @@ public abstract class DeploymentFunctionalTest {
     @Test
     public void shouldSuccessfullyGetAllDeploymentsByType_whenTypeIsAdapter() {
         // Given
-        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+        var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
+        var createMcpDeployment = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
         createMcpDeployment.setDisplayName("mcp-deployment");
         deploymentService.createDeployment(createMcpDeployment);
 
         var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
         var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
-        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdAdapterImageDef.getId(), "test-image", System.currentTimeMillis());
         var createAdapterDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
         createAdapterDeployment.setDisplayName("adapter-deployment");
         var adapterDeployment = deploymentService.createDeployment(createAdapterDeployment);
@@ -904,6 +909,80 @@ public abstract class DeploymentFunctionalTest {
         assertThatThrownBy(() -> deploymentService.duplicateDeployment(nonExistingDeploymentId, newDeploymentId, "cloned-deployment"))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Etalon deployment not found by id: '%s'".formatted(nonExistingDeploymentId));
+    }
+
+    @Test
+    public void shouldFailCreateDeploymentWhenImageTypeDoesNotMatchDeploymentType_byId() {
+        // Given — setUp created an Interceptor image; use it with an MCP deployment
+        var createDeployment = FunctionalTestHelper.createMcpDeploymentRequest(imageDefinitionId);
+
+        // When & Then
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot use image of type 'INTERCEPTOR'")
+                .hasMessageContaining("expected 'MCP'");
+    }
+
+    @Test
+    public void shouldFailCreateDeploymentWhenImageTypeDoesNotMatchDeploymentType_byTypeNameVersion() {
+        // Given — MCP deployment referencing the interceptor image by (type, name, version)
+        var createDeployment = FunctionalTestHelper.createMcpDeploymentRequest(null);
+        createDeployment.setSource(new InternalImageSource(
+                null, ImageType.INTERCEPTOR, imageDefinitionName, imageDefinitionVersion));
+
+        // When & Then
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot use image of type 'INTERCEPTOR'")
+                .hasMessageContaining("expected 'MCP'");
+    }
+
+    @Test
+    public void shouldFailCreateDeploymentWhenDeclaredImageTypeConflictsWithDeploymentType() {
+        // Given — declared type is INTERCEPTOR but deployment is MCP; rejected before any DB lookup
+        var createDeployment = FunctionalTestHelper.createMcpDeploymentRequest(null);
+        createDeployment.setSource(new InternalImageSource(
+                UUID.randomUUID(), ImageType.INTERCEPTOR, null, null));
+
+        // When & Then
+        assertThatThrownBy(() -> deploymentService.createDeployment(createDeployment))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot use image of type 'INTERCEPTOR'")
+                .hasMessageContaining("expected 'MCP'");
+    }
+
+    @Test
+    public void shouldSuccessfullyCreateDeploymentWhenImageTypeMatchesDeploymentType() {
+        // Given — matching MCP image + MCP deployment
+        var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
+        var createDeployment = FunctionalTestHelper.createMcpDeploymentRequest(createdMcpImageDef.getId());
+
+        // When
+        var deployment = deploymentService.createDeployment(createDeployment);
+
+        // Then
+        assertThat(deployment.getId()).isNotNull();
+        assertThat(((InternalImageSource) deployment.getSource()).imageDefinitionType()).isEqualTo(ImageType.MCP);
+    }
+
+    @Test
+    public void shouldFailChangeImageInDeploymentsWhenImageTypeDoesNotMatchDeploymentType() {
+        // Given — an interceptor deployment and a new MCP image
+        var createDeployment = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
+        var savedDeployment = deploymentService.createDeployment(createDeployment);
+
+        var mcpImageDef = FunctionalTestHelper.createMcpImageDefinition();
+        var createdMcpImageDef = imageDefinitionService.createImageDefinition(mcpImageDef);
+        imageDefinitionService.completeBuildSuccessfully(createdMcpImageDef.getId(), "test-image", System.currentTimeMillis());
+
+        // When & Then — bulk change-image must reject the mismatch
+        assertThatThrownBy(() -> deploymentService.updateImageDefinitionForDeployments(
+                createdMcpImageDef.getId(), List.of(savedDeployment.getId())))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot use image of type 'MCP'")
+                .hasMessageContaining("expected 'INTERCEPTOR'");
     }
 
     private void mockSecretMetaData(Deployment deployment) {
