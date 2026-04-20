@@ -176,6 +176,8 @@ Same response format changes as Get. Each deployment in the list uses the new so
 | `internal_image` | Either `imageDefinitionId` OR (`imageDefinitionType` + `imageDefinitionName` + `imageDefinitionVersion`) must be provided | 400: "Either imageDefinitionId or (imageDefinitionType, imageDefinitionName, imageDefinitionVersion) must be set" |
 | `image_reference` | `imageReference` must be a valid Docker image name | 400: Docker image name validation error |
 | Source type mismatch | Source `$type` must be compatible with deployment type | 400: Source type validation error |
+| Image type mismatch | For `internal_image` sources, the resolved image definition's type (MCP/ADAPTER/INTERCEPTOR/APPLICATION) must match the deployment type; a declared `imageDefinitionType` that conflicts with the deployment type is rejected before any DB lookup | 400: "Deployment '{id}' of type '{deploymentType}' cannot use image of type '{actual}'; expected '{expected}'" |
+| Bulk change-image type mismatch | `POST /api/v1/deployments/change-image` must reject the whole batch if any target deployment's type does not match the new image's type | 400: same message as above for the first offending deployment; 404 if any listed deployment id does not exist |
 | Missing source | Knative deployments require a non-null `source` | 400: Source is required |
 
 ## Export/Import Contract

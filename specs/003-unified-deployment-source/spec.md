@@ -95,7 +95,7 @@ An operator exports deployments (including their source configuration) and impor
 - **FR-002**: Knative-based deployments (MCP, Adapter, Interceptor) MUST accept two source types: `internal_image` (referencing an image definition) and `image_reference` (direct Docker image name).
 - **FR-003**: Inference deployments MUST accept `huggingface` as their source type.
 - **FR-004**: NIM deployments MUST accept `ngc_registry` as their source type.
-- **FR-005**: The system MUST validate that the source type is compatible with the deployment type on both create and update operations.
+- **FR-005**: The system MUST validate that the source type is compatible with the deployment type on both create and update operations. For `internal_image` sources, the resolved image definition's type (MCP, ADAPTER, INTERCEPTOR, APPLICATION) MUST match the deployment type; the check applies whether the image is referenced by `imageDefinitionId` or by the `(imageDefinitionType, imageDefinitionName, imageDefinitionVersion)` triple, and the bulk change-image operation (`POST /api/v1/deployments/change-image`) MUST reject the entire batch if any listed deployment's type does not match the target image's type. Validation logic lives in `DeploymentSourceValidator`.
 - **FR-006**: When deploying a Knative service with an `image_reference` source, the system MUST use the provided image reference directly without requiring an image definition lookup.
 - **FR-007**: When deploying a Knative service with an `internal_image` source, the system MUST resolve the image name from the referenced image definition.
 - **FR-008**: The `image_reference` source MUST validate the image reference string as a valid Docker image name.
