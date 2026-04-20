@@ -55,6 +55,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             String imageName,
             int containerPort,
             @Nullable Integer containerGrpcPort,
+            @Nullable String storageSize,
             @Nullable Scaling scaling,
             @Nullable ProbeProperties probeProperties,
             int startupTimeoutSec,
@@ -83,6 +84,8 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyResourceMap(resourceLimitsChain.data(), resources.getLimits(), IntOrString::new);
         applyResourceMap(resourceRequestsChain.data(), resources.getRequests(), IntOrString::new);
 
+        applyStorageSize(specChain, storageSize);
+
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
         applyExposeService(exposeChain, containerPort, containerGrpcPort);
         exposeChain.data().setRouter(new Router());
@@ -99,6 +102,15 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyScaling(name, scaling, config);
 
         return config.data();
+    }
+
+    private void applyStorageSize(MappingChain<NIMServiceSpec> specChain, @Nullable String storageSize) {
+        if (storageSize != null) {
+            specChain.get(NimMappers.SERVICE_SPEC_STORAGE_FIELD)
+                    .get(NimMappers.STORAGE_PVC_FIELD)
+                    .data()
+                    .setSize(storageSize);
+        }
     }
 
     private void applyExposeService(MappingChain<Expose> exposeChain, int httpPort, @Nullable Integer containerGrpcPort) {

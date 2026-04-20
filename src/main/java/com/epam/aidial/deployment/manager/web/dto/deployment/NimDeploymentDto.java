@@ -21,4 +21,6 @@ public class NimDeploymentDto extends DeploymentDto {
     private NimDeploymentSourceDto source;
     @Nullable
     private Integer containerGrpcPort;
+    @Nullable
+    private String storageSize;
 }

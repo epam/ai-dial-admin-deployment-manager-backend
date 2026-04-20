@@ -283,6 +283,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 anyInt(),
                 any(),
                 any()
@@ -328,6 +329,7 @@ class NimDeploymentManagerTest {
                 any(),
                 eq(IMAGE_NAME),
                 anyInt(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -412,6 +414,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 anyInt(),
                 any(),
                 any()
@@ -453,6 +456,7 @@ class NimDeploymentManagerTest {
                 any(),
                 eq(IMAGE_NAME),
                 anyInt(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -500,6 +504,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 anyInt(),
                 any(),
                 any()
@@ -542,6 +547,7 @@ class NimDeploymentManagerTest {
                 any(),
                 eq(IMAGE_NAME),
                 anyInt(),
+                any(),
                 any(),
                 any(),
                 any(),

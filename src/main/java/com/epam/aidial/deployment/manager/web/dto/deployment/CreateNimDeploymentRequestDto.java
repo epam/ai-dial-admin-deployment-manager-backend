@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.deployment;
 
+import com.epam.aidial.deployment.manager.web.validation.ValidStorageSize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -24,4 +25,7 @@ public class CreateNimDeploymentRequestDto extends CreateDeploymentRequestDto {
     @Nullable
     @Min(1) @Max(65535)
     private Integer containerGrpcPort;
+    @Nullable
+    @ValidStorageSize
+    private String storageSize;
 }
