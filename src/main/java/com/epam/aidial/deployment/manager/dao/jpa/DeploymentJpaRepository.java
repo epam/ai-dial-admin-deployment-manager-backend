@@ -2,11 +2,9 @@ package com.epam.aidial.deployment.manager.dao.jpa;
 
 import com.epam.aidial.deployment.manager.dao.entity.PersistenceDeploymentStatus;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceSource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -42,19 +40,6 @@ public interface DeploymentJpaRepository extends JpaRepository<DeploymentEntity,
             @Param("time") Long time,
             Pageable pageable);
 
-    @Modifying
-    @Query("UPDATE DeploymentEntity d SET d.status = :status WHERE d.id = :id")
-    void updateStatus(@Param("id") String id, @Param("status") PersistenceDeploymentStatus status);
-
-    @Modifying
-    @Query("UPDATE DeploymentEntity d SET d.serviceName = :serviceName WHERE d.id = :id")
-    void updateServiceName(@Param("id") String id, @Param("serviceName") String serviceName);
-
-    @Modifying
-    @Query("UPDATE DeploymentEntity d SET d.imageDefinitionId = :imageDefinitionId, d.source = :source WHERE d.id IN :deploymentIds")
-    void updateImageDefinitionAndSourceForDeployments(
-            @Param("imageDefinitionId") UUID imageDefinitionId,
-            @Param("source") PersistenceSource source,
-            @Param("deploymentIds") List<String> deploymentIds);
+    List<DeploymentEntity> findAllByIdIn(List<String> ids);
 
 }

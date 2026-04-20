@@ -88,37 +88,34 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
 
-        // When - Add logs manually to simulate build process
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
+        // When - startBuild adds "Image build started", then add more logs manually
+        imageDefinitionService.startBuild(imageDefinitionId);
         imageDefinitionService.addBuildLog(imageDefinitionId, "Log line 1");
         imageDefinitionService.addBuildLog(imageDefinitionId, "Log line 2");
         imageDefinitionService.addBuildLog(imageDefinitionId, "Log line 3");
 
-        // Then
+        // Then - test env has a build log size limit of 3, so the oldest entry is trimmed
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
         var logs = retrievedImageDef.getBuildLogs();
-        assertThat(logs.size()).isEqualTo(3);
+        assertThat(logs).hasSize(3);
         assertThat(logs.get(0)).isEqualTo("Log line 1");
         assertThat(logs.get(1)).isEqualTo("Log line 2");
         assertThat(logs.get(2)).isEqualTo("Log line 3");
     }
 
     @Test
-    public void shouldSetImageNameAndBuiltAtOnSuccessfulBuild() throws InterruptedException {
+    public void shouldSetImageNameAndBuiltAtOnSuccessfulBuild() {
         // Given
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
         var testImageName = "test-registry/test-image:1.0.0";
         var testTimestamp = System.currentTimeMillis();
 
-        // When
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
-        imageDefinitionService.addBuildLog(imageDefinitionId, "Build started");
-        imageDefinitionService.addBuildLog(imageDefinitionId, "Build completed");
-        imageDefinitionService.setImageName(imageDefinitionId, testImageName);
-        imageDefinitionService.setBuiltAt(imageDefinitionId, testTimestamp);
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
+        // When - simulate full build lifecycle
+        imageDefinitionService.startBuild(imageDefinitionId);
+        imageDefinitionService.addBuildLog(imageDefinitionId, "Build in progress");
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, testImageName, testTimestamp);
 
         // Then
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
@@ -126,7 +123,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
         assertThat(retrievedImageDef.getImageName()).isEqualTo(testImageName);
         assertThat(retrievedImageDef.getBuiltAt()).isEqualTo(Instant.ofEpochMilli(testTimestamp));
-        assertThat(retrievedImageDef.getBuildLogs().size()).isEqualTo(2);
+        assertThat(retrievedImageDef.getBuildLogs()).hasSize(2);
     }
 
     @Test
@@ -136,8 +133,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDefinitionId = imageDef.getId();
 
         // Set build status to successful
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
-        imageDefinitionService.setImageName(imageDefinitionId, "test-image:1.0.0");
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image:1.0.0", System.currentTimeMillis());
 
         // When - Try to update
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
@@ -156,9 +152,8 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
 
-        // Set build status to successful
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
-        imageDefinitionService.setImageName(imageDefinitionId, "test-image:1.0.0");
+        // Set build status to building
+        imageDefinitionService.startBuild(imageDefinitionId);
 
         // When - Try to update
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
@@ -197,8 +192,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDefinitionId = imageDef.getId();
 
         // Set build status to BUILD_FAILED
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_FAILED);
-        imageDefinitionService.addBuildLog(imageDefinitionId, "Build failed: test error");
+        imageDefinitionService.failBuild(imageDefinitionId, "Build failed: test error");
 
         // When - Update
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
@@ -220,11 +214,11 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // When - Transition through statuses
         assertThat(imageDef.getBuildStatus()).isEqualTo(ImageStatus.NOT_BUILT);
 
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
+        imageDefinitionService.startBuild(imageDefinitionId);
         var buildingDef = imageDefinitionService.getImageDefinition(imageDefinitionId).orElseThrow();
         assertThat(buildingDef.getBuildStatus()).isEqualTo(ImageStatus.BUILDING);
 
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image", System.currentTimeMillis());
         var successfulDef = imageDefinitionService.getImageDefinition(imageDefinitionId).orElseThrow();
         assertThat(successfulDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
         assertThat(successfulDef.getBuildStatus().isFinal()).isTrue();
@@ -236,19 +230,20 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
 
-        // When - Add logs and transition status
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
+        // When - startBuild adds "Image build started", then add more logs and complete
+        imageDefinitionService.startBuild(imageDefinitionId);
         imageDefinitionService.addBuildLog(imageDefinitionId, "Log 1");
         imageDefinitionService.addBuildLog(imageDefinitionId, "Log 2");
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image", System.currentTimeMillis());
 
-        // Then
+        // Then - all logs preserved across status transitions
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
         assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
-        assertThat(retrievedImageDef.getBuildLogs().size()).isEqualTo(2);
-        assertThat(retrievedImageDef.getBuildLogs().get(0)).isEqualTo("Log 1");
-        assertThat(retrievedImageDef.getBuildLogs().get(1)).isEqualTo("Log 2");
+        assertThat(retrievedImageDef.getBuildLogs()).hasSize(3);
+        assertThat(retrievedImageDef.getBuildLogs().get(0)).isEqualTo("Image build started");
+        assertThat(retrievedImageDef.getBuildLogs().get(1)).isEqualTo("Log 1");
+        assertThat(retrievedImageDef.getBuildLogs().get(2)).isEqualTo("Log 2");
     }
 
     @Test
@@ -257,19 +252,19 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
 
-        // When - Simulate build failure
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
-        imageDefinitionService.addBuildLog(imageDefinitionId, "Build started");
+        // When - Simulate build failure: startBuild adds "Image build started",
+        // then addBuildLog adds intermediate log, failBuild appends error and sets BUILD_FAILED
+        imageDefinitionService.startBuild(imageDefinitionId);
         imageDefinitionService.addBuildLog(imageDefinitionId, "Build error occurred");
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_FAILED);
+        imageDefinitionService.failBuild(imageDefinitionId, "Image build has failed: timeout");
 
         // Then
         var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
         assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_FAILED);
         assertThat(retrievedImageDef.getBuildStatus().isFinal()).isTrue();
-        assertThat(retrievedImageDef.getBuildLogs().size()).isEqualTo(2);
-        assertThat(retrievedImageDef.getImageName()).isNull(); // Should not have image name on failure
+        assertThat(retrievedImageDef.getBuildLogs()).hasSize(3);
+        assertThat(retrievedImageDef.getImageName()).isNull();
     }
 }
 

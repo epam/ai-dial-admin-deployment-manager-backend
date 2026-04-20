@@ -11,11 +11,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.envers.Audited;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "mcp_deployment")
 @EntityListeners(AuditingEntityListener.class)
+@Audited
 @Getter
 @Setter
 @NoArgsConstructor

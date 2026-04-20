@@ -82,6 +82,20 @@ public class DeploymentController {
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found by ID: %s".formatted(id)));
     }
 
+    @GetMapping(path = "/{id}/revision/{revision}",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    public DeploymentDto getDeploymentSnapshot(@PathVariable String id, @PathVariable Integer revision) {
+        return dtoMapper.toDeploymentDto(deploymentService.getDeploymentSnapshot(id, revision));
+    }
+
+    @GetMapping(path = "/revision/{revision}",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    public List<DeploymentDto> getAllDeploymentsAtRevision(@PathVariable Integer revision) {
+        return deploymentService.getAllDeploymentsAtRevision(revision).stream()
+                .map(dtoMapper::toDeploymentDto)
+                .collect(Collectors.toList());
+    }
+
     @FullAdminOnly
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)

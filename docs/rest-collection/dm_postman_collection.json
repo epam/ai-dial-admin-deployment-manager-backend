@@ -45,6 +45,33 @@
                           "response": []
                         },
                         {
+                          "name": "get whitelist snapshot",
+                          "protocolProfileBehavior": {
+                            "followRedirects": true,
+                            "disableUrlEncoding": false,
+                            "disableCookies": false
+                          },
+                          "request": {
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                              "raw": "{{HOST}}/api/v1/global-whitelist/image-build/revision/1",
+                              "host": [
+                                "{{HOST}}"
+                              ],
+                              "path": [
+                                "api",
+                                "v1",
+                                "global-whitelist",
+                                "image-build",
+                                "revision",
+                                "1"
+                              ]
+                            }
+                          },
+                          "response": []
+                        },
+                        {
                           "name": "update whitelist",
                           "protocolProfileBehavior": {
                             "followRedirects": true,
@@ -242,6 +269,61 @@
                             "images",
                             "definitions",
                             "{{IMAGE_DEFINITION_ID}}"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get image snapshot",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/{{IMAGE_DEFINITION_ID}}/revision/1",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "{{IMAGE_DEFINITION_ID}}",
+                            "revision",
+                            "1"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "get images snapshots",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/revision/1",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "revision",
+                            "1"
                           ]
                         }
                       },
@@ -665,6 +747,69 @@
                         "v1",
                         "deployments",
                         "{{DEPLOYMENT_NAME}}"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get deployment snapshot",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/revision/1",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "revision",
+                        "1"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get deployments snapshots",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/revision/1",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "revision",
+                        "1"
                       ]
                     }
                   },
@@ -1649,6 +1794,121 @@
               ]
             },
             {
+              "name": "audit",
+              "item": [
+                {
+                  "name": "get activities",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"pageNumber\": 0,\n    \"filters\": [\n        {\n            \"column\": \"resourceType\",\n            \"value\": \"AdapterDeployment\",\n            \"operator\": \"eq\"\n        }\n    ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/activities",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "activities"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get activity",
+                  "protocolProfileBehavior": {
+                    "disableBodyPruning": true
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/activities/{{ACTIVITY_ID}}",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "activities",
+                        "{{ACTIVITY_ID}}"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get revisions",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"pageNumber\": 0,\n    \"pageSize\": 50\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/history/revisions",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "history",
+                        "revisions"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "query revisions",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"type\": \"GET_BY_ID\",\n    \"id\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/history/revisions/query",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "history",
+                        "revisions",
+                        "query"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
               "name": "healthcheck",
               "protocolProfileBehavior": {
                 "followRedirects": true,
@@ -1792,6 +2052,10 @@
     {
       "key": "POD_ID",
       "value": "test_pod_id"
+    },
+    {
+      "key": "ACTIVITY_ID",
+      "value": "some_activity"
     }
   ]
 }

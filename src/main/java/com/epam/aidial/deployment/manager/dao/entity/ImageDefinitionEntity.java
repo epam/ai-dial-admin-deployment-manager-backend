@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.envers.Audited;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -29,6 +30,7 @@ import java.util.UUID;
 @Table(name = "image_definition")
 @EntityListeners(AuditingEntityListener.class)
 @Inheritance(strategy = InheritanceType.JOINED)
+@Audited
 @Data
 @NoArgsConstructor
 public class ImageDefinitionEntity {
@@ -70,10 +72,6 @@ public class ImageDefinitionEntity {
     @Column(name = "build_status")
     @Enumerated(value = EnumType.STRING)
     private PersistenceImageStatus buildStatus;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "build_logs")
-    private List<String> buildLogs;
 
     @Column(name = "built_at_ms")
     private Long builtAt;
