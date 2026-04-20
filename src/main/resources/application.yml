@@ -185,10 +185,23 @@ app:
   inference-service-config:
     apiVersion: "serving.kserve.io/v1beta1"
     kind: InferenceService
+    metadata:
+      annotations:
+        "[autoscaling.knative.dev/initial-scale]": ${KSERVE_SERVICE_DEFAULT_INITIAL_SCALE:1}
+    spec:
+      predictor:
+        minReplicas: ${KSERVE_SERVICE_DEFAULT_MIN_REPLICAS:1}
+        maxReplicas: ${KSERVE_SERVICE_DEFAULT_MAX_REPLICAS:1}
   nim-service-config:
     apiVersion: apps.nvidia.com/v1alpha1
     kind: NIMService
+    metadata:
+      annotations:
+        "[autoscaling.knative.dev/initial-scale]": ${NIM_SERVICE_DEFAULT_INITIAL_SCALE:1}
+        "[autoscaling.knative.dev/min-scale]": ${NIM_SERVICE_DEFAULT_MIN_SCALE:1}
+        "[autoscaling.knative.dev/max-scale]": ${NIM_SERVICE_DEFAULT_MAX_SCALE:1}
     spec:
+      inferencePlatform: kserve
       image:
         pullPolicy: IfNotPresent
         pullSecrets:
@@ -205,6 +218,7 @@ app:
         limits:
           "[nvidia.com/gpu]": 1 # nvidia.com/gpu must be encapsulated into "[]" otherwise it cannot be read by Spring
       expose:
+        router: {}
         service:
           type: ClusterIP
           port: 8000

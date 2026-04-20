@@ -96,8 +96,6 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         var containerPort = resolveContainerPort(deployment::getContainerPort);
         var containerGrpcPort = deployment.getContainerGrpcPort();
 
-        var useExternalUrl = !nimDeployProperties.isUseClusterInternalUrl();
-
         return nimManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
@@ -107,10 +105,9 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 imageRef,
                 containerPort,
                 containerGrpcPort,
+                deployment.getScaling(),
                 deployment.getProbeProperties(),
                 startupTimeoutSec,
-                useExternalUrl,
-                nimDeployProperties.getClusterHost(),
                 deployment.getCommand(),
                 deployment.getArgs());
     }

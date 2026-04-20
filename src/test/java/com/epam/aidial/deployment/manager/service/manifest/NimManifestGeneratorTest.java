@@ -1,7 +1,11 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
@@ -12,8 +16,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nvidia.apps.v1alpha1.NIMService;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,21 +62,6 @@ class NimManifestGeneratorTest {
         lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
     }
 
-    private void stubNimServiceExposeIngressConfig() {
-        var ingress = new Ingress();
-        ingress.setEnabled(true);
-        ingress.setAnnotations(Map.of(
-                "nginx.ingress.kubernetes.io/proxy-body-size", "0",
-                "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
-                "cert-manager.io/cluster-issuer", "letsencrypt-production",
-                "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
-        ));
-        var ingressSpec = new Spec();
-        ingressSpec.setIngressClassName("nginx");
-        ingress.setSpec(ingressSpec);
-        when(appconfig.getNimServiceExposeIngressConfig()).thenReturn(ingress);
-    }
-
     @Test
     void testServiceConfig_withOverriddenEnvs() throws JsonProcessingException, JSONException {
         // Given
@@ -87,7 +74,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
@@ -108,8 +95,8 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                STARTUP_TIMEOUT_SEC, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null, null,
+                STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
@@ -131,12 +118,12 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
-                customGrpcPort, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                customGrpcPort, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
         var jsonOutput = serialize(generatedService);
-        
+
         // Verify the port is set correctly
         var service = objectMapper.readValue(jsonOutput, NIMService.class);
         assertThat(service.getSpec().getExpose().getService().getPort()).isEqualTo(customPort);
@@ -153,8 +140,8 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                STARTUP_TIMEOUT_SEC, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null, null,
+                STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
@@ -163,88 +150,6 @@ class NimManifestGeneratorTest {
         // Verify the default port from template is preserved (8000)
         var service = objectMapper.readValue(jsonOutput, NIMService.class);
         assertThat(service.getSpec().getExpose().getService().getPort()).isEqualTo(8000);
-    }
-
-    @Test
-    void testServiceConfig_withExternalUrlAndClusterHost_setsExposeIngress() {
-        stubNimServiceExposeIngressConfig();
-
-        // Given: external URL with cluster host
-        var deploymentName = "external-nim-app";
-        var imageName = "nvcr.io/nim/my-model:1.0";
-        var clusterHost = "ext-aks.example.com";
-        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-        var httpPort = 8000;
-
-        // When
-        var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                httpPort, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
-        );
-
-        // Then: expose.ingress is set with host, tls secret, backend
-        var expose = generatedService.getSpec().getExpose();
-        assertThat(expose).isNotNull();
-        var ingress = expose.getIngress();
-        assertThat(ingress).isNotNull();
-        assertThat(ingress.getEnabled()).isTrue();
-        var spec = ingress.getSpec();
-        assertThat(spec).isNotNull();
-        var nimServiceName = DM_PREFIX + deploymentName;
-        assertThat(spec.getIngressClassName()).isEqualTo("nginx");
-        assertThat(spec.getTls()).hasSize(1);
-        assertThat(spec.getTls().getFirst().getHosts()).containsExactly(nimServiceName + "." + clusterHost);
-        assertThat(spec.getTls().getFirst().getSecretName()).isEqualTo(nimServiceName + "-tls-secret");
-        assertThat(spec.getRules()).hasSize(1);
-        assertThat(spec.getRules().getFirst().getHost()).isEqualTo(nimServiceName + "." + clusterHost);
-        var backendService = spec.getRules().getFirst().getHttp().getPaths().getFirst().getBackend().getService();
-        assertThat(backendService.getName()).isEqualTo(nimServiceName);
-        assertThat(backendService.getPort().getNumber()).isEqualTo(httpPort);
-    }
-
-    @Test
-    void testServiceConfig_withExternalUrl_setsIngressAnnotationsFromConfig() {
-        stubNimServiceExposeIngressConfig();
-
-        // Given: external URL with cluster host
-        var deploymentName = "annotated-nim-app";
-        var imageName = "nvcr.io/nim/my-model:1.0";
-        var clusterHost = "ext.example.com";
-        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-
-        // When
-        var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
-        );
-
-        // Then: expose.ingress has annotations from nim-service-expose-ingress-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
-        var ingress = generatedService.getSpec().getExpose().getIngress();
-        assertThat(ingress).isNotNull();
-        assertThat(ingress.getAnnotations())
-                .containsEntry("nginx.ingress.kubernetes.io/proxy-body-size", "0")
-                .containsEntry("nginx.ingress.kubernetes.io/proxy-read-timeout", "600")
-                .containsEntry("cert-manager.io/cluster-issuer", "letsencrypt-production")
-                .containsEntry("nginx.ingress.kubernetes.io/force-ssl-redirect", "true");
-    }
-
-    @Test
-    void testServiceConfig_withUseExternalUrlFalse_doesNotSetExposeIngress() throws JsonProcessingException {
-        // Given: internal URL only
-        var deploymentName = "internal-nim-app";
-        var imageName = "nvcr.io/nim/my-model:1.0";
-        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-
-        // When
-        var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
-        );
-
-        // Then: expose.ingress is not set
-        var expose = generatedService.getSpec().getExpose();
-        assertThat(expose).isNotNull();
-        assertThat(expose.getIngress()).isNull();
     }
 
     @Test
@@ -261,7 +166,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, probeProperties, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then: spec has startup probe with expected enabled, path, port and timing
@@ -290,7 +195,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, args
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, command, args
         );
 
         // Then
@@ -309,7 +214,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, null
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, command, null
         );
 
         // Then
@@ -327,7 +232,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
@@ -347,7 +252,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, simpleEnvs, Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
@@ -370,7 +275,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), sensitiveEnvs, resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then — should have the sensitive env var (with valueFrom), not a simple value override
@@ -397,7 +302,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then
@@ -421,12 +326,142 @@ class NimManifestGeneratorTest {
         // When: no probe properties provided
         var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
         // Then: fallback deadline = 3600 + 30 = 3630s
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "3630s");
+    }
+
+    @Test
+    void shouldSetAutoscalingAnnotations_whenScalingWithStrategyProvided() {
+        // Given
+        var deploymentName = "scaled-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var strategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10);
+        var scaling = new Scaling(2, 5, null, strategy);
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null
+        );
+
+        // Then: min/max/initial-scale from Scaling + metric/target from strategy
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations)
+                .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, "concurrency")
+                .containsEntry(KnativeAnnotations.AUTOSCALING_TARGET, "10")
+                .containsEntry(KnativeAnnotations.MIN_SCALE, "2")
+                .containsEntry(KnativeAnnotations.MAX_SCALE, "5")
+                .containsEntry(KnativeAnnotations.INITIAL_SCALE, "2");
+    }
+
+    @Test
+    void shouldSetScalingAnnotationsWithoutTarget_whenNoStrategy() {
+        // Given
+        var deploymentName = "no-strategy-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scaling = new Scaling(1, 3, null, null);
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null
+        );
+
+        // Then: min/max/initial-scale set, but no target annotation
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations)
+                .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
+                .containsEntry(KnativeAnnotations.MAX_SCALE, "3")
+                .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
+    }
+
+    @Test
+    void shouldSetInitialScaleToOne_whenMinReplicasIsZero() {
+        // Given
+        var deploymentName = "scale-to-zero-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scaling = new Scaling(0, 3, 60, null);
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null
+        );
+
+        // Then: initial-scale should be 1 (Math.max(0, 1)) even though min-scale is 0
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations)
+                .containsEntry(KnativeAnnotations.MIN_SCALE, "0")
+                .containsEntry(KnativeAnnotations.MAX_SCALE, "3")
+                .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
+                .containsEntry(KnativeAnnotations.SCALE_TO_ZERO_RETENTION, "60s");
+    }
+
+    @Test
+    void shouldPreserveTemplateDefaultScalingAnnotations_whenNoScalingProvided() {
+        // Given
+        var deploymentName = "no-scale-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
+        );
+
+        // Then: template defaults survive (min=1, max=1, initial=1), no target
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations)
+                .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
+                .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
+                .containsEntry(KnativeAnnotations.MAX_SCALE, "1")
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
+    }
+
+    @Test
+    void shouldSetExposeRouter() {
+        // Given
+        var deploymentName = "router-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
+        );
+
+        // Then: expose.router is set, expose.ingress is not set
+        var expose = generatedService.getSpec().getExpose();
+        assertThat(expose.getRouter()).isNotNull();
+        assertThat(expose.getIngress()).isNull();
+        assertThat(expose.getService()).isNotNull();
+    }
+
+    @Test
+    void shouldSetInferencePlatformToKserve() {
+        // Given
+        var deploymentName = "kserve-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, STARTUP_TIMEOUT_SEC, null, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getInferencePlatform().name()).isEqualTo("KSERVE");
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
