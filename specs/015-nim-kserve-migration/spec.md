@@ -3,7 +3,7 @@
 **Feature Branch**: `019-nim-kserve-migration`  
 **Created**: 2026-04-20  
 **Status**: Implemented  
-**Input**: User description: Migrate NIM CRD generation from standalone inferencePlatform with nginx ingress to kserve inferencePlatform with Knative autoscaling, removing direct ingress management, adding NIM_CACHE_PATH environment variable, and adding configurable PVC storage size per deployment.
+**Input**: User description: Migrate NIM CRD generation from standalone inferencePlatform with nginx ingress to kserve inferencePlatform with Knative autoscaling, removing direct ingress management, and adding configurable PVC storage size per deployment.
 
 ## Clarifications
 
@@ -46,22 +46,7 @@ When deploying a NIM model, the system no longer generates ingress configuration
 
 ---
 
-### User Story 3 - NIM_CACHE_PATH environment variable (Priority: P2)
-
-The system automatically sets the `NIM_CACHE_PATH` environment variable to `/tmp` on every NIM deployment, ensuring the NIM container uses the correct cache directory without requiring operators to configure it manually.
-
-**Why this priority**: Required for correct NIM operation under kserve mode, but secondary to the core platform switch. Without this, the NIM container may attempt to use a non-existent or wrong cache path.
-
-**Independent Test**: Can be fully tested by deploying a NIM model and verifying the generated NIMService manifest includes `NIM_CACHE_PATH=/tmp` in the env vars list.
-
-**Acceptance Scenarios**:
-
-1. **Given** a NIM deployment, **When** the NIMService manifest is generated, **Then** the env vars list includes `NIM_CACHE_PATH` with value `/tmp`.
-2. **Given** a NIM deployment where the operator has not explicitly set `NIM_CACHE_PATH`, **When** the NIMService manifest is generated, **Then** `NIM_CACHE_PATH=/tmp` is automatically added.
-
----
-
-### User Story 4 - Configurable Knative autoscaling defaults (Priority: P3)
+### User Story 3 - Configurable Knative autoscaling defaults (Priority: P3)
 
 Operators can configure default Knative autoscaling parameters (autoscaling class, metric, target concurrency) via application configuration, so different environments can tune autoscaling behavior without code changes.
 
@@ -76,7 +61,7 @@ Operators can configure default Knative autoscaling parameters (autoscaling clas
 
 ---
 
-### User Story 5 - Default Storage Size (Priority: P1)
+### User Story 4 - Default Storage Size (Priority: P1)
 
 An operator creates a NIM deployment without specifying a storage size. The system uses the default PVC size from the application template (20Gi), ensuring backward compatibility with existing deployments.
 
@@ -91,7 +76,7 @@ An operator creates a NIM deployment without specifying a storage size. The syst
 
 ---
 
-### User Story 6 - Custom Storage Size (Priority: P1)
+### User Story 5 - Custom Storage Size (Priority: P1)
 
 An operator creates a NIM deployment with a specific storage size (e.g., `50Gi`) to accommodate a large model. The system persists the value and uses it when generating the NIMService manifest.
 
@@ -107,7 +92,7 @@ An operator creates a NIM deployment with a specific storage size (e.g., `50Gi`)
 
 ---
 
-### User Story 7 - Invalid Storage Size Rejected (Priority: P2)
+### User Story 6 - Invalid Storage Size Rejected (Priority: P2)
 
 An operator attempts to create a NIM deployment with an invalid storage size format or a value exceeding the configured maximum. The system rejects the request with a 400 error.
 
@@ -144,24 +129,23 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 - **FR-002**: System MUST include Knative autoscaling annotations on NIMService metadata: `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, `autoscaling.knative.dev/target`, `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`, and `autoscaling.knative.dev/initial-scale`.
 - **FR-003**: System MUST map the deployment's `minScale` value to the `autoscaling.knative.dev/min-scale` annotation, `maxScale` to the `autoscaling.knative.dev/max-scale` annotation, and compute `initialScale = Math.max(minScale, 1)` for the `autoscaling.knative.dev/initial-scale` annotation (following the same formula used by InferenceService scaling).
 - **FR-004**: System MUST NOT generate an `expose.ingress` section on NIMService manifests. Only `expose.service` and `expose.router` should be present.
-- **FR-005**: System MUST automatically add `NIM_CACHE_PATH=/tmp` to the NIMService env vars for every NIM deployment.
-- **FR-006**: System MUST allow Knative autoscaling defaults (class, metric, target concurrency) to be configurable via application properties.
-- **FR-007**: System MUST retain the existing `serving.knative.dev/progress-deadline` annotation alongside the new autoscaling annotations.
-- **FR-008**: System MUST continue to set `NIM_SERVED_MODEL_NAME` env var as before (existing behavior preserved).
+- **FR-005**: System MUST allow Knative autoscaling defaults (class, metric, target concurrency) to be configurable via application properties.
+- **FR-006**: System MUST retain the existing `serving.knative.dev/progress-deadline` annotation alongside the new autoscaling annotations.
+- **FR-007**: System MUST continue to set `NIM_SERVED_MODEL_NAME` env var as before (existing behavior preserved).
 
 #### Configurable Storage Size
 
-- **FR-009**: NIM deployment SHALL optionally accept a `storageSize` field (nullable String) in create and update requests.
-- **FR-010**: When `storageSize` is provided, the system MUST use it as the PVC size in the generated NIMService manifest, overriding the template default.
-- **FR-011**: When `storageSize` is null or not provided, the system MUST use the default PVC size from the application template (20Gi).
-- **FR-012**: The `storageSize` field MUST be persisted in the database and returned in GET responses.
-- **FR-013**: The `storageSize` field MUST be validated as a valid Kubernetes resource quantity using the Fabric8 `Quantity` parser. Accepted formats: plain bytes (e.g., `"21474836480"`), binary suffixes (`Ki`, `Mi`, `Gi`, `Ti`, `Pi`, `Ei`), and decimal suffixes (`k`, `M`, `G`, `T`). The value must be positive (> 0).
-- **FR-014**: Invalid `storageSize` values MUST be rejected with HTTP 400.
-- **FR-015**: A configurable upper bound (`app.validation.resources.max-storage-size`, env `RESOURCES_STORAGE_MAX_SIZE`, default `200Gi`) MUST be enforced. Storage sizes exceeding this limit are rejected with HTTP 400.
+- **FR-008**: NIM deployment SHALL optionally accept a `storageSize` field (nullable String) in create and update requests.
+- **FR-009**: When `storageSize` is provided, the system MUST use it as the PVC size in the generated NIMService manifest, overriding the template default.
+- **FR-010**: When `storageSize` is null or not provided, the system MUST use the default PVC size from the application template (20Gi).
+- **FR-011**: The `storageSize` field MUST be persisted in the database and returned in GET responses.
+- **FR-012**: The `storageSize` field MUST be validated as a valid Kubernetes resource quantity using the Fabric8 `Quantity` parser. Accepted formats: plain bytes (e.g., `"21474836480"`), binary suffixes (`Ki`, `Mi`, `Gi`, `Ti`, `Pi`, `Ei`), and decimal suffixes (`k`, `M`, `G`, `T`). The value must be positive (> 0).
+- **FR-013**: Invalid `storageSize` values MUST be rejected with HTTP 400.
+- **FR-014**: A configurable upper bound (`app.validation.resources.max-storage-size`, env `RESOURCES_STORAGE_MAX_SIZE`, default `200Gi`) MUST be enforced. Storage sizes exceeding this limit are rejected with HTTP 400.
 
 ### Key Entities *(include if feature involves data)*
 
-- **NIMService manifest**: The Kubernetes custom resource generated for NIM deployments. Key structural changes: metadata annotations gain Knative autoscaling entries; `inferencePlatform` is set to `kserve`; `expose.ingress` is removed; `NIM_CACHE_PATH` env var is added; `storage.pvc.size` is optionally overridden by `storageSize`.
+- **NIMService manifest**: The Kubernetes custom resource generated for NIM deployments. Key structural changes: metadata annotations gain Knative autoscaling entries; `inferencePlatform` is set to `kserve`; `expose.ingress` is removed; `storage.pvc.size` is optionally overridden by `storageSize`.
 - **Knative autoscaling annotations**: A set of metadata annotations that configure Knative Serving's Pod Autoscaler (KPA) behavior -- class, metric, target, min-scale, max-scale, initial-scale.
 - **`storageSize`**: Optional String field on NIM deployments. Stored in the `nim_deployment` table as `storage_size VARCHAR(64)` (migration V1.57). Validated via `@ValidStorageSize` custom constraint backed by `StorageSizeValidator` which delegates parsing to Fabric8 `Quantity` (through `KubernetesQuantityParser` utility). The validator reads the max from `app.validation.resources.max-storage-size` (default `200Gi`).
 
@@ -172,21 +156,19 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 - **SC-001**: All newly generated NIMService manifests use `inferencePlatform: kserve` and contain no ingress configuration.
 - **SC-002**: Every NIMService manifest includes all six Knative autoscaling annotations (class, metric, target, min-scale, max-scale, initial-scale) with valid values.
 - **SC-003**: The deployment's `minScale` and `maxScale` values correctly propagate to the corresponding Knative annotations, and `initial-scale` is always at least 1.
-- **SC-004**: Every NIMService manifest includes `NIM_CACHE_PATH=/tmp` in the environment variables.
-- **SC-005**: Autoscaling defaults are configurable without code changes (via application configuration).
-- **SC-006**: NIM deployments with explicit `storageSize` generate NIMService manifests with the specified PVC size.
-- **SC-007**: NIM deployments without `storageSize` generate NIMService manifests with the default 20Gi PVC size (backward compatible).
-- **SC-008**: Invalid `storageSize` values are rejected at the API layer with 400.
-- **SC-009**: Storage sizes exceeding the configured maximum (default 200Gi) are rejected at the API layer with 400.
-- **SC-010**: The `storageSize` field is correctly persisted, updated, and returned through the full CRUD lifecycle.
-- **SC-011**: All existing NIM deployment creation and update flows continue to work without regression -- all existing functional tests pass.
+- **SC-004**: Autoscaling defaults are configurable without code changes (via application configuration).
+- **SC-005**: NIM deployments with explicit `storageSize` generate NIMService manifests with the specified PVC size.
+- **SC-006**: NIM deployments without `storageSize` generate NIMService manifests with the default 20Gi PVC size (backward compatible).
+- **SC-007**: Invalid `storageSize` values are rejected at the API layer with 400.
+- **SC-008**: Storage sizes exceeding the configured maximum (default 200Gi) are rejected at the API layer with 400.
+- **SC-009**: The `storageSize` field is correctly persisted, updated, and returned through the full CRUD lifecycle.
+- **SC-010**: All existing NIM deployment creation and update flows continue to work without regression -- all existing functional tests pass.
 
 ## Assumptions
 
 - Knative Serving is installed and available in the target Kubernetes cluster. The system does not verify Knative availability.
 - The NIM operator (NVIDIA) supports `inferencePlatform: kserve` and correctly handles the Knative autoscaling annotations on NIMService resources.
 - The `expose.router` field (empty object) is required by the NIM operator for kserve mode and should remain in the manifest.
-- The `NIM_CACHE_PATH=/tmp` value is appropriate for all deployment scenarios under kserve mode. If an operator needs a different cache path, they can override it via explicit env var configuration on the deployment.
 - The transition from standalone to kserve does not require database migration -- this is purely a manifest generation change. The `storageSize` field requires migration V1.57.
 - Default autoscaling values (KPA class, concurrency metric, target 10) are reasonable starting defaults for NIM workloads.
 - Validation uses Fabric8's `Quantity` parser which supports the full Kubernetes quantity format: binary suffixes (`Ki`, `Mi`, `Gi`, `Ti`, `Pi`, `Ei`), decimal suffixes (`k`, `M`, `G`, `T`), and plain bytes. The value must be positive.

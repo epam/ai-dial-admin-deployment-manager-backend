@@ -79,7 +79,6 @@ class NimDeploymentManagerTest {
     private static final String CONTAINER_NAME = "test-container";
     private static final String IMAGE_NAME = "test-image:latest";
     private static final String POD_NAME = "test-pod";
-    private static final String CLUSTER_HOST = "ext.example.com";
 
     @Mock
     private DisposableResourceManager disposableResourceManager;
@@ -115,7 +114,6 @@ class NimDeploymentManagerTest {
         nimDeployProperties.setNamespace(NAMESPACE);
         nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         nimDeployProperties.setUseClusterInternalUrl(false);
-        nimDeployProperties.setClusterHost(CLUSTER_HOST);
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager, knativeManifestGenerator,
                 nimManifestGenerator, deploymentRepository, containerPortResolver, ciliumNetworkPolicyCreator,
@@ -803,7 +801,6 @@ class NimDeploymentManagerTest {
         nimDeployProperties.setNamespace(NAMESPACE);
         nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         nimDeployProperties.setUseClusterInternalUrl(false);
-        nimDeployProperties.setClusterHost(CLUSTER_HOST);
         nimDeployProperties.setUrlSchema("http");
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,

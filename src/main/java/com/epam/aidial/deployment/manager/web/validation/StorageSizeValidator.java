@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @Slf4j
 public class StorageSizeValidator implements ConstraintValidator<ValidStorageSize, String> {
 
-    @Value("${app.validation.resources.max-storage-size")
+    @Value("${app.validation.resources.max-storage-size}")
     private String maxStorageSize;
 
     @Override
