@@ -170,7 +170,8 @@ public class DeploymentController {
             @RequestParam(value = "sinceTime", required = false) Instant sinceTime,
             @RequestParam(value = "sinceSeconds", required = false) Integer sinceSeconds,
             @RequestParam(value = "tail", required = false) Integer tailLogs,
-            @RequestParam(value = "previous", required = false, defaultValue = "false") boolean previous
+            @RequestParam(value = "previous", required = false, defaultValue = "false") boolean previous,
+            @RequestParam(value = "containerName", required = false) String containerName
     ) {
         var logReadConfig = PodLogReaderConfiguration.builder()
                 .sinceTime(sinceTime)
@@ -178,7 +179,7 @@ public class DeploymentController {
                 .tailLogs(tailLogs)
                 .previous(previous)
                 .build();
-        return deploymentLogsService.streamLogs(id, podId, logReadConfig);
+        return deploymentLogsService.streamLogs(id, podId, logReadConfig, containerName);
     }
 
     @GetMapping(path = "{id}/events/stream",

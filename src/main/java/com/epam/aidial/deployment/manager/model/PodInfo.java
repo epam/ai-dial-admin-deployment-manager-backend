@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -22,4 +23,5 @@ public class PodInfo {
     private Integer lastSignal;
     @Nullable
     private Instant lastFinishedAt;
+    private List<ContainerDetails> containers;
 }

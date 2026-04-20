@@ -10,6 +10,8 @@ import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
+import com.epam.aidial.deployment.manager.model.ContainerDetails;
+import com.epam.aidial.deployment.manager.model.ContainerType;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarValue;
@@ -24,6 +26,7 @@ import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
+import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
@@ -461,6 +464,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 : null;
 
         var containerInfo = extractContainerInfo(containerStatuses);
+        var containers = buildContainerDetails(pod);
 
         return new PodInfo(
                 pod.getMetadata().getName(),
@@ -469,8 +473,70 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 containerInfo.lastTerminationReason(),
                 containerInfo.lastExitCode(),
                 containerInfo.lastSignal(),
-                containerInfo.lastFinishedAt()
+                containerInfo.lastFinishedAt(),
+                containers
         );
+    }
+
+    private List<ContainerDetails> buildContainerDetails(Pod pod) {
+        var result = new ArrayList<ContainerDetails>();
+        var podStatus = pod.getStatus();
+
+        var initContainerStatuses = podStatus != null ? podStatus.getInitContainerStatuses() : List.<ContainerStatus>of();
+        var regularContainerStatuses = podStatus != null ? podStatus.getContainerStatuses() : List.<ContainerStatus>of();
+
+        var initStatusMap = buildStatusMap(initContainerStatuses);
+        var regularStatusMap = buildStatusMap(regularContainerStatuses);
+
+        var workloadContainerName = resolveWorkloadContainerName(pod);
+
+        for (var container : ListUtils.emptyIfNull(pod.getSpec().getInitContainers())) {
+            // K8s 1.29+ formal "sidecar container" = init container with restartPolicy=Always
+            var type = "Always".equals(container.getRestartPolicy()) ? ContainerType.SIDECAR : ContainerType.INIT;
+            result.add(toContainerDetails(container, type, initStatusMap.get(container.getName())));
+        }
+        for (var container : ListUtils.emptyIfNull(pod.getSpec().getContainers())) {
+            var type = container.getName().equals(workloadContainerName) ? ContainerType.WORKLOAD : ContainerType.SIDECAR;
+            result.add(toContainerDetails(container, type, regularStatusMap.get(container.getName())));
+        }
+
+        return result;
+    }
+
+    private String resolveWorkloadContainerName(Pod pod) {
+        try {
+            return getContainerName(pod);
+        } catch (RuntimeException e) {
+            // If we cannot determine the workload (e.g. empty containers list), classify all regulars as SIDECAR
+            return null;
+        }
+    }
+
+    private Map<String, ContainerStatus> buildStatusMap(List<ContainerStatus> statuses) {
+        if (CollectionUtils.isEmpty(statuses)) {
+            return Map.of();
+        }
+        return statuses.stream().collect(Collectors.toMap(ContainerStatus::getName, s -> s, (a, b) -> a));
+    }
+
+    private ContainerDetails toContainerDetails(Container container, ContainerType type, ContainerStatus status) {
+        String state = null;
+        String stateReason = null;
+
+        if (status != null && status.getState() != null) {
+            var containerState = status.getState();
+            if (containerState.getRunning() != null) {
+                state = "running";
+            } else if (containerState.getTerminated() != null) {
+                state = "terminated";
+                stateReason = containerState.getTerminated().getReason();
+            } else if (containerState.getWaiting() != null) {
+                state = "waiting";
+                stateReason = containerState.getWaiting().getReason();
+            }
+        }
+
+        return new ContainerDetails(container.getName(), type, state, stateReason);
     }
 
     private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
@@ -533,7 +599,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    public ContainerResource getContainerResourceForLogs(String id, String podName, boolean previous) {
+    public ContainerResource getContainerResourceForLogs(String id, String podName, String containerName, boolean previous) {
         var serviceName = getServiceName(id);
 
         var pod = getServicePod(namespace, serviceName, podName);
@@ -543,32 +609,47 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             throw new EntityNotFoundException("Pod is not found for deployment '%s'".formatted(id));
         }
 
-        var containerName = getContainerName(pod);
-        if (containerName == null) {
+        var resolvedContainerName = StringUtils.isNotBlank(containerName) ? containerName : getContainerName(pod);
+        if (resolvedContainerName == null) {
             log.info("Container name could not be resolved for pod '{}', deployment '{}'. Service='{}', Namespace='{}'",
                     podName, id, serviceName, namespace);
             throw new EntityNotFoundException("Container is not found for deployment '%s'".formatted(id));
         }
 
-        assertContainerLoggable(id, pod, podName, containerName, previous);
-        return k8sClient.getPodResource(namespace, podName).inContainer(containerName);
+        var isInitContainer = isInitContainer(pod, resolvedContainerName);
+        assertContainerLoggable(id, pod, podName, resolvedContainerName, previous, isInitContainer);
+        return k8sClient.getPodResource(namespace, podName).inContainer(resolvedContainerName);
+    }
+
+    private boolean isInitContainer(Pod pod, String containerName) {
+        var initContainers = pod.getSpec().getInitContainers();
+        if (CollectionUtils.isEmpty(initContainers)) {
+            return false;
+        }
+        return initContainers.stream().anyMatch(c -> containerName.equals(c.getName()));
     }
 
     private void assertContainerLoggable(String deploymentId, Pod pod, String podName, String containerName,
-                                         boolean previous) {
-        var containerStatus = findContainerStatus(deploymentId, pod, podName, containerName);
+                                         boolean previous, boolean isInitContainer) {
+        var containerStatus = findContainerStatus(deploymentId, pod, podName, containerName, isInitContainer);
 
         if (previous) {
             assertPreviousLogsAvailable(deploymentId, containerStatus, podName, containerName);
+        } else if (isInitContainer) {
+            assertInitContainerLoggable(deploymentId, containerStatus, podName, containerName);
         } else {
             assertContainerRunning(deploymentId, containerStatus, podName, containerName);
         }
     }
 
-    private ContainerStatus findContainerStatus(String deploymentId, Pod pod, String podName, String containerName) {
+    private ContainerStatus findContainerStatus(String deploymentId, Pod pod, String podName, String containerName,
+                                                boolean isInitContainer) {
         var podStatus = pod.getStatus();
         var phase = (podStatus != null) ? podStatus.getPhase() : null;
-        var containerStatuses = (podStatus != null) ? podStatus.getContainerStatuses() : null;
+
+        var containerStatuses = isInitContainer
+                ? (podStatus != null ? podStatus.getInitContainerStatuses() : null)
+                : (podStatus != null ? podStatus.getContainerStatuses() : null);
 
         if (CollectionUtils.isEmpty(containerStatuses)) {
             log.info("Container '{}' in pod '{}' has no status yet. Deployment='{}', Pod phase={}",
@@ -598,6 +679,18 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     containerName, podName, deploymentId, describeContainerState(containerStatus));
             throw new ValidationException("Previous logs are not available for container in deployment '%s'".formatted(deploymentId));
         }
+    }
+
+    private void assertInitContainerLoggable(String deploymentId, ContainerStatus containerStatus, String podName,
+                                             String containerName) {
+        var state = containerStatus.getState();
+        if (state != null && (state.getRunning() != null || state.getTerminated() != null)) {
+            return;
+        }
+
+        log.info("Init container '{}' in pod '{}' is not loggable. Deployment='{}', {}",
+                containerName, podName, deploymentId, describeContainerState(containerStatus));
+        throw new ValidationException("Init container is not ready for log streaming for deployment '%s'".formatted(deploymentId));
     }
 
     private void assertContainerRunning(String deploymentId, ContainerStatus containerStatus, String podName,

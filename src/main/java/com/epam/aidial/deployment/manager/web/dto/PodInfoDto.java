@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.web.dto;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.util.List;
 
 public record PodInfoDto(
         @NotNull String name,
@@ -11,6 +12,7 @@ public record PodInfoDto(
         String lastTerminationReason,
         Integer lastExitCode,
         Integer lastSignal,
-        Instant lastFinishedAt
+        Instant lastFinishedAt,
+        List<ContainerDetailsDto> containers
 ) {
 }

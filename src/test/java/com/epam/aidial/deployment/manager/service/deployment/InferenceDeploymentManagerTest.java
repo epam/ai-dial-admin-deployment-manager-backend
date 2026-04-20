@@ -10,6 +10,8 @@ import com.epam.aidial.deployment.manager.exception.ValidationException;
 import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
+import com.epam.aidial.deployment.manager.model.ContainerDetails;
+import com.epam.aidial.deployment.manager.model.ContainerType;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
@@ -24,6 +26,7 @@ import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -58,6 +61,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -276,7 +280,7 @@ class InferenceDeploymentManagerTest {
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false);
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
@@ -292,7 +296,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(null);
 
         // When / Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Pod is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -309,7 +313,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When/Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Container not found for pod");
     }
@@ -324,7 +328,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -339,7 +343,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("Container is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -353,7 +357,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -369,7 +373,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, false))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Container is not running for deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -385,7 +389,7 @@ class InferenceDeploymentManagerTest {
         when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
 
         // When / Then
-        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true))
+        assertThatThrownBy(() -> inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, true))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Previous logs are not available for container in deployment '%s'".formatted(DEPLOYMENT_ID));
     }
@@ -404,10 +408,227 @@ class InferenceDeploymentManagerTest {
         when(podResource.inContainer(CONTAINER_NAME)).thenReturn(containerResource);
 
         // When
-        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, true);
+        ContainerResource result = inferenceDeploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, null, true);
 
         // Then
         assertThat(result).isEqualTo(containerResource);
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldUseExplicitContainerName_whenProvided() {
+        // Given: pod has the default workload container plus a sidecar; caller asks for the sidecar
+        Pod pod = createPodWithMultipleContainers(POD_NAME, 0, 0);
+        pod.getStatus().getContainerStatuses().get(0)
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+        pod.getStatus().getContainerStatuses().get(1)
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer("sidecar-container")).thenReturn(containerResource);
+
+        // When
+        ContainerResource result = inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "sidecar-container", false);
+
+        // Then
+        assertThat(result).isEqualTo(containerResource);
+        verify(podResource).inContainer("sidecar-container");
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrow_whenExplicitContainerNameNotInPod() {
+        // Given
+        Pod pod = createPod(POD_NAME, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "missing-container", false))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Container is not found for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldRouteToInitContainer_whenContainerNameMatchesInit() {
+        // Given: pod has an init container in running state; status comes from initContainerStatuses
+        Pod pod = createPodWithInitContainer(POD_NAME, "init-1",
+                new ContainerStateBuilder().withNewRunning().endRunning().build(), null);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer("init-1")).thenReturn(containerResource);
+
+        // When
+        ContainerResource result = inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "init-1", false);
+
+        // Then
+        assertThat(result).isEqualTo(containerResource);
+        verify(podResource).inContainer("init-1");
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldAllowInitContainerInTerminatedState_whenPreviousFalse() {
+        // Given: init container has run to completion (terminated). kubectl logs allows this.
+        Pod pod = createPodWithInitContainer(POD_NAME, "init-1",
+                new ContainerStateBuilder().withNewTerminated().withReason("Completed").endTerminated().build(),
+                null);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer("init-1")).thenReturn(containerResource);
+
+        // When
+        ContainerResource result = inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "init-1", false);
+
+        // Then
+        assertThat(result).isEqualTo(containerResource);
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrow_whenInitContainerIsWaiting() {
+        // Given: init container hasn't started yet (waiting). Not loggable.
+        Pod pod = createPodWithInitContainer(POD_NAME, "init-1",
+                new ContainerStateBuilder().withNewWaiting().withReason("PodInitializing").endWaiting().build(),
+                null);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "init-1", false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Init container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldThrow_whenInitContainerHasNoStatusYet() {
+        // Given: init container declared in spec but no init container status reported yet
+        Pod pod = createPodWithInitContainer(POD_NAME, "init-1", null, null);
+        pod.getStatus().setInitContainerStatuses(Collections.emptyList());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+
+        // When / Then
+        assertThatThrownBy(() -> inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "init-1", false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Container is not ready for log streaming for deployment '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void getContainerResourceForLogs_shouldAllowPreviousLogsForInitContainer_whenPriorTermination() {
+        // Given: init container previously terminated (e.g., crashed and restarted)
+        Pod pod = createPodWithInitContainer(POD_NAME, "init-1",
+                new ContainerStateBuilder().withNewRunning().endRunning().build(),
+                new ContainerStateBuilder().withNewTerminated().withReason("Error").endTerminated().build());
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePod(NAMESPACE, SERVICE_NAME, POD_NAME)).thenReturn(pod);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer("init-1")).thenReturn(containerResource);
+
+        // When
+        ContainerResource result = inferenceDeploymentManager
+                .getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, "init-1", true);
+
+        // Then
+        assertThat(result).isEqualTo(containerResource);
+    }
+
+    @Test
+    void getInstances_shouldClassifyContainersByType() {
+        // Given: pod with one init, one workload (matches getContainerName), and one sidecar
+        var podList = new PodList();
+        var pod = createPodWithClassifiedContainers("classified-pod");
+        podList.setItems(List.of(pod));
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        assertThat(result).hasSize(1);
+        var containers = result.getFirst().getContainers();
+        assertThat(containers).hasSize(3);
+
+        var byName = containers.stream().collect(Collectors.toMap(
+                ContainerDetails::getName, c -> c));
+
+        assertThat(byName.get("init-classic").getType())
+                .isEqualTo(ContainerType.INIT);
+        assertThat(byName.get(CONTAINER_NAME).getType())
+                .isEqualTo(ContainerType.WORKLOAD);
+        assertThat(byName.get("queue-proxy").getType())
+                .isEqualTo(ContainerType.SIDECAR);
+    }
+
+    @Test
+    void getInstances_shouldClassifyInitContainerWithRestartPolicyAlwaysAsSidecar() {
+        // Given: K8s 1.29+ formal sidecar = init container with restartPolicy=Always
+        var podList = new PodList();
+        var pod = createPod(POD_NAME, true);
+        var initSidecar = new Container();
+        initSidecar.setName("istio-proxy");
+        initSidecar.setRestartPolicy("Always");
+        pod.getSpec().setInitContainers(List.of(initSidecar));
+
+        var initStatus = new ContainerStatus();
+        initStatus.setName("istio-proxy");
+        initStatus.setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+        pod.getStatus().setInitContainerStatuses(List.of(initStatus));
+
+        podList.setItems(List.of(pod));
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        var containers = result.getFirst().getContainers();
+        var initSidecarDetails = containers.stream()
+                .filter(c -> "istio-proxy".equals(c.getName()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(initSidecarDetails.getType())
+                .isEqualTo(ContainerType.SIDECAR);
+        assertThat(initSidecarDetails.getState()).isEqualTo("running");
+    }
+
+    @Test
+    void getInstances_shouldExposeContainerStateAndReason() {
+        // Given: pod whose container is in waiting state with a reason
+        var podList = new PodList();
+        var pod = createPod(POD_NAME, false); // waiting / NotReady
+        podList.setItems(List.of(pod));
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(createDeployment(DeploymentStatus.RUNNING)));
+        when(k8sKserveClient.getServicePods(NAMESPACE, SERVICE_NAME)).thenReturn(podList);
+
+        // When
+        var result = inferenceDeploymentManager.getInstances(DEPLOYMENT_ID);
+
+        // Then
+        var workload = result.getFirst().getContainers().getFirst();
+        assertThat(workload.getName()).isEqualTo(CONTAINER_NAME);
+        assertThat(workload.getType()).isEqualTo(ContainerType.WORKLOAD);
+        assertThat(workload.getState()).isEqualTo("waiting");
+        assertThat(workload.getStateReason()).isEqualTo("NotReady");
     }
 
     @Test
@@ -1065,6 +1286,57 @@ class InferenceDeploymentManagerTest {
         container.setName(CONTAINER_NAME);
         spec.setContainers(List.of(container));
         pod.setSpec(spec);
+
+        return pod;
+    }
+
+    private Pod createPodWithInitContainer(String name,
+                                           String initContainerName,
+                                           ContainerState initState,
+                                           ContainerState initLastState) {
+        var pod = createPod(name, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+
+        var initContainer = new Container();
+        initContainer.setName(initContainerName);
+        pod.getSpec().setInitContainers(List.of(initContainer));
+
+        if (initState != null || initLastState != null) {
+            var initStatus = new ContainerStatus();
+            initStatus.setName(initContainerName);
+            initStatus.setState(initState);
+            initStatus.setLastState(initLastState);
+            pod.getStatus().setInitContainerStatuses(List.of(initStatus));
+        }
+        return pod;
+    }
+
+    private Pod createPodWithClassifiedContainers(String name) {
+        var pod = createPod(name, true);
+        pod.getStatus().getContainerStatuses().getFirst()
+                .setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+
+        // Workload (existing CONTAINER_NAME) + a sidecar
+        var sidecar = new Container();
+        sidecar.setName("queue-proxy");
+        pod.getSpec().setContainers(List.of(pod.getSpec().getContainers().getFirst(), sidecar));
+
+        var sidecarStatus = new ContainerStatus();
+        sidecarStatus.setName("queue-proxy");
+        sidecarStatus.setState(new ContainerStateBuilder().withNewRunning().endRunning().build());
+        pod.getStatus().setContainerStatuses(
+                List.of(pod.getStatus().getContainerStatuses().getFirst(), sidecarStatus));
+
+        // Classic init container (no restartPolicy)
+        var init = new Container();
+        init.setName("init-classic");
+        pod.getSpec().setInitContainers(List.of(init));
+
+        var initStatus = new ContainerStatus();
+        initStatus.setName("init-classic");
+        initStatus.setState(new ContainerStateBuilder().withNewTerminated().withReason("Completed").endTerminated().build());
+        pod.getStatus().setInitContainerStatuses(List.of(initStatus));
 
         return pod;
     }

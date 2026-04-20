@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.web.controller.none;
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.event.EventStreamerConfiguration;
+import com.epam.aidial.deployment.manager.model.ContainerDetails;
+import com.epam.aidial.deployment.manager.model.ContainerType;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EventType;
@@ -452,7 +454,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         // let the mocked service return some dummy emitter – its concrete behaviour
         // is irrelevant for the controller test
-        when(deploymentLogsService.streamLogs(any(), any(), any())).thenReturn(completedEmitter());
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
                         get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName))
@@ -463,7 +465,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture());
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), any());
 
         var cfg = cfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isNull();
@@ -482,7 +484,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
 
         // let the mocked service return some dummy emitter – its concrete behaviour
         // is irrelevant for the controller test
-        when(deploymentLogsService.streamLogs(any(), any(), any())).thenReturn(completedEmitter());
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
 
         var mvcResult = mockMvc.perform(
                         get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName)
@@ -496,12 +498,66 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
 
-        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture());
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), any());
 
         var cfg = cfgCaptor.getValue();
         assertThat(cfg.sinceTime()).isEqualTo(sinceTime);
         assertThat(cfg.sinceSeconds()).isEqualTo(sinceSecs);
         assertThat(cfg.tailLogs()).isEqualTo(tailLogs);
+    }
+
+    @Test
+    void subscribeToLogs_shouldForwardContainerNameQueryParam() throws Exception {
+        var podName = "mypod-init";
+        var containerName = "init-db-migrations";
+
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
+
+        var mvcResult = mockMvc.perform(get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName)
+                        .param("containerName", containerName))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM));
+
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), eq(containerName));
+    }
+
+    @Test
+    void subscribeToLogs_shouldDefaultContainerNameToNull_whenParamOmitted() throws Exception {
+        var podName = "mypod-default";
+
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
+
+        var mvcResult = mockMvc.perform(get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isOk());
+
+        // Backward compatibility: omitting containerName must pass null to the service
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), eq(null));
+    }
+
+    @Test
+    void subscribeToLogs_shouldForwardPreviousQueryParam() throws Exception {
+        var podName = "mypod-prev";
+
+        when(deploymentLogsService.streamLogs(any(), any(), any(), any())).thenReturn(completedEmitter());
+
+        var mvcResult = mockMvc.perform(get("/api/v1/deployments/{id}/pods/{podId}/logs", DEPLOYMENT_ID, podName)
+                        .param("previous", "true"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isOk());
+
+        verify(deploymentLogsService).streamLogs(eq(DEPLOYMENT_ID), eq(podName), cfgCaptor.capture(), any());
+        assertThat(cfgCaptor.getValue().previous()).isTrue();
     }
 
     @Test
@@ -704,7 +760,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_with_restart_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9, finishedAt);
+        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9, finishedAt, List.of());
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -720,7 +776,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, finishedAt);
+        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, finishedAt, List.of());
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -732,11 +788,44 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
+    void testGetPods_shouldExposeContainerDetailsWithType() throws Exception {
+        var createdAt = Instant.parse("2023-01-01T12:00:00Z");
+        var containers = List.of(
+                new ContainerDetails("init-classic", ContainerType.INIT, "terminated", "Completed"),
+                new ContainerDetails("user-container", ContainerType.WORKLOAD, "running", null),
+                new ContainerDetails("queue-proxy", ContainerType.SIDECAR, "running", null)
+        );
+        var podInfo = new PodInfo("pod-x", createdAt, 0, null, null, null, null, containers);
+
+        when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
+
+        var expectedJson = """
+                [
+                  {
+                    "name": "pod-x",
+                    "restartCount": 0,
+                    "containers": [
+                      { "name": "init-classic",   "type": "init",     "state": "terminated", "stateReason": "Completed" },
+                      { "name": "user-container", "type": "workload", "state": "running" },
+                      { "name": "queue-proxy",    "type": "sidecar",  "state": "running" }
+                    ]
+                  }
+                ]
+                """;
+
+        mockMvc.perform(get("/api/v1/deployments/{id}/pods", DEPLOYMENT_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().json(expectedJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getInstances(DEPLOYMENT_ID);
+    }
+
+    @Test
     void testGetActivePods() throws Exception {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null, finishedAt);
+        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null, finishedAt, List.of());
 
         when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
