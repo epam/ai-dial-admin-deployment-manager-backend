@@ -79,6 +79,20 @@ public class ImageDefinitionController {
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
     }
 
+    @GetMapping(path = "/{id}/revision/{revision}",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    public ImageDefinitionDto getImageDefinitionSnapshot(@PathVariable UUID id, @PathVariable Integer revision) {
+        return dtoMapper.toImageDefinitionDto(imageDefinitionService.getImageDefinitionSnapshot(id, revision));
+    }
+
+    @GetMapping(path = "/revision/{revision}",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    public List<ImageDefinitionDto> getAllImageDefinitionsAtRevision(@PathVariable Integer revision) {
+        return imageDefinitionService.getAllImageDefinitionsAtRevision(revision).stream()
+                .map(dtoMapper::toImageDefinitionDto)
+                .collect(Collectors.toList());
+    }
+
     @GetMapping(path = "/{name}/versions",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public List<BaseImageDetailsDto> getImageVersionsWithStatusesByName(

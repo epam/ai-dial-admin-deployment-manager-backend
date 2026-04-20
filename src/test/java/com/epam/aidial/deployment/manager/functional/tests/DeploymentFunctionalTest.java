@@ -13,7 +13,6 @@ import com.epam.aidial.deployment.manager.model.EnvVarMountType;
 import com.epam.aidial.deployment.manager.model.FileEnvVarValue;
 import com.epam.aidial.deployment.manager.model.GenericRef;
 import com.epam.aidial.deployment.manager.model.GitHubRef;
-import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.McpRegistryRef;
 import com.epam.aidial.deployment.manager.model.ReconcileConfig;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -95,9 +94,9 @@ public abstract class DeploymentFunctionalTest {
         imageDefinitionName = imageDef.getName();
         imageDefinitionVersion = imageDef.getVersion();
 
-        imageDefinitionService.updateBuildStatus(imageDefinitionId, ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image", System.currentTimeMillis());
 
-        Mockito.clearInvocations(securityClaimsExtractor);
+        Mockito.reset(securityClaimsExtractor);
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
         var resource = Mockito.mock(Resource.class);
@@ -145,7 +144,7 @@ public abstract class DeploymentFunctionalTest {
         // Given - adapter image definition
         var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
         var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
-        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdAdapterImageDef.getId(), "test-image", System.currentTimeMillis());
 
         var createDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -175,7 +174,7 @@ public abstract class DeploymentFunctionalTest {
         // Given - application image definition
         var applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
         var createdApplicationImageDef = imageDefinitionService.createImageDefinition(applicationImageDef);
-        imageDefinitionService.updateBuildStatus(createdApplicationImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdApplicationImageDef.getId(), "test-image", System.currentTimeMillis());
 
         var createDeployment = FunctionalTestHelper.createApplicationDeploymentRequest(createdApplicationImageDef.getId());
         var expectedEnvVars = FunctionalTestHelper.getEnvVarsWithoutK8sSecretName();
@@ -209,7 +208,7 @@ public abstract class DeploymentFunctionalTest {
 
         var applicationImageDef = FunctionalTestHelper.createApplicationImageDefinition();
         var createdApplicationImageDef = imageDefinitionService.createImageDefinition(applicationImageDef);
-        imageDefinitionService.updateBuildStatus(createdApplicationImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdApplicationImageDef.getId(), "test-image", System.currentTimeMillis());
         var createApplicationDeployment = FunctionalTestHelper.createApplicationDeploymentRequest(createdApplicationImageDef.getId());
         createApplicationDeployment.setDisplayName("application-deployment");
         var applicationDeployment = deploymentService.createDeployment(createApplicationDeployment);
@@ -428,7 +427,7 @@ public abstract class DeploymentFunctionalTest {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
         imageDef.setName(imageDef.getName() + "-updated");
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
-        imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
         var newImageDefinitionId = createdImageDef.getId();
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
@@ -586,7 +585,7 @@ public abstract class DeploymentFunctionalTest {
         var imageDef = FunctionalTestHelper.createMcpImageDefinition();
         imageDef.setName(imageDef.getName() + "-updated");
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
-        imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
         var newImageDefinitionId = createdImageDef.getId();
 
         var mixedOperation = Mockito.mock(MixedOperation.class);
@@ -824,7 +823,7 @@ public abstract class DeploymentFunctionalTest {
         // Create deployment-2 of Interceptor type
         var imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
         var createdImageDef = imageDefinitionService.createImageDefinition(imageDef);
-        imageDefinitionService.updateBuildStatus(createdImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
 
         var createDeployment2 = FunctionalTestHelper.createInterceptorDeploymentRequest(createdImageDef.getId());
         createDeployment2.setDisplayName("deployment-2");
@@ -847,7 +846,7 @@ public abstract class DeploymentFunctionalTest {
 
         var adapterImageDef = FunctionalTestHelper.createAdapterImageDefinition();
         var createdAdapterImageDef = imageDefinitionService.createImageDefinition(adapterImageDef);
-        imageDefinitionService.updateBuildStatus(createdAdapterImageDef.getId(), ImageStatus.BUILD_SUCCESSFUL);
+        imageDefinitionService.completeBuildSuccessfully(createdAdapterImageDef.getId(), "test-image", System.currentTimeMillis());
         var createAdapterDeployment = FunctionalTestHelper.createAdapterDeploymentRequest(createdAdapterImageDef.getId());
         createAdapterDeployment.setDisplayName("adapter-deployment");
         var adapterDeployment = deploymentService.createDeployment(createAdapterDeployment);

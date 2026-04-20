@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.service.pipeline.ImageCopyPipeline;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageWrapperBuildPipeline;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,7 +19,6 @@ import java.util.concurrent.ExecutorService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,7 +37,7 @@ class ImageBuildRunnerTest {
     private ImageCopyPipeline imageCopyPipeline;
 
     @Test
-    void buildImage_resetsLogsBeforeStartingNewBuild() {
+    void buildImage_startsBuildInSingleCallBeforeDispatchingPipeline() {
         var imageDefinitionId = UUID.randomUUID();
         var imageDefinition = McpImageDefinition.builder()
                 .id(imageDefinitionId)
@@ -68,11 +66,7 @@ class ImageBuildRunnerTest {
 
         runner.buildImage(imageDefinitionId);
 
-        InOrder inOrder = inOrder(imageDefinitionService);
-        inOrder.verify(imageDefinitionService).updateBuildStatus(imageDefinitionId, ImageStatus.BUILDING);
-        inOrder.verify(imageDefinitionService).resetBuildLogs(imageDefinitionId);
-        inOrder.verify(imageDefinitionService).addBuildLog(imageDefinitionId, "Image build started");
-
+        verify(imageDefinitionService).startBuild(imageDefinitionId);
         verify(executorService).execute(any(Runnable.class));
         verify(imageCopyPipeline).run(imageDefinitionId);
     }

@@ -4,11 +4,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Table;
 import lombok.NoArgsConstructor;
+import org.hibernate.envers.Audited;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "adapter_image_definition")
 @EntityListeners(AuditingEntityListener.class)
+@Audited
 @NoArgsConstructor
 public class AdapterImageDefinitionEntity extends ImageDefinitionEntity {
 

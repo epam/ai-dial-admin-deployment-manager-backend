@@ -51,6 +51,7 @@ app:
 | `spring.jpa.hibernate.ddl-auto`                                   | -                    | `validate`                        | No       | -            | Hibernate DDL auto mode    |
 | `spring.jpa.show-sql`                                             | -                    | `false`                           | No       | -            | Enable SQL logging         |
 | `spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access` | -                    | `true`                            | No       | -            | Allow JDBC metadata access |
+| `spring.jpa.properties.org.hibernate.envers.store_data_at_delete` | -                    | `true`                            | No       | -            | Store full entity state on DELETE for audit trail reconstruction |
 
 
 #### Database Migration (Flyway)

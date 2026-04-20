@@ -3,6 +3,8 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
+import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -31,6 +33,7 @@ import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.EnvVarChangeDetector;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
@@ -65,9 +68,11 @@ public class DeploymentService {
     private final ImageDefinitionService imageDefinitionService;
     private final ComponentCleanupService componentCleanupService;
     private final DeploymentMapper deploymentMapper;
+    private final PersistenceDeploymentMapper persistenceDeploymentMapper;
     private final DeploymentManagerProvider deploymentManagerProvider;
     private final SecurityClaimsExtractor securityClaimsExtractor;
     private final DisposableResourceManager disposableResourceManager;
+    private final HistoryService historyService;
 
     @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -107,6 +112,19 @@ public class DeploymentService {
             deployment.ifPresent(value -> deploymentManagerProvider.provide(id).resolveSecrets(value));
         }
         return deployment;
+    }
+
+    @Transactional(readOnly = true)
+    public Deployment getDeploymentSnapshot(String id, Integer revision) {
+        DeploymentEntity entity = historyService.entitySnapshotAtRevision(revision, id, DeploymentEntity.class);
+        return persistenceDeploymentMapper.toDomain(entity);
+    }
+
+    @Transactional(readOnly = true)
+    public Collection<Deployment> getAllDeploymentsAtRevision(Integer revision) {
+        return historyService.getEntitiesAtRevision(revision, DeploymentEntity.class).stream()
+                .map(persistenceDeploymentMapper::toDomain)
+                .toList();
     }
 
     @Transactional

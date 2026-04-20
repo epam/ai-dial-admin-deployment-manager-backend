@@ -369,6 +369,7 @@ class DeploymentRepositoryTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void testUpdateImageDefinitionForDeployments() {
         // Given
         var imageDefinitionId = UUID.randomUUID();
@@ -383,6 +384,11 @@ class DeploymentRepositoryTest {
         var deploymentId2 = String.valueOf(UUID.randomUUID());
         var deploymentIds = List.of(deploymentId1, deploymentId2);
 
+        var entity1 = createDeploymentEntity(deploymentId1, UUID.randomUUID());
+        var entity2 = createDeploymentEntity(deploymentId2, UUID.randomUUID());
+        when(deploymentJpaRepository.findAllByIdIn(deploymentIds))
+                .thenReturn(List.of(entity1, entity2));
+
         var expectedSource = new PersistenceInternalImageSource(
                 imageDefinitionId, PersistenceImageType.INTERCEPTOR,
                 imageDefinitionName, imageDefinitionVersion);
@@ -392,9 +398,69 @@ class DeploymentRepositoryTest {
                 imageDefinition, ImageType.INTERCEPTOR, deploymentIds);
 
         // Then
-        verify(deploymentJpaRepository).updateImageDefinitionAndSourceForDeployments(
-                imageDefinitionId, expectedSource, deploymentIds);
+        verify(deploymentJpaRepository).findAllByIdIn(deploymentIds);
+
+        ArgumentCaptor<List<DeploymentEntity>> savedCaptor = ArgumentCaptor.forClass(List.class);
+        verify(deploymentJpaRepository).saveAllAndFlush(savedCaptor.capture());
+        assertThat(savedCaptor.getValue()).allSatisfy(entity -> {
+            assertThat(entity.getImageDefinitionId()).isEqualTo(imageDefinitionId);
+            assertThat(entity.getSource()).isEqualTo(expectedSource);
+        });
         verifyNoMoreInteractions(deploymentJpaRepository);
+    }
+
+    @Test
+    void testUpdateStatus() {
+        // Given
+        var entity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.of(entity));
+
+        // When
+        deploymentRepository.updateStatus(DEPLOYMENT_ID, DeploymentStatus.STOPPED);
+
+        // Then
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
+        verify(deploymentJpaRepository).saveAndFlush(deploymentEntityCaptor.capture());
+        assertThat(deploymentEntityCaptor.getValue().getStatus()).isEqualTo(PersistenceDeploymentStatus.STOPPED);
+        verifyNoMoreInteractions(deploymentJpaRepository);
+    }
+
+    @Test
+    void testUpdateStatus_throwsEntityNotFoundException_whenDeploymentNotFound() {
+        // Given
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.empty());
+
+        // When / Then
+        assertThatThrownBy(() -> deploymentRepository.updateStatus(DEPLOYMENT_ID, DeploymentStatus.STOPPED))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Deployment not found by id: '%s'".formatted(DEPLOYMENT_ID));
+    }
+
+    @Test
+    void testUpdateServiceName() {
+        // Given
+        var entity = createDeploymentEntity(DEPLOYMENT_ID, IMAGE_DEFINITION_ID);
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.of(entity));
+
+        // When
+        deploymentRepository.updateServiceName(DEPLOYMENT_ID, "new-service-name");
+
+        // Then
+        verify(deploymentJpaRepository).findById(DEPLOYMENT_ID);
+        verify(deploymentJpaRepository).saveAndFlush(deploymentEntityCaptor.capture());
+        assertThat(deploymentEntityCaptor.getValue().getServiceName()).isEqualTo("new-service-name");
+        verifyNoMoreInteractions(deploymentJpaRepository);
+    }
+
+    @Test
+    void testUpdateServiceName_throwsEntityNotFoundException_whenDeploymentNotFound() {
+        // Given
+        when(deploymentJpaRepository.findById(DEPLOYMENT_ID)).thenReturn(Optional.empty());
+
+        // When / Then
+        assertThatThrownBy(() -> deploymentRepository.updateServiceName(DEPLOYMENT_ID, "new-service-name"))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessage("Deployment not found by id: '%s'".formatted(DEPLOYMENT_ID));
     }
 
     private DeploymentEntity createDeploymentEntity(String deploymentId, UUID imageDefinitionId) {
