@@ -163,7 +163,7 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 
 - **NIMService manifest**: The Kubernetes custom resource generated for NIM deployments. Key structural changes: metadata annotations gain Knative autoscaling entries; `inferencePlatform` is set to `kserve`; `expose.ingress` is removed; `NIM_CACHE_PATH` env var is added; `storage.pvc.size` is optionally overridden by `storageSize`.
 - **Knative autoscaling annotations**: A set of metadata annotations that configure Knative Serving's Pod Autoscaler (KPA) behavior -- class, metric, target, min-scale, max-scale, initial-scale.
-- **`storageSize`**: Optional String field on NIM deployments. Stored in the `nim_deployment` table as `storage_size VARCHAR(255)` (migration V1.57). Validated via `@ValidStorageSize` custom constraint backed by `StorageSizeValidator` which delegates parsing to Fabric8 `Quantity` (through `KubernetesQuantityParser` utility). The validator reads the max from `app.validation.resources.max-storage-size` (default `200Gi`).
+- **`storageSize`**: Optional String field on NIM deployments. Stored in the `nim_deployment` table as `storage_size VARCHAR(64)` (migration V1.57). Validated via `@ValidStorageSize` custom constraint backed by `StorageSizeValidator` which delegates parsing to Fabric8 `Quantity` (through `KubernetesQuantityParser` utility). The validator reads the max from `app.validation.resources.max-storage-size` (default `200Gi`).
 
 ## Success Criteria *(mandatory)*
 

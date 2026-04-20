@@ -17,7 +17,7 @@
 
 | Column | Type | Nullable | Default |
 |--------|------|----------|---------|
-| storage_size | VARCHAR(255) | Yes | NULL |
+| storage_size | VARCHAR(64) | Yes | NULL |
 
 **Audit table**: `nim_deployment_aud` — same column added for Hibernate Envers audit trail.
 
