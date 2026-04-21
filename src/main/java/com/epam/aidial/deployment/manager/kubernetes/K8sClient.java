@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.HttpURLConnection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -156,6 +158,36 @@ public class K8sClient {
                 .withName(name)
                 .delete();
         log.debug("Job '{}' successfully deleted.", name);
+    }
+
+    public void deleteJobsByLabelAndWait(String namespace, String labelKey, String labelValue, int timeoutSec) {
+        var byLabel = client.batch().v1().jobs()
+                .inNamespace(namespace)
+                .withLabel(labelKey, labelValue);
+        var existing = byLabel.list().getItems();
+        if (existing.isEmpty()) {
+            log.debug("No Jobs in namespace '{}' with label {}={}; nothing to delete.", namespace, labelKey, labelValue);
+            return;
+        }
+        log.info("Deleting {} Job(s) in namespace '{}' with label {}={} (wait up to {}s)",
+                existing.size(), namespace, labelKey, labelValue, timeoutSec);
+        for (Job job : existing) {
+            var name = job.getMetadata().getName();
+            client.batch().v1().jobs()
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                    .withGracePeriod(0L)
+                    .delete();
+        }
+        for (Job job : existing) {
+            var name = job.getMetadata().getName();
+            client.batch().v1().jobs()
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .waitUntilCondition(Objects::isNull, timeoutSec, TimeUnit.SECONDS);
+        }
+        log.debug("All Jobs matching label {}={} in namespace '{}' fully deleted.", labelKey, labelValue, namespace);
     }
 
     public boolean deletePod(String namespace, String name) {

@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.service.ImageBuildLogsService;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
+import com.epam.aidial.deployment.manager.service.ImageBuildStopService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.web.dto.CreateBuildImageRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageBuildDetailsDto;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.util.MimeTypeUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +38,7 @@ public class ImageBuildController {
     private final ImageBuildLogsService imageBuildLogsService;
     private final ImageDefinitionService imageDefinitionService;
     private final ImageBuildRunner imageBuildRunner;
+    private final ImageBuildStopService imageBuildStopService;
     private final ImageBuildDetailsDtoMapper dtoMapper;
 
     @FullAdminOnly
@@ -43,6 +46,13 @@ public class ImageBuildController {
     @ResponseStatus(HttpStatus.CREATED)
     public void buildImage(@RequestBody @Valid CreateBuildImageRequestDto requestDto) {
         imageBuildRunner.buildImage(requestDto.imageDefinitionId());
+    }
+
+    @FullAdminOnly
+    @DeleteMapping(path = "/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void stopImageBuild(@PathVariable UUID id) {
+        imageBuildStopService.stopBuild(id);
     }
 
     @GetMapping(path = "{id}/status",

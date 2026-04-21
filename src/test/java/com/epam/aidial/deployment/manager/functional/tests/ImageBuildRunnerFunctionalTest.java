@@ -28,7 +28,6 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -53,7 +52,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(imageDefinition);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), any(UUID.class), anyList(), anyList()))
                 .thenReturn(true);
 
         // When
@@ -85,7 +84,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), any(UUID.class), anyList(), anyList()))
                 .thenReturn(false);
 
         // When & Then
@@ -105,7 +104,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), any(UUID.class), anyList(), anyList()))
                 .thenReturn(true);
 
         // When
@@ -139,7 +138,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
         var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
         var imageDefinitionId = imageDef.getId();
 
-        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), anyInt(), any(UUID.class), anyList(), anyList()))
+        when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), any(UUID.class), anyList(), anyList()))
                 .thenReturn(true);
 
         // When
@@ -174,7 +173,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
+        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(List.of("ID: test-id", "VERSION: test-version"));
             return true;
@@ -209,7 +208,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
+        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(List.of("ID: test-id", "VERSION: test-version"));
             return true;
@@ -245,7 +244,7 @@ public abstract class ImageBuildRunnerFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), anyInt(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
+        when(jobRunner.run(any(JobSpecification.class), callbackCaptor.capture(), any(UUID.class), anyList(), anyList())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(logs);
             return true;
