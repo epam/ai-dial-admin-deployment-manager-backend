@@ -45,8 +45,8 @@ public abstract class DeployableManifestGenerator extends BaseManifestGenerator 
         }
 
         if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
-            annotations.put(KnativeAnnotations.AUTOSCALING_CLASS, "kpa.autoscaling.knative.dev");
-            annotations.put(KnativeAnnotations.AUTOSCALING_METRIC, "concurrency");
+            annotations.put(KnativeAnnotations.AUTOSCALING_CLASS, KnativeAnnotations.AUTOSCALING_CLASS_KPA);
+            annotations.put(KnativeAnnotations.AUTOSCALING_METRIC, KnativeAnnotations.AUTOSCALING_METRIC_CONCURRENCY);
             annotations.put(KnativeAnnotations.AUTOSCALING_TARGET, String.valueOf(scaling.getStrategy().getThreshold()));
             log.trace("Applied strategy ACTIVE_REQUESTS: metric=concurrency, target={} for deployment '{}'",
                     scaling.getStrategy().getThreshold(), name);

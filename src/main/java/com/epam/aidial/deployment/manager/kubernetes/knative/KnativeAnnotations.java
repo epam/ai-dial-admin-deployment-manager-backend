@@ -15,6 +15,10 @@ public final class KnativeAnnotations {
     public static final String MAX_SCALE = "autoscaling.knative.dev/max-scale";
     public static final String SCALE_TO_ZERO_RETENTION = "autoscaling.knative.dev/scale-to-zero-pod-retention-period";
 
+    // Autoscaling annotation values
+    public static final String AUTOSCALING_CLASS_KPA = "kpa.autoscaling.knative.dev";
+    public static final String AUTOSCALING_METRIC_CONCURRENCY = "concurrency";
+
     // Serving annotations and labels
     public static final String PROGRESS_DEADLINE = "serving.knative.dev/progress-deadline";
     public static final String CREATOR = "serving.knative.dev/creator";

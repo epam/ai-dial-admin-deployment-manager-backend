@@ -7,6 +7,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
@@ -21,12 +22,18 @@ class StorageSizeValidatorTest {
 
     @BeforeEach
     void setUp() {
-        validator = new StorageSizeValidator();
-        setField(validator, "maxStorageSize", null);
+        validator = newValidator(null);
         context = mock(ConstraintValidatorContext.class);
         var builder = mock(ConstraintValidatorContext.ConstraintViolationBuilder.class);
         when(context.buildConstraintViolationWithTemplate(anyString())).thenReturn(builder);
         when(builder.addConstraintViolation()).thenReturn(context);
+    }
+
+    private static StorageSizeValidator newValidator(String maxStorageSize) {
+        var v = new StorageSizeValidator();
+        setField(v, "maxStorageSize", maxStorageSize);
+        v.initialize(null);
+        return v;
     }
 
     @Test
@@ -93,65 +100,69 @@ class StorageSizeValidatorTest {
 
     @Test
     void testExceedsMaxStorageSize() {
-        setField(validator, "maxStorageSize", "100Gi");
+        var v = newValidator("100Gi");
 
-        assertThat(validator.isValid("200Gi", context)).isFalse();
+        assertThat(v.isValid("200Gi", context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must not exceed"));
     }
 
     @Test
     void testExceedsMaxStorageSize_plainBytesInput() {
-        setField(validator, "maxStorageSize", "100Gi");
+        var v = newValidator("100Gi");
 
         // 200Gi in bytes
-        assertThat(validator.isValid("214748364800", context)).isFalse();
+        assertThat(v.isValid("214748364800", context)).isFalse();
         verify(context).disableDefaultConstraintViolation();
         verify(context).buildConstraintViolationWithTemplate(contains("must not exceed"));
     }
 
     @Test
     void testWithinMaxStorageSize() {
-        setField(validator, "maxStorageSize", "100Gi");
+        var v = newValidator("100Gi");
 
-        assertThat(validator.isValid("50Gi", context)).isTrue();
+        assertThat(v.isValid("50Gi", context)).isTrue();
     }
 
     @Test
     void testExactlyAtMaxStorageSize() {
-        setField(validator, "maxStorageSize", "100Gi");
+        var v = newValidator("100Gi");
 
-        assertThat(validator.isValid("100Gi", context)).isTrue();
+        assertThat(v.isValid("100Gi", context)).isTrue();
     }
 
     @Test
     void testMaxStorageSizeWithDifferentUnits() {
-        setField(validator, "maxStorageSize", "1Ti");
+        var v = newValidator("1Ti");
 
-        assertThat(validator.isValid("1024Gi", context)).isTrue();
-        assertThat(validator.isValid("1025Gi", context)).isFalse();
+        assertThat(v.isValid("1024Gi", context)).isTrue();
+        assertThat(v.isValid("1025Gi", context)).isFalse();
     }
 
     @Test
     void testMaxStorageSizeInPlainBytes() {
-        setField(validator, "maxStorageSize", "107374182400"); // 100Gi in bytes
+        var v = newValidator("107374182400"); // 100Gi in bytes
 
-        assertThat(validator.isValid("100Gi", context)).isTrue();
-        assertThat(validator.isValid("101Gi", context)).isFalse();
+        assertThat(v.isValid("100Gi", context)).isTrue();
+        assertThat(v.isValid("101Gi", context)).isFalse();
     }
 
     @Test
     void testNoMaxStorageSize() {
-        setField(validator, "maxStorageSize", null);
+        var v = newValidator(null);
 
-        assertThat(validator.isValid("999Ti", context)).isTrue();
+        assertThat(v.isValid("999Ti", context)).isTrue();
     }
 
     @Test
-    void testInvalidMaxStorageSizeConfig_skipsUpperBoundCheck() {
-        setField(validator, "maxStorageSize", "invalid-config");
+    void testInvalidMaxStorageSizeConfig_throwsOnInit() {
+        var v = new StorageSizeValidator();
+        setField(v, "maxStorageSize", "invalid-config");
 
-        assertThat(validator.isValid("999Ti", context)).isTrue();
+        assertThatThrownBy(() -> v.initialize(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("app.validation.resources.max-storage-size")
+                .hasMessageContaining("invalid-config");
     }
 
     @Test

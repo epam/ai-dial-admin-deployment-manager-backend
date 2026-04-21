@@ -188,9 +188,6 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             revisionSpecChain.data().setContainerConcurrency((long) scaling.getStrategy().getThreshold());
             log.trace("Applied strategy ACTIVE_REQUESTS: containerConcurrency={} for Knative deployment '{}'",
                     scaling.getStrategy().getThreshold(), name);
-        } else {
-            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
-                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
         }
     }
 

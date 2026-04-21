@@ -349,10 +349,11 @@ class NimManifestGeneratorTest {
                 8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null
         );
 
-        // Then: min/max/initial-scale from Scaling + metric/target from strategy
+        // Then: min/max/initial-scale from Scaling + class/metric/target from strategy
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations)
-                .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, "concurrency")
+                .containsEntry(KnativeAnnotations.AUTOSCALING_CLASS, KnativeAnnotations.AUTOSCALING_CLASS_KPA)
+                .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, KnativeAnnotations.AUTOSCALING_METRIC_CONCURRENCY)
                 .containsEntry(KnativeAnnotations.AUTOSCALING_TARGET, "10")
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "2")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "5")
