@@ -23,4 +23,7 @@ public class NimDeploymentEntity extends DeploymentEntity {
 
     @Column(name = "container_grpc_port")
     private Integer containerGrpcPort;
+
+    @Column(name = "storage_size")
+    private String storageSize;
 }
