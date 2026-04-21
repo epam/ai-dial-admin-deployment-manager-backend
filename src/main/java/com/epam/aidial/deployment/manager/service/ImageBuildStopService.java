@@ -33,7 +33,7 @@ public class ImageBuildStopService {
 
         var currentStatus = imageDefinition.getBuildStatus();
         if (currentStatus != ImageStatus.BUILDING) {
-            throw new ImageBuildNotInProgressException(currentStatus);
+            throw new ImageBuildNotInProgressException(imageDefinitionId, currentStatus);
         }
 
         try {
@@ -60,8 +60,9 @@ public class ImageBuildStopService {
                     .orElse(ImageStatus.NOT_BUILT);
             log.info("Stop arrived after pipeline completion for image definition '{}': current status {}",
                     imageDefinitionId, latestStatus);
-            throw new ImageBuildNotInProgressException(latestStatus);
+            throw new ImageBuildNotInProgressException(imageDefinitionId, latestStatus);
         }
+        imageDefinitionService.addBuildLog(imageDefinitionId, "Build stopped by administrator");
         log.info("Image build stopped for image definition '{}'", imageDefinitionId);
     }
 }

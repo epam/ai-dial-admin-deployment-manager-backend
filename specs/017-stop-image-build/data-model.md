@@ -105,7 +105,7 @@ At the service-orchestration layer, **before** any cluster-side cleanup, the flo
 - `buildStatus != BUILDING`: throw `ImageBuildNotInProgressException` carrying the actual current status.
 - `buildStatus == BUILDING`: proceed with cluster cleanup.
 
-The exception is mapped to HTTP 400 with message format `"Image build is not in progress (current status: <STATUS>)"` (per Phase 0 R4).
+The exception is mapped to HTTP 400 with message format `"Image build for '<id>' is not in progress (current status: <STATUS>)"` (per Phase 0 R4).
 
 Image-definition-not-found is handled by the existing `ImageDefinitionService.getImageDefinition(id)` lookup which throws a `ResourceNotFoundException` (or equivalent) → 404 — no new error plumbing.
 

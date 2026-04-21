@@ -172,13 +172,13 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
             names = {"NOT_BUILT", "BUILD_SUCCESSFUL", "BUILD_FAILED", "BUILD_STOPPED"})
     void shouldFailStopBuild_whenBuildIsNotInProgress(ImageStatus currentStatus) throws Exception {
         var id = UUID.randomUUID();
-        doThrow(new ImageBuildNotInProgressException(currentStatus))
+        doThrow(new ImageBuildNotInProgressException(id, currentStatus))
                 .when(imageBuildStopService).stopBuild(id);
 
         mockMvc.perform(delete("/api/v1/images/builds/{id}", id))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value("Image build is not in progress (current status: " + currentStatus.name() + ")"));
+                        .value("Image build for '" + id + "' is not in progress (current status: " + currentStatus.name() + ")"));
 
         verify(imageBuildStopService).stopBuild(id);
     }
@@ -204,7 +204,7 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
         mockMvc.perform(delete("/api/v1/images/builds/{id}", id))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value(org.hamcrest.Matchers.startsWith("Image build could not be stopped:")));
+                        .value("Image build could not be stopped; build remains in BUILDING and may be retried"));
 
         verify(imageBuildStopService).stopBuild(id);
     }

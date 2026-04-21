@@ -3,6 +3,9 @@ package com.epam.aidial.deployment.manager.service;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceCleaner;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildNotInProgressException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildStopFailedException;
@@ -16,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -90,8 +94,10 @@ class ImageBuildStopServiceTest {
                 .thenReturn(Optional.of(imageDefinition));
 
         assertThatThrownBy(() -> imageBuildStopService.stopBuild(imageDefinitionId))
-                .isInstanceOfSatisfying(ImageBuildNotInProgressException.class, ex ->
-                        assertThat(ex.getMessage()).contains("BUILD_SUCCESSFUL"));
+                .isInstanceOfSatisfying(ImageBuildNotInProgressException.class, ex -> {
+                    assertThat(ex.getMessage()).contains("BUILD_SUCCESSFUL");
+                    assertThat(ex.getMessage()).contains(imageDefinitionId.toString());
+                });
 
         verify(jobRunner, never()).deleteJob(any());
         verify(disposableResourceCleaner, never()).cleanTemporaryByGroupId(any());
@@ -107,8 +113,9 @@ class ImageBuildStopServiceTest {
 
         assertThatThrownBy(() -> imageBuildStopService.stopBuild(imageDefinitionId))
                 .isInstanceOfSatisfying(ImageBuildStopFailedException.class, ex -> {
-                    assertThat(ex.getMessage()).startsWith("Image build could not be stopped:");
-                    assertThat(ex.getMessage()).contains("cluster API error");
+                    assertThat(ex.getMessage()).isEqualTo(
+                            "Image build could not be stopped; build remains in BUILDING and may be retried");
+                    assertThat(ex.getCause()).isSameAs(cause);
                 });
 
         verify(disposableResourceCleaner, never()).cleanTemporaryByGroupId(any());
@@ -119,14 +126,24 @@ class ImageBuildStopServiceTest {
     void shouldFailStopBuild_whenCleanupLeavesResidualResources() {
         when(imageDefinitionService.getImageDefinition(imageDefinitionId))
                 .thenReturn(Optional.of(imageDefinition));
+        var residual = DisposableResource.builder()
+                .id(UUID.randomUUID())
+                .groupId(imageDefinitionId.toString())
+                .reference(K8sResourceReference.builder()
+                        .namespace("test-namespace")
+                        .kind(K8sResourceKind.SECRET)
+                        .name("residual-secret")
+                        .build())
+                .lifecycleState(ResourceLifecycleState.TEMPORARY)
+                .createdAt(Instant.now())
+                .build();
         when(disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString()))
-                .thenReturn(List.of(new DisposableResource()));
+                .thenReturn(List.of(residual));
 
         assertThatThrownBy(() -> imageBuildStopService.stopBuild(imageDefinitionId))
-                .isInstanceOfSatisfying(ImageBuildStopFailedException.class, ex -> {
-                    assertThat(ex.getMessage()).startsWith("Image build could not be stopped:");
-                    assertThat(ex.getMessage()).contains("not fully removed");
-                });
+                .isInstanceOfSatisfying(ImageBuildStopFailedException.class, ex ->
+                        assertThat(ex.getMessage()).isEqualTo(
+                                "Image build could not be stopped; build remains in BUILDING and may be retried"));
 
         verify(jobRunner).deleteJob(imageDefinitionId);
         verify(disposableResourceCleaner).cleanTemporaryByGroupId(imageDefinitionId);
@@ -148,8 +165,10 @@ class ImageBuildStopServiceTest {
                 .thenReturn(Optional.of(latestDefinition));
 
         assertThatThrownBy(() -> imageBuildStopService.stopBuild(imageDefinitionId))
-                .isInstanceOfSatisfying(ImageBuildNotInProgressException.class, ex ->
-                        assertThat(ex.getMessage()).contains("BUILD_SUCCESSFUL"));
+                .isInstanceOfSatisfying(ImageBuildNotInProgressException.class, ex -> {
+                    assertThat(ex.getMessage()).contains("BUILD_SUCCESSFUL");
+                    assertThat(ex.getMessage()).contains(imageDefinitionId.toString());
+                });
 
         verify(jobRunner).deleteJob(imageDefinitionId);
         verify(disposableResourceCleaner).cleanTemporaryByGroupId(imageDefinitionId);

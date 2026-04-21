@@ -61,7 +61,7 @@ curl -i -X DELETE http://localhost:8080/api/v1/images/builds/$IMAGE_DEF_ID \
 Expect `HTTP/1.1 400 Bad Request` and a JSON body whose `message` matches:
 
 ```
-Image build is not in progress (current status: BUILD_STOPPED)
+Image build for '<id>' is not in progress (current status: BUILD_STOPPED)
 ```
 
 The DB row is unchanged.
