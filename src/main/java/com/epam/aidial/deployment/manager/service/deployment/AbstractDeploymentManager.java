@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResou
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -70,6 +71,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected final ContainerPortResolver containerPortResolver;
     protected final DisposableResourceManager disposableResourceManager;
     protected final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
+    protected final NodePoolProperties nodePoolProperties;
 
     protected final String namespace;
     protected final int startupTimeoutSec;
@@ -81,6 +83,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         DeploymentRepository deploymentRepository,
                                         ContainerPortResolver containerPortResolver,
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+                                        NodePoolProperties nodePoolProperties,
                                         String namespace,
                                         int startupTimeoutSec,
                                         int defaultContainerPort) {
@@ -90,9 +93,19 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         this.containerPortResolver = containerPortResolver;
         this.disposableResourceManager = disposableResourceManager;
         this.ciliumNetworkPolicyCreator = ciliumNetworkPolicyCreator;
+        this.nodePoolProperties = nodePoolProperties;
         this.namespace = namespace;
         this.startupTimeoutSec = startupTimeoutSec;
         this.defaultContainerPort = defaultContainerPort;
+    }
+
+    protected Map<String, String> resolveNodePoolLabels(String nodePool) {
+        if (StringUtils.isBlank(nodePool)) {
+            return null;
+        }
+        return nodePoolProperties.findByName(nodePool)
+                .map(NodePoolProperties.NodePoolConfig::getLabelSelector)
+                .orElseThrow(() -> new ValidationException("Node pool '%s' is no longer configured".formatted(nodePool)));
     }
 
     @Override

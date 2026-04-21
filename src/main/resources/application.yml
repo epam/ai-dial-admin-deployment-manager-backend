@@ -138,6 +138,19 @@ app:
       max-cpu-in-cores: ${RESOURCES_MAX_CPU_IN_CORES:10}
       max-memory-in-mb: ${RESOURCES_MAX_MEMORY_IN_MB:100000}
       max-nvidia-gpu: ${RESOURCES_MAX_NVIDIA_GPU:5}
+  node-pools: []
+  # Node pool configuration example:
+  # node-pools:
+  #   - name: gpu-a100-pool
+  #     description: "NVIDIA A100 80 GB SXM — large model training and inference"
+  #     max-nodes: 8
+  #     label-selector:
+  #       node-pool: gpu-a100
+  #     node-spec:
+  #       cpu-millis: 96000
+  #       memory-bytes: 687194767360
+  #       gpu: 3
+
   deployment:
     healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}
     reserved-env-names: ${DEPLOYMENT_RESERVED_ENV_NAMES:PORT,K_SERVICE,K_CONFIGURATION,K_REVISION}

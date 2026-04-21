@@ -106,4 +106,7 @@ public class DeploymentEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> args;
 
+    @Column(name = "node_pool")
+    private String nodePool;
+
 }

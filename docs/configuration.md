@@ -232,6 +232,50 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
 
 
+#### Node Pool Configuration
+
+Node pools define groups of Kubernetes nodes that deployments can be pinned to. When a deployment has a node pool selected, hard node affinity is applied at deploy time to constrain pods to nodes matching the pool's label selector.
+
+Configuration is a YAML list under `app.node-pools`. Each entry defines:
+
+| Field | Env Variable Pattern | Description |
+|-------|---------------------|-------------|
+| `name` | `APP_NODE_POOLS_{i}_NAME` | Unique pool identifier used as the selection key in deployment API |
+| `description` | `APP_NODE_POOLS_{i}_DESCRIPTION` | Human-readable description shown in the UI |
+| `max-nodes` | `APP_NODE_POOLS_{i}_MAX_NODES` | Maximum number of nodes in this pool |
+| `label-selector` | `APP_NODE_POOLS_{i}_LABEL_SELECTOR_{key}` | Map of Kubernetes node labels used to query nodes belonging to this pool |
+| `node-spec.cpu-millis` | `APP_NODE_POOLS_{i}_NODE_SPEC_CPU_MILLIS` | CPU capacity per node in millicores |
+| `node-spec.memory-bytes` | `APP_NODE_POOLS_{i}_NODE_SPEC_MEMORY_BYTES` | Memory capacity per node in bytes |
+| `node-spec.gpu` | `APP_NODE_POOLS_{i}_NODE_SPEC_GPU` | GPU count per node (0 for CPU-only pools) |
+
+**Default**: Empty list (`[]`) — no node pools configured.
+
+**Example**:
+
+```yaml
+app:
+  node-pools:
+    - name: gpu-a100-pool
+      description: "NVIDIA A100 80 GB SXM — large model training and inference"
+      max-nodes: 8
+      label-selector:
+        node-pool: gpu-a100
+      node-spec:
+        cpu-millis: 96000
+        memory-bytes: 687194767360
+        gpu: 3
+    - name: cpu-highmem-pool
+      description: "CPU only — data preprocessing, tokenization"
+      max-nodes: 5
+      label-selector:
+        node-pool: cpu-highmem
+      node-spec:
+        cpu-millis: 64000
+        memory-bytes: 549755813888
+        gpu: 0
+```
+
+
 #### Cleanup and Maintenance Configuration
 
 

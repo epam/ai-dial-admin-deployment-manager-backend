@@ -27,11 +27,13 @@ import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.pa
 import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -66,7 +68,8 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             boolean useExternalUrl,
             @Nullable String clusterHost,
             @Nullable List<String> command,
-            @Nullable List<String> args
+            @Nullable List<String> args,
+            @Nullable Map<String, String> nodePoolLabels
     ) {
         if (useExternalUrl && StringUtils.isBlank(clusterHost)) {
             throw new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured");
@@ -109,6 +112,10 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
         applyStartupProbe(name, specChain, probeProperties);
         applyProgressDeadline(probeProperties, startupTimeoutSec, config);
+
+        if (MapUtils.isNotEmpty(nodePoolLabels)) {
+            specChain.data().setNodeSelector(nodePoolLabels);
+        }
 
         return config.data();
     }

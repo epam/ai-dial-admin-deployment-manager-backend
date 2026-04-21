@@ -5,7 +5,12 @@ import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.utils.mapping.ListMapper;
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirementBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorTermBuilder;
 import org.apache.commons.collections4.MapUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -56,6 +61,31 @@ public abstract class DeployableManifestGenerator extends BaseManifestGenerator 
             S secretRef = secretRefBuilder.apply(sensitiveEnv);
             valueFromSetter.accept(envVarChain.data(), secretRef);
         });
+    }
+
+    @Nullable
+    protected Affinity buildNodePoolAffinity(@Nullable Map<String, String> nodePoolLabels) {
+        if (MapUtils.isEmpty(nodePoolLabels)) {
+            return null;
+        }
+
+        var requirements = nodePoolLabels.entrySet().stream()
+                .map(entry -> new NodeSelectorRequirementBuilder()
+                        .withKey(entry.getKey())
+                        .withOperator("In")
+                        .withValues(entry.getValue())
+                        .build())
+                .toList();
+
+        return new AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .withNodeSelectorTerms(new NodeSelectorTermBuilder()
+                        .withMatchExpressions(requirements)
+                        .build())
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
     }
 
 }

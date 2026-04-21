@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -65,7 +66,8 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties,
             @Nullable List<String> command,
-            @Nullable List<String> args
+            @Nullable List<String> args,
+            @Nullable Map<String, String> nodePoolLabels
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneKnativeServiceConfig,
@@ -120,6 +122,11 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         }
 
         applyStartupProbe(name, containerChain, probeProperties);
+
+        var affinity = buildNodePoolAffinity(nodePoolLabels);
+        if (affinity != null) {
+            revisionSpecChain.data().setAffinity(affinity);
+        }
 
         return config.data();
     }

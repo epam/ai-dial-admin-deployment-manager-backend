@@ -76,7 +76,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -98,7 +98,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -120,7 +120,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -141,7 +141,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -162,7 +162,7 @@ class InferenceManifestGeneratorTest {
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
@@ -180,7 +180,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC
+                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -201,7 +201,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -220,7 +220,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -240,7 +240,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -260,7 +260,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC
+                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -283,7 +283,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -302,7 +302,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then: fallback deadline = 3600 + 30 = 3630s
@@ -323,7 +323,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then: predictor model has startup probe with expected path, port and timing

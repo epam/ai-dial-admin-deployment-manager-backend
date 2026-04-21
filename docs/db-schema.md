@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-04-17T15:25:27.349463Z
+> Generated at: 2026-04-21T09:11:49.707231900Z
 
 ## Tables
 
@@ -158,6 +158,7 @@
 | ARGS | JSON | Yes |  |  |
 | SOURCE | JSON | Yes |  |  |
 | SERVICE_NAME | VARCHAR(63) | Yes |  |  |
+| NODE_POOL | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 
@@ -190,10 +191,11 @@
 | SERVICE_NAME | VARCHAR(255) | Yes |  |  |
 | COMMAND | JSON | Yes |  |  |
 | ARGS | JSON | Yes |  |  |
+| NODE_POOL | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 
-- `FK_DEPLOYMENT_AUD_REV_INDEX_D` on (REV)
+- `FK_DEPLOYMENT_AUD_REV_INDEX_6` on (REV)
 
 ## DEPLOYMENT_TOPICS
 

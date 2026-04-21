@@ -87,7 +87,7 @@ class NimManifestGeneratorTest {
 
         // When
         var generatedService = manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, resources, imageName, 8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -109,7 +109,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                STARTUP_TIMEOUT_SEC, false, null, null, null
+                STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -131,7 +131,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, customPort,
-                customGrpcPort, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                customGrpcPort, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -154,7 +154,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName, 8000, null, null,
-                STARTUP_TIMEOUT_SEC, false, null, null, null
+                STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -179,7 +179,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                httpPort, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
+                httpPort, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null, null
         );
 
         // Then: expose.ingress is set with host, tls secret, backend
@@ -215,7 +215,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, true, clusterHost, null, null, null
         );
 
         // Then: expose.ingress has annotations from nim-service-expose-ingress-config (proxy-body-size, proxy-read-timeout, cert-manager, force-ssl-redirect)
@@ -238,7 +238,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then: expose.ingress is not set
@@ -261,7 +261,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, probeProperties, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, probeProperties, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then: spec has startup probe with expected enabled, path, port and timing
@@ -290,7 +290,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, args
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, args, null
         );
 
         // Then
@@ -309,7 +309,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, command, null, null
         );
 
         // Then
@@ -327,7 +327,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -347,7 +347,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, simpleEnvs, Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -370,7 +370,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), sensitiveEnvs, resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then — should have the sensitive env var (with valueFrom), not a simple value override
@@ -397,7 +397,7 @@ class NimManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then
@@ -421,7 +421,7 @@ class NimManifestGeneratorTest {
         // When: no probe properties provided
         var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), new Resources(), imageName,
-                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null
+                8000, null, null, STARTUP_TIMEOUT_SEC, false, null, null, null, null
         );
 
         // Then: fallback deadline = 3600 + 30 = 3630s

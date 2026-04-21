@@ -69,4 +69,6 @@ public abstract class DeploymentDto {
     private String command;
     @Nullable
     private String args;
+    @Nullable
+    private String nodePool;
 }

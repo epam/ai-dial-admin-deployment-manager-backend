@@ -72,7 +72,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, Collections.emptyList(), imageName,
-                null, resources, null, null, null, null
+                null, resources, null, null, null, null, null
         );
 
         // Then
@@ -91,7 +91,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                scaling, new Resources(), null, null, null, null
+                scaling, new Resources(), null, null, null, null, null
         );
 
         // Then
@@ -113,7 +113,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, resources, null, null, null, null
+                null, resources, null, null, null, null, null
         );
 
         // Then
@@ -132,7 +132,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), containerPort, null, null, null
+                null, new Resources(), containerPort, null, null, null, null
         );
 
         // Then
@@ -155,7 +155,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null
+                null, new Resources(), null, null, null, null, null
         );
 
         // Then
@@ -177,7 +177,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, probeProperties, null, null
+                null, new Resources(), null, probeProperties, null, null, null
         );
 
         // Then
@@ -194,7 +194,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null
+                null, new Resources(), null, null, null, null, null
         );
 
         // Then
@@ -215,7 +215,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, probeProperties, null, null
+                null, new Resources(), null, probeProperties, null, null, null
         );
 
         // Then: container has startup probe with expected path, port and timing
@@ -242,7 +242,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, command, args
+                null, new Resources(), null, null, command, args, null
         );
 
         // Then
@@ -261,7 +261,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, command, null
+                null, new Resources(), null, null, command, null, null
         );
 
         // Then
@@ -279,7 +279,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null
+                null, new Resources(), null, null, null, null, null
         );
 
         // Then

@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.cleanup.component.ComponentCleanupService;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
@@ -67,6 +68,7 @@ public class DeploymentService {
     private final SecurityClaimsExtractor securityClaimsExtractor;
     private final DisposableResourceManager disposableResourceManager;
     private final HistoryService historyService;
+    private final NodePoolProperties nodePoolProperties;
 
     @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -127,6 +129,7 @@ public class DeploymentService {
 
         checkNoResourcesAreAssociatedWithId(id);
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
+        validateNodePool(request.getNodePool());
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
@@ -154,6 +157,7 @@ public class DeploymentService {
                     .formatted(id, request.getId()));
         }
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
+        validateNodePool(request.getNodePool());
 
         ImageDefinition imageDefinition = resolveImageDefinition(request).orElse(null);
 
@@ -389,6 +393,12 @@ public class DeploymentService {
         return () -> new EntityNotFoundException("%s not found: '%s'".formatted(what, id));
     }
 
+    private void validateNodePool(String nodePool) {
+        if (StringUtils.isNotBlank(nodePool) && !nodePoolProperties.exists(nodePool)) {
+            throw new IllegalArgumentException("Node pool '%s' is not configured".formatted(nodePool));
+        }
+    }
+
     private void validateEnvNameNotReserved(String name) {
         if (reservedEnvNames.contains(name)) {
             throw new IllegalArgumentException("Environment variable name '%s' is reserved and cannot be used"
@@ -435,7 +445,8 @@ public class DeploymentService {
                 || !Objects.equals(existing.getSource(), updated.getSource())
                 || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
                 || !Objects.equals(existing.getScaling(), updated.getScaling())
-                || !Objects.equals(existing.getResources(), updated.getResources());
+                || !Objects.equals(existing.getResources(), updated.getResources())
+                || !Objects.equals(existing.getNodePool(), updated.getNodePool());
     }
 
     private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {
