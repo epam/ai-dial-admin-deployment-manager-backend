@@ -29,15 +29,19 @@ public class ImageCopyPipeline {
         var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(imageDefinitionId)));
 
+        boolean externallyInterrupted = false;
         try {
             run(imageDefinition);
         } catch (JobExternallyDeletedException e) {
+            externallyInterrupted = true;
             log.info("Image copy pipeline interrupted by external Job deletion for image definition '{}'. "
-                    + "Leaving status change to the stop action.", imageDefinitionId);
+                    + "Leaving status change and cleanup to the stop action.", imageDefinitionId);
         } catch (Exception e) {
             imageDefinitionService.failBuild(imageDefinitionId, "Image copying has failed: %s".formatted(e.getMessage()));
         } finally {
-            disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
+            if (!externallyInterrupted) {
+                disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
+            }
         }
     }
 

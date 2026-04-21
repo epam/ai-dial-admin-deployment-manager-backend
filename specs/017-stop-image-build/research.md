@@ -49,20 +49,28 @@ Then each pipeline's top-level `run(UUID)` is changed from:
 try { ... } catch (Exception e) { imageDefinitionService.failBuild(...); } finally { ... }
 ```
 
-to a two-level catch that lets the stop action own the terminal status:
+to a two-level catch that lets the stop action own **both** the terminal status and the cluster-side cleanup on the externally-deleted path:
 
 ```java
+boolean externallyInterrupted = false;
 try { ... }
-catch (JobExternallyDeletedException e) { /* log; stop action owns the status update */ }
+catch (JobExternallyDeletedException e) {
+    externallyInterrupted = true;
+    /* log; stop action owns status update and cleanup */
+}
 catch (Exception e) { imageDefinitionService.failBuild(...); }
-finally { disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId); }
+finally {
+    if (!externallyInterrupted) {
+        disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
+    }
+}
 ```
 
 **Rationale**:
 - Narrow and explicit: the pipeline distinguishes the one scenario where it must **not** write a terminal status, so every other failure still produces `BUILD_FAILED` as today.
 - Keeps the R1 guard simple (still "only skip overwrite if `BUILD_STOPPED`") — no need to widen it to "must have been `BUILDING`", which would break pre-existing test shortcuts.
 - Avoids an alternative design that flipped the status to `BUILD_STOPPED` **before** `deleteJob` and needed a rollback path when cluster delete or cleanup failed. That design leaves `image_definition.build_status` temporarily inconsistent with cluster reality and requires a new conditional-update method for rollback; the exception-based approach stays consistent with cluster truth at every instant.
-- The defensive `finally { cleanTemporaryByGroupId }` in the pipeline still runs on the externally-deleted path. It races harmlessly with the stop service's own `cleanTemporaryByGroupId` (Fabric8 `deleteX` on a missing resource is a no-op; duplicate DB row deletes are absorbed by Spring Data).
+- The pipeline's `finally { cleanTemporaryByGroupId }` is **skipped** on the externally-deleted path. An earlier revision of this document claimed the pipeline's cleanup "races harmlessly" with the stop service's cleanup because "duplicate DB row deletes are absorbed by Spring Data" — **that assumption is incorrect**. Hibernate's default row-count expectation on DELETE of a managed entity throws `StaleStateException` (surfaced as `ObjectOptimisticLockingFailureException` on `DisposableResourceEntity`, despite no `@Version` field) whenever the loser's `DELETE ... WHERE id = ?` affects zero rows because the winner already removed it. The stop action is authoritative for cleanup on this path — it issues `cleanTemporaryByGroupId(...)` synchronously and enforces a post-condition re-query (FR-004 all-or-nothing) — so the pipeline delegating cleanup here is both correct and race-free. On success and ordinary-failure paths the pipeline still owns cleanup as before.
 
 **Alternatives considered**:
 - Flip status to `BUILD_STOPPED` before `deleteJob`, add a rollback method for the cleanup-failure path — rejected: creates a window where DB status and cluster state are intentionally out of sync, and the rollback path is hard to test.
