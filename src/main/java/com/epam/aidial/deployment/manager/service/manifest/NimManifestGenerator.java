@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
@@ -17,18 +18,11 @@ import com.nvidia.apps.v1alpha1.nimservicespec.Env;
 import com.nvidia.apps.v1alpha1.nimservicespec.Expose;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.ValueFrom;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.valuefrom.SecretKeyRef;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.Rules;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.Tls;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.Http;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.Paths;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.paths.Backend;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.paths.backend.Service;
-import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.paths.backend.service.Port;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Router;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -63,18 +57,14 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             String imageName,
             int containerPort,
             @Nullable Integer containerGrpcPort,
+            @Nullable String storageSize,
+            @Nullable Scaling scaling,
             @Nullable ProbeProperties probeProperties,
             int startupTimeoutSec,
-            boolean useExternalUrl,
-            @Nullable String clusterHost,
             @Nullable List<String> command,
             @Nullable List<String> args,
             @Nullable Map<String, String> nodePoolLabels
     ) {
-        if (useExternalUrl && StringUtils.isBlank(clusterHost)) {
-            throw new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured");
-        }
-
         var config = createBaseManifestChain(
                 appConfig::cloneNimServiceConfig,
                 chain -> chain.get(NimMappers.SERVICE_METADATA_FIELD),
@@ -97,11 +87,11 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyResourceMap(resourceLimitsChain.data(), resources.getLimits(), IntOrString::new);
         applyResourceMap(resourceRequestsChain.data(), resources.getRequests(), IntOrString::new);
 
+        applyStorageSize(specChain, storageSize);
+
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
         applyExposeService(exposeChain, containerPort, containerGrpcPort);
-        if (useExternalUrl) {
-            applyExposeIngress(exposeChain, serviceName, clusterHost, containerPort);
-        }
+        exposeChain.data().setRouter(new Router());
 
         if (command != null) {
             specChain.data().setCommand(command);
@@ -112,12 +102,22 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
         applyStartupProbe(name, specChain, probeProperties);
         applyProgressDeadline(probeProperties, startupTimeoutSec, config);
+        applyScaling(name, scaling, config);
 
         if (MapUtils.isNotEmpty(nodePoolLabels)) {
             specChain.data().setNodeSelector(nodePoolLabels);
         }
 
         return config.data();
+    }
+
+    private void applyStorageSize(MappingChain<NIMServiceSpec> specChain, @Nullable String storageSize) {
+        if (storageSize != null) {
+            specChain.get(NimMappers.SERVICE_SPEC_STORAGE_FIELD)
+                    .get(NimMappers.STORAGE_PVC_FIELD)
+                    .data()
+                    .setSize(storageSize);
+        }
     }
 
     private void applyExposeService(MappingChain<Expose> exposeChain, int httpPort, @Nullable Integer containerGrpcPort) {
@@ -129,42 +129,15 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         }
     }
 
-    private void applyExposeIngress(MappingChain<Expose> exposeChain, String nimServiceName, String clusterHost, int httpPort) {
-        var ingressChain = new MappingChain<>(appConfig.getNimServiceExposeIngressConfig());
-        var ingressSpecChain = ingressChain.get(NimMappers.INGRESS_SPEC_FIELD);
-        var ingressSpec = ingressSpecChain.data();
+    private void applyScaling(String name, @Nullable Scaling scaling, MappingChain<NIMService> config) {
+        log.debug("Applying scaling for NIM deployment '{}': {}", name, scaling);
+        if (scaling == null) {
+            return;
+        }
 
-        ingressSpec.setTls(List.of(buildTls(nimServiceName, clusterHost)));
-        ingressSpec.setRules(List.of(buildRule(nimServiceName, clusterHost, httpPort)));
-
-        exposeChain.data().setIngress(ingressChain.data());
-    }
-
-    private Tls buildTls(String nimServiceName, String clusterHost) {
-        var tls = new Tls();
-        tls.setHosts(List.of(nimServiceName + "." + clusterHost));
-        tls.setSecretName(nimServiceName + "-tls-secret");
-        return tls;
-    }
-
-    private Rules buildRule(String nimServiceName, String clusterHost, int httpPort) {
-        var rule = new Rules();
-        rule.setHost(nimServiceName + "." + clusterHost);
-        var http = new Http();
-        var path = new Paths();
-        path.setPath("/");
-        path.setPathType("Prefix");
-        var backend = new Backend();
-        var backendService = new Service();
-        backendService.setName(nimServiceName);
-        var port = new Port();
-        port.setNumber(httpPort);
-        backendService.setPort(port);
-        backend.setService(backendService);
-        path.setBackend(backend);
-        http.setPaths(List.of(path));
-        rule.setHttp(http);
-        return rule;
+        var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
+                .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
+        applyScalingAnnotations(name, scaling, annotations);
     }
 
     private void applyStartupProbe(String name,

@@ -1,6 +1,8 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
+import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
@@ -9,6 +11,7 @@ import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.NodeSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.NodeSelectorTermBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,6 +21,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 public abstract class DeployableManifestGenerator extends BaseManifestGenerator {
 
     protected static final List<ScalingStrategyType> SUPPORTED_SCALING_STRATEGIES =
@@ -25,6 +29,36 @@ public abstract class DeployableManifestGenerator extends BaseManifestGenerator 
 
     public DeployableManifestGenerator(AppProperties appconfig) {
         super(appconfig);
+    }
+
+    protected void applyScalingAnnotations(String name, Scaling scaling, Map<String, String> annotations) {
+        var initialScale = Math.max(scaling.getMinReplicas(), 1);
+        annotations.put(KnativeAnnotations.INITIAL_SCALE, String.valueOf(initialScale));
+        annotations.put(KnativeAnnotations.MIN_SCALE, String.valueOf(scaling.getMinReplicas()));
+        annotations.put(KnativeAnnotations.MAX_SCALE, String.valueOf(scaling.getMaxReplicas()));
+        log.trace("Set min-scale={}, max-scale={}, initial-scale={} for deployment '{}'",
+                scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
+
+        if (scaling.getScaleToZeroDelaySeconds() != null) {
+            var delayStr = scaling.getScaleToZeroDelaySeconds() + "s";
+            annotations.put(KnativeAnnotations.SCALE_TO_ZERO_RETENTION, delayStr);
+            log.trace("Set scale-to-zero-pod-retention-period={} for deployment '{}'", delayStr, name);
+        }
+
+        if (scaling.getStrategy() == null) {
+            return;
+        }
+
+        if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
+            annotations.put(KnativeAnnotations.AUTOSCALING_CLASS, KnativeAnnotations.AUTOSCALING_CLASS_KPA);
+            annotations.put(KnativeAnnotations.AUTOSCALING_METRIC, KnativeAnnotations.AUTOSCALING_METRIC_CONCURRENCY);
+            annotations.put(KnativeAnnotations.AUTOSCALING_TARGET, String.valueOf(scaling.getStrategy().getThreshold()));
+            log.trace("Applied strategy ACTIVE_REQUESTS: metric=concurrency, target={} for deployment '{}'",
+                    scaling.getStrategy().getThreshold(), name);
+        } else {
+            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
+                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
+        }
     }
 
     protected <T> void applyResourceMap(

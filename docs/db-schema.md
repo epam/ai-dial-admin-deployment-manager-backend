@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-04-21T09:11:49.707231900Z
+> Generated at: 2026-04-21T13:35:17.766734900Z
 
 ## Tables
 
@@ -438,6 +438,7 @@
 |--------|------|----------|---------|-----|
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
 | CONTAINER_GRPC_PORT | INTEGER | Yes |  |  |
+| STORAGE_SIZE | VARCHAR(64) | Yes |  |  |
 
 ## NIM_DEPLOYMENT_AUD
 
@@ -446,10 +447,11 @@
 | ID | VARCHAR(36) | No |  | PK |
 | REV | INTEGER | No |  | PK, FK → REVINFO.ID |
 | CONTAINER_GRPC_PORT | INTEGER | Yes |  |  |
+| STORAGE_SIZE | VARCHAR(64) | Yes |  |  |
 
 **Indexes:**
 
-- `FK_NIM_DEPLOYMENT_AUD_REV_INDEX_F` on (REV)
+- `FK_NIM_DEPLOYMENT_AUD_REV_INDEX_9` on (REV)
 
 ## REVINFO
 

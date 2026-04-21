@@ -185,34 +185,16 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
 
         var annotations = template.get(KnativeMappers.SERVICE_TEMPLATE_METADATA_FIELD)
                 .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
-
-        var initialScale = Math.max(scaling.getMinReplicas(), 1);
-        annotations.put(KnativeAnnotations.INITIAL_SCALE, String.valueOf(initialScale));
-        annotations.put(KnativeAnnotations.MIN_SCALE, String.valueOf(scaling.getMinReplicas()));
-        annotations.put(KnativeAnnotations.MAX_SCALE, String.valueOf(scaling.getMaxReplicas()));
-        log.trace("Set min-scale={}, max-scale={}, initial-scale={} for Knative deployment '{}'",
-                scaling.getMinReplicas(), scaling.getMaxReplicas(), initialScale, name);
-
-        if (scaling.getScaleToZeroDelaySeconds() != null) {
-            var delayStr = scaling.getScaleToZeroDelaySeconds() + "s";
-            annotations.put(KnativeAnnotations.SCALE_TO_ZERO_RETENTION, delayStr);
-            log.trace("Set annotation autoscaling.knative.dev/scale-to-zero-pod-retention-period={} for Knative deployment '{}'",
-                    delayStr, name);
-        }
+        applyScalingAnnotations(name, scaling, annotations);
 
         if (scaling.getStrategy() == null) {
             return;
         }
 
         if (scaling.getStrategy().getType() == ScalingStrategyType.ACTIVE_REQUESTS) {
-            var target = scaling.getStrategy().getThreshold();
-            revisionSpecChain.data().setContainerConcurrency((long) target);
-            annotations.put(KnativeAnnotations.AUTOSCALING_TARGET, String.valueOf(target));
-            log.trace("Applied strategy ACTIVE_REQUESTS: target={} for deployment '{}'",
+            revisionSpecChain.data().setContainerConcurrency((long) scaling.getStrategy().getThreshold());
+            log.trace("Applied strategy ACTIVE_REQUESTS: containerConcurrency={} for Knative deployment '{}'",
                     scaling.getStrategy().getThreshold(), name);
-        } else {
-            throw new IllegalArgumentException("Scaling strategy '%s' is not supported. Supported strategies: %s"
-                    .formatted(scaling.getStrategy().getType(), SUPPORTED_SCALING_STRATEGIES));
         }
     }
 

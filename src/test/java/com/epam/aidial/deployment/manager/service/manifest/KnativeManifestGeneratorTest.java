@@ -1,8 +1,11 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
+import com.epam.aidial.deployment.manager.model.ScalingStrategy;
+import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
@@ -98,6 +101,34 @@ class KnativeManifestGeneratorTest {
         var jsonOutput = serialize(generatedService);
         var expected = ResourceUtils.readResource("/manifest/knative_service_with_scaling.json");
         JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    @Test
+    void testServiceConfig_withActiveRequestsStrategy_setsExplicitAutoscalingAnnotationsAndConcurrency() {
+        // Given
+        var deploymentName = "explicit-scaling-app";
+        var imageName = "my-registry/scaling-image:v1";
+        var strategy = new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 7);
+        var scaling = new Scaling(1, 5, null, strategy);
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                scaling, new Resources(), null, null, null, null, null
+        );
+
+        // Then: class/metric/target are written explicitly (not inherited from cluster defaults)
+        var annotations = generatedService.getSpec().getTemplate().getMetadata().getAnnotations();
+        assertThat(annotations)
+                .containsEntry(KnativeAnnotations.AUTOSCALING_CLASS, KnativeAnnotations.AUTOSCALING_CLASS_KPA)
+                .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, KnativeAnnotations.AUTOSCALING_METRIC_CONCURRENCY)
+                .containsEntry(KnativeAnnotations.AUTOSCALING_TARGET, "7")
+                .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
+                .containsEntry(KnativeAnnotations.MAX_SCALE, "5")
+                .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1");
+
+        // And: revision spec carries matching containerConcurrency
+        assertThat(generatedService.getSpec().getTemplate().getSpec().getContainerConcurrency()).isEqualTo(7L);
     }
 
     @Test

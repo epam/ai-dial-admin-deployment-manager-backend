@@ -148,6 +148,7 @@ public abstract class PersistenceDeploymentMapper {
         if (existingEntity instanceof NimDeploymentEntity existingNim
                 && updatedEntity instanceof NimDeploymentEntity updatedNim) {
             existingNim.setContainerGrpcPort(updatedNim.getContainerGrpcPort());
+            existingNim.setStorageSize(updatedNim.getStorageSize());
         }
 
         if (existingEntity instanceof InferenceDeploymentEntity existingInference

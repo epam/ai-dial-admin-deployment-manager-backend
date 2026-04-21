@@ -6,9 +6,11 @@ import com.nvidia.apps.v1alpha1.nimservicespec.Env;
 import com.nvidia.apps.v1alpha1.nimservicespec.Expose;
 import com.nvidia.apps.v1alpha1.nimservicespec.Image;
 import com.nvidia.apps.v1alpha1.nimservicespec.Resources;
+import com.nvidia.apps.v1alpha1.nimservicespec.Storage;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.Service;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
+import com.nvidia.apps.v1alpha1.nimservicespec.storage.Pvc;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import lombok.experimental.UtilityClass;
@@ -65,6 +67,16 @@ public class NimMappers {
             HashMap::new,
             Resources::getLimits,
             Resources::setLimits);
+
+    public static final FieldMapper<NIMServiceSpec, Storage> SERVICE_SPEC_STORAGE_FIELD = new FieldMapper<>(
+            Storage::new,
+            NIMServiceSpec::getStorage,
+            NIMServiceSpec::setStorage);
+
+    public static final FieldMapper<Storage, Pvc> STORAGE_PVC_FIELD = new FieldMapper<>(
+            Pvc::new,
+            Storage::getPvc,
+            Storage::setPvc);
 
     public static final FieldMapper<NIMServiceSpec, Expose> SERVICE_SPEC_EXPOSE_FIELD = new FieldMapper<>(
             Expose::new,
