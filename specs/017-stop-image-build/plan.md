@@ -87,7 +87,7 @@ src/main/java/com/epam/aidial/deployment/manager/
 │   └── ImageDefinitionService.java                        # ADD stopBuild(UUID) + use conditional methods from repository
 ├── dao/
 │   └── repository/
-│       └── ImageDefinitionRepository.java                 # ADD stopBuild(UUID); MODIFY completeBuildSuccessfully/failBuild to be BUILDING-guarded
+│       └── ImageDefinitionRepository.java                 # ADD stopBuild(UUID); MODIFY failBuild to short-circuit on BUILD_STOPPED (completeBuildSuccessfully stays unconditional — see data-model.md)
 ├── dao/entity/
 │   └── PersistenceImageStatus.java                        # ADD BUILD_STOPPED
 ├── model/

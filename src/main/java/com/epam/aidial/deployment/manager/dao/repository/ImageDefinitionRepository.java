@@ -126,7 +126,7 @@ public class ImageDefinitionRepository {
     }
 
     public void completeBuildSuccessfully(UUID id, String imageName, long builtAt) {
-        var entity = findImageDefinitionById(id);
+        var entity = findImageDefinitionForUpdate(id);
         entity.setBuildStatus(PersistenceImageStatus.BUILD_SUCCESSFUL);
         entity.setImageName(imageName);
         entity.setBuiltAt(builtAt);
@@ -136,15 +136,37 @@ public class ImageDefinitionRepository {
     }
 
     public void failBuild(UUID id, String errorLog) {
-        var entity = findImageDefinitionById(id);
+        var entity = findImageDefinitionForUpdate(id);
+        if (entity.getBuildStatus() == PersistenceImageStatus.BUILD_STOPPED) {
+            log.debug("Skipping build failure for image definition '{}': build was stopped by administrator", id);
+            return;
+        }
         entity.setBuildStatus(PersistenceImageStatus.BUILD_FAILED);
         imageDefinitionJpaRepository.saveAndFlush(entity);
         appendBuildLogs(id, List.of(errorLog));
         log.debug("Build failed for image definition '{}'", id);
     }
 
+    public boolean stopBuild(UUID id) {
+        var entity = findImageDefinitionForUpdate(id);
+        if (entity.getBuildStatus() != PersistenceImageStatus.BUILDING) {
+            log.debug("Skipping build stop for image definition '{}': current status is {}",
+                    id, entity.getBuildStatus());
+            return false;
+        }
+        entity.setBuildStatus(PersistenceImageStatus.BUILD_STOPPED);
+        imageDefinitionJpaRepository.saveAndFlush(entity);
+        log.debug("Build stopped for image definition '{}'", id);
+        return true;
+    }
+
     private ImageDefinitionEntity findImageDefinitionById(UUID id) {
         return imageDefinitionJpaRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+    }
+
+    private ImageDefinitionEntity findImageDefinitionForUpdate(UUID id) {
+        return imageDefinitionJpaRepository.findForUpdateById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
     }
 
