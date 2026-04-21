@@ -3,12 +3,15 @@
   "kind": "InferenceService",
   "metadata": {
     "annotations": {
+      "autoscaling.knative.dev/initial-scale": "1",
       "serving.knative.dev/progress-deadline": "3630s"
     },
     "name": "dm-resource-inference-app"
   },
   "spec": {
     "predictor": {
+      "minReplicas": 1,
+      "maxReplicas": 1,
       "model": {
         "args": [
           "--model_name",

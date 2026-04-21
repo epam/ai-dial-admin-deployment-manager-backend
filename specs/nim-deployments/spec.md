@@ -56,6 +56,23 @@ Status: **Implemented**
 - **WHEN** `containerGrpcPort` is set to a value outside 1–65535
 - **THEN** the system responds with 400
 
+### Requirement: NIM deployment supports an optional PVC storage size override
+A NIM deployment SHALL optionally carry a `storageSize` (nullable String, Kubernetes quantity format e.g. `"20Gi"`, `"500Mi"`, or plain bytes e.g. `"21474836480"`) specifying the PVC size for model data storage. When not set, the default from the application template (20Gi) is used.
+
+Status: **Implemented**
+
+#### Scenario: Storage size stored and applied
+- **WHEN** a NIM deployment is created or updated with a valid `storageSize` (e.g., `"50Gi"`)
+- **THEN** the storage size is persisted and used to override the default PVC size in the Kubernetes manifest
+
+#### Scenario: No storage size (uses default)
+- **WHEN** a NIM deployment is created without `storageSize`
+- **THEN** the default PVC size from the template (20Gi) is used
+
+#### Scenario: Invalid storage size rejected
+- **WHEN** `storageSize` is set to a value that does not match Kubernetes binary quantity format
+- **THEN** the system responds with 400
+
 ### Requirement: NIM deployment uses base scale fields only
 A NIM deployment SHALL use the base deployment scale fields (`initialScale`, `minScale`, `maxScale`) inherited from `DeploymentDto`. NIM deployments do NOT support the `ScalingDto` object used by inference deployments — there is no `scaling` field on `NimDeploymentDto`. Replica count defaults to 1 (from NIM configuration).
 
@@ -83,9 +100,9 @@ Status: **Implemented**
 - Source domain model: `com.epam.aidial.deployment.manager.model.deployment.Source` (unified sealed interface; NIM uses `NgcRegistrySource` variant)
 - NGC registry source domain model: `com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource`
 - Request DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.CreateNimDeploymentRequestDto`
-  - Fields: `source` (required `NimDeploymentSourceDto`), `containerGrpcPort` (nullable Integer, `@Min(1) @Max(65535)`)
+  - Fields: `source` (required `NimDeploymentSourceDto`), `containerGrpcPort` (nullable Integer, `@Min(1) @Max(65535)`), `storageSize` (nullable String, `@ValidStorageSize` — Kubernetes quantity via Fabric8 parser)
 - Response DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto`
-  - Fields: `source` (required `NimDeploymentSourceDto`), `containerGrpcPort` (nullable Integer)
+  - Fields: `source` (required `NimDeploymentSourceDto`), `containerGrpcPort` (nullable Integer), `storageSize` (nullable String)
 - Source DTO (interface): `com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentSourceDto` (`$type` discriminator)
 - NGC source DTO (record): `com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentNgcRegistrySourceDto` (`imageRef` with `@NotNull @ValidDockerImageName`)
 - Persistence source: stored as `PersistenceNgcRegistrySource` within the unified `PersistenceSource` JSON column on base `DeploymentEntity`

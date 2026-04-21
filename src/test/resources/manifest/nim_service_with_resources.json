@@ -3,6 +3,9 @@
   "kind" : "NIMService",
   "metadata" : {
     "annotations" : {
+      "autoscaling.knative.dev/initial-scale" : "1",
+      "autoscaling.knative.dev/min-scale" : "1",
+      "autoscaling.knative.dev/max-scale" : "1",
       "serving.knative.dev/progress-deadline" : "3630s"
     },
     "name" : "dm-resource-nim-app"
@@ -14,6 +17,7 @@
       "value" : "resource-nim-app"
     } ],
     "expose" : {
+      "router" : { },
       "service" : {
         "port" : 8000,
         "type" : "ClusterIP"
@@ -25,7 +29,7 @@
       "repository" : "my-registry.io/models/resource-model",
       "tag" : "prod"
     },
-    "inferencePlatform" : "standalone",
+    "inferencePlatform" : "kserve",
     "replicas" : 1,
     "resources" : {
       "limits" : {

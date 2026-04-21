@@ -1,8 +1,15 @@
 {
   "apiVersion": "serving.kserve.io/v1beta1",
   "kind": "InferenceService",
+  "metadata": {
+    "annotations": {
+      "autoscaling.knative.dev/initial-scale": "1"
+    }
+  },
   "spec": {
     "predictor": {
+      "minReplicas": 1,
+      "maxReplicas": 1,
       "model": {
         "modelFormat": {
           "name": "huggingface"

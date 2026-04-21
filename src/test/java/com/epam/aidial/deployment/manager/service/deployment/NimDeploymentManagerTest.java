@@ -79,7 +79,6 @@ class NimDeploymentManagerTest {
     private static final String CONTAINER_NAME = "test-container";
     private static final String IMAGE_NAME = "test-image:latest";
     private static final String POD_NAME = "test-pod";
-    private static final String CLUSTER_HOST = "ext.example.com";
 
     @Mock
     private DisposableResourceManager disposableResourceManager;
@@ -115,7 +114,6 @@ class NimDeploymentManagerTest {
         nimDeployProperties.setNamespace(NAMESPACE);
         nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         nimDeployProperties.setUseClusterInternalUrl(false);
-        nimDeployProperties.setClusterHost(CLUSTER_HOST);
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager, knativeManifestGenerator,
                 nimManifestGenerator, deploymentRepository, containerPortResolver, ciliumNetworkPolicyCreator,
@@ -282,9 +280,9 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
-                anyInt(),
-                any(Boolean.class),
                 any(),
+                any(),
+                anyInt(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -331,9 +329,9 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
-                anyInt(),
-                any(Boolean.class),
                 any(),
+                any(),
+                anyInt(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -366,81 +364,6 @@ class NimDeploymentManagerTest {
         verify(k8sNimClient, never()).createService(anyString(), any());
         verify(deploymentRepository, never()).updateServiceName(any(), any());
         verify(deploymentRepository, never()).updateStatus(any(), any());
-    }
-
-    @Test
-    void deploy_shouldThrowWhenExternalUrlRequestedAndClusterHostBlank() {
-        // Given: useClusterInternalUrl=false so useExternalUrl=true, but clusterHost is null
-        var props = new NimDeployProperties();
-        props.setNamespace(NAMESPACE);
-        props.setStartupTimeout(STARTUP_TIMEOUT);
-        props.setUseClusterInternalUrl(false);
-        props.setClusterHost(null);
-        var manager = new NimDeploymentManager(k8sClient, disposableResourceManager, knativeManifestGenerator,
-                nimManifestGenerator, deploymentRepository, containerPortResolver, ciliumNetworkPolicyCreator,
-                k8sNimClient, props);
-
-        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
-        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(nimManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), anyInt(), eq(true), any(), any(), any()
-        )).thenThrow(new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured"));
-
-        // When/Then: generator receives useExternalUrl=true and blank clusterHost, throws IllegalArgumentException
-        assertThatThrownBy(() -> manager.deploy(DEPLOYMENT_ID))
-                .isInstanceOf(DeploymentException.class)
-                .hasMessageContaining("Failed to deploy service")
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasRootCauseMessage("External NIM URL is enabled but cluster host is not configured");
-        verify(nimManifestGenerator).serviceConfig(any(), any(), any(), any(), any(), any(), anyInt(), any(), any(), anyInt(), eq(true), any(), any(), any());
-    }
-
-    @Test
-    void deploy_shouldInvokeGeneratorWithUseExternalUrlAndClusterHostWhenExternalUrlRequested() {
-        // Given: useClusterInternalUrl=false, so useExternalUrl=true; cluster host is set
-        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
-        NIMService serviceSpec = new NIMService();
-        serviceSpec.getMetadata().setName(SERVICE_NAME);
-        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(nimManifestGenerator.serviceConfig(
-                eq(DEPLOYMENT_ID),
-                eq(SERVICE_NAME),
-                any(),
-                any(),
-                any(),
-                eq(IMAGE_NAME),
-                anyInt(),
-                any(),
-                any(),
-                anyInt(),
-                eq(true),
-                eq(CLUSTER_HOST),
-                any(),
-                any()
-        )).thenReturn(serviceSpec);
-        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
-
-        // When
-        nimDeploymentManager.deploy(DEPLOYMENT_ID);
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-
-        // Then: generator is called with (useExternalUrl=true, CLUSTER_HOST)
-        verify(nimManifestGenerator).serviceConfig(
-                eq(DEPLOYMENT_ID),
-                eq(SERVICE_NAME),
-                any(),
-                any(),
-                any(),
-                eq(IMAGE_NAME),
-                anyInt(),
-                any(),
-                any(),
-                anyInt(),
-                eq(true),
-                eq(CLUSTER_HOST),
-                any(),
-                any());
     }
 
     @Test
@@ -488,9 +411,9 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
-                anyInt(),
-                any(Boolean.class),
                 any(),
+                any(),
+                anyInt(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -533,9 +456,9 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
-                anyInt(),
-                any(Boolean.class),
                 any(),
+                any(),
+                anyInt(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -578,9 +501,9 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
-                anyInt(),
-                any(Boolean.class),
                 any(),
+                any(),
+                anyInt(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -624,9 +547,9 @@ class NimDeploymentManagerTest {
                 anyInt(),
                 any(),
                 any(),
-                anyInt(),
-                any(Boolean.class),
                 any(),
+                any(),
+                anyInt(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -878,7 +801,6 @@ class NimDeploymentManagerTest {
         nimDeployProperties.setNamespace(NAMESPACE);
         nimDeployProperties.setStartupTimeout(STARTUP_TIMEOUT);
         nimDeployProperties.setUseClusterInternalUrl(false);
-        nimDeployProperties.setClusterHost(CLUSTER_HOST);
         nimDeployProperties.setUrlSchema("http");
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,

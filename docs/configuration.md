@@ -216,8 +216,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments                                                                                                                                                                                |
 | `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour). Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration).                                 |
 | `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments                                                                                                                                                      |
-| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | When `true`, NIM services use cluster-internal URL only. When `false`, external URL via Ingress is used; `K8S_NIM_CLUSTER_HOST` must be set.                                                                            |
-| `app.nim.deploy.cluster-host`             | `K8S_NIM_CLUSTER_HOST`                            | -             | Yes when using external NIM URL                   | NIM deploy   | Cluster host for external NIM URL. Ingress host is `<NimServiceName>.<ClusterHost>` (e.g. `mcp-my-id.example.com`). Required when `use-cluster-internal-url` is `false`.                                                |
+| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | When `true`, NIM services use cluster-internal URL. When `false`, external URL is used.                                                                            |
 | `app.nim.deploy.url-schema`               | `K8S_NIM_DEPLOYMENT_URL_SCHEMA`                   | -             | No                                                | NIM deploy   | Override URL schema prefix for resolved NIM service URLs. When empty, defaults apply: `http` for cluster-internal, `https` for external. Accepts values with or without `://` (e.g., both `https` and `https://` work). |
 
 #### KServe Configuration
@@ -298,31 +297,6 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim-service-config.spec.resources.limits.[nvidia.com/gpu]` | -                             | `1`              | No       | -            | Default GPU resource limit           |
 
 
-#### NIM Service Ingress Configuration
-
-Applied when `app.nim.deploy.use-cluster-internal-url` is `false`. This block defines the Ingress template used to expose NIM services externally. The generated Ingress host is `<NimServiceName>.<ClusterHost>`.
-
-
-| Property                                                      | Default Value | Required | Description                                        |
-| ------------------------------------------------------------- | ------------- | -------- | -------------------------------------------------- |
-| `app.nim-service-expose-ingress-config.enabled`               | `true`        | No       | Enable Ingress for externally exposed NIM services |
-| `app.nim-service-expose-ingress-config.annotations`           | *(see below)* | No       | Annotations applied to the NIM Ingress resource    |
-| `app.nim-service-expose-ingress-config.spec.ingressClassName` | `nginx`       | No       | Ingress class name                                 |
-
-
-Default annotations:
-
-
-| Annotation                                       | Default Value              | Purpose                                                         |
-| ------------------------------------------------ | -------------------------- | --------------------------------------------------------------- |
-| `nginx.ingress.kubernetes.io/proxy-body-size`    | `"0"`                      | Unlimited request body size (needed for large prompts/images)   |
-| `nginx.ingress.kubernetes.io/proxy-read-timeout` | `"600"`                    | 10-minute read timeout (LLMs can take time to stream responses) |
-| `cert-manager.io/cluster-issuer`                 | `"letsencrypt-production"` | Cert-manager cluster issuer for automatic TLS certificates      |
-| `nginx.ingress.kubernetes.io/force-ssl-redirect` | `"true"`                   | Force HTTPS redirect                                            |
-
-
-TLS and routing rules are generated automatically from `app.nim.deploy.cluster-host` and the NIM service name. Each NIM service gets a TLS secret named `<NimServiceName>-tls-secret`.
-
 ### MCP Registry Configuration
 
 
@@ -349,9 +323,10 @@ TLS and routing rules are generated automatically from `app.nim.deploy.cluster-h
 | Property                            | Environment Variable            | Default Value                               | Required | Applied when | Description                                       |
 | ----------------------------------- | ------------------------------- | ------------------------------------------- | -------- | ------------ | ------------------------------------------------- |
 | `app.deployment.reserved-env-names` | `DEPLOYMENT_RESERVED_ENV_NAMES` | `PORT,K_SERVICE,K_CONFIGURATION,K_REVISION` | No       | -            | Reserved env variable names                       |
-| `app.resources.max-cpu-in-cores`    | `RESOURCES_MAX_CPU_IN_CORES`    | `10`                                        | No       | -            | Maximum allowed value for CPU resource (in cores) |
-| `app.resources.max-memory-in-mb`    | `RESOURCES_MAX_MEMORY_IN_MB`    | `100000`                                    | No       | -            | Maximum allowed value for memory resource (in mb) |
-| `app.resources.max-nvidia-gpu`      | `RESOURCES_MAX_NVIDIA_GPU`      | `5`                                         | No       | -            | Maximum allowed value for nvidia.com/gpu resource |
+| `app.validation.resources.max-cpu-in-cores`    | `RESOURCES_MAX_CPU_IN_CORES`    | `10`                                        | No       | -            | Maximum allowed value for CPU resource (in cores) |
+| `app.validation.resources.max-memory-in-mb`    | `RESOURCES_MAX_MEMORY_IN_MB`    | `100000`                                    | No       | -            | Maximum allowed value for memory resource (in mb) |
+| `app.validation.resources.max-nvidia-gpu`      | `RESOURCES_MAX_NVIDIA_GPU`      | `5`                                         | No       | -            | Maximum allowed value for nvidia.com/gpu resource |
+| `app.validation.resources.max-storage-size` | `RESOURCES_STORAGE_MAX_SIZE` | `200Gi`                                  | No       | -            | Maximum allowed storage size for NIM deployments. Accepts Kubernetes quantity format (e.g., '200Gi', '500Mi', '1Ti') or plain bytes |
 
 
 ### Export/import Configuration
