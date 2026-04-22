@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.configuration;
 
-import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +15,6 @@ import java.util.Optional;
 
 @Getter
 @Setter
-@LogExecution
 public class NodePoolProperties {
 
     private String nodePoolLabelKey;

@@ -66,6 +66,11 @@ public class NodePoolConfiguration {
                         .collect(Collectors.joining("; "));
                 throw new IllegalArgumentException("Node pool %s: %s".formatted(poolLabel, messages));
             }
+            if (pool.getMinNodes() > pool.getMaxNodes()) {
+                throw new IllegalArgumentException(
+                        "Node pool '%s': 'minNodes' (%d) must not exceed 'maxNodes' (%d)"
+                                .formatted(pool.getName(), pool.getMinNodes(), pool.getMaxNodes()));
+            }
             if (!names.add(pool.getName())) {
                 throw new IllegalArgumentException("Duplicate node pool name: '%s'".formatted(pool.getName()));
             }

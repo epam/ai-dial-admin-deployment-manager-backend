@@ -23,8 +23,8 @@ public class NodePoolController {
     private final NodePoolService nodePoolService;
 
     @GetMapping
-    @Operation(summary = "List available node pools with live utilization",
-            description = "Returns all configured node pools enriched with live Kubernetes node resource utilization data")
+    @Operation(summary = "List available node pools",
+            description = "Returns all configured node pools with their hardware specifications")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
     public List<NodePoolDto> getNodePools() {
         return nodePoolService.getNodePools();

@@ -14,6 +14,7 @@ List all configured node pools. Returns configuration data only — no Kubernete
     "name": "gpu-a100-prod",
     "description": "LLM inference & fine-tuning",
     "instance": "a2-ultragpu-4g",
+    "minNodes": 2,
     "maxNodes": 10,
     "gpu": {
       "name": "NVIDIA A100",
@@ -32,6 +33,7 @@ List all configured node pools. Returns configuration data only — no Kubernete
     "name": "cpu-highmem",
     "description": "Data preprocessing",
     "instance": null,
+    "minNodes": 0,
     "maxNodes": 5,
     "gpu": null,
     "cpu": {

@@ -169,6 +169,16 @@ class NodePoolConfigurationTest {
     }
 
     @Test
+    void shouldThrow_whenMinNodesExceedsMaxNodes() {
+        var json = """
+                [{ "name": "pool", "minNodes": 10, "maxNodes": 5, "cpu": { "milliCpus": 1000 }, "memory": { "bytes": 1024 } }]""";
+
+        assertThatThrownBy(() -> configuration.nodePoolProperties("node-pool", json, VALIDATOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'minNodes' (10) must not exceed 'maxNodes' (5)");
+    }
+
+    @Test
     void shouldAcceptMinNodesZero() {
         var json = """
                 [{ "name": "pool", "minNodes": 0, "maxNodes": 5, "cpu": { "milliCpus": 1000 }, "memory": { "bytes": 1024 } }]""";

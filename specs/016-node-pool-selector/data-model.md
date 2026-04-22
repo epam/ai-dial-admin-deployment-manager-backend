@@ -17,7 +17,8 @@ Configured via two environment variables, parsed from JSON at startup by `NodePo
 | name | String | Yes | non-blank, unique | Pool identifier. Also used as the label value for node selection |
 | description | String | No | - | Human-readable description |
 | instance | String | No | - | Cloud instance type (e.g., `a2-ultragpu-4g`) |
-| maxNodes | int | Yes | > 0 | Maximum number of nodes in this pool |
+| minNodes | int | No | >= 0 | Minimum number of nodes in this pool (default 0) |
+| maxNodes | int | Yes | > 0, >= minNodes | Maximum number of nodes in this pool |
 | gpu | GpuSpec | No | - | GPU spec per node. Null for CPU-only pools |
 | gpu.name | String | Yes (if gpu set) | non-blank | GPU model name |
 | gpu.vramBytes | long | Yes (if gpu set) | > 0 | VRAM capacity per GPU in bytes |
@@ -93,6 +94,7 @@ Top-level response object for `GET /api/v1/node-pools`. Returns configuration da
 | name | String | No | Pool name |
 | description | String | Yes | Human-readable description |
 | instance | String | Yes | Cloud instance type |
+| minNodes | int | No | Min nodes in pool (default 0) |
 | maxNodes | int | No | Max nodes in pool |
 | gpu | GpuSpecDto | Yes | GPU spec per node (null for CPU-only) |
 | cpu | CpuSpecDto | No | CPU spec per node |

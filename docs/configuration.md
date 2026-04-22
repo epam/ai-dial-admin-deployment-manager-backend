@@ -247,7 +247,8 @@ Node pools define groups of Kubernetes nodes that deployments can be pinned to. 
 | `name` | string | Yes | Unique pool identifier. Also used as the value for the node label selector |
 | `description` | string | No | Human-readable description shown in the UI |
 | `instance` | string | No | Cloud instance type (e.g., `a2-ultragpu-4g`) |
-| `maxNodes` | int | Yes | Maximum number of nodes in this pool (must be > 0) |
+| `minNodes` | int | No | Minimum number of nodes in this pool (must be >= 0, default 0) |
+| `maxNodes` | int | Yes | Maximum number of nodes in this pool (must be > 0, must be >= minNodes) |
 | `gpu` | object | No | GPU specification per node. Omit or set to `null` for CPU-only pools |
 | `gpu.name` | string | Yes (if gpu set) | GPU model name (e.g., `NVIDIA A100`) |
 | `gpu.vramBytes` | long | Yes (if gpu set) | VRAM capacity per GPU in bytes (must be > 0) |
