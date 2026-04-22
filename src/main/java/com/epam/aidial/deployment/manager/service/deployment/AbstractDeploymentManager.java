@@ -104,7 +104,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             return null;
         }
         if (!nodePoolProperties.exists(nodePool)) {
-            throw new ValidationException("Node pool '%s' is no longer configured".formatted(nodePool));
+            throw new IllegalArgumentException("Node pool '%s' is no longer configured".formatted(nodePool));
         }
         return nodePoolProperties.getLabelSelector(nodePool);
     }

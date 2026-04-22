@@ -44,7 +44,7 @@ class NodePoolServiceTest {
     }
 
     @Test
-    void shouldMapGpuPool() {
+    void shouldReturnConfiguredPools() {
         var gpu = new GpuSpec();
         gpu.setName("NVIDIA A100");
         gpu.setVramBytes(85899345920L);
@@ -72,23 +72,22 @@ class NodePoolServiceTest {
         var result = nodePoolService.getNodePools();
 
         assertThat(result).hasSize(1);
-        var dto = result.get(0);
-        assertThat(dto.name()).isEqualTo("gpu-a100");
-        assertThat(dto.description()).isEqualTo("GPU pool");
-        assertThat(dto.instance()).isEqualTo("a2-ultragpu-4g");
-        assertThat(dto.minNodes()).isEqualTo(2);
-        assertThat(dto.maxNodes()).isEqualTo(10);
-        assertThat(dto.gpu()).isNotNull();
-        assertThat(dto.gpu().name()).isEqualTo("NVIDIA A100");
-        assertThat(dto.gpu().vramBytes()).isEqualTo(85899345920L);
-        assertThat(dto.gpu().count()).isEqualTo(4);
-        assertThat(dto.cpu().name()).isEqualTo("AMD EPYC Milan");
-        assertThat(dto.cpu().milliCpus()).isEqualTo(48000);
-        assertThat(dto.memory().bytes()).isEqualTo(730144440320L);
+        assertThat(result.get(0).getName()).isEqualTo("gpu-a100");
+        assertThat(result.get(0).getDescription()).isEqualTo("GPU pool");
+        assertThat(result.get(0).getInstance()).isEqualTo("a2-ultragpu-4g");
+        assertThat(result.get(0).getMinNodes()).isEqualTo(2);
+        assertThat(result.get(0).getMaxNodes()).isEqualTo(10);
+        assertThat(result.get(0).getGpu()).isNotNull();
+        assertThat(result.get(0).getGpu().getName()).isEqualTo("NVIDIA A100");
+        assertThat(result.get(0).getGpu().getVramBytes()).isEqualTo(85899345920L);
+        assertThat(result.get(0).getGpu().getCount()).isEqualTo(4);
+        assertThat(result.get(0).getCpu().getName()).isEqualTo("AMD EPYC Milan");
+        assertThat(result.get(0).getCpu().getMilliCpus()).isEqualTo(48000);
+        assertThat(result.get(0).getMemory().getBytes()).isEqualTo(730144440320L);
     }
 
     @Test
-    void shouldMapCpuOnlyPool_withNullGpu() {
+    void shouldReturnCpuOnlyPool_withNullGpu() {
         var cpu = new CpuSpec();
         cpu.setMilliCpus(64000);
 
@@ -106,14 +105,13 @@ class NodePoolServiceTest {
         var result = nodePoolService.getNodePools();
 
         assertThat(result).hasSize(1);
-        var dto = result.get(0);
-        assertThat(dto.name()).isEqualTo("cpu-pool");
-        assertThat(dto.description()).isNull();
-        assertThat(dto.instance()).isNull();
-        assertThat(dto.minNodes()).isZero();
-        assertThat(dto.gpu()).isNull();
-        assertThat(dto.cpu().name()).isNull();
-        assertThat(dto.cpu().milliCpus()).isEqualTo(64000);
-        assertThat(dto.memory().bytes()).isEqualTo(549755813888L);
+        assertThat(result.get(0).getName()).isEqualTo("cpu-pool");
+        assertThat(result.get(0).getDescription()).isNull();
+        assertThat(result.get(0).getInstance()).isNull();
+        assertThat(result.get(0).getMinNodes()).isZero();
+        assertThat(result.get(0).getGpu()).isNull();
+        assertThat(result.get(0).getCpu().getName()).isNull();
+        assertThat(result.get(0).getCpu().getMilliCpus()).isEqualTo(64000);
+        assertThat(result.get(0).getMemory().getBytes()).isEqualTo(549755813888L);
     }
 }

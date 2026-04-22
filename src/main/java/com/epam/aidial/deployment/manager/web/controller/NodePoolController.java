@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.web.controller;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolDto;
+import com.epam.aidial.deployment.manager.web.mapper.NodePoolDtoMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,12 +22,13 @@ import java.util.List;
 public class NodePoolController {
 
     private final NodePoolService nodePoolService;
+    private final NodePoolDtoMapper nodePoolDtoMapper;
 
     @GetMapping
     @Operation(summary = "List available node pools",
             description = "Returns all configured node pools with their hardware specifications")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
     public List<NodePoolDto> getNodePools() {
-        return nodePoolService.getNodePools();
+        return nodePoolDtoMapper.toNodePoolDtoList(nodePoolService.getNodePools());
     }
 }
