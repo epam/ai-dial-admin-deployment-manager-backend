@@ -54,6 +54,7 @@ public class NodePoolService {
                 config.getName(),
                 config.getDescription(),
                 config.getInstance(),
+                config.getMinNodes(),
                 config.getMaxNodes(),
                 gpuDto,
                 cpuDto,

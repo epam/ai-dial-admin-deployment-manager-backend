@@ -13,6 +13,8 @@ public record NodePoolDto(
         @Nullable
         @Schema(description = "Cloud instance type", example = "a2-ultragpu-4g")
         String instance,
+        @Schema(description = "Minimum number of nodes in this pool", example = "2")
+        int minNodes,
         @Schema(description = "Maximum number of nodes in this pool", example = "10")
         int maxNodes,
         @Nullable
