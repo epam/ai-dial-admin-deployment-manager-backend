@@ -97,8 +97,8 @@ An administrator decides that a deployment should no longer be pinned to a speci
 - **FR-001**: System MUST provide a public API endpoint (`/api/v1/node-pools`) to list all configured node pools enriched with live Kubernetes node utilization data. The endpoint follows the same authentication rules as deployment endpoints.
 - **FR-002**: Each node pool in the response MUST include: pool name, description (if configured), max nodes, per-node spec (CPU, memory, GPU), number of running nodes, and a list of individual running nodes with their resource utilization.
 - **FR-003**: Each running node entry MUST include: node name, allocatable resources (CPU, memory, GPU), and currently scheduled/requested resources (CPU, memory, GPU).
-- **FR-004**: Node pool configuration MUST be defined in the application configuration file, specifying for each pool: name, a human-readable description, max number of nodes, a Kubernetes node label selector, and per-node spec (CPU, memory, GPU).
-- **FR-005**: The system MUST query the Kubernetes API live (no caching) to list nodes matching each pool's label selector to determine running node count and resource utilization.
+- **FR-004**: Node pool configuration MUST be provided via a single `NODE_POOLS` environment variable containing a JSON array, with a cluster-wide `NODE_POOL_LABEL_KEY` for Kubernetes node label identification. Each pool specifies: name, description, max nodes, CPU (millicores), memory (bytes), and GPU count. The label selector is derived as `{labelKey: poolName}`. Configuration MUST be validated at startup (JSON format, required fields, positive numbers, no duplicate names).
+- **FR-005**: The system MUST query the Kubernetes API live (no caching) to list nodes matching each pool's derived label selector to determine running node count and resource utilization.
 - **FR-006**: Deployment create and update endpoints MUST accept an optional node pool name field.
 - **FR-007**: The system MUST validate on create and update that the provided node pool name matches a configured pool; invalid names MUST be rejected with a 400 error.
 - **FR-008**: Deployment retrieval endpoints (get by ID, list) MUST return the selected node pool name if one is set.
@@ -114,7 +114,7 @@ An administrator decides that a deployment should no longer be pinned to a speci
 
 ### Key Entities
 
-- **Node Pool (configured)**: A named group of Kubernetes nodes defined in application configuration. Attributes: name, description, max nodes, node label selector (used to query K8s), per-node spec (CPU, memory, GPU).
+- **Node Pool (configured)**: A named group of Kubernetes nodes defined via `NODE_POOLS` JSON env var. Attributes: name, description, max nodes, CPU (millicores), memory (bytes), GPU count. Node label selector derived from cluster-wide `NODE_POOL_LABEL_KEY` + pool name.
 - **Node Pool (runtime response)**: The configured pool enriched with live data: running node count and a list of individual node utilization entries.
 - **Node Utilization**: Per-node resource snapshot: node name, allocatable CPU/memory/GPU, scheduled (requested) CPU/memory/GPU.
 - **Deployment (extended)**: The existing deployment entity extended with an optional node pool name field.
@@ -134,7 +134,7 @@ An administrator decides that a deployment should no longer be pinned to a speci
 ## Assumptions
 
 - The Kubernetes cluster's node labels are already set up correctly to identify which nodes belong to which pool; this feature does not manage node labeling.
-- Node pool configuration (names, specs, label selectors) is provided by the platform operator via the application configuration file and does not change at high frequency; configuration changes require an application restart or config reload.
+- Node pool configuration is provided by the platform operator via the `NODE_POOLS` JSON environment variable and does not change at high frequency; configuration changes require an application restart.
 - GPU resources are reported by Kubernetes nodes via the standard `nvidia.com/gpu` extended resource; nodes without GPUs report zero for GPU-related fields.
 - All deployment types (MCP, Interceptor, Adapter, Application, NIM, Inference) support node pool selection and affinity enforcement. For CRD-based types (NIM via NIMService, Inference via KServe), affinity is injected into the CRD's pod template spec.
 - Node pool affinity is enforced via Kubernetes node affinity rules applied at deploy time using the pool's label selector. The system does not manage tolerations — if pool nodes have taints, the operator is responsible for configuring tolerations separately.

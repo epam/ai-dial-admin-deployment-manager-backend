@@ -2,62 +2,34 @@
 
 ## Configuration Model (not persisted in DB)
 
-### NodePoolConfig
+Configured via two environment variables, parsed from JSON at startup by `NodePoolConfiguration`.
 
-Bound from `application.yml` via `@ConfigurationProperties`.
+### Cluster-wide settings
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| name | String | Yes | Unique pool identifier, used as the selection key |
-| description | String | No | Human-readable description (e.g., "NVIDIA A100 80 GB SXM — large model training and inference") |
-| maxNodes | int | Yes | Maximum number of nodes that can run in this pool |
-| labelSelector | Map<String, String> | Yes | Kubernetes node labels used to query nodes belonging to this pool |
-| nodeSpec | NodeSpec | Yes | Per-node resource specification |
+| Property | Env Variable | Default | Description |
+|----------|-------------|---------|-------------|
+| `app.node-pool-label-key` | `NODE_POOL_LABEL_KEY` | `node-pool` | Kubernetes node label key used to identify pools. Label selector is derived as `{labelKey: pool.name}` |
 
-### NodeSpec (nested in NodePoolConfig)
+### NodePoolConfig (JSON array via `NODE_POOLS`)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| cpuMillis | long | Yes | CPU capacity per node in millicores |
-| memoryBytes | long | Yes | Memory capacity per node in bytes |
-| gpu | int | No | GPU count per node (default: 0) |
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| name | String | Yes | non-blank, unique | Pool identifier. Also used as the label value for node selection |
+| description | String | No | - | Human-readable description |
+| maxNodes | int | Yes | > 0 | Maximum number of nodes in this pool |
+| cpuMillis | long | Yes | > 0 | CPU capacity per node in millicores |
+| memoryBytes | long | Yes | > 0 | Memory capacity per node in bytes |
+| gpu | int | Yes | >= 0 | GPU count per node (0 for CPU-only pools) |
 
-**Example YAML**:
-```yaml
-app:
-  node-pools:
-    - name: gpu-a100-pool
-      description: "NVIDIA A100 80 GB SXM — large model training and inference"
-      max-nodes: 8
-      label-selector:
-        node-pool: gpu-a100
-      node-spec:
-        cpu-millis: 96000
-        memory-bytes: 687194767360  # 640 GiB
-        gpu: 3
-    - name: gpu-t4-pool
-      description: "NVIDIA T4 16 GB — cost-efficient inference and light fine-tuning"
-      max-nodes: 12
-      label-selector:
-        node-pool: gpu-t4
-      node-spec:
-        cpu-millis: 48000
-        memory-bytes: 206158430208  # 192 GiB
-        gpu: 4
-    - name: cpu-highmem-pool
-      description: "CPU only — data preprocessing, tokenization, CPU-bound workloads"
-      max-nodes: 5
-      label-selector:
-        node-pool: cpu-highmem
-      node-spec:
-        cpu-millis: 64000
-        memory-bytes: 549755813888  # 512 GiB
-        gpu: 0
+**Example**:
+```bash
+NODE_POOL_LABEL_KEY=node-pool
+NODE_POOLS='[{"name":"gpu-a100-pool","description":"NVIDIA A100 80 GB SXM","maxNodes":8,"cpuMillis":96000,"memoryBytes":687194767360,"gpu":3},{"name":"cpu-highmem-pool","description":"CPU only","maxNodes":5,"cpuMillis":64000,"memoryBytes":549755813888,"gpu":0}]'
 ```
 
 ## Database Changes
 
-### Migration V1.57 — AddNodePoolColumn
+### Migration V1.58 — AddNodePoolColumn
 
 Add nullable VARCHAR column to the `deployment` table (base table in JOINED inheritance).
 
@@ -141,11 +113,12 @@ Top-level response object for `GET /api/v1/node-pools`.
 ## Entity Relationship
 
 ```
-NodePoolProperties (config)
+NodePoolProperties (config, from NODE_POOLS JSON + NODE_POOL_LABEL_KEY)
+  ├── nodePoolLabelKey ─── cluster-wide K8s label key
   └── List<NodePoolConfig>
         ├── name ──────────── referenced by ──── DeploymentEntity.nodePool
-        ├── labelSelector ─── used at deploy time for affinity injection
-        └── nodeSpec
+        ├── cpuMillis, memoryBytes, gpu (flat)
+        └── label selector = {nodePoolLabelKey: name} (derived, not stored)
 
 DeploymentEntity (DB, JOINED inheritance)
   └── nodePool (VARCHAR, nullable) ── validated against NodePoolProperties on create/update/deploy

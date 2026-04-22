@@ -4,8 +4,6 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
@@ -13,11 +11,10 @@ import java.util.Optional;
 
 @Getter
 @Setter
-@Component
 @LogExecution
-@ConfigurationProperties(prefix = "app")
 public class NodePoolProperties {
 
+    private String nodePoolLabelKey;
     private List<NodePoolConfig> nodePools;
 
     public Optional<NodePoolConfig> findByName(String name) {
@@ -33,17 +30,15 @@ public class NodePoolProperties {
         return findByName(name).isPresent();
     }
 
+    public Map<String, String> getLabelSelector(String poolName) {
+        return Map.of(nodePoolLabelKey, poolName);
+    }
+
     @Data
     public static class NodePoolConfig {
         private String name;
         private String description;
         private int maxNodes;
-        private Map<String, String> labelSelector;
-        private NodeSpec nodeSpec;
-    }
-
-    @Data
-    public static class NodeSpec {
         private long cpuMillis;
         private long memoryBytes;
         private int gpu;

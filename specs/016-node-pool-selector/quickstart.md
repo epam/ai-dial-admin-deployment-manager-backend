@@ -9,27 +9,17 @@
 
 ## Configuration
 
-Add node pools to `application.yml`:
+Set environment variables:
 
-```yaml
-app:
-  node-pools:
-    - name: gpu-a100-pool
-      description: "NVIDIA A100 80 GB SXM"
-      max-nodes: 8
-      label-selector:
-        node-pool: gpu-a100
-      node-spec:
-        cpu-millis: 96000
-        memory-bytes: 687194767360
-        gpu: 3
+```bash
+# Kubernetes node label key used to identify pools (default: node-pool)
+NODE_POOL_LABEL_KEY=node-pool
+
+# JSON array of node pool configurations
+NODE_POOLS='[{"name":"gpu-a100-pool","description":"NVIDIA A100 80 GB SXM","maxNodes":8,"cpuMillis":96000,"memoryBytes":687194767360,"gpu":3}]'
 ```
 
-Environment variable overrides follow Spring Boot relaxed binding:
-- `APP_NODE_POOLS_0_NAME=gpu-a100-pool`
-- `APP_NODE_POOLS_0_MAX_NODES=8`
-- `APP_NODE_POOLS_0_LABEL_SELECTOR_NODE_POOL=gpu-a100`
-- etc.
+Nodes must be labeled to match: `kubectl label node <node> node-pool=gpu-a100-pool`
 
 ## Verify
 

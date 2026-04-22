@@ -48,7 +48,7 @@ public class NodePoolService {
     }
 
     private NodePoolDto buildNodePoolDto(NodePoolConfig poolConfig) {
-        var nodes = k8sClient.listNodes(poolConfig.getLabelSelector());
+        var nodes = k8sClient.listNodes(nodePoolProperties.getLabelSelector(poolConfig.getName()));
         var nodeUtilizations = new ArrayList<NodeUtilizationDto>();
 
         for (var node : nodes) {
@@ -57,9 +57,9 @@ public class NodePoolService {
         }
 
         var nodeSpec = new NodeSpecDto(
-                poolConfig.getNodeSpec().getCpuMillis(),
-                poolConfig.getNodeSpec().getMemoryBytes(),
-                poolConfig.getNodeSpec().getGpu()
+                poolConfig.getCpuMillis(),
+                poolConfig.getMemoryBytes(),
+                poolConfig.getGpu()
         );
 
         return new NodePoolDto(

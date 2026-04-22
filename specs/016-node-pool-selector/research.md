@@ -2,13 +2,14 @@
 
 ## R1: Node Pool Configuration Shape
 
-**Decision**: Node pools configured as a YAML list under `app.node-pools` in `application.yml`, bound via `@ConfigurationProperties` to a `NodePoolProperties` class containing a `List<NodePoolConfig>`.
+**Decision**: Node pools configured via a single `NODE_POOLS` environment variable containing a JSON array, parsed at startup by `NodePoolConfiguration` (following the `RegistryConfiguration` pattern). A cluster-wide `NODE_POOL_LABEL_KEY` env var defines the K8s label key; each pool's `name` serves as the label value. The `NodeSpec` nested object is flattened — `cpuMillis`, `memoryBytes`, `gpu` are top-level fields on `NodePoolConfig`.
 
-**Rationale**: Follows existing patterns (`app.knative.deploy`, `app.nim.deploy`). Configuration-driven approach matches the spec requirement (FR-004). YAML list is natural for a small set of named pools. Per constitution, defaults live in `application.yml` only; Java fields have no initializers.
+**Rationale**: Single env var is easy to set at deploy time (Helm values, K8s ConfigMap). JSON parsing via `ObjectMapper` follows the established `RegistryConfiguration`/`GitConfiguration` pattern. Cluster-wide label key avoids redundant per-pool selector config — in practice, K8s clusters use one label key for node pools. Startup validation (JSON format, required fields, positive numbers, no duplicates) ensures fail-fast on bad config.
 
 **Alternatives considered**:
-- Database-stored pools: Rejected — spec says pools are operator-configured, not user-managed. Config file is the right level.
-- Single flat properties per pool: Rejected — list structure is cleaner for N pools and supports the label selector map naturally.
+- Complex nested YAML with `@ConfigurationProperties`: Rejected — hard to modify after deployment without changing YAML files.
+- Database-stored pools: Rejected — spec says pools are operator-configured, not user-managed.
+- Per-pool label selector map: Rejected — over-general; a single label key with per-pool name as value is sufficient and simpler.
 
 ## R2: Kubernetes Node Query Approach
 

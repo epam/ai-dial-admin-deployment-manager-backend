@@ -103,9 +103,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         if (StringUtils.isBlank(nodePool)) {
             return null;
         }
-        return nodePoolProperties.findByName(nodePool)
-                .map(NodePoolProperties.NodePoolConfig::getLabelSelector)
-                .orElseThrow(() -> new ValidationException("Node pool '%s' is no longer configured".formatted(nodePool)));
+        if (!nodePoolProperties.exists(nodePool)) {
+            throw new ValidationException("Node pool '%s' is no longer configured".formatted(nodePool));
+        }
+        return nodePoolProperties.getLabelSelector(nodePool);
     }
 
     @Override
