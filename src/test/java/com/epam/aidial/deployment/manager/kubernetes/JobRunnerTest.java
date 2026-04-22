@@ -7,6 +7,9 @@ import com.epam.aidial.deployment.manager.service.JobSpecification;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ContainerState;
+import io.fabric8.kubernetes.api.model.ContainerStateRunning;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
@@ -377,11 +380,21 @@ class JobRunnerTest {
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(name);
         pod.setMetadata(metadata);
-        
+
         PodStatus status = new PodStatus();
         status.setPhase(phase);
+        status.setContainerStatuses(CONTAINER_NAMES.stream().map(this::runningContainerStatus).toList());
         pod.setStatus(status);
-        
+
         return pod;
+    }
+
+    private ContainerStatus runningContainerStatus(String name) {
+        ContainerStatus status = new ContainerStatus();
+        status.setName(name);
+        ContainerState state = new ContainerState();
+        state.setRunning(new ContainerStateRunning());
+        status.setState(state);
+        return status;
     }
 }

@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.concurrent.ExecutorService;
@@ -45,15 +46,20 @@ public class EventStreamingService {
                 eventReader.readEvents(eventSource, event -> {
                     try {
                         var eventInfo = eventInfoMapper.toEventInfo(event, id);
-                        emitter.send(SseEmitter.event()
-                                .name("event")
-                                .data(eventInfo));
+                        synchronized (emitter) {
+                            emitter.send(SseEmitter.event()
+                                    .name("event")
+                                    .data(eventInfo));
+                        }
                     } catch (UnknownObjectKindException unknownObjectKindException) {
                         log.debug("Failed to parse involved object kind. Deployment {}. Reason: {}. Skipping event: {}",
                                 id, unknownObjectKindException.getMessage(), event);
                     } catch (DataIntegrityViolationException dataIntegrityViolationException) {
                         log.warn("Failed to send event. Deployment {} was deleted", id);
                         emitter.completeWithError(dataIntegrityViolationException);
+                    } catch (AsyncRequestNotUsableException asyncRequestNotUsableException) {
+                        log.debug("Client disconnected during event streaming. Deployment {}", id);
+                        emitter.complete();
                     } catch (Exception e) {
                         log.warn("Failed to send event. Deployment {}", id, e);
                         emitter.completeWithError(e);
