@@ -88,9 +88,7 @@ public class SseEmitterFactory {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
                     Thread.sleep(heartbeatInterval);
-                    synchronized (emitter) {
-                        emitter.send(SseEmitter.event().name("heartbeat"));
-                    }
+                    emitter.send(SseEmitter.event().name("heartbeat"));
                 }
             } catch (InterruptedException e) {
                 log.debug("Heartbeat thread interrupted. {}: {}", humanReadableId, id);

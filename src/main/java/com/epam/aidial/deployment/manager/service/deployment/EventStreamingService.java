@@ -46,11 +46,9 @@ public class EventStreamingService {
                 eventReader.readEvents(eventSource, event -> {
                     try {
                         var eventInfo = eventInfoMapper.toEventInfo(event, id);
-                        synchronized (emitter) {
-                            emitter.send(SseEmitter.event()
-                                    .name("event")
-                                    .data(eventInfo));
-                        }
+                        emitter.send(SseEmitter.event()
+                                .name("event")
+                                .data(eventInfo));
                     } catch (UnknownObjectKindException unknownObjectKindException) {
                         log.debug("Failed to parse involved object kind. Deployment {}. Reason: {}. Skipping event: {}",
                                 id, unknownObjectKindException.getMessage(), event);

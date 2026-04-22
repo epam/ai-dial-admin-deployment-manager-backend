@@ -9,6 +9,7 @@ import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateRunning;
+import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -39,9 +40,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -138,6 +142,46 @@ class JobRunnerTest {
 
     @SuppressWarnings("unchecked")
     @Test
+    void run_shouldSkipLogReadingWhenContainerNeverStarted() {
+        // Given: standard setup, then override waitPod so the per-container readiness check
+        // returns a pod in a final phase with no container status (container never started).
+        setupMocksForSuccessfulExecution();
+
+        Pod runningPod = createPod(POD_NAME, "Running");
+        Pod failedPodNoContainer = createPodWithoutContainerStatuses(POD_NAME, "Failed");
+        when(k8sClient.waitPod(eq(NAMESPACE), any(Pod.class), any(Predicate.class), eq(TIMEOUT_SEC)))
+                .thenReturn(runningPod, failedPodNoContainer);
+
+        // When
+        jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+
+        // Then: logs were not read; user-visible warning was emitted via jobCallback
+        verify(podLogReader, never()).readLogs(any(ContainerResource.class), any(Consumer.class));
+        verify(jobCallback).onNewLog(argThat(lines ->
+                lines.size() == 1 && lines.getFirst().contains("never started")));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void run_shouldReadLogsWhenContainerIsTerminatedInInitStatuses() {
+        // Given: per-container readiness check returns a pod where the target container
+        // is present in initContainerStatuses with a terminated state (base-image init case).
+        setupMocksForSuccessfulExecution();
+
+        Pod runningPod = createPod(POD_NAME, "Running");
+        Pod podWithTerminatedInit = createPodWithInitContainerTerminated(POD_NAME, "Running", CONTAINER_NAMES.get(0));
+        when(k8sClient.waitPod(eq(NAMESPACE), any(Pod.class), any(Predicate.class), eq(TIMEOUT_SEC)))
+                .thenReturn(runningPod, podWithTerminatedInit);
+
+        // When
+        jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+
+        // Then: logs ARE read from the terminated init container
+        verify(podLogReader).readLogs(any(ContainerResource.class), any(Consumer.class));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
     void run_shouldHandleLogStreaming() {
         // Given
         setupMocksForSuccessfulExecution();
@@ -191,14 +235,16 @@ class JobRunnerTest {
         podList.setItems(List.of(pod));
         
         when(k8sClient.getJobPods(NAMESPACE, JOB_NAME)).thenReturn(podList);
-        when(k8sClient.waitPod(eq(NAMESPACE), eq(pod), any(Predicate.class), eq(TIMEOUT_SEC))).thenReturn(pod);
+        // lenient: some tests override waitPod to return a different pod for the per-container readiness check,
+        // or skip the log-reading path entirely, so this stub is not exercised in every test.
+        lenient().when(k8sClient.waitPod(eq(NAMESPACE), eq(pod), any(Predicate.class), eq(TIMEOUT_SEC))).thenReturn(pod);
 
         // Setup pod resource for logs
         PodResource podResource = mock(PodResource.class);
         ContainerResource containerResource = mock(ContainerResource.class);
-        
-        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
-        when(podResource.inContainer(CONTAINER_NAMES.get(0))).thenReturn(containerResource);
+
+        lenient().when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        lenient().when(podResource.inContainer(CONTAINER_NAMES.get(0))).thenReturn(containerResource);
     }
 
     @SuppressWarnings("unchecked")
@@ -396,5 +442,38 @@ class JobRunnerTest {
         state.setRunning(new ContainerStateRunning());
         status.setState(state);
         return status;
+    }
+
+    private Pod createPodWithoutContainerStatuses(String name, String phase) {
+        Pod pod = new Pod();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(name);
+        pod.setMetadata(metadata);
+
+        PodStatus status = new PodStatus();
+        status.setPhase(phase);
+        pod.setStatus(status);
+
+        return pod;
+    }
+
+    private Pod createPodWithInitContainerTerminated(String name, String phase, String initContainerName) {
+        Pod pod = new Pod();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(name);
+        pod.setMetadata(metadata);
+
+        ContainerStatus initStatus = new ContainerStatus();
+        initStatus.setName(initContainerName);
+        ContainerState initState = new ContainerState();
+        initState.setTerminated(new ContainerStateTerminated());
+        initStatus.setState(initState);
+
+        PodStatus status = new PodStatus();
+        status.setPhase(phase);
+        status.setInitContainerStatuses(List.of(initStatus));
+        pod.setStatus(status);
+
+        return pod;
     }
 }

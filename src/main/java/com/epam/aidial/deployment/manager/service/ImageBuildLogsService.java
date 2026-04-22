@@ -65,11 +65,9 @@ public class ImageBuildLogsService {
                     if (logs != null) {
                         while (logIndex.get() < logs.size()) {
                             try {
-                                synchronized (emitter) {
-                                    emitter.send(SseEmitter.event()
-                                            .name("logs")
-                                            .data(logs.get(logIndex.getAndIncrement())));
-                                }
+                                emitter.send(SseEmitter.event()
+                                        .name("logs")
+                                        .data(logs.get(logIndex.getAndIncrement())));
                             } catch (AsyncRequestNotUsableException e) {
                                 log.debug("Client disconnected during log streaming for image definition {}", imageDefinitionId);
                                 emitter.complete();
@@ -88,13 +86,11 @@ public class ImageBuildLogsService {
                         var statusOrdinal = buildStatus.ordinal();
                         if (lastStatus.getAndSet(statusOrdinal) != statusOrdinal) {
                             try {
-                                synchronized (emitter) {
-                                    emitter.send(SseEmitter.event()
-                                            .name("status")
-                                            .data(buildStatus.name()));
-                                }
+                                emitter.send(SseEmitter.event()
+                                        .name("status")
+                                        .data(buildStatus.name()));
                             } catch (AsyncRequestNotUsableException e) {
-                                log.debug("Client disconnected during log streaming for image definition {}", imageDefinitionId);
+                                log.debug("Client disconnected while sending status for image definition {}", imageDefinitionId);
                                 emitter.complete();
                                 return;
                             } catch (IOException e) {
@@ -145,11 +141,9 @@ public class ImageBuildLogsService {
                         var statusOrdinal = buildStatus.ordinal();
                         if (lastStatus.getAndSet(statusOrdinal) != statusOrdinal) {
                             try {
-                                synchronized (emitter) {
-                                    emitter.send(SseEmitter.event()
-                                            .name("status")
-                                            .data(buildStatus.name()));
-                                }
+                                emitter.send(SseEmitter.event()
+                                        .name("status")
+                                        .data(buildStatus.name()));
                             } catch (AsyncRequestNotUsableException e) {
                                 log.debug("Client disconnected during status streaming for image definition {}", imageDefinitionId);
                                 emitter.complete();
