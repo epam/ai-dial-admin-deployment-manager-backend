@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -66,6 +67,9 @@ public class DeploymentLogsService {
                                     emitter.send(SseEmitter.event()
                                             .name("logs")
                                             .data(line));
+                                } catch (AsyncRequestNotUsableException e) {
+                                    log.debug("Client disconnected during log streaming. Deployment {}", id);
+                                    emitter.complete();
                                 } catch (IOException e) {
                                     log.warn("Failed to send log line. Deployment {}", id, e);
                                     emitter.completeWithError(e);
