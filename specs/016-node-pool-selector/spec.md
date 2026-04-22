@@ -9,17 +9,16 @@
 
 ### User Story 1 - View Available Node Pools (Priority: P1)
 
-An administrator opens the deployment form and sees a list of available node pools. Each pool card displays the pool name, description, node spec (CPU, memory, GPU per node), how many nodes are running vs. max allowed, and per-node resource utilization breakdowns. This allows the administrator to make an informed decision about which pool to place their deployment on.
+An administrator opens the deployment form and sees a list of available node pools. Each pool card displays the pool name, description, max nodes, and per-node spec (CPU, memory, GPU). This allows the administrator to make an informed decision about which pool to place their deployment on.
 
-**Why this priority**: Without the ability to view node pools and their utilization, the user cannot make an informed selection. This is the foundational read operation that everything else depends on.
+**Why this priority**: Without the ability to view node pools, the user cannot make an informed selection. This is the foundational read operation that everything else depends on.
 
-**Independent Test**: Can be fully tested by calling the node pools API and verifying that it returns configured pools enriched with live Kubernetes node data. Delivers immediate value by giving administrators visibility into cluster capacity.
+**Independent Test**: Can be fully tested by calling the node pools API and verifying that it returns all configured pools with their specs. Delivers immediate value by giving administrators visibility into available pools.
 
 **Acceptance Scenarios**:
 
-1. **Given** the system has node pools configured and the Kubernetes cluster has running nodes, **When** the user requests the list of available node pools, **Then** each pool is returned with its configured spec (max nodes, CPU, memory, GPU per node) and live per-node utilization data (allocatable resources, scheduled/requested resources) for every running node in that pool.
-2. **Given** a configured node pool has zero running nodes, **When** the user requests the list of available node pools, **Then** that pool is returned with running nodes count of zero, an empty node list, but still includes the configured spec (max nodes, per-node CPU, memory, GPU) so the user can see what capacity would be available once nodes scale up.
-3. **Given** a configured node pool refers to a label selector that matches no Kubernetes nodes, **When** the user requests the list, **Then** the pool appears with zero running nodes and an empty node list — it is not omitted or treated as an error.
+1. **Given** the system has node pools configured via `NODE_POOLS` env var, **When** the user requests the list of available node pools, **Then** each pool is returned with its configured spec (name, description, max nodes, CPU, memory, GPU per node).
+2. **Given** no node pools are configured (empty `NODE_POOLS`), **When** the user requests the list, **Then** an empty list is returned.
 
 ---
 
@@ -74,12 +73,10 @@ An administrator decides that a deployment should no longer be pinned to a speci
 
 ### Edge Cases
 
-- What happens when a configured node pool's label selector matches nodes that appear/disappear between requests? The API returns a point-in-time snapshot; stale data is expected and acceptable.
-- What happens when the Kubernetes API is unreachable when listing node pools? The system returns an error indicating that live utilization data is temporarily unavailable.
 - What happens when a deployment references a node pool that is later removed from configuration? The stored node pool name remains on the deployment record, but it will no longer appear in the available pools list. Validation on create/update still rejects unknown pool names; existing assignments are not retroactively invalidated.
-- What happens when a node reports zero allocatable resources for a resource type (e.g., no GPU)? The utilization for that resource type is returned as zero allocatable and zero scheduled.
 - What happens when a deployment with a node pool is deployed but the pool's nodes are all at capacity? The deployment is activated normally with the affinity constraint; Kubernetes handles pending pod scheduling — the system does not pre-check capacity before deploying.
 - What happens when a deployment references a node pool that was removed from configuration and the user redeploys? The deploy operation should fail with a validation error since the pool is no longer configured and the label selector cannot be resolved.
+- What happens when `NODE_POOLS` contains invalid JSON or invalid field values? The application fails to start with a descriptive error message (fail-fast validation).
 
 ## Clarifications
 
@@ -88,48 +85,41 @@ An administrator decides that a deployment should no longer be pinned to a speci
 - Q: Should node affinity be a hard constraint (pods stay Pending if no matching nodes) or soft constraint (prefer but fall back)? → A: Hard constraint — pods only schedule on matching pool nodes.
 - Q: Should node pool affinity apply to all deployment types or only a subset? → A: All deployment types (MCP, Interceptor, Adapter, Application, NIM, Inference).
 - Q: Should the node pools endpoint be public or internal API? → A: Public API (`/api/v1/node-pools`), same auth as deployment endpoints.
-- Q: Should K8s node utilization data be cached? → A: No cache — always query live. Caching deferred until needed.
+- Q: Should K8s node utilization data be included? → A: No — the node pools API returns only configured data (no K8s queries). Live utilization deferred to a future iteration.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide a public API endpoint (`/api/v1/node-pools`) to list all configured node pools enriched with live Kubernetes node utilization data. The endpoint follows the same authentication rules as deployment endpoints.
-- **FR-002**: Each node pool in the response MUST include: pool name, description (if configured), max nodes, per-node spec (CPU, memory, GPU), number of running nodes, and a list of individual running nodes with their resource utilization.
-- **FR-003**: Each running node entry MUST include: node name, allocatable resources (CPU, memory, GPU), and currently scheduled/requested resources (CPU, memory, GPU).
-- **FR-004**: Node pool configuration MUST be provided via a single `NODE_POOLS` environment variable containing a JSON array, with a cluster-wide `NODE_POOL_LABEL_KEY` for Kubernetes node label identification. Each pool specifies: name, description, max nodes, CPU (millicores), memory (bytes), and GPU count. The label selector is derived as `{labelKey: poolName}`. Configuration MUST be validated at startup (JSON format, required fields, positive numbers, no duplicate names).
-- **FR-005**: The system MUST query the Kubernetes API live (no caching) to list nodes matching each pool's derived label selector to determine running node count and resource utilization.
-- **FR-006**: Deployment create and update endpoints MUST accept an optional node pool name field.
-- **FR-007**: The system MUST validate on create and update that the provided node pool name matches a configured pool; invalid names MUST be rejected with a 400 error.
-- **FR-008**: Deployment retrieval endpoints (get by ID, list) MUST return the selected node pool name if one is set.
-- **FR-009**: Node pool selection MUST be limited to a single pool per deployment; the field is a single value, not a list.
-- **FR-010**: The system MUST persist the selected node pool name in the deployment record in the database.
-- **FR-011**: Resource quantities (CPU, memory) MUST be returned in a consistent, machine-parseable format (e.g., CPU in millicores, memory in bytes) so clients can perform their own aggregation and display formatting.
-- **FR-012**: When a node pool has zero running nodes, the system MUST still return the pool with its configured spec and an empty node list.
-- **FR-013**: When a deployment with a node pool selection is activated (deployed), the system MUST apply a **hard** node affinity constraint (required during scheduling) to the workload, so pods are scheduled exclusively on nodes matching the pool's label selector. If no matching nodes are available, pods remain in Pending state.
-- **FR-014**: When a deployment without a node pool selection is activated, the system MUST NOT apply any pool-specific node affinity — default scheduling behavior is preserved.
-- **FR-015**: When a deployment's node pool selection is changed and the deployment is redeployed (rolling update), the system MUST update the workload's node affinity to reflect the new pool's label selector.
-- **FR-016**: When a deployment's node pool selection is cleared (set to null) and the deployment is redeployed, the system MUST remove any previously applied pool-specific node affinity from the workload.
-- **FR-017**: The deploy operation MUST validate that the deployment's selected node pool (if set) still exists in the current configuration; if the pool has been removed, the deploy MUST fail with a validation error.
+- **FR-001**: System MUST provide a public API endpoint (`/api/v1/node-pools`) to list all configured node pools. The endpoint follows the same authentication rules as deployment endpoints. No Kubernetes API calls are made — the response is purely configuration-driven.
+- **FR-002**: Each node pool in the response MUST include: pool name, description (if configured), max nodes, and per-node spec (CPU in millicores, memory in bytes, GPU count).
+- **FR-003**: Node pool configuration MUST be provided via a single `NODE_POOLS` environment variable containing a JSON array, with a cluster-wide `NODE_POOL_LABEL_KEY` for Kubernetes node label identification. Each pool specifies: name, description, max nodes, CPU (millicores), memory (bytes), and GPU count. The label selector is derived as `{labelKey: poolName}`. Configuration MUST be validated at startup (JSON format, required fields, positive numbers, no duplicate names).
+- **FR-004**: Deployment create and update endpoints MUST accept an optional node pool name field.
+- **FR-005**: The system MUST validate on create and update that the provided node pool name matches a configured pool; invalid names MUST be rejected with a 400 error.
+- **FR-006**: Deployment retrieval endpoints (get by ID, list) MUST return the selected node pool name if one is set.
+- **FR-007**: Node pool selection MUST be limited to a single pool per deployment; the field is a single value, not a list.
+- **FR-008**: The system MUST persist the selected node pool name in the deployment record in the database.
+- **FR-009**: When a deployment with a node pool selection is activated (deployed), the system MUST apply a **hard** node affinity constraint (required during scheduling) to the workload, so pods are scheduled exclusively on nodes matching the pool's label selector. If no matching nodes are available, pods remain in Pending state.
+- **FR-010**: When a deployment without a node pool selection is activated, the system MUST NOT apply any pool-specific node affinity — default scheduling behavior is preserved.
+- **FR-011**: When a deployment's node pool selection is changed and the deployment is redeployed (rolling update), the system MUST update the workload's node affinity to reflect the new pool's label selector.
+- **FR-012**: When a deployment's node pool selection is cleared (set to null) and the deployment is redeployed, the system MUST remove any previously applied pool-specific node affinity from the workload.
+- **FR-013**: The deploy operation MUST validate that the deployment's selected node pool (if set) still exists in the current configuration; if the pool has been removed, the deploy MUST fail with a validation error.
 
 ### Key Entities
 
 - **Node Pool (configured)**: A named group of Kubernetes nodes defined via `NODE_POOLS` JSON env var. Attributes: name, description, max nodes, CPU (millicores), memory (bytes), GPU count. Node label selector derived from cluster-wide `NODE_POOL_LABEL_KEY` + pool name.
-- **Node Pool (runtime response)**: The configured pool enriched with live data: running node count and a list of individual node utilization entries.
-- **Node Utilization**: Per-node resource snapshot: node name, allocatable CPU/memory/GPU, scheduled (requested) CPU/memory/GPU.
 - **Deployment (extended)**: The existing deployment entity extended with an optional node pool name field.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Administrators can view all configured node pools with live resource utilization in a single request, enabling informed placement decisions.
+- **SC-001**: Administrators can view all configured node pools with their specs in a single request, enabling informed placement decisions.
 - **SC-002**: Administrators can assign a node pool to a deployment during creation or update, and the selection is correctly persisted and returned on retrieval.
-- **SC-003**: The node pool list response provides enough per-node detail for the client to render the UI shown in the design: pool name, running/max nodes, per-node and aggregate CPU/memory/GPU utilization.
-- **SC-004**: Invalid node pool selections (non-existent pool names) are rejected at the API level before any deployment record is modified.
-- **SC-005**: The system gracefully handles pools with zero running nodes by returning configured spec data without errors.
-- **SC-006**: Deployments with a node pool selection are constrained to run on the correct pool's nodes when activated — verified by inspecting the Kubernetes workload's node affinity rules.
-- **SC-007**: Changing or clearing a deployment's node pool and redeploying correctly updates or removes the node affinity constraint on the workload.
+- **SC-003**: Invalid node pool selections (non-existent pool names) are rejected at the API level before any deployment record is modified.
+- **SC-004**: Deployments with a node pool selection are constrained to run on the correct pool's nodes when activated — verified by inspecting the Kubernetes workload's node affinity rules.
+- **SC-005**: Changing or clearing a deployment's node pool and redeploying correctly updates or removes the node affinity constraint on the workload.
+- **SC-006**: Invalid `NODE_POOLS` configuration (malformed JSON, missing fields, negative numbers, duplicate names) prevents application startup with a descriptive error.
 
 ## Assumptions
 

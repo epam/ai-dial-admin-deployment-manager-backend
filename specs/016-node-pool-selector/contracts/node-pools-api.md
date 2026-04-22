@@ -2,7 +2,7 @@
 
 ## GET /api/v1/node-pools
 
-List all configured node pools with live Kubernetes node utilization.
+List all configured node pools. Returns configuration data only — no Kubernetes API calls.
 
 **Authentication**: Same as deployment endpoints (OIDC/basic per security mode).
 
@@ -11,72 +11,41 @@ List all configured node pools with live Kubernetes node utilization.
 ```json
 [
   {
-    "name": "gpu-a100-pool",
-    "description": "NVIDIA A100 80 GB SXM — large model training and inference",
-    "maxNodes": 8,
-    "runningNodes": 3,
-    "nodeSpec": {
-      "cpuMillis": 96000,
-      "memoryBytes": 687194767360,
-      "gpu": 3
+    "name": "gpu-a100-prod",
+    "description": "LLM inference & fine-tuning",
+    "instance": "a2-ultragpu-4g",
+    "maxNodes": 10,
+    "gpu": {
+      "name": "NVIDIA A100",
+      "vramBytes": 85899345920,
+      "count": 4
     },
-    "nodes": [
-      {
-        "nodeName": "gke-gpu-a100-pool-abc123",
-        "allocatableCpuMillis": 95500,
-        "allocatableMemoryBytes": 684500000000,
-        "allocatableGpu": 3,
-        "requestedCpuMillis": 57300,
-        "requestedMemoryBytes": 410700000000,
-        "requestedGpu": 2
-      },
-      {
-        "nodeName": "gke-gpu-a100-pool-def456",
-        "allocatableCpuMillis": 95500,
-        "allocatableMemoryBytes": 684500000000,
-        "allocatableGpu": 3,
-        "requestedCpuMillis": 57300,
-        "requestedMemoryBytes": 273800000000,
-        "requestedGpu": 2
-      },
-      {
-        "nodeName": "gke-gpu-a100-pool-ghi789",
-        "allocatableCpuMillis": 95500,
-        "allocatableMemoryBytes": 684500000000,
-        "allocatableGpu": 3,
-        "requestedCpuMillis": 57400,
-        "requestedMemoryBytes": 0,
-        "requestedGpu": 0
-      }
-    ]
+    "cpu": {
+      "name": "AMD EPYC Milan",
+      "milliCpus": 48000
+    },
+    "memory": {
+      "bytes": 730144440320
+    }
   },
   {
-    "name": "cpu-highmem-pool",
-    "description": "CPU only — data preprocessing, tokenization, CPU-bound workloads",
+    "name": "cpu-highmem",
+    "description": "Data preprocessing",
+    "instance": null,
     "maxNodes": 5,
-    "runningNodes": 0,
-    "nodeSpec": {
-      "cpuMillis": 64000,
-      "memoryBytes": 549755813888,
-      "gpu": 0
+    "gpu": null,
+    "cpu": {
+      "name": null,
+      "milliCpus": 64000
     },
-    "nodes": []
+    "memory": {
+      "bytes": 549755813888
+    }
   }
 ]
 ```
 
-### Response 500 (K8s API unreachable)
-
-```json
-{
-  "path": "/api/v1/node-pools",
-  "method": "GET",
-  "status": 500,
-  "error": "Internal Server Error",
-  "message": "Failed to retrieve node utilization from Kubernetes",
-  "traceparent": "00-abc123..."
-}
-```
+Returns empty array `[]` when no node pools are configured.
 
 ## Deployment API Changes
 

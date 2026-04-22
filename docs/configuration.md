@@ -246,10 +246,17 @@ Node pools define groups of Kubernetes nodes that deployments can be pinned to. 
 |-------|------|----------|-------------|
 | `name` | string | Yes | Unique pool identifier. Also used as the value for the node label selector |
 | `description` | string | No | Human-readable description shown in the UI |
+| `instance` | string | No | Cloud instance type (e.g., `a2-ultragpu-4g`) |
 | `maxNodes` | int | Yes | Maximum number of nodes in this pool (must be > 0) |
-| `cpuMillis` | long | Yes | CPU capacity per node in millicores (must be > 0) |
-| `memoryBytes` | long | Yes | Memory capacity per node in bytes (must be > 0) |
-| `gpu` | int | Yes | GPU count per node (must be >= 0, use 0 for CPU-only pools) |
+| `gpu` | object | No | GPU specification per node. Omit or set to `null` for CPU-only pools |
+| `gpu.name` | string | Yes (if gpu set) | GPU model name (e.g., `NVIDIA A100`) |
+| `gpu.vramBytes` | long | Yes (if gpu set) | VRAM capacity per GPU in bytes (must be > 0) |
+| `gpu.count` | int | Yes (if gpu set) | Number of GPUs per node (must be > 0) |
+| `cpu` | object | Yes | CPU specification per node |
+| `cpu.name` | string | No | Processor name (e.g., `AMD EPYC Milan`) |
+| `cpu.milliCpus` | long | Yes | CPU capacity per node in millicores (must be > 0) |
+| `memory` | object | Yes | Memory specification per node |
+| `memory.bytes` | long | Yes | Memory capacity per node in bytes (must be > 0) |
 
 **Startup validation**: The application validates the JSON on startup and fails fast if the JSON is malformed, pool names are duplicated, or any required field is missing/invalid.
 
@@ -257,7 +264,7 @@ Node pools define groups of Kubernetes nodes that deployments can be pinned to. 
 
 ```bash
 NODE_POOL_LABEL_KEY=node-pool
-NODE_POOLS='[{"name":"gpu-a100-pool","description":"NVIDIA A100 80 GB SXM","maxNodes":8,"cpuMillis":96000,"memoryBytes":687194767360,"gpu":3},{"name":"cpu-highmem-pool","description":"CPU only","maxNodes":5,"cpuMillis":64000,"memoryBytes":549755813888,"gpu":0}]'
+NODE_POOLS='[{"name":"gpu-a100-prod","description":"LLM inference & fine-tuning","instance":"a2-ultragpu-4g","maxNodes":10,"gpu":{"name":"NVIDIA A100","vramBytes":85899345920,"count":4},"cpu":{"name":"AMD EPYC Milan","milliCpus":48000},"memory":{"bytes":730144440320}},{"name":"cpu-highmem","description":"Data preprocessing","maxNodes":5,"cpu":{"milliCpus":64000},"memory":{"bytes":549755813888}}]'
 ```
 
 

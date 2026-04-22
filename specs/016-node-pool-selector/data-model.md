@@ -16,15 +16,22 @@ Configured via two environment variables, parsed from JSON at startup by `NodePo
 |-------|------|----------|------------|-------------|
 | name | String | Yes | non-blank, unique | Pool identifier. Also used as the label value for node selection |
 | description | String | No | - | Human-readable description |
+| instance | String | No | - | Cloud instance type (e.g., `a2-ultragpu-4g`) |
 | maxNodes | int | Yes | > 0 | Maximum number of nodes in this pool |
-| cpuMillis | long | Yes | > 0 | CPU capacity per node in millicores |
-| memoryBytes | long | Yes | > 0 | Memory capacity per node in bytes |
-| gpu | int | Yes | >= 0 | GPU count per node (0 for CPU-only pools) |
+| gpu | GpuSpec | No | - | GPU spec per node. Null for CPU-only pools |
+| gpu.name | String | Yes (if gpu set) | non-blank | GPU model name |
+| gpu.vramBytes | long | Yes (if gpu set) | > 0 | VRAM capacity per GPU in bytes |
+| gpu.count | int | Yes (if gpu set) | > 0 | Number of GPUs per node |
+| cpu | CpuSpec | Yes | - | CPU spec per node |
+| cpu.name | String | No | - | Processor name |
+| cpu.milliCpus | long | Yes | > 0 | CPU capacity in millicores |
+| memory | MemorySpec | Yes | - | Memory spec per node |
+| memory.bytes | long | Yes | > 0 | Memory capacity in bytes |
 
 **Example**:
 ```bash
 NODE_POOL_LABEL_KEY=node-pool
-NODE_POOLS='[{"name":"gpu-a100-pool","description":"NVIDIA A100 80 GB SXM","maxNodes":8,"cpuMillis":96000,"memoryBytes":687194767360,"gpu":3},{"name":"cpu-highmem-pool","description":"CPU only","maxNodes":5,"cpuMillis":64000,"memoryBytes":549755813888,"gpu":0}]'
+NODE_POOLS='[{"name":"gpu-a100-prod","description":"LLM inference","instance":"a2-ultragpu-4g","maxNodes":10,"gpu":{"name":"NVIDIA A100","vramBytes":85899345920,"count":4},"cpu":{"name":"AMD EPYC Milan","milliCpus":48000},"memory":{"bytes":730144440320}}]'
 ```
 
 ## Database Changes
@@ -79,36 +86,38 @@ ALTER TABLE deployment ADD node_pool NVARCHAR(255);
 
 ### NodePoolDto
 
-Top-level response object for `GET /api/v1/node-pools`.
+Top-level response object for `GET /api/v1/node-pools`. Returns configuration data only — no K8s API calls.
 
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
-| name | String | No | Pool name (from config) |
-| description | String | Yes | Human-readable description (from config) |
-| maxNodes | int | No | Max nodes in pool (from config) |
-| runningNodes | int | No | Count of currently running nodes (from K8s) |
-| nodeSpec | NodeSpecDto | No | Per-node resource spec (from config) |
-| nodes | List<NodeUtilizationDto> | No | Per-node utilization data (from K8s); empty list if no running nodes |
+| name | String | No | Pool name |
+| description | String | Yes | Human-readable description |
+| instance | String | Yes | Cloud instance type |
+| maxNodes | int | No | Max nodes in pool |
+| gpu | GpuSpecDto | Yes | GPU spec per node (null for CPU-only) |
+| cpu | CpuSpecDto | No | CPU spec per node |
+| memory | MemorySpecDto | No | Memory spec per node |
 
-### NodeSpecDto
-
-| Field | Type | Nullable | Description |
-|-------|------|----------|-------------|
-| cpuMillis | long | No | CPU per node in millicores |
-| memoryBytes | long | No | Memory per node in bytes |
-| gpu | int | No | GPU count per node |
-
-### NodeUtilizationDto
+### GpuSpecDto
 
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
-| nodeName | String | No | Kubernetes node name |
-| allocatableCpuMillis | long | No | Allocatable CPU in millicores (from node status) |
-| allocatableMemoryBytes | long | No | Allocatable memory in bytes (from node status) |
-| allocatableGpu | int | No | Allocatable GPU count (from node status) |
-| requestedCpuMillis | long | No | Sum of pod CPU requests in millicores |
-| requestedMemoryBytes | long | No | Sum of pod memory requests in bytes |
-| requestedGpu | int | No | Sum of pod GPU requests |
+| name | String | No | GPU model name |
+| vramBytes | long | No | VRAM per GPU in bytes |
+| count | int | No | GPUs per node |
+
+### CpuSpecDto
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| name | String | Yes | Processor name |
+| milliCpus | long | No | CPU capacity in millicores |
+
+### MemorySpecDto
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| bytes | long | No | Memory capacity in bytes |
 
 ## Entity Relationship
 
@@ -117,7 +126,9 @@ NodePoolProperties (config, from NODE_POOLS JSON + NODE_POOL_LABEL_KEY)
   ├── nodePoolLabelKey ─── cluster-wide K8s label key
   └── List<NodePoolConfig>
         ├── name ──────────── referenced by ──── DeploymentEntity.nodePool
-        ├── cpuMillis, memoryBytes, gpu (flat)
+        ├── gpu (name, vramBytes, count) — nullable
+        ├── cpu (name, milliCpus)
+        ├── memory (bytes)
         └── label selector = {nodePoolLabelKey: name} (derived, not stored)
 
 DeploymentEntity (DB, JOINED inheritance)

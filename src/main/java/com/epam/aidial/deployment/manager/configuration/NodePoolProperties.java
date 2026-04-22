@@ -38,9 +38,28 @@ public class NodePoolProperties {
     public static class NodePoolConfig {
         private String name;
         private String description;
+        private String instance;
         private int maxNodes;
-        private long cpuMillis;
-        private long memoryBytes;
-        private int gpu;
+        private GpuSpec gpu;
+        private CpuSpec cpu;
+        private MemorySpec memory;
+    }
+
+    @Data
+    public static class GpuSpec {
+        private String name;
+        private long vramBytes;
+        private int count;
+    }
+
+    @Data
+    public static class CpuSpec {
+        private String name;
+        private long milliCpus;
+    }
+
+    @Data
+    public static class MemorySpec {
+        private long bytes;
     }
 }

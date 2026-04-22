@@ -6,7 +6,6 @@ import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
-import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -21,7 +20,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.net.HttpURLConnection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -34,20 +32,6 @@ import java.util.function.Predicate;
 public class K8sClient {
 
     private final KubernetesClient client;
-
-    public List<Node> listNodes(Map<String, String> labelSelector) {
-        log.debug("Querying nodes with labels {}", labelSelector);
-        var nodeList = client.nodes().withLabels(labelSelector).list();
-        log.debug("Found {} nodes matching labels {}", nodeList.getItems().size(), labelSelector);
-        return nodeList.getItems();
-    }
-
-    public PodList listAllPodsOnNode(String nodeName) {
-        log.debug("Querying all pods on node {}", nodeName);
-        var podList = client.pods().inAnyNamespace().withField("spec.nodeName", nodeName).list();
-        log.debug("Found {} pods on node {}", podList.getItems().size(), nodeName);
-        return podList;
-    }
 
     public PodList getJobPods(String namespace, String name) {
         return getPods(namespace, Map.of("job-name", name));

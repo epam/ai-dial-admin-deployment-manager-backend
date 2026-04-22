@@ -2,34 +2,31 @@
 
 ## R1: Node Pool Configuration Shape
 
-**Decision**: Node pools configured via a single `NODE_POOLS` environment variable containing a JSON array, parsed at startup by `NodePoolConfiguration` (following the `RegistryConfiguration` pattern). A cluster-wide `NODE_POOL_LABEL_KEY` env var defines the K8s label key; each pool's `name` serves as the label value. The `NodeSpec` nested object is flattened — `cpuMillis`, `memoryBytes`, `gpu` are top-level fields on `NodePoolConfig`.
+**Decision**: Node pools configured via a single `NODE_POOLS` environment variable containing a JSON array, parsed at startup by `NodePoolConfiguration` (following the `RegistryConfiguration` pattern). A cluster-wide `NODE_POOL_LABEL_KEY` env var defines the K8s label key; each pool's `name` serves as the label value. Each pool has structured specs: `gpu` (nullable, with name/vramBytes/count), `cpu` (with name nullable/milliCpus), `memory` (with bytes), plus optional `instance` and `description`.
 
-**Rationale**: Single env var is easy to set at deploy time (Helm values, K8s ConfigMap). JSON parsing via `ObjectMapper` follows the established `RegistryConfiguration`/`GitConfiguration` pattern. Cluster-wide label key avoids redundant per-pool selector config — in practice, K8s clusters use one label key for node pools. Startup validation (JSON format, required fields, positive numbers, no duplicates) ensures fail-fast on bad config.
+**Rationale**: Single env var is easy to set at deploy time (Helm values, K8s ConfigMap). JSON parsing via `ObjectMapper` follows the established `RegistryConfiguration`/`GitConfiguration` pattern. Cluster-wide label key avoids redundant per-pool selector config — in practice, K8s clusters use one label key for node pools. Structured GPU/CPU/memory objects carry hardware details (model names, VRAM) needed by the UI. Startup validation ensures fail-fast on bad config.
 
 **Alternatives considered**:
 - Complex nested YAML with `@ConfigurationProperties`: Rejected — hard to modify after deployment without changing YAML files.
 - Database-stored pools: Rejected — spec says pools are operator-configured, not user-managed.
 - Per-pool label selector map: Rejected — over-general; a single label key with per-pool name as value is sufficient and simpler.
 
-## R2: Kubernetes Node Query Approach
+## R2: Node Pool API — Configuration Only, No K8s Queries
 
-**Decision**: Use Fabric8 `KubernetesClient.nodes().withLabelSelector(labels).list()` to find nodes per pool, then `KubernetesClient.pods().inAnyNamespace().withField("spec.nodeName", nodeName).list()` to get pod resource requests per node.
+**Decision**: The node pools API returns only configuration data (from `NODE_POOLS` env var). No Kubernetes API calls are made. Live node utilization (running nodes, allocated resources) is deferred to a future iteration.
 
-**Rationale**: Fabric8 7.5.2 supports label-based node listing natively. Pod resource requests (sum of `requests` across all containers) give "scheduled" resource usage — this matches the spec's "scheduled/requested resources" language. No metrics API needed.
-
-**Alternatives considered**:
-- Metrics API (actual usage): Rejected — spec explicitly asks for scheduled/requested resources, not real-time utilization. Metrics API also requires metrics-server and has availability concerns.
-- Informers for node state: Rejected — spec says no caching; live query per request is simpler and per clarification Q4.
-
-## R3: Resource Quantity Format
-
-**Decision**: CPU in millicores (long), memory in bytes (long), GPU as integer count. All returned as numeric fields in the JSON response.
-
-**Rationale**: Kubernetes natively reports CPU in millicores and memory in bytes. Returning raw numeric values lets the client format for display (e.g., "172 / 288 vCPU", "3.8 / 5.7 TB") without the server needing to know display preferences. GPU is always a whole number (nvidia.com/gpu extended resource).
+**Rationale**: Querying K8s for per-node utilization requires either N+1 API calls (1 node list + N pod lists per node) or a bulk pod list across all namespaces — both scale poorly. The admin selects a pool based on hardware specs (GPU model, VRAM, CPU, memory), not real-time load. Configuration-only response has zero latency and zero K8s API cost.
 
 **Alternatives considered**:
-- Kubernetes Quantity strings (e.g., "64Gi", "128m"): Rejected — harder for clients to aggregate and compare.
-- Floating-point cores: Rejected — millicores as long avoids floating-point precision issues.
+- Live K8s node + pod queries per request: Rejected — O(nodes) API calls, expensive for large clusters.
+- Bulk pod list + client-side grouping: Rejected — listing all pods in a cluster is heavy.
+- Metrics API for actual usage: Rejected — requires metrics-server, doesn't cover GPU, adds complexity.
+
+## R3: Resource Representation
+
+**Decision**: Structured objects for each resource type: `gpu` (name, vramBytes, count — nullable for CPU-only pools), `cpu` (name nullable, milliCpus), `memory` (bytes). Units: CPU in millicores, memory/VRAM in bytes.
+
+**Rationale**: Structured objects carry hardware details (GPU model, VRAM, processor name) needed by the UI to render rich pool cards. Bytes and millicores are machine-parseable and consistent with K8s conventions. Client formats for display.
 
 ## R4: Node Affinity Injection Strategy
 

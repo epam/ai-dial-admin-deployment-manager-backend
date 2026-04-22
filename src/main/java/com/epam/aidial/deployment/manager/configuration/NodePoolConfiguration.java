@@ -68,15 +68,33 @@ public class NodePoolConfiguration {
             if (pool.getMaxNodes() <= 0) {
                 throw new IllegalArgumentException("%s: 'maxNodes' must be > 0, got %d".formatted(prefix, pool.getMaxNodes()));
             }
-            if (pool.getCpuMillis() <= 0) {
-                throw new IllegalArgumentException("%s: 'cpuMillis' must be > 0, got %d".formatted(prefix, pool.getCpuMillis()));
+            if (pool.getCpu() == null) {
+                throw new IllegalArgumentException("%s: 'cpu' is required".formatted(prefix));
             }
-            if (pool.getMemoryBytes() <= 0) {
-                throw new IllegalArgumentException("%s: 'memoryBytes' must be > 0, got %d".formatted(prefix, pool.getMemoryBytes()));
+            if (pool.getCpu().getMilliCpus() <= 0) {
+                throw new IllegalArgumentException("%s: 'cpu.milliCpus' must be > 0, got %d".formatted(prefix, pool.getCpu().getMilliCpus()));
             }
-            if (pool.getGpu() < 0) {
-                throw new IllegalArgumentException("%s: 'gpu' must be >= 0, got %d".formatted(prefix, pool.getGpu()));
+            if (pool.getMemory() == null) {
+                throw new IllegalArgumentException("%s: 'memory' is required".formatted(prefix));
             }
+            if (pool.getMemory().getBytes() <= 0) {
+                throw new IllegalArgumentException("%s: 'memory.bytes' must be > 0, got %d".formatted(prefix, pool.getMemory().getBytes()));
+            }
+            if (pool.getGpu() != null) {
+                validateGpu(prefix, pool.getGpu());
+            }
+        }
+    }
+
+    private void validateGpu(String prefix, NodePoolProperties.GpuSpec gpu) {
+        if (StringUtils.isBlank(gpu.getName())) {
+            throw new IllegalArgumentException("%s: 'gpu.name' is required when gpu is specified".formatted(prefix));
+        }
+        if (gpu.getVramBytes() <= 0) {
+            throw new IllegalArgumentException("%s: 'gpu.vramBytes' must be > 0, got %d".formatted(prefix, gpu.getVramBytes()));
+        }
+        if (gpu.getCount() <= 0) {
+            throw new IllegalArgumentException("%s: 'gpu.count' must be > 0, got %d".formatted(prefix, gpu.getCount()));
         }
     }
 }
