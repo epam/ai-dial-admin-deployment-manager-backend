@@ -34,6 +34,9 @@ public class NodePoolProperties {
     }
 
     public Map<String, String> getLabelSelector(String poolName) {
+        if (!exists(poolName)) {
+            throw new IllegalArgumentException("Node pool '%s' is not configured".formatted(poolName));
+        }
         return Map.of(nodePoolLabelKey, poolName);
     }
 

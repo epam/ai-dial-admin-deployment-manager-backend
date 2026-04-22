@@ -319,11 +319,22 @@ class NodePoolConfigurationTest {
 
     @Test
     void getLabelSelector_shouldReturnCorrectMap() {
-        var properties = configuration.nodePoolProperties("node-pool", "", VALIDATOR);
+        var json = """
+                [{ "name": "gpu-pool", "maxNodes": 5, "cpu": { "milliCpus": 1000 }, "memory": { "bytes": 1024 } }]""";
+        var properties = configuration.nodePoolProperties("node-pool", json, VALIDATOR);
 
         var labels = properties.getLabelSelector("gpu-pool");
 
         assertThat(labels).containsEntry("node-pool", "gpu-pool");
         assertThat(labels).hasSize(1);
+    }
+
+    @Test
+    void getLabelSelector_shouldThrow_whenPoolNameIsUnknown() {
+        var properties = configuration.nodePoolProperties("node-pool", "", VALIDATOR);
+
+        assertThatThrownBy(() -> properties.getLabelSelector("nonexistent"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'nonexistent' is not configured");
     }
 }
