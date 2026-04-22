@@ -138,7 +138,7 @@ app:
       max-memory-in-mb: ${RESOURCES_MAX_MEMORY_IN_MB:100000}
       max-nvidia-gpu: ${RESOURCES_MAX_NVIDIA_GPU:5}
       max-storage-size: ${RESOURCES_STORAGE_MAX_SIZE:200Gi}
-  node-pool-label-key: ${NODE_POOL_LABEL_KEY:node-pool}
+  node-pool-label-key: ${NODE_POOL_LABEL_KEY:}
   node-pools: ${NODE_POOLS:}
   deployment:
     healthcheck-enabled: ${DEPLOYMENT_HEALTHCHECK_ENABLED:true}

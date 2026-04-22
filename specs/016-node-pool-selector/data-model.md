@@ -8,7 +8,7 @@ Configured via two environment variables, parsed from JSON at startup by `NodePo
 
 | Property | Env Variable | Default | Description |
 |----------|-------------|---------|-------------|
-| `app.node-pool-label-key` | `NODE_POOL_LABEL_KEY` | `node-pool` | Kubernetes node label key used to identify pools. Label selector is derived as `{labelKey: pool.name}` |
+| `app.node-pool-label-key` | `NODE_POOL_LABEL_KEY` | `node-pool` | Kubernetes node label key used to identify pools. Label selector is derived as `{labelKey: pool.name}`. Must be non-blank whenever `NODE_POOLS` is non-empty; may be blank when no pools are configured |
 
 ### NodePoolConfig (JSON array via `NODE_POOLS`)
 

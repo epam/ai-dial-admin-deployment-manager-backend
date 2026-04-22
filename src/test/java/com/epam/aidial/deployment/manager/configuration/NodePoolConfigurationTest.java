@@ -106,10 +106,24 @@ class NodePoolConfigurationTest {
     @ParameterizedTest
     @NullAndEmptySource
     @ValueSource(strings = {"   ", "\t"})
-    void shouldThrow_whenLabelKeyIsBlank(String labelKey) {
-        assertThatThrownBy(() -> configuration.nodePoolProperties(labelKey, "", VALIDATOR))
+    void shouldAcceptBlankLabelKey_whenNodePoolsAreEmpty(String labelKey) {
+        var properties = configuration.nodePoolProperties(labelKey, "", VALIDATOR);
+
+        assertThat(properties.getNodePools()).isEmpty();
+        assertThat(properties.getNodePoolLabelKey()).isEqualTo(labelKey);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "\t"})
+    void shouldThrow_whenLabelKeyIsBlankAndNodePoolsAreConfigured(String labelKey) {
+        var json = """
+                [{ "name": "pool", "maxNodes": 1, "cpu": { "milliCpus": 1000 }, "memory": { "bytes": 1024 } }]""";
+
+        assertThatThrownBy(() -> configuration.nodePoolProperties(labelKey, json, VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Node pool label key");
+                .hasMessageContaining("Node pool label key")
+                .hasMessageContaining("must not be blank when node pools are configured");
     }
 
     // --- JSON format validation ---
