@@ -237,8 +237,8 @@ Node pools define groups of Kubernetes nodes that deployments can be pinned to. 
 
 | Property | Environment Variable | Default Value | Required | Description |
 |----------|---------------------|---------------|----------|-------------|
-| `app.node-pool-label-key` | `NODE_POOL_LABEL_KEY` | `node-pool` | Required when `app.node-pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
-| `app.node-pools` | `NODE_POOLS` | _(empty)_ | No | JSON array of node pool configurations. See format below |
+| `app.node-pools.label-key` | `NODE_POOL_LABEL_KEY` | _(empty)_ | Required when `app.node-pools.pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
+| `app.node-pools.pools` | `NODE_POOLS` | _(empty)_ | No | JSON array of node pool configurations. See format below |
 
 **JSON format for `NODE_POOLS`**:
 
@@ -259,7 +259,7 @@ Node pools define groups of Kubernetes nodes that deployments can be pinned to. 
 | `memory` | object | Yes | Memory specification per node |
 | `memory.bytes` | long | Yes | Memory capacity per node in bytes (must be > 0) |
 
-**Startup validation**: The application validates the JSON on startup and fails fast if the JSON is malformed, pool names are duplicated, any required field is missing/invalid, or `app.node-pool-label-key` is blank while node pools are configured.
+**Startup validation**: The application validates the JSON on startup and fails fast if the JSON is malformed, pool names are duplicated, any required field is missing/invalid, or `app.node-pools.label-key` is blank while node pools are configured.
 
 **Example**:
 

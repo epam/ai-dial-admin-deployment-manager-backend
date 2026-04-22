@@ -24,8 +24,8 @@ public class NodePoolConfiguration {
 
     @Bean
     public NodePoolProperties nodePoolProperties(
-            @Value("${app.node-pool-label-key:node-pool}") String nodePoolLabelKey,
-            @Value("${app.node-pools}") String nodePoolsJson,
+            @Value("${app.node-pools.label-key:}") String nodePoolLabelKey,
+            @Value("${app.node-pools.pools:}") String nodePoolsJson,
             Validator validator) {
 
         var properties = new NodePoolProperties();
@@ -49,7 +49,7 @@ public class NodePoolConfiguration {
 
         if (!properties.getNodePools().isEmpty() && StringUtils.isBlank(nodePoolLabelKey)) {
             throw new IllegalArgumentException(
-                    "Node pool label key (app.node-pool-label-key) must not be blank when node pools are configured");
+                    "Node pool label key (app.node-pools.label-key) must not be blank when node pools are configured");
         }
 
         return properties;
