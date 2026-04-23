@@ -10,6 +10,8 @@ import com.epam.aidial.deployment.manager.web.dto.CreateBuildImageRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.ImageBuildDetailsDto;
 import com.epam.aidial.deployment.manager.web.mapper.ImageBuildDetailsDtoMapper;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,10 @@ public class ImageBuildController {
         imageBuildRunner.buildImage(requestDto.imageDefinitionId());
     }
 
+    @Operation(summary = "Stop an in-progress image build")
+    @ApiResponse(responseCode = "204", description = "Build stopped successfully")
+    @ApiResponse(responseCode = "400", description = "Build is not in progress or cluster-side deletion failed")
+    @ApiResponse(responseCode = "404", description = "Image definition not found")
     @FullAdminOnly
     @DeleteMapping(path = "/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

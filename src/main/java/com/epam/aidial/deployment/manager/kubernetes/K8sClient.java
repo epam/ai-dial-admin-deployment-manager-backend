@@ -160,6 +160,10 @@ public class K8sClient {
         log.debug("Job '{}' successfully deleted.", name);
     }
 
+    /**
+     * Deletes all Jobs matching the given label and waits for each to be fully removed.
+     * Note: {@code timeoutSec} is applied per matched Job, not as an aggregate — worst-case total wait is N × timeoutSec.
+     */
     public void deleteJobsByLabelAndWait(String namespace, String labelKey, String labelValue, int timeoutSec) {
         var byLabel = client.batch().v1().jobs()
                 .inNamespace(namespace)

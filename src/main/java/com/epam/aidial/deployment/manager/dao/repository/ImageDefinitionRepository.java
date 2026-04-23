@@ -126,11 +126,12 @@ public class ImageDefinitionRepository {
     }
 
     public void completeBuildSuccessfully(UUID id, String imageName, long builtAt) {
+        // Intentionally no BUILD_STOPPED guard: a Job that succeeded before the stop committed
+        // is adopted as BUILD_SUCCESSFUL (see spec Edge Case "Stop requested as the build is completing").
         var entity = findImageDefinitionForUpdate(id);
         entity.setBuildStatus(PersistenceImageStatus.BUILD_SUCCESSFUL);
         entity.setImageName(imageName);
         entity.setBuiltAt(builtAt);
-        imageDefinitionJpaRepository.saveAndFlush(entity);
         log.debug("Build completed successfully for image definition '{}': imageName={}, builtAt={}",
                 id, imageName, builtAt);
     }
@@ -142,7 +143,6 @@ public class ImageDefinitionRepository {
             return;
         }
         entity.setBuildStatus(PersistenceImageStatus.BUILD_FAILED);
-        imageDefinitionJpaRepository.saveAndFlush(entity);
         appendBuildLogs(id, List.of(errorLog));
         log.debug("Build failed for image definition '{}'", id);
     }
@@ -155,7 +155,6 @@ public class ImageDefinitionRepository {
             return false;
         }
         entity.setBuildStatus(PersistenceImageStatus.BUILD_STOPPED);
-        imageDefinitionJpaRepository.saveAndFlush(entity);
         log.debug("Build stopped for image definition '{}'", id);
         return true;
     }
