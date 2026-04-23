@@ -319,6 +319,51 @@ class KnativeManifestGeneratorTest {
         assertThat(container.getArgs()).isNullOrEmpty();
     }
 
+    @Test
+    void testServiceConfig_withNodePoolLabels_setsNodeAffinity() {
+        // Given
+        var deploymentName = "node-pool-app";
+        var imageName = "my-registry/node-pool-image:v1";
+        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, null, null, nodePoolLabels
+        );
+
+        // Then
+        var affinity = generatedService.getSpec().getTemplate().getSpec().getAffinity();
+        assertThat(affinity).isNotNull();
+        assertThat(affinity.getNodeAffinity()).isNotNull();
+
+        var required = affinity.getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
+        assertThat(required).isNotNull();
+        assertThat(required.getNodeSelectorTerms()).hasSize(1);
+
+        var matchExpressions = required.getNodeSelectorTerms().getFirst().getMatchExpressions();
+        assertThat(matchExpressions).hasSize(1);
+        assertThat(matchExpressions.getFirst().getKey()).isEqualTo("node-pool-key");
+        assertThat(matchExpressions.getFirst().getOperator()).isEqualTo("In");
+        assertThat(matchExpressions.getFirst().getValues()).containsExactly("gpu-pool");
+    }
+
+    @Test
+    void testServiceConfig_withNullNodePoolLabels_doesNotSetAffinity() {
+        // Given
+        var deploymentName = "no-pool-app";
+        var imageName = "my-registry/no-pool-image:v1";
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, null, null, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getTemplate().getSpec().getAffinity()).isNull();
+    }
+
     private String serialize(Object obj) throws JsonProcessingException {
         return objectMapper.writeValueAsString(obj);
     }

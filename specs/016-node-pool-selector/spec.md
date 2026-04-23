@@ -99,11 +99,11 @@ An administrator decides that a deployment should no longer be pinned to a speci
 - **FR-006**: Deployment retrieval endpoints (get by ID, list) MUST return the selected node pool name if one is set.
 - **FR-007**: Node pool selection MUST be limited to a single pool per deployment; the field is a single value, not a list.
 - **FR-008**: The system MUST persist the selected node pool name in the deployment record in the database.
-- **FR-009**: When a deployment with a node pool selection is activated (deployed), the system MUST apply a **hard** node affinity constraint (required during scheduling) to the workload, so pods are scheduled exclusively on nodes matching the pool's label selector. If no matching nodes are available, pods remain in Pending state.
-- **FR-010**: When a deployment without a node pool selection is activated, the system MUST NOT apply any pool-specific node affinity — default scheduling behavior is preserved.
-- **FR-011**: When a deployment's node pool selection is changed and the deployment is redeployed (rolling update), the system MUST update the workload's node affinity to reflect the new pool's label selector.
-- **FR-012**: When a deployment's node pool selection is cleared (set to null) and the deployment is redeployed, the system MUST remove any previously applied pool-specific node affinity from the workload.
-- **FR-013**: The deploy operation MUST validate that the deployment's selected node pool (if set) still exists in the current configuration; if the pool has been removed, the deploy MUST fail with a validation error.
+- **FR-009**: When a deployment with a node pool selection is activated (deployed), the system MUST constrain scheduling to nodes matching the pool's label selector. For Knative deployments, this is enforced via **hard node affinity** (`requiredDuringSchedulingIgnoredDuringExecution`) on the RevisionSpec. For NIM and KServe (Inference) deployments, this is enforced via **`nodeSelector`** on the respective CRD spec. If no matching nodes are available, pods remain in Pending state.
+- **FR-010**: When a deployment without a node pool selection is activated, the system MUST NOT apply any pool-specific node affinity or nodeSelector — default scheduling behavior is preserved.
+- **FR-011**: When a deployment's node pool selection is changed and the deployment is redeployed (rolling update), the system MUST update the workload's node affinity or nodeSelector to reflect the new pool's label selector.
+- **FR-012**: When a deployment's node pool selection is cleared (set to null) and the deployment is redeployed, the system MUST remove any previously applied pool-specific node affinity or nodeSelector from the workload.
+- **FR-013**: The deploy operation MUST validate that the deployment's selected node pool (if set) still exists in the current configuration; if the pool has been removed, the deploy MUST fail with a server error (500) since this represents a configuration inconsistency — the node pool was valid when the deployment was saved but has since been removed.
 
 ### Key Entities
 

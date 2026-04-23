@@ -499,6 +499,44 @@ class NimManifestGeneratorTest {
         assertThat(generatedService.getSpec().getStorage().getPvc().getSize()).isEqualTo("20Gi");
     }
 
+    @Test
+    void testServiceConfig_withNodePoolLabels_setsNodeSelector() {
+        // Given
+        var deploymentName = "node-pool-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(),
+                resources, imageName, 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, nodePoolLabels
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getNodeSelector())
+                .isNotNull()
+                .containsEntry("node-pool-key", "gpu-pool")
+                .hasSize(1);
+    }
+
+    @Test
+    void testServiceConfig_withNullNodePoolLabels_doesNotSetNodeSelector() {
+        // Given
+        var deploymentName = "no-pool-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(),
+                resources, imageName, 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getNodeSelector()).isNull();
+    }
+
     private String serialize(Object obj) throws JsonProcessingException {
         return objectMapper.writeValueAsString(obj);
     }

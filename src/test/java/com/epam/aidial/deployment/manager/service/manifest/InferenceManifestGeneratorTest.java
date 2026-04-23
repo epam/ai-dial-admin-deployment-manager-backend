@@ -339,6 +339,44 @@ class InferenceManifestGeneratorTest {
         assertThat(startupProbe.getFailureThreshold()).isEqualTo(2);
     }
 
+    @Test
+    void testServiceConfig_withNodePoolLabels_setsNodeSelector() {
+        // Given
+        var deploymentName = "node-pool-inference-app";
+        var storageUri = "s3://my-bucket/node-pool-model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, nodePoolLabels
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getPredictor().getNodeSelector())
+                .isNotNull()
+                .containsEntry("node-pool-key", "gpu-pool")
+                .hasSize(1);
+    }
+
+    @Test
+    void testServiceConfig_withNullNodePoolLabels_doesNotSetNodeSelector() {
+        // Given
+        var deploymentName = "no-pool-inference-app";
+        var storageUri = "s3://my-bucket/no-pool-model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getPredictor().getNodeSelector()).isNull();
+    }
+
     private String serialize(Object obj) throws JsonProcessingException {
         return objectMapper.writeValueAsString(obj);
     }
