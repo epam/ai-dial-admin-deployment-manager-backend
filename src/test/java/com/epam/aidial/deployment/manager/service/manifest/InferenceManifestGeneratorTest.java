@@ -76,7 +76,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -98,7 +98,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -120,7 +120,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -141,7 +141,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -162,7 +162,7 @@ class InferenceManifestGeneratorTest {
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
@@ -180,7 +180,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC
+                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -201,7 +201,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -220,7 +220,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -240,7 +240,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -260,7 +260,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC
+                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -283,7 +283,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then
@@ -302,7 +302,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then: fallback deadline = 3600 + 30 = 3630s
@@ -323,7 +323,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null
         );
 
         // Then: predictor model has startup probe with expected path, port and timing
@@ -337,6 +337,44 @@ class InferenceManifestGeneratorTest {
         assertThat(startupProbe.getPeriodSeconds()).isEqualTo(10);
         assertThat(startupProbe.getTimeoutSeconds()).isEqualTo(3);
         assertThat(startupProbe.getFailureThreshold()).isEqualTo(2);
+    }
+
+    @Test
+    void testServiceConfig_withNodePoolLabels_setsNodeSelector() {
+        // Given
+        var deploymentName = "node-pool-inference-app";
+        var storageUri = "s3://my-bucket/node-pool-model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, nodePoolLabels
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getPredictor().getNodeSelector())
+                .isNotNull()
+                .containsEntry("node-pool-key", "gpu-pool")
+                .hasSize(1);
+    }
+
+    @Test
+    void testServiceConfig_withNullNodePoolLabels_doesNotSetNodeSelector() {
+        // Given
+        var deploymentName = "no-pool-inference-app";
+        var storageUri = "s3://my-bucket/no-pool-model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getPredictor().getNodeSelector()).isNull();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
