@@ -7,7 +7,9 @@ import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +20,10 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -107,6 +111,17 @@ public class JobRunner {
 
         for (String containerName : containerNames) {
             try {
+                log.debug("Waiting for container '{}' to be ready for log reading. jobId: '{}'", containerName, jobId);
+                Predicate<Pod> containerReadyOrPodFinal = p -> isContainerLogsAvailable(p, containerName)
+                        || PodPhase.fromPod(p).map(PodPhase::isFinal).orElse(false);
+                var currentPod = client.waitPod(namespace, pod, containerReadyOrPodFinal, imageBuildTimeoutSec);
+
+                if (!isContainerLogsAvailable(currentPod, containerName)) {
+                    log.warn("Container '{}' never started; skipping log reading. jobId: '{}'", containerName, jobId);
+                    jobCallback.onNewLog(List.of("Warning: Container '" + containerName + "' never started. Skipping logs."));
+                    continue;
+                }
+
                 log.debug("Reading logs from container '{}'. jobId: '{}'", containerName, jobId);
                 var containerResource = client.getPodResource(namespace, podName).inContainer(containerName);
                 logReader.readLogs(containerResource, jobCallback::onNewLog);
@@ -149,6 +164,25 @@ public class JobRunner {
             metadata.setLabels(new HashMap<>());
         }
         metadata.getLabels().put(IMAGE_DEFINITION_ID_LABEL, String.valueOf(groupId));
+    }
+
+    private static boolean isContainerLogsAvailable(Pod pod, String containerName) {
+        var status = findContainerStatus(pod, containerName);
+        if (status == null || status.getState() == null) {
+            return false;
+        }
+        var state = status.getState();
+        return state.getRunning() != null || state.getTerminated() != null;
+    }
+
+    private static ContainerStatus findContainerStatus(Pod pod, String containerName) {
+        var podStatus = Optional.ofNullable(pod.getStatus());
+        var initStatuses = podStatus.map(PodStatus::getInitContainerStatuses).orElse(List.of());
+        var statuses = podStatus.map(PodStatus::getContainerStatuses).orElse(List.of());
+        return Stream.concat(initStatuses.stream(), statuses.stream())
+                .filter(cs -> containerName.equals(cs.getName()))
+                .findFirst()
+                .orElse(null);
     }
 
     private void createCiliumNetworkPolicy(@NotNull UUID groupId,
