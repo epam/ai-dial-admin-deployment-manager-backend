@@ -196,7 +196,7 @@ class JobRunnerTest {
                 .thenReturn(runningPod, failedPodNoContainer);
 
         // When
-        jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+        jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then: logs were not read; user-visible warning was emitted via jobCallback
         verify(podLogReader, never()).readLogs(any(ContainerResource.class), any(Consumer.class));
@@ -217,7 +217,7 @@ class JobRunnerTest {
                 .thenReturn(runningPod, podWithTerminatedInit);
 
         // When
-        jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+        jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then: logs ARE read from the terminated init container
         verify(podLogReader).readLogs(any(ContainerResource.class), any(Consumer.class));
