@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.concurrent.ExecutorService;
@@ -55,9 +54,6 @@ public class EventStreamingService {
                     } catch (DataIntegrityViolationException dataIntegrityViolationException) {
                         log.warn("Failed to send event. Deployment {} was deleted", id);
                         emitter.completeWithError(dataIntegrityViolationException);
-                    } catch (AsyncRequestNotUsableException asyncRequestNotUsableException) {
-                        log.debug("Client disconnected during event streaming. Deployment {}", id);
-                        emitter.complete();
                     } catch (Exception e) {
                         log.warn("Failed to send event. Deployment {}", id, e);
                         emitter.completeWithError(e);
