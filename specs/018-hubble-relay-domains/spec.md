@@ -1,0 +1,144 @@
+# Feature Specification: Hubble Relay Domain Streaming
+
+**Feature Branch**: `018-hubble-relay-domains`
+**Created**: 2026-04-23
+**Status**: Draft
+**Input**: User description: "If Hubble Relay is enabled, the system should support real-time streaming of a list of all domains accessed during the image build and image deploy processes, together with logs and status updates. Each domain entry should indicate whether access was allowed or blocked by Cilium, enabling administrators to review domain usage and identify any blocked domains."
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Stream domains in real time during an active image build (Priority: P1)
+
+An administrator triggers an image build and opens the live log stream. During the build, a Kubernetes pod uses BuildKit to build a Docker image and push it to a registry; Cilium enforces network policies on this pod. Alongside existing log lines and status updates, the administrator sees a real-time feed of every external domain the image build pod contacted, each entry showing whether access was allowed or blocked by Cilium. This lets the administrator spot blocked domains immediately — without waiting for the build to finish or digging through raw network observability tooling.
+
+**Why this priority**: This is the core value. Without it, operators have no inline visibility into network access during builds. Early detection of blocked domains shortens the feedback loop for domain whitelist tuning.
+
+**Independent Test**: Trigger a build with Hubble Relay enabled and open the build log stream — `domain` events must appear interleaved with `logs` and `status` events, reflecting actual Cilium verdicts.
+
+**Acceptance Scenarios**:
+
+1. **Given** Hubble Relay is enabled and a build is running, **When** the image build pod contacts an external domain, **Then** a `domain` event is pushed to connected build log stream subscribers within the normal SSE polling window, containing the domain name and verdict (`ALLOWED` or `BLOCKED`)
+2. **Given** Hubble Relay is enabled, **When** the image build pod contacts a domain not in the allowed list, **Then** that domain appears in the stream with verdict `BLOCKED`
+3. **Given** Hubble Relay is disabled, **When** a client opens the build log stream, **Then** no `domain` events are present and existing `logs`/`status` event behaviour is unchanged
+
+---
+
+### User Story 2 - Review the full domain access list after a build completes (Priority: P2)
+
+An administrator reviews a completed build — particularly one that failed. They retrieve build details and see the complete list of domains the build accessed, with allowed/blocked verdicts, allowing them to identify which blocked domains caused the failure and update the whitelist accordingly.
+
+**Why this priority**: Builds frequently run unattended. Post-mortem review of domain access is essential for diagnosing build failures caused by Cilium blocks.
+
+**Independent Test**: Run a build with Hubble Relay enabled, wait for completion, then call the build details endpoint for that specific build version and verify a `domains` list is present in the response with correct verdicts.
+
+**Acceptance Scenarios**:
+
+1. **Given** Hubble Relay is enabled and a build has completed, **When** the administrator calls the build details endpoint, **Then** the response includes a `domains` list, each entry containing the domain name and its Cilium verdict
+2. **Given** Hubble Relay is disabled and a build has completed, **When** the build details endpoint is called, **Then** the `domains` list is empty or absent
+3. **Given** a build has never been started for an image definition, **When** the build details endpoint is called, **Then** the response is 404
+
+---
+
+### User Story 3 - Replay domain events when reconnecting to a completed build stream (Priority: P3)
+
+A client that missed the live stream (disconnected, reconnected late) opens the log stream for a completed build. All captured domain entries are replayed alongside stored log lines and the terminal status event, so no domain access information is lost.
+
+**Why this priority**: Consistent with existing log-replay behaviour for completed builds. Extends replay to domain entries so the stream endpoint is the single complete source of build information.
+
+**Independent Test**: Complete a build with Hubble Relay enabled, then open the log stream endpoint for the completed build and verify domain events are replayed before the stream closes.
+
+**Acceptance Scenarios**:
+
+1. **Given** Hubble Relay is enabled and a build has completed, **When** a client opens the log stream, **Then** all captured domain events are replayed alongside stored log lines, followed by the terminal status event and automatic stream closure
+2. **Given** the completed build had both allowed and blocked domain accesses, **When** the domain events are replayed, **Then** each event accurately reflects the original verdict
+
+---
+
+### User Story 4 - Stream domains in real time for a running deployment (Priority: P4)
+
+An administrator monitors a running deployment. Each deployment runs as a Kubernetes pod using the Docker image produced by the image build process; Cilium enforces network policies on this deployment pod too. The administrator opens the pod log stream and, alongside log lines, sees real-time `domain` events for every external domain the deployment pod is contacting, each with its Cilium verdict. This provides runtime network visibility in the same stream already used for log monitoring.
+
+**Why this priority**: Extends the same observability from build time to runtime. Lower priority than builds because runtime domain policies are configured before deployment (via `allowedDomains`), but visibility into actual runtime access is still valuable.
+
+**Independent Test**: Deploy a service with Hubble Relay enabled, open `GET /api/v1/deployments/{id}/pods/{podId}/logs` for an active pod, and verify `domain` events appear interleaved with `logs` events for external connections the pod makes.
+
+**Acceptance Scenarios**:
+
+1. **Given** Hubble Relay is enabled and a deployment pod is running, **When** the pod contacts an external domain, **Then** a `domain` event is pushed to the pod log stream (`GET /api/v1/deployments/{id}/pods/{podId}/logs`) interleaved with `logs` events, containing the domain name and Cilium verdict
+2. **Given** Hubble Relay is enabled and a client reconnects to the pod log stream for a still-running pod, **Then** all domain events captured since the current deployment activation are replayed before live events resume
+3. **Given** Hubble Relay is disabled, **When** a client opens the pod log stream, **Then** no `domain` events are present and existing log streaming behaviour is unchanged
+
+---
+
+### Edge Cases
+
+- What if Hubble Relay is enabled but the same domain is contacted multiple times during a build? — Domain entries are deduplicated per build by (domain, verdict) pair; if the same domain appears with both `ALLOWED` and `BLOCKED` verdicts, both entries are retained.
+- What if Hubble Relay is enabled but observes no flows for an image build pod? — The `domains` list in build details is empty; no `domain` SSE events are emitted.
+- What if the cross-cluster connection to Hubble Relay is unavailable at the time of a build or deployment? — The system retries the connection a fixed number of times with a short interval at stream startup; if still unavailable after the retry limit, domain streaming degrades gracefully: the build or deployment proceeds normally, no `domain` events are emitted, and a warning is logged. The build is never failed due to a Hubble Relay connectivity issue.
+- What if a client disconnects mid-stream during an active build? — Standard SSE disconnection handling applies; on reconnect, domain events captured so far are replayed.
+- What if a build produces a very large number of unique domain accesses? — Deduplication limits the stored count; no artificial cap on unique (domain, verdict) pairs, but deduplication keeps the list manageable.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: When Hubble Relay is enabled, the system MUST capture, in real time, each external domain accessed by an image build pod (the Kubernetes pod that uses BuildKit to build and push a Docker image), together with the Cilium verdict (`ALLOWED` or `BLOCKED`) for that access
+- **FR-002**: When Hubble Relay is enabled, the system MUST capture, in real time, each external domain accessed by a deployment pod (the Kubernetes pod that runs the Docker image produced by the build process), together with its Cilium verdict
+- **FR-003**: Captured domain access entries MUST be persisted per build run, keyed by (`imageDefinitionId`, build version); each build version maintains its own independent domain entry set, retained for the lifetime of that build record
+- **FR-004**: The build log SSE stream (`GET /api/v1/images/builds/{id}/logs`, where `{id}` is the build run identifier for a specific version) MUST include `domain` events when Hubble Relay is enabled, interleaved with existing `logs` and `status` events
+- **FR-005**: Each `domain` SSE event MUST contain exactly the domain name and the Cilium verdict (`ALLOWED` or `BLOCKED`); no timestamp is included in the event payload — chronological ordering during replay is determined server-side based on stored observation order
+- **FR-006**: The build details endpoint (`GET /api/v1/images/builds/{id}/details`, where `{id}` is the build run identifier for a specific version) MUST include a `domains` list in its response when Hubble Relay is enabled; each entry carries the domain name and verdict
+- **FR-007**: When a client opens the build log stream for a completed build (replay mode), captured domain events MUST be replayed interleaved with stored log lines in chronological order (by observation timestamp), followed by the terminal status event and automatic stream closure
+- **FR-008**: Real-time `domain` events for a running deployment pod MUST be delivered via the existing pod log stream endpoint (`GET /api/v1/deployments/{id}/pods/{podId}/logs`), interleaved with `logs` events, when Hubble Relay is enabled; when a client reconnects to an active pod stream, all domain events captured since the current deployment activation MUST be replayed before live events resume
+- **FR-009**: Domain entries MUST be deduplicated by (domain name, verdict) pair — for builds, per build; for deployments, per deployment lifetime. The same (domain, verdict) combination is stored and streamed only once within its respective scope
+- **FR-010**: When Hubble Relay is disabled, the system MUST NOT emit `domain` SSE events, MUST return an empty or absent `domains` list in build details, and MUST NOT degrade build or deployment behaviour in any way
+- **FR-011**: Cross-cluster connectivity failures to Hubble Relay MUST NOT cause image builds or deployments to fail; at stream startup the system MUST retry the connection a fixed number of times with a short interval before degrading gracefully — once the retry limit is exhausted, the build or deployment proceeds normally with no `domain` events emitted and a warning logged
+- **FR-012**: The Hubble Relay integration MUST be controlled by a dedicated configuration flag; changing the flag MUST NOT require application redeployment
+- **FR-013**: The cross-cluster gRPC connection to Hubble Relay MUST support TLS with server-side certificate validation; the CA certificate or trust store used to validate the Hubble Relay server certificate MUST be configurable
+- **FR-014**: All stored domain entries for a deployment MUST be cleared each time that deployment is activated (`POST /api/v1/deployments/{id}/deploy`); entries always reflect the current running instance only
+
+### Key Entities *(include if feature involves data)*
+
+- **Build Domain Entry**: A record of a single observed domain access during an image build run. Key attributes: `imageDefinitionId`, build version (e.g., `1.0.0`, `1.0.1`), domain name, Cilium verdict (`ALLOWED` or `BLOCKED`). Each build version has its own independent set of entries, allowing concurrent and sequential builds of the same image definition to be tracked separately. Entries are deleted when the associated build record is deleted.
+- **Deployment Domain Entry**: A record of a single observed domain access by a running deployment. Key attributes: deployment identifier, domain name, Cilium verdict. Deduplicated per deployment run by (domain name, verdict) pair. Persisted for the duration of the active deployment run to support reconnection replay. Entries are cleared on each new deploy activation and deleted when the deployment record is deleted.
+- **Cilium Verdict**: An enumeration of Cilium network policy outcomes relevant to external domain access: `ALLOWED` (the flow was forwarded) and `BLOCKED` (the flow was dropped by policy).
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: An administrator can identify all blocked domains for any completed build without accessing Cilium tooling directly — 100% of blocked domain flows observed by Hubble Relay during the build appear in build details
+- **SC-002**: The first `domain` event appears in the build log stream within the same latency window as `logs` and `status` events — domain observability introduces no perceptible additional delay
+- **SC-003**: When Hubble Relay is disabled, build and deployment operations complete with identical behaviour to the pre-feature baseline — zero regressions in functionality or performance
+- **SC-004**: A client that reconnects to a completed build stream receives all domain events captured during that build — no domain access information is lost due to reconnection
+- **SC-005**: Hubble Relay connectivity failures result in zero build failures — 100% of builds succeed regardless of Hubble Relay availability
+
+## Assumptions
+
+- Hubble Relay is installed in the **untrusted cluster** — the separate Kubernetes cluster where image build pods (BuildKit) and deployment pods run — not in the trusted cluster where the Deployment Manager itself runs. The Deployment Manager connects to Hubble Relay over the cross-cluster network link (the same link used to manage Kubernetes resources on the untrusted cluster).
+- Hubble Relay is an optional, independent feature flag (`HUBBLE_RELAY_ENABLED`, default `false`); it is independent of `CILIUM_NETWORK_POLICIES_ENABLED` but only produces meaningful results when Cilium is enforcing network policies
+- Domain name resolution from Hubble Relay flows relies on Hubble's built-in DNS-aware flow tracking (FQDN extracted from the flow's destination metadata)
+- Each image build for a given `imageDefinitionId` is assigned a unique version (e.g., `1.0.0`, `1.0.1`); domain entries are keyed by (`imageDefinitionId`, version), so concurrent and sequential builds are tracked independently
+- The existing `image_build_logs` table pattern (separate table keyed by `imageDefinitionId`, cascade-deleted) is the appropriate storage model for build domain entries; the version column extends the key to distinguish individual build runs
+- Deployment domain entries reflect the current running instance only; they are cleared on each new deploy activation and deleted when the deployment record is deleted
+- Deduplication is enforced at storage time; the live SSE stream may transiently emit a duplicate before deduplication is confirmed, but the persisted record and replay are always deduplicated
+- The cross-cluster gRPC connection to Hubble Relay uses TLS with server-side certificate validation (not mutual TLS); the Deployment Manager validates the Hubble Relay server certificate but does not present a client certificate
+- The `docs/configuration.md` file MUST be updated to document `HUBBLE_RELAY_ENABLED` and any related Hubble Relay connection properties, including TLS configuration
+
+## Clarifications
+
+### Session 2026-04-23
+
+- Q: What security mode should the cross-cluster gRPC connection to Hubble Relay use? → A: TLS with server-side certificate validation only (no mutual TLS)
+- Q: Should deployment domain entries be deduplicated, and by what rule? → A: Deduplicate per deployment lifetime by (domain, verdict) pair — same rule as builds
+- Q: What happens to deployment domain entries when a deployment is stopped and re-deployed? → A: Entries are cleared on each new deploy activation; entries always reflect the current running instance only
+- Q: Which endpoint should be used for real-time deployment domain streaming? → A: `GET /api/v1/deployments/{id}/pods/{podId}/logs` — domain events interleaved with pod log events (no separate endpoint)
+- Q: Should domain events be replayed when a client reconnects to the pod log stream for a still-running deployment? → A: Yes — all domain events captured since the current deploy activation are replayed on reconnect
+
+### Session 2026-04-24
+
+- Q: How are build domain entries scoped when multiple builds run for the same `imageDefinitionId`? → A: Each build is assigned a unique version (e.g., `1.0.0`, `1.0.1`); domain entries are keyed by (`imageDefinitionId`, build version) so concurrent and sequential builds are tracked independently
+- Q: Does `{id}` in `GET /api/v1/images/builds/{id}/logs` and `/details` refer to the `imageDefinitionId` or a build-run-specific identifier? → A: `{id}` is the build run identifier for a specific version — one ID per build run, unambiguously addressing a single version's logs and domain entries
+- Q: In what order should domain events be replayed with log lines for a completed build stream? → A: Chronological order — domain events interleaved with log lines by observation timestamp
+- Q: Should the `domain` SSE event payload include an observation timestamp? → A: No — payload contains only domain name and verdict; chronological replay order is managed server-side
+- Q: Should the system retry the Hubble Relay connection on failure, and how? → A: Yes — retry a fixed number of times with a short interval at stream startup, then degrade gracefully (no domain events, warning logged) if still unavailable
