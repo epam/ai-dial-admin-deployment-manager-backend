@@ -223,6 +223,20 @@ protobuf {
     }
 }
 
+// protoc-gen-grpc-java binaries are downloaded without execute permission on Linux CI
+tasks.withType(com.google.protobuf.gradle.GenerateProtoTask).configureEach {
+    doFirst {
+        def grpcDir = new File("${gradle.gradleUserHomeDir}/caches/modules-2/files-2.1/io.grpc/protoc-gen-grpc-java")
+        if (grpcDir.exists()) {
+            grpcDir.eachFileRecurse { f ->
+                if (f.name.endsWith('.exe') && !f.canExecute()) {
+                    f.setExecutable(true)
+                }
+            }
+        }
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }
