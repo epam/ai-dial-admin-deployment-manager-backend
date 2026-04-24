@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalT
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowWithMockedK8sClientFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import org.junit.jupiter.api.Nested;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -75,5 +76,9 @@ public class PostgresFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class AuditTests extends AuditFunctionalTest {
+    }
+
+    @Nested
+    class StopImageBuildTests extends StopImageBuildFunctionalTest {
     }
 }

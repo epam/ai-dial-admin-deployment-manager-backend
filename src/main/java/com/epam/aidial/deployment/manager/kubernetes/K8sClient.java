@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Event;
 import io.fabric8.kubernetes.api.model.EventList;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -156,6 +157,24 @@ public class K8sClient {
                 .withName(name)
                 .delete();
         log.debug("Job '{}' successfully deleted.", name);
+    }
+
+    /**
+     * Deletes all Jobs matching the given label and blocks until the apiserver confirms removal.
+     * {@code timeoutSec} is aggregate across all matched Jobs, applied to the UID-watch following the delete.
+     */
+    public void deleteJobsByLabelAndWait(String namespace, String labelKey, String labelValue, int timeoutSec) {
+        log.info("Deleting Job(s) in namespace '{}' with label {}={} (wait up to {}s aggregate)",
+                namespace, labelKey, labelValue, timeoutSec);
+        var deleted = client.batch().v1().jobs()
+                .inNamespace(namespace)
+                .withLabel(labelKey, labelValue)
+                .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                .withGracePeriod(0L)
+                .withTimeout(timeoutSec, TimeUnit.SECONDS)
+                .delete();
+        log.debug("Deleted {} Job(s) matching label {}={} in namespace '{}'",
+                deleted.size(), labelKey, labelValue, namespace);
     }
 
     public boolean deletePod(String namespace, String name) {

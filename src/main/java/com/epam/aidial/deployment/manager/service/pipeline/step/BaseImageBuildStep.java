@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.RegistryService;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.ImageBuildFromGitJobSpecificationFactory;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -20,9 +19,6 @@ import java.util.List;
 @LogExecution
 @RequiredArgsConstructor
 public class BaseImageBuildStep {
-
-    @Value("${app.image-build-timeout-sec}")
-    private final int imageBuildTimeoutSec;
 
     private final ImageDefinitionService imageDefinitionService;
     private final RegistryService registryService;
@@ -44,7 +40,6 @@ public class BaseImageBuildStep {
                         gitDockerfileImageSource,
                         imageDefinition.getImageBuilder()),
                 (NewLogJobCallback) logs -> imageDefinitionService.addBuildLogs(imageDefinition.getId(), logs),
-                imageBuildTimeoutSec,
                 imageDefinition.getId(),
                 List.of("init-container", "builder-container", "push-container"),
                 imageDefinition.getAllowedDomains()

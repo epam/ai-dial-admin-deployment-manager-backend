@@ -76,7 +76,6 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -133,7 +132,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         // Simulate the behavior of JobRunner to invoke the callback with logs
         ArgumentCaptor<NewLogJobCallback> callbackCaptor = ArgumentCaptor.forClass(NewLogJobCallback.class);
-        when(jobRunner.run(specCaptor.capture(), callbackCaptor.capture(), anyInt(), any(UUID.class), any(), any())).thenAnswer(invocation -> {
+        when(jobRunner.run(specCaptor.capture(), callbackCaptor.capture(), any(UUID.class), any(), any())).thenAnswer(invocation -> {
             var callback = callbackCaptor.getValue();
             callback.onNewLog(List.of("ID: debian", "VERSION: 10"));
             return true;

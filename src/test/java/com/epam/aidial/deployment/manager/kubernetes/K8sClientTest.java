@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.kubernetes;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
+import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
@@ -494,6 +495,58 @@ class K8sClientTest {
         // When & Then
         assertThatThrownBy(() -> k8sClient.deleteCiliumNetworkPolicy(NAMESPACE, CNP_NAME))
                 .isInstanceOf(KubernetesClientException.class);
+    }
+
+    @Test
+    void deleteJobsByLabelAndWait_shouldPerformBulkForegroundDeleteWithAggregateTimeout() {
+        // Given
+        when(kubernetesClient.batch()).thenReturn(batchApiGroupDsl);
+        when(batchApiGroupDsl.v1()).thenReturn(v1BatchApiGroupDsl);
+        when(v1BatchApiGroupDsl.jobs()).thenReturn(jobOperation);
+        when(jobOperation.inNamespace(NAMESPACE)).thenReturn(namespacedJobOperation);
+        when(namespacedJobOperation.withLabel("image-definition-id", "group-1"))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withPropagationPolicy(DeletionPropagation.FOREGROUND))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withGracePeriod(0L))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withTimeout(30L, TimeUnit.SECONDS))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.delete()).thenReturn(List.of());
+
+        // When
+        k8sClient.deleteJobsByLabelAndWait(NAMESPACE, "image-definition-id", "group-1", 30);
+
+        // Then
+        verify(namespacedJobOperation).withLabel("image-definition-id", "group-1");
+        verify(namespacedJobOperation).withPropagationPolicy(DeletionPropagation.FOREGROUND);
+        verify(namespacedJobOperation).withGracePeriod(0L);
+        verify(namespacedJobOperation).withTimeout(30L, TimeUnit.SECONDS);
+        verify(namespacedJobOperation).delete();
+    }
+
+    @Test
+    void deleteJobsByLabelAndWait_shouldPropagateKubernetesClientException() {
+        // Given
+        when(kubernetesClient.batch()).thenReturn(batchApiGroupDsl);
+        when(batchApiGroupDsl.v1()).thenReturn(v1BatchApiGroupDsl);
+        when(v1BatchApiGroupDsl.jobs()).thenReturn(jobOperation);
+        when(jobOperation.inNamespace(NAMESPACE)).thenReturn(namespacedJobOperation);
+        when(namespacedJobOperation.withLabel("image-definition-id", "group-1"))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withPropagationPolicy(DeletionPropagation.FOREGROUND))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withGracePeriod(0L))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withTimeout(30L, TimeUnit.SECONDS))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.delete()).thenThrow(new KubernetesClientException("cluster boom"));
+
+        // When / Then
+        assertThatThrownBy(() ->
+                k8sClient.deleteJobsByLabelAndWait(NAMESPACE, "image-definition-id", "group-1", 30))
+                .isInstanceOf(KubernetesClientException.class)
+                .hasMessageContaining("cluster boom");
     }
 
     @SuppressWarnings("unchecked")
