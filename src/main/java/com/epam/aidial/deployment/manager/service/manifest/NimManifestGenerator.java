@@ -45,6 +45,9 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private static final String NIM_SERVED_MODEL_NAME_ENV = "NIM_SERVED_MODEL_NAME";
     private static final String TLS_SECRET_NAME_SUFFIX = "-tls-secret";
+    private static final String DEFAULT_INITIAL_SCALE = "1";
+    private static final String DEFAULT_MIN_SCALE = "1";
+    private static final String DEFAULT_MAX_SCALE = "1";
 
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
@@ -208,12 +211,14 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private void applyScaling(String name, @Nullable Scaling scaling, MappingChain<NIMService> config) {
         log.debug("Applying scaling for NIM deployment '{}': {}", name, scaling);
-        if (scaling == null) {
-            return;
-        }
-
         var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
                 .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
+        if (scaling == null) {
+            annotations.put(KnativeAnnotations.INITIAL_SCALE, DEFAULT_INITIAL_SCALE);
+            annotations.put(KnativeAnnotations.MIN_SCALE, DEFAULT_MIN_SCALE);
+            annotations.put(KnativeAnnotations.MAX_SCALE, DEFAULT_MAX_SCALE);
+            return;
+        }
         applyScalingAnnotations(name, scaling, annotations);
     }
 

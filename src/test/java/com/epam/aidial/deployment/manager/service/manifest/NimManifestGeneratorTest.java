@@ -445,9 +445,10 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void shouldNotSetScalingAnnotations_inKserveModeWhenScalingIsNull() {
-        // Given: kserve mode without a Scaling object — Knative's own defaults should apply,
-        // so no autoscaling annotations are emitted by the generator.
+    void shouldSetDefaultScalingAnnotations_inKserveModeWhenScalingIsNull() {
+        // Given: kserve mode without a Scaling object — generator should emit fixed
+        // 1/1/1 defaults (initial/min/max) so behavior is deterministic and does not
+        // depend on Knative's cluster-level configuration.
         nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "kserve-no-scale-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
@@ -462,9 +463,9 @@ class NimManifestGeneratorTest {
         // Then
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations)
-                .doesNotContainKey(KnativeAnnotations.MIN_SCALE)
-                .doesNotContainKey(KnativeAnnotations.MAX_SCALE)
-                .doesNotContainKey(KnativeAnnotations.INITIAL_SCALE)
+                .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
+                .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
+                .containsEntry(KnativeAnnotations.MAX_SCALE, "1")
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
@@ -650,7 +651,7 @@ class NimManifestGeneratorTest {
         var ingressSpec = new Spec();
         ingressSpec.setIngressClassName("nginx");
         ingress.setSpec(ingressSpec);
-        when(appconfig.getNimServiceExposeIngressConfig()).thenReturn(ingress);
+        when(appconfig.cloneNimServiceExposeIngressConfig()).thenReturn(ingress);
     }
 
     @Test
