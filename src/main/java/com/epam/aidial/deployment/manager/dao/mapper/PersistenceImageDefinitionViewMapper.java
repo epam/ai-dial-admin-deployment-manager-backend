@@ -74,6 +74,7 @@ public class PersistenceImageDefinitionViewMapper {
             case BUILDING -> ImageStatus.BUILDING;
             case BUILD_FAILED -> ImageStatus.BUILD_FAILED;
             case BUILD_SUCCESSFUL -> ImageStatus.BUILD_SUCCESSFUL;
+            case BUILD_STOPPED -> ImageStatus.BUILD_STOPPED;
         };
     }
 }

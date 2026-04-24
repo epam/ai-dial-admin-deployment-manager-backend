@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -67,6 +68,10 @@ public class ImageBuildLogsService {
                                 emitter.send(SseEmitter.event()
                                         .name("logs")
                                         .data(logs.get(logIndex.getAndIncrement())));
+                            } catch (AsyncRequestNotUsableException e) {
+                                log.debug("Client disconnected during log streaming for image definition {}", imageDefinitionId);
+                                emitter.complete();
+                                return;
                             } catch (IOException e) {
                                 log.error("Failed to send log line for image definition {}", imageDefinitionId, e);
                                 emitter.completeWithError(e);
@@ -84,6 +89,10 @@ public class ImageBuildLogsService {
                                 emitter.send(SseEmitter.event()
                                         .name("status")
                                         .data(buildStatus.name()));
+                            } catch (AsyncRequestNotUsableException e) {
+                                log.debug("Client disconnected while sending status for image definition {}", imageDefinitionId);
+                                emitter.complete();
+                                return;
                             } catch (IOException e) {
                                 log.error("Failed to send status for image definition {}", imageDefinitionId, e);
                                 emitter.completeWithError(e);
@@ -135,13 +144,17 @@ public class ImageBuildLogsService {
                                 emitter.send(SseEmitter.event()
                                         .name("status")
                                         .data(buildStatus.name()));
+                            } catch (AsyncRequestNotUsableException e) {
+                                log.debug("Client disconnected during status streaming for image definition {}", imageDefinitionId);
+                                emitter.complete();
+                                return;
                             } catch (IOException e) {
                                 log.error("Failed to send status for image definition {}", imageDefinitionId, e);
                                 emitter.completeWithError(e);
                                 return;
                             }
                         }
-                        
+
                         if (buildStatus.isFinal()) {
                             emitter.complete();
                             return;

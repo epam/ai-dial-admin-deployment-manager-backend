@@ -7,17 +7,23 @@ import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -25,6 +31,7 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class JobRunner {
 
+    static final String IMAGE_DEFINITION_ID_LABEL = "image-definition-id";
     private static final String JOB_NAME_LABEL = "job-name";
 
     private final GlobalDomainWhitelistService globalDomainWhitelistService;
@@ -33,10 +40,16 @@ public class JobRunner {
     private final K8sClient k8sClient;
     private final PodLogReader logReader;
 
+    @Value("${app.build-namespace}")
+    private final String buildNamespace;
+    @Value("${app.image-build-timeout-sec}")
+    private final int imageBuildTimeoutSec;
+    @Value("${app.image-build-stop-timeout-sec}")
+    private final int imageBuildStopTimeoutSec;
+
     public boolean run(
             @NotNull JobSpecification jobSpecification,
             @NotNull JobCallback jobCallback,
-            int imageBuildTimeoutSec,
             @NotNull UUID groupId,
             @NotNull List<String> containerNames,
             @NotNull List<String> allowedDomains
@@ -66,16 +79,20 @@ public class JobRunner {
         }
 
         var job = jobSpecification.getJob();
+        tagJobWithGroupId(job, groupId);
         disposableResourceManager.saveK8sResources(List.of(job), K8sResourceKind.JOB, groupId, namespace);
         client.createJob(namespace, job);
         log.info("Created build job. jobId: '{}'", jobId);
         jobCallback.onJobPhaseChange(JobPhase.CREATED);
 
         log.debug("Waiting for job to start. jobId: '{}'", jobId);
-        Predicate<Job> jobIsRunning = j -> JobPhase.fromJob(j)
+        Predicate<Job> jobIsRunning = j -> j == null || JobPhase.fromJob(j)
                 .map(s -> s == JobPhase.RUNNING || s.isFinal())
                 .orElse(false);
         var runningJob = client.waitJob(namespace, job, jobIsRunning, imageBuildTimeoutSec);
+        if (runningJob == null) {
+            throw new JobExternallyDeletedException(jobId);
+        }
         log.info("Job has started. jobId: '{}'", jobId);
         jobCallback.onJobPhaseChange(JobPhase.RUNNING);
 
@@ -94,6 +111,17 @@ public class JobRunner {
 
         for (String containerName : containerNames) {
             try {
+                log.debug("Waiting for container '{}' to be ready for log reading. jobId: '{}'", containerName, jobId);
+                Predicate<Pod> containerReadyOrPodFinal = p -> isContainerLogsAvailable(p, containerName)
+                        || PodPhase.fromPod(p).map(PodPhase::isFinal).orElse(false);
+                var currentPod = client.waitPod(namespace, pod, containerReadyOrPodFinal, imageBuildTimeoutSec);
+
+                if (!isContainerLogsAvailable(currentPod, containerName)) {
+                    log.warn("Container '{}' never started; skipping log reading. jobId: '{}'", containerName, jobId);
+                    jobCallback.onNewLog(List.of("Warning: Container '" + containerName + "' never started. Skipping logs."));
+                    continue;
+                }
+
                 log.debug("Reading logs from container '{}'. jobId: '{}'", containerName, jobId);
                 var containerResource = client.getPodResource(namespace, podName).inContainer(containerName);
                 logReader.readLogs(containerResource, jobCallback::onNewLog);
@@ -105,10 +133,13 @@ public class JobRunner {
         }
 
         log.debug("Waiting for job to finish. jobId: '{}'", jobId);
-        Predicate<Job> jobIsFinished = j -> JobPhase.fromJob(j)
+        Predicate<Job> jobIsFinished = j -> j == null || JobPhase.fromJob(j)
                 .map(JobPhase::isFinal)
                 .orElse(false);
         var finishedJob = client.waitJob(namespace, job, jobIsFinished, imageBuildTimeoutSec);
+        if (finishedJob == null) {
+            throw new JobExternallyDeletedException(jobId);
+        }
         var finishedState = JobPhase.fromJobStrictly(finishedJob);
         if (finishedState == JobPhase.SUCCEEDED) {
             log.info("Job has finished successfully. jobId: '{}'", jobId);
@@ -119,6 +150,39 @@ public class JobRunner {
         }
 
         return finishedState == JobPhase.SUCCEEDED;
+    }
+
+    public void deleteJob(@NotNull UUID groupId) {
+        log.info("Deleting Job(s) in namespace '{}' with label {}={} (timeout {}s)",
+                buildNamespace, IMAGE_DEFINITION_ID_LABEL, groupId, imageBuildStopTimeoutSec);
+        k8sClient.deleteJobsByLabelAndWait(buildNamespace, IMAGE_DEFINITION_ID_LABEL, String.valueOf(groupId), imageBuildStopTimeoutSec);
+    }
+
+    private static void tagJobWithGroupId(Job job, UUID groupId) {
+        var metadata = job.getMetadata();
+        if (metadata.getLabels() == null) {
+            metadata.setLabels(new HashMap<>());
+        }
+        metadata.getLabels().put(IMAGE_DEFINITION_ID_LABEL, String.valueOf(groupId));
+    }
+
+    private static boolean isContainerLogsAvailable(Pod pod, String containerName) {
+        var status = findContainerStatus(pod, containerName);
+        if (status == null || status.getState() == null) {
+            return false;
+        }
+        var state = status.getState();
+        return state.getRunning() != null || state.getTerminated() != null;
+    }
+
+    private static ContainerStatus findContainerStatus(Pod pod, String containerName) {
+        var podStatus = Optional.ofNullable(pod.getStatus());
+        var initStatuses = podStatus.map(PodStatus::getInitContainerStatuses).orElse(List.of());
+        var statuses = podStatus.map(PodStatus::getContainerStatuses).orElse(List.of());
+        return Stream.concat(initStatuses.stream(), statuses.stream())
+                .filter(cs -> containerName.equals(cs.getName()))
+                .findFirst()
+                .orElse(null);
     }
 
     private void createCiliumNetworkPolicy(@NotNull UUID groupId,

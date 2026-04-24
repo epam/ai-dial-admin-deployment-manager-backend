@@ -8,6 +8,7 @@ import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalT
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowWithMockedK8sClientFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -105,5 +106,9 @@ public class SqlServerFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class AuditTests extends AuditFunctionalTest {
+    }
+
+    @Nested
+    class StopImageBuildTests extends StopImageBuildFunctionalTest {
     }
 }

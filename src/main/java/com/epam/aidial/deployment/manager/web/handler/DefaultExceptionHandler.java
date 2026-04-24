@@ -5,6 +5,8 @@ import com.epam.aidial.deployment.manager.exception.DatabaseException;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.ImageBuildNotInProgressException;
+import com.epam.aidial.deployment.manager.exception.ImageBuildStopFailedException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
@@ -165,6 +167,20 @@ public class DefaultExceptionHandler {
     public ErrorView handleImageInUseException(HttpServletRequest req, ImageInUseException ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(ImageBuildNotInProgressException.class)
+    public ErrorView handleImageBuildNotInProgressException(HttpServletRequest req, ImageBuildNotInProgressException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(ImageBuildStopFailedException.class)
+    public ErrorView handleImageBuildStopFailedException(HttpServletRequest req, ImageBuildStopFailedException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(AsyncRequestNotUsableException.class)
