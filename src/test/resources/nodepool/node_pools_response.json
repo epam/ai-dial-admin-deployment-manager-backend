@@ -1,0 +1,33 @@
+[
+  {
+    "name": "gpu-a100-prod",
+    "description": "LLM inference & fine-tuning",
+    "instance": "a2-ultragpu-4g",
+    "minNodes": 2,
+    "maxNodes": 10,
+    "gpu": {
+      "name": "NVIDIA A100",
+      "vramBytes": 85899345920,
+      "count": 4
+    },
+    "cpu": {
+      "name": "AMD EPYC Milan",
+      "milliCpus": 48000
+    },
+    "memory": {
+      "bytes": 730144440320
+    }
+  },
+  {
+    "name": "cpu-highmem",
+    "description": "Data preprocessing",
+    "minNodes": 0,
+    "maxNodes": 5,
+    "cpu": {
+      "milliCpus": 64000
+    },
+    "memory": {
+      "bytes": 549755813888
+    }
+  }
+]

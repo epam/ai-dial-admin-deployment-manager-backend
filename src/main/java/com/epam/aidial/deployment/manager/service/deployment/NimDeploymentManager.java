@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
@@ -49,11 +50,12 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             DeploymentRepository deploymentRepository,
             ContainerPortResolver containerPortResolver,
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+            NodePoolProperties nodePoolProperties,
             K8sNimClient k8sNimClient,
             NimDeployProperties nimDeployProperties
     ) {
         super(k8sClient, disposableResourceManager, knativeManifestGenerator, deploymentRepository,
-                containerPortResolver, ciliumNetworkPolicyCreator, nimDeployProperties.getNamespace(),
+                containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, nimDeployProperties.getNamespace(),
                 nimDeployProperties.getStartupTimeout(), DEFAULT_NIM_SERVICE_PORT);
         this.nimManifestGenerator = nimManifestGenerator;
         this.k8sNimClient = k8sNimClient;
@@ -97,6 +99,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         var containerGrpcPort = deployment.getContainerGrpcPort();
         var storageSize = deployment.getStorageSize();
 
+        var nodePoolLabels = resolveNodePoolLabels(deployment.getNodePool());
+
         return nimManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
@@ -111,7 +115,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 deployment.getProbeProperties(),
                 startupTimeoutSec,
                 deployment.getCommand(),
-                deployment.getArgs());
+                deployment.getArgs(),
+                nodePoolLabels);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.KnativeDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -105,6 +106,8 @@ class KnativeDeploymentManagerTest {
     @Mock
     private CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
     @Mock
+    private NodePoolProperties nodePoolProperties;
+    @Mock
     private HealthCheckProvider healthCheckProvider;
     @Mock
     private K8sClient k8sClient;
@@ -146,6 +149,7 @@ class KnativeDeploymentManagerTest {
                 containerPortResolver,
                 disposableResourceManager,
                 ciliumNetworkPolicyCreator,
+                nodePoolProperties,
                 healthCheckProvider,
                 k8sKnativeClient,
                 knativeDeployProperties,
@@ -324,6 +328,7 @@ class KnativeDeploymentManagerTest {
                 eq(containerPort),
                 any(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -419,6 +424,7 @@ class KnativeDeploymentManagerTest {
                 eq(8080),
                 any(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
@@ -466,6 +472,7 @@ class KnativeDeploymentManagerTest {
                 eq(8080),
                 any(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
@@ -510,6 +517,7 @@ class KnativeDeploymentManagerTest {
                 eq(8080),
                 any(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
@@ -538,7 +546,7 @@ class KnativeDeploymentManagerTest {
         when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
         when(containerPortResolver.resolveContainerPort(any(), anyInt())).thenReturn(containerPort);
         when(knativeManifestGenerator.serviceConfig(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), anyString(), anyList(), eq(Set.of(containerPort)))).thenReturn(ciliumNetworkPolicy);
@@ -784,6 +792,7 @@ class KnativeDeploymentManagerTest {
                 containerPortResolver,
                 disposableResourceManager,
                 ciliumNetworkPolicyCreator,
+                nodePoolProperties,
                 healthCheckProvider,
                 k8sKnativeClient,
                 knativeDeployProperties,

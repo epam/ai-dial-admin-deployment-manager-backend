@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
@@ -52,13 +53,14 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             InferenceManifestGenerator inferenceManifestGenerator,
             ContainerPortResolver containerPortResolver,
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+            NodePoolProperties nodePoolProperties,
             DeploymentRepository deploymentRepository,
             K8sKserveClient k8sKserveClient,
             KserveDeployProperties kserveDeployProperties,
             HuggingFaceProperties huggingFaceProperties
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
-                containerPortResolver, ciliumNetworkPolicyCreator, kserveDeployProperties.getNamespace(),
+                containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, kserveDeployProperties.getNamespace(),
                 kserveDeployProperties.getStartupTimeout(), DEFAULT_KSERVE_SERVICE_PORT);
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
@@ -96,6 +98,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
+        var nodePoolLabels = resolveNodePoolLabels(deployment.getNodePool());
+
         return inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
@@ -109,7 +113,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 deployment.getArgs(),
                 containerPort,
                 deployment.getProbeProperties(),
-                startupTimeoutSec);
+                startupTimeoutSec,
+                nodePoolLabels);
     }
 
     @Override

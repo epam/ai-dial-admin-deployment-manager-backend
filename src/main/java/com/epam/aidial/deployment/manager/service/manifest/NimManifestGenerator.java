@@ -22,10 +22,12 @@ import com.nvidia.apps.v1alpha1.nimservicespec.expose.Router;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -60,7 +62,8 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             @Nullable ProbeProperties probeProperties,
             int startupTimeoutSec,
             @Nullable List<String> command,
-            @Nullable List<String> args
+            @Nullable List<String> args,
+            @Nullable Map<String, String> nodePoolLabels
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneNimServiceConfig,
@@ -100,6 +103,10 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyStartupProbe(name, specChain, probeProperties);
         applyProgressDeadline(probeProperties, startupTimeoutSec, config);
         applyScaling(name, scaling, config);
+
+        if (MapUtils.isNotEmpty(nodePoolLabels)) {
+            specChain.data().setNodeSelector(nodePoolLabels);
+        }
 
         return config.data();
     }
