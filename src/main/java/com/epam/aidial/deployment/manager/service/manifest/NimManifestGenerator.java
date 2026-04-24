@@ -48,6 +48,9 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     private static final String DEFAULT_INITIAL_SCALE = "1";
     private static final String DEFAULT_MIN_SCALE = "1";
     private static final String DEFAULT_MAX_SCALE = "1";
+    private static final String DEFAULT_AUTOSCALING_CLASS = "kpa.autoscaling.knative.dev";
+    private static final String DEFAULT_AUTOSCALING_METRIC = "concurrency";
+    private static final String DEFAULT_AUTOSCALING_TARGET = "10";
 
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
@@ -217,6 +220,9 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             annotations.put(KnativeAnnotations.INITIAL_SCALE, DEFAULT_INITIAL_SCALE);
             annotations.put(KnativeAnnotations.MIN_SCALE, DEFAULT_MIN_SCALE);
             annotations.put(KnativeAnnotations.MAX_SCALE, DEFAULT_MAX_SCALE);
+            annotations.put(KnativeAnnotations.AUTOSCALING_CLASS, DEFAULT_AUTOSCALING_CLASS);
+            annotations.put(KnativeAnnotations.AUTOSCALING_METRIC, DEFAULT_AUTOSCALING_METRIC);
+            annotations.put(KnativeAnnotations.AUTOSCALING_TARGET, DEFAULT_AUTOSCALING_TARGET);
             return;
         }
         applyScalingAnnotations(name, scaling, annotations);

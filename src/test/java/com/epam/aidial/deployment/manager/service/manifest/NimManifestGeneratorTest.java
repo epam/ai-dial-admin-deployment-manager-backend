@@ -466,9 +466,9 @@ class NimManifestGeneratorTest {
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "1")
-                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
-                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
-                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
+                .containsEntry(KnativeAnnotations.AUTOSCALING_CLASS, "kpa.autoscaling.knative.dev")
+                .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, "concurrency")
+                .containsEntry(KnativeAnnotations.AUTOSCALING_TARGET, "10");
     }
 
     @Test
