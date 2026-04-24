@@ -14,9 +14,11 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +31,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class JobRunner {
 
+    static final String IMAGE_DEFINITION_ID_LABEL = "image-definition-id";
     private static final String JOB_NAME_LABEL = "job-name";
 
     private final GlobalDomainWhitelistService globalDomainWhitelistService;
@@ -37,10 +40,16 @@ public class JobRunner {
     private final K8sClient k8sClient;
     private final PodLogReader logReader;
 
+    @Value("${app.build-namespace}")
+    private final String buildNamespace;
+    @Value("${app.image-build-timeout-sec}")
+    private final int imageBuildTimeoutSec;
+    @Value("${app.image-build-stop-timeout-sec}")
+    private final int imageBuildStopTimeoutSec;
+
     public boolean run(
             @NotNull JobSpecification jobSpecification,
             @NotNull JobCallback jobCallback,
-            int imageBuildTimeoutSec,
             @NotNull UUID groupId,
             @NotNull List<String> containerNames,
             @NotNull List<String> allowedDomains
@@ -70,16 +79,20 @@ public class JobRunner {
         }
 
         var job = jobSpecification.getJob();
+        tagJobWithGroupId(job, groupId);
         disposableResourceManager.saveK8sResources(List.of(job), K8sResourceKind.JOB, groupId, namespace);
         client.createJob(namespace, job);
         log.info("Created build job. jobId: '{}'", jobId);
         jobCallback.onJobPhaseChange(JobPhase.CREATED);
 
         log.debug("Waiting for job to start. jobId: '{}'", jobId);
-        Predicate<Job> jobIsRunning = j -> JobPhase.fromJob(j)
+        Predicate<Job> jobIsRunning = j -> j == null || JobPhase.fromJob(j)
                 .map(s -> s == JobPhase.RUNNING || s.isFinal())
                 .orElse(false);
         var runningJob = client.waitJob(namespace, job, jobIsRunning, imageBuildTimeoutSec);
+        if (runningJob == null) {
+            throw new JobExternallyDeletedException(jobId);
+        }
         log.info("Job has started. jobId: '{}'", jobId);
         jobCallback.onJobPhaseChange(JobPhase.RUNNING);
 
@@ -120,10 +133,13 @@ public class JobRunner {
         }
 
         log.debug("Waiting for job to finish. jobId: '{}'", jobId);
-        Predicate<Job> jobIsFinished = j -> JobPhase.fromJob(j)
+        Predicate<Job> jobIsFinished = j -> j == null || JobPhase.fromJob(j)
                 .map(JobPhase::isFinal)
                 .orElse(false);
         var finishedJob = client.waitJob(namespace, job, jobIsFinished, imageBuildTimeoutSec);
+        if (finishedJob == null) {
+            throw new JobExternallyDeletedException(jobId);
+        }
         var finishedState = JobPhase.fromJobStrictly(finishedJob);
         if (finishedState == JobPhase.SUCCEEDED) {
             log.info("Job has finished successfully. jobId: '{}'", jobId);
@@ -134,6 +150,20 @@ public class JobRunner {
         }
 
         return finishedState == JobPhase.SUCCEEDED;
+    }
+
+    public void deleteJob(@NotNull UUID groupId) {
+        log.info("Deleting Job(s) in namespace '{}' with label {}={} (timeout {}s)",
+                buildNamespace, IMAGE_DEFINITION_ID_LABEL, groupId, imageBuildStopTimeoutSec);
+        k8sClient.deleteJobsByLabelAndWait(buildNamespace, IMAGE_DEFINITION_ID_LABEL, String.valueOf(groupId), imageBuildStopTimeoutSec);
+    }
+
+    private static void tagJobWithGroupId(Job job, UUID groupId) {
+        var metadata = job.getMetadata();
+        if (metadata.getLabels() == null) {
+            metadata.setLabels(new HashMap<>());
+        }
+        metadata.getLabels().put(IMAGE_DEFINITION_ID_LABEL, String.valueOf(groupId));
     }
 
     private static boolean isContainerLogsAvailable(Pod pod, String containerName) {

@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceCle
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.kubernetes.JobExternallyDeletedException;
 import com.epam.aidial.deployment.manager.model.GitDockerfileImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
@@ -37,12 +38,19 @@ public class ImageBuildFromGitPipeline {
         var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(imageDefinitionId)));
 
+        boolean externallyInterrupted = false;
         try {
             run(imageDefinition);
+        } catch (JobExternallyDeletedException e) {
+            externallyInterrupted = true;
+            log.info("Image build pipeline interrupted by external Job deletion for image definition '{}'. "
+                    + "Leaving status change and cleanup to the stop action.", imageDefinitionId);
         } catch (Exception e) {
             imageDefinitionService.failBuild(imageDefinitionId, "Image build has failed: %s".formatted(e.getMessage()));
         } finally {
-            disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
+            if (!externallyInterrupted) {
+                disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);
+            }
         }
     }
 

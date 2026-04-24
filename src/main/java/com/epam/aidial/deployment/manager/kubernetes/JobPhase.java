@@ -36,6 +36,9 @@ public enum JobPhase {
     }
 
     public static Optional<JobPhase> fromJob(Job job) {
+        if (job == null) {
+            return Optional.empty();
+        }
         final var status = job.getStatus();
         if (status == null) {
             return Optional.empty();

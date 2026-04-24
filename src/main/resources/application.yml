@@ -116,6 +116,7 @@ app:
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
   image-build-timeout-sec: 300
+  image-build-stop-timeout-sec: 30
   image-build-logs-size-limit: 1000
   heartbeat-period-sec: 30
   max-error-log-lines: 20

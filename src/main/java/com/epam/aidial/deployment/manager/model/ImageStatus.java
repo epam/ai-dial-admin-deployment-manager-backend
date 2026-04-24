@@ -9,7 +9,8 @@ public enum ImageStatus {
     NOT_BUILT(false),
     BUILDING(false),
     BUILD_FAILED(true),
-    BUILD_SUCCESSFUL(true);
+    BUILD_SUCCESSFUL(true),
+    BUILD_STOPPED(true);
 
     private final boolean isFinal;
 }

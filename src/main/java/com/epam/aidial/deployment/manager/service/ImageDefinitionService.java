@@ -158,6 +158,11 @@ public class ImageDefinitionService {
         imageDefinitionRepository.failBuild(id, errorLog);
     }
 
+    @Transactional
+    public boolean stopBuild(UUID id) {
+        return imageDefinitionRepository.stopBuild(id);
+    }
+
     public void deleteImageDefinitionAsync(UUID id) {
         componentCleanupService.deleteAsync(ComponentRemoval.of(String.valueOf(id), ComponentType.IMAGE_DEFINITION));
     }

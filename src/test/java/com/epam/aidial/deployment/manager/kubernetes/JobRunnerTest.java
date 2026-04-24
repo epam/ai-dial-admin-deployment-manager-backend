@@ -37,6 +37,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -57,7 +58,9 @@ class JobRunnerTest {
     private static final String LABEL_VALUE = "test-job-id";
     private static final String JOB_NAME = "test-job";
     private static final String POD_NAME = "test-pod";
+
     private static final int TIMEOUT_SEC = 60;
+    private static final int STOP_TIMEOUT_SEC = 30;
 
     private static final List<String> CONTAINER_NAMES = List.of("builder-container");
     private static final List<String> GLOBAL_ALLOWED_DOMAINS = List.of("github.com", "docker.com");
@@ -86,7 +89,7 @@ class JobRunnerTest {
     @BeforeEach
     void setUp() {
         jobRunner = new JobRunner(globalDomainWhitelistService, ciliumNetworkPolicyCreator, disposableResourceManager,
-                k8sClient, podLogReader);
+                k8sClient, podLogReader, NAMESPACE, TIMEOUT_SEC, STOP_TIMEOUT_SEC);
         groupId = UUID.randomUUID();
 
         when(jobSpecification.getJobId()).thenReturn(LABEL_VALUE);
@@ -104,7 +107,7 @@ class JobRunnerTest {
         setupMocksForSuccessfulExecution();
 
         // When
-        boolean result = jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+        boolean result = jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then
         assertThat(result).isTrue();
@@ -118,7 +121,7 @@ class JobRunnerTest {
         setupMocksForFailedExecution();
 
         // When
-        boolean result = jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+        boolean result = jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then
         assertThat(result).isFalse();
@@ -132,12 +135,52 @@ class JobRunnerTest {
         setupMocksForFailedExecutionWithDisabledCilium();
 
         // When
-        boolean result = jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
+        boolean result = jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS);
 
         // Then
         assertThat(result).isFalse();
         verifyResourcesCreated(false);
         verifyJobPhaseCallbacks(JobPhase.CREATED, JobPhase.RUNNING, JobPhase.FAILED);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void run_shouldThrowJobExternallyDeletedException_whenFinishWaitReturnsNull() {
+        // Given — Job starts running but is deleted before reaching a terminal state (simulates admin stop action)
+        List<Secret> secrets = List.of(createSecret("secret1"));
+        List<ConfigMap> configMaps = List.of(createConfigMap("cm1"));
+        Job job = createJob(JOB_NAME);
+
+        when(jobSpecification.getSecrets()).thenReturn(secrets);
+        when(jobSpecification.getConfigMaps()).thenReturn(configMaps);
+        when(jobSpecification.getJob()).thenReturn(job);
+
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(false);
+
+        when(k8sClient.createSecret(eq(NAMESPACE), any(Secret.class))).thenReturn(secrets.getFirst());
+        when(k8sClient.createConfigMap(eq(NAMESPACE), any(ConfigMap.class))).thenReturn(configMaps.getFirst());
+        when(k8sClient.createJob(eq(NAMESPACE), any(Job.class))).thenReturn(job);
+
+        Job runningJob = createJobWithStatus(JOB_NAME, 1, 0, null, null);
+        // First waitJob (for running) returns a running Job; second waitJob (for finished) returns null → externally deleted
+        when(k8sClient.waitJob(eq(NAMESPACE), eq(job), any(Predicate.class), eq(TIMEOUT_SEC)))
+                .thenReturn(runningJob, (Job) null);
+
+        Pod pod = createPod(POD_NAME, "Running");
+        PodList podList = new PodList();
+        podList.setItems(List.of(pod));
+        when(k8sClient.getJobPods(NAMESPACE, JOB_NAME)).thenReturn(podList);
+        when(k8sClient.waitPod(eq(NAMESPACE), eq(pod), any(Predicate.class), eq(TIMEOUT_SEC))).thenReturn(pod);
+
+        PodResource podResource = mock(PodResource.class);
+        ContainerResource containerResource = mock(ContainerResource.class);
+        when(k8sClient.getPodResource(NAMESPACE, POD_NAME)).thenReturn(podResource);
+        when(podResource.inContainer(CONTAINER_NAMES.getFirst())).thenReturn(containerResource);
+
+        // When / Then
+        assertThatThrownBy(() -> jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, ALLOWED_DOMAINS))
+                .isInstanceOf(JobExternallyDeletedException.class)
+                .hasMessageContaining(LABEL_VALUE);
     }
 
     @SuppressWarnings("unchecked")
@@ -195,7 +238,7 @@ class JobRunnerTest {
         }).when(podLogReader).readLogs(any(ContainerResource.class), logConsumerCaptor.capture());
 
         // When
-        jobRunner.run(jobSpecification, jobCallback, TIMEOUT_SEC, groupId, CONTAINER_NAMES, new ArrayList<>());
+        jobRunner.run(jobSpecification, jobCallback, groupId, CONTAINER_NAMES, new ArrayList<>());
 
         // Then
         verify(jobCallback).onNewLog(List.of("Log line 1", "Log line 2"));
