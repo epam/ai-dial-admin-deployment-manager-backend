@@ -445,6 +445,32 @@ class NimManifestGeneratorTest {
     }
 
     @Test
+    void shouldNotSetScalingAnnotations_inKserveModeWhenScalingIsNull() {
+        // Given: kserve mode without a Scaling object — Knative's own defaults should apply,
+        // so no autoscaling annotations are emitted by the generator.
+        nimDeployProperties.setKserveModeEnabled(true);
+        var deploymentName = "kserve-no-scale-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations)
+                .doesNotContainKey(KnativeAnnotations.MIN_SCALE)
+                .doesNotContainKey(KnativeAnnotations.MAX_SCALE)
+                .doesNotContainKey(KnativeAnnotations.INITIAL_SCALE)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
+    }
+
+    @Test
     void shouldSetExposeRouter_inKserveMode() {
         // Given
         nimDeployProperties.setKserveModeEnabled(true);

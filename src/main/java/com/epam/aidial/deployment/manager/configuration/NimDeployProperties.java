@@ -23,6 +23,6 @@ public class NimDeployProperties {
 
     @AssertTrue(message = "'cluster-host' must not be blank when 'use-cluster-internal-url' is false and 'kserve-mode-enabled' is false")
     public boolean isClusterHostValid() {
-        return kserveModeEnabled || useClusterInternalUrl || StringUtils.isNotEmpty(clusterHost);
+        return kserveModeEnabled || useClusterInternalUrl || StringUtils.isNotBlank(clusterHost);
     }
 }

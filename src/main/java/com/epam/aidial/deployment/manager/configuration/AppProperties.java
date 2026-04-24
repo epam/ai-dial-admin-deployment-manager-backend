@@ -112,6 +112,10 @@ public class AppProperties {
         return Serialization.clone(nimServiceConfig);
     }
 
+    public Ingress cloneNimServiceExposeIngressConfig() {
+        return Serialization.clone(nimServiceExposeIngressConfig);
+    }
+
     public InferenceService cloneInferenceServiceConfig() {
         return Serialization.clone(inferenceServiceConfig);
     }

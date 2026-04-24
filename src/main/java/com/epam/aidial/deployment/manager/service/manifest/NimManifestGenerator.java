@@ -44,6 +44,7 @@ import java.util.Map;
 public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private static final String NIM_SERVED_MODEL_NAME_ENV = "NIM_SERVED_MODEL_NAME";
+    private static final String TLS_SECRET_NAME_SUFFIX = "-tls-secret";
 
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
@@ -114,8 +115,14 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             specChain.data().setInferencePlatform(NIMServiceSpec.InferencePlatform.KSERVE);
             exposeChain.data().setRouter(new Router());
             applyScaling(name, scaling, config);
-        } else if (useExternalUrl) {
-            applyExposeIngress(exposeChain, serviceName, nimDeployProperties.getClusterHost(), containerPort);
+        } else {
+            if (scaling != null) {
+                log.warn("NIM deployment '{}': 'scaling' is ignored in legacy (standalone) mode. "
+                        + "Set app.nim.deploy.kserve-mode-enabled=true to enable Knative autoscaling.", name);
+            }
+            if (useExternalUrl) {
+                applyExposeIngress(exposeChain, serviceName, nimDeployProperties.getClusterHost(), containerPort);
+            }
         }
 
         if (command != null) {
@@ -154,41 +161,49 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     }
 
     private void applyExposeIngress(MappingChain<Expose> exposeChain, String nimServiceName, String clusterHost, int httpPort) {
-        var ingressChain = new MappingChain<>(appConfig.getNimServiceExposeIngressConfig());
-        var ingressSpecChain = ingressChain.get(NimMappers.INGRESS_SPEC_FIELD);
-        var ingressSpec = ingressSpecChain.data();
+        var host = nimServiceName + "." + clusterHost;
 
-        ingressSpec.setTls(List.of(buildTls(nimServiceName, clusterHost)));
-        ingressSpec.setRules(List.of(buildRule(nimServiceName, clusterHost, httpPort)));
+        var ingressChain = new MappingChain<>(appConfig.cloneNimServiceExposeIngressConfig());
+        var ingressSpec = ingressChain.get(NimMappers.INGRESS_SPEC_FIELD).data();
+        ingressSpec.setTls(List.of(buildTls(nimServiceName, host)));
+        ingressSpec.setRules(List.of(buildRule(nimServiceName, host, httpPort)));
 
         exposeChain.data().setIngress(ingressChain.data());
     }
 
-    private Tls buildTls(String nimServiceName, String clusterHost) {
+    private Tls buildTls(String nimServiceName, String host) {
         var tls = new Tls();
-        tls.setHosts(List.of(nimServiceName + "." + clusterHost));
-        tls.setSecretName(nimServiceName + "-tls-secret");
+        tls.setHosts(List.of(host));
+        tls.setSecretName(nimServiceName + TLS_SECRET_NAME_SUFFIX);
         return tls;
     }
 
-    private Rules buildRule(String nimServiceName, String clusterHost, int httpPort) {
-        var rule = new Rules();
-        rule.setHost(nimServiceName + "." + clusterHost);
-        var http = new Http();
+    private Rules buildRule(String nimServiceName, String host, int httpPort) {
         var path = new Paths();
         path.setPath("/");
         path.setPathType("Prefix");
-        var backend = new Backend();
-        var backendService = new Service();
-        backendService.setName(nimServiceName);
-        var port = new Port();
-        port.setNumber(httpPort);
-        backendService.setPort(port);
-        backend.setService(backendService);
-        path.setBackend(backend);
+        path.setBackend(buildBackend(nimServiceName, httpPort));
+
+        var http = new Http();
         http.setPaths(List.of(path));
+
+        var rule = new Rules();
+        rule.setHost(host);
         rule.setHttp(http);
         return rule;
+    }
+
+    private Backend buildBackend(String nimServiceName, int httpPort) {
+        var servicePort = new Port();
+        servicePort.setNumber(httpPort);
+
+        var service = new Service();
+        service.setName(nimServiceName);
+        service.setPort(servicePort);
+
+        var backend = new Backend();
+        backend.setService(service);
+        return backend;
     }
 
     private void applyScaling(String name, @Nullable Scaling scaling, MappingChain<NIMService> config) {
