@@ -32,7 +32,7 @@ This project uses speckit (`/speckit.*` slash commands) for feature development.
 ## Active Technologies
 - Java 21, Spring Boot 3.5.10, Gradle 8.13 + Fabric8 Kubernetes Client 7.5.2, NVIDIA NIM CRD (NIMService), MapStruct 1.6.0, Lombok 8.10 (013-nim-served-model-name)
 - Java 21, Spring Boot 3.5.10, Gradle 8.13 + Fabric8 Kubernetes Client 7.5.2 (existing; provides `LocalPortForward`); gRPC 1.75.0 (`grpc-netty-shaded` already constrained, add `grpc-stub`, `grpc-protobuf`); Protobuf 3.25.3 (`protobuf-java`); com.google.protobuf Gradle plugin 0.9.4; MapStruct 1.6.0; Lombok 8.10 (018-hubble-relay-domains)
-- H2 2.3.232 (dev/test), PostgreSQL 42.7.8, SQL Server 13.2.1 — Flyway migrations V1.58 and V1.59 across all three vendors (018-hubble-relay-domains)
+- H2 2.3.232 (dev/test), PostgreSQL 42.7.8, SQL Server 13.2.1 — Flyway migrations V1.59 and V1.60 across all three vendors (018-hubble-relay-domains)
 
 ## Recent Changes
 - 013-nim-served-model-name

@@ -53,9 +53,9 @@ public enum CiliumVerdict {
 
 ## Flyway Migrations
 
-### V1.58 — CreateImageBuildDomainEntriesTable
+### V1.59 — CreateImageBuildDomainEntriesTable
 
-#### H2 (`src/main/resources/db/migration/H2/V1.58__CreateImageBuildDomainEntriesTable.sql`)
+#### H2 (`src/main/resources/db/migration/H2/V1.59__CreateImageBuildDomainEntriesTable.sql`)
 
 ```sql
 CREATE TABLE image_build_domain_entries (
@@ -72,7 +72,7 @@ CREATE TABLE image_build_domain_entries (
 );
 ```
 
-#### POSTGRES (`src/main/resources/db/migration/POSTGRES/V1.58__CreateImageBuildDomainEntriesTable.sql`)
+#### POSTGRES (`src/main/resources/db/migration/POSTGRES/V1.59__CreateImageBuildDomainEntriesTable.sql`)
 
 ```sql
 CREATE TABLE image_build_domain_entries (
@@ -89,7 +89,7 @@ CREATE TABLE image_build_domain_entries (
 );
 ```
 
-#### MS_SQL_SERVER (`src/main/resources/db/migration/MS_SQL_SERVER/V1.58__CreateImageBuildDomainEntriesTable.sql`)
+#### MS_SQL_SERVER (`src/main/resources/db/migration/MS_SQL_SERVER/V1.59__CreateImageBuildDomainEntriesTable.sql`)
 
 ```sql
 CREATE TABLE image_build_domain_entries (
@@ -109,9 +109,9 @@ go
 
 ---
 
-### V1.59 — CreateDeploymentDomainEntriesTable
+### V1.60 — CreateDeploymentDomainEntriesTable
 
-#### H2 (`src/main/resources/db/migration/H2/V1.59__CreateDeploymentDomainEntriesTable.sql`)
+#### H2 (`src/main/resources/db/migration/H2/V1.60__CreateDeploymentDomainEntriesTable.sql`)
 
 ```sql
 CREATE TABLE deployment_domain_entries (
@@ -128,7 +128,7 @@ CREATE TABLE deployment_domain_entries (
 );
 ```
 
-#### POSTGRES (`src/main/resources/db/migration/POSTGRES/V1.59__CreateDeploymentDomainEntriesTable.sql`)
+#### POSTGRES (`src/main/resources/db/migration/POSTGRES/V1.60__CreateDeploymentDomainEntriesTable.sql`)
 
 ```sql
 CREATE TABLE deployment_domain_entries (
@@ -145,7 +145,7 @@ CREATE TABLE deployment_domain_entries (
 );
 ```
 
-#### MS_SQL_SERVER (`src/main/resources/db/migration/MS_SQL_SERVER/V1.59__CreateDeploymentDomainEntriesTable.sql`)
+#### MS_SQL_SERVER (`src/main/resources/db/migration/MS_SQL_SERVER/V1.60__CreateDeploymentDomainEntriesTable.sql`)
 
 ```sql
 CREATE TABLE deployment_domain_entries (

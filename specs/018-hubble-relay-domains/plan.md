@@ -11,7 +11,7 @@ When Hubble Relay is enabled, the system captures real-time DNS flow verdicts (A
 
 **Language/Version**: Java 21, Spring Boot 3.5.10, Gradle 8.13
 **Primary Dependencies**: Fabric8 Kubernetes Client 7.5.2 (existing; provides `LocalPortForward`); gRPC 1.75.0 (`grpc-netty-shaded` already constrained, add `grpc-stub`, `grpc-protobuf`); Protobuf 3.25.3 (`protobuf-java`); com.google.protobuf Gradle plugin 0.9.4; MapStruct 1.6.0; Lombok 8.10; `Executors.newVirtualThreadPerTaskExecutor()` for Hubble observation threads (Java 21 built-in, no new dependency)
-**Storage**: H2 2.3.232 (dev/test), PostgreSQL 42.7.8, SQL Server 13.2.1 — Flyway migrations V1.58 and V1.59 across all three vendors
+**Storage**: H2 2.3.232 (dev/test), PostgreSQL 42.7.8, SQL Server 13.2.1 — Flyway migrations V1.59 and V1.60 across all three vendors
 **Testing**: JUnit 5, Testcontainers 1.21.3, AssertJ; `./gradlew testFast` for H2-only dev loop; `./gradlew test` for full vendor matrix
 **Target Platform**: Linux server / Kubernetes pod (Spring Boot executable JAR)
 **Project Type**: web-service (REST + SSE)
@@ -23,18 +23,18 @@ When Hubble Relay is enabled, the system captures real-time DNS flow verdicts (A
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Gate | Status | Notes |
-|------|--------|-------|
-| Strict Layered Architecture | ✅ PASS | gRPC calls isolated to `kubernetes/hubble/`; service layer calls kubernetes layer |
-| Transactional Discipline | ✅ PASS | `@Transactional` only on service and DAO layers |
-| Kubernetes Isolation | ✅ PASS | `HubbleRelayGrpcChannelFactory`, `HubbleFlowObserver` in `kubernetes/hubble/` |
-| Observability First | ✅ PASS | `@LogExecution` on all new Spring components |
-| Security by Configuration | ✅ PASS | `HUBBLE_RELAY_ENABLED` flag; TLS trust store configurable |
-| Configuration defaults in `application.yml` | ✅ PASS | All `HubbleRelayProperties` defaults in `application.yml` only |
-| Multi-vendor migrations | ✅ PASS | V1.58 and V1.59 created for H2, POSTGRES, MS_SQL_SERVER |
-| `docs/configuration.md` update | ✅ REQUIRED | Task added to update docs with new env vars |
-| `./gradlew generateDbSchema` | ✅ REQUIRED | Final task to regenerate `docs/db-schema.md` |
-| No polling loops for K8s state | ✅ PASS | gRPC streaming is blocking read loop on virtual thread (not a K8s state polling loop) |
+| Gate | Status | Notes                                                                                                      |
+|------|--------|------------------------------------------------------------------------------------------------------------|
+| Strict Layered Architecture | ✅ PASS | gRPC calls isolated to `kubernetes/hubble/`; service layer calls kubernetes layer                          |
+| Transactional Discipline | ✅ PASS | `@Transactional` only on service and DAO layers                                                            |
+| Kubernetes Isolation | ✅ PASS | `HubbleRelayGrpcChannelFactory`, `HubbleFlowObserver` in `kubernetes/hubble/`                              |
+| Observability First | ✅ PASS | `@LogExecution` on all new Spring components                                                               |
+| Security by Configuration | ✅ PASS | `HUBBLE_RELAY_ENABLED` flag; TLS trust store configurable                                                  |
+| Configuration defaults in `application.yml` | ✅ PASS | All `HubbleRelayProperties` defaults in `application.yml` only                                             |
+| Multi-vendor migrations | ✅ PASS | V1.59 and V1.60 created for H2, POSTGRES, MS_SQL_SERVER                                                    |
+| `docs/configuration.md` update | ✅ REQUIRED | Task added to update docs with new env vars                                                                |
+| `./gradlew generateDbSchema` | ✅ REQUIRED | Final task to regenerate `docs/db-schema.md`                                                               |
+| No polling loops for K8s state | ✅ PASS | gRPC streaming is blocking read loop on virtual thread (not a K8s state polling loop)                      |
 | `@LogExecution` on all Spring components | ✅ PASS | Required on `HubbleDomainFlowService`, `HubbleRelayGrpcChannelFactory`, `HubbleDomainFilter`, repositories |
 
 *Post-design re-check: all gates still pass. Complexity justification below covers the gRPC addition.*
@@ -101,14 +101,14 @@ src/main/resources/
 ├── application.yml                                   (MODIFIED) — hubble relay config defaults
 └── db/migration/
     ├── H2/
-    │   ├── V1.58__CreateImageBuildDomainEntriesTable.sql (NEW)
-    │   └── V1.59__CreateDeploymentDomainEntriesTable.sql (NEW)
+    │   ├── V1.59__CreateImageBuildDomainEntriesTable.sql (NEW)
+    │   └── V1.60__CreateDeploymentDomainEntriesTable.sql (NEW)
     ├── POSTGRES/
-    │   ├── V1.58__CreateImageBuildDomainEntriesTable.sql (NEW)
-    │   └── V1.59__CreateDeploymentDomainEntriesTable.sql (NEW)
+    │   ├── V1.59__CreateImageBuildDomainEntriesTable.sql (NEW)
+    │   └── V1.60__CreateDeploymentDomainEntriesTable.sql (NEW)
     └── MS_SQL_SERVER/
-        ├── V1.58__CreateImageBuildDomainEntriesTable.sql (NEW)
-        └── V1.59__CreateDeploymentDomainEntriesTable.sql (NEW)
+        ├── V1.59__CreateImageBuildDomainEntriesTable.sql (NEW)
+        └── V1.60__CreateDeploymentDomainEntriesTable.sql (NEW)
 
 build.gradle                                          (MODIFIED) — grpc-stub, grpc-protobuf, protobuf-java deps; protobuf plugin
 
