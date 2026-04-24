@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.KnativeDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
@@ -68,6 +69,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
             ContainerPortResolver containerPortResolver,
             DisposableResourceManager disposableResourceManager,
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+            NodePoolProperties nodePoolProperties,
             HubbleDomainFlowService hubbleDomainFlowService,
             DeploymentDomainEntryRepository deploymentDomainEntryRepository,
             HealthCheckProvider healthCheckProvider,
@@ -76,7 +78,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
             @Value("${app.knative-service-container-config.name}") String serviceContainer
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
-                containerPortResolver, ciliumNetworkPolicyCreator, hubbleDomainFlowService,
+                containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, hubbleDomainFlowService,
                 deploymentDomainEntryRepository, knativeDeployProperties.getNamespace(),
                 knativeDeployProperties.getStartupTimeout(), DEFAULT_KNATIVE_SERVICE_PORT);
         this.knativeManifestGenerator = knativeManifestGenerator;
@@ -117,6 +119,8 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
+        var nodePoolLabels = resolveNodePoolLabels(deployment.getNodePool());
+
         return knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
@@ -129,7 +133,8 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 containerPort,
                 deployment.getProbeProperties(),
                 deployment.getCommand(),
-                deployment.getArgs());
+                deployment.getArgs(),
+                nodePoolLabels);
     }
 
     private String resolveImageName(Deployment deployment) {

@@ -217,7 +217,9 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour). Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration).                                 |
 | `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments                                                                                                                                                      |
 | `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | When `true`, NIM services use cluster-internal URL. When `false`, external URL is used.                                                                            |
+| `app.nim.deploy.cluster-host`             | `K8S_NIM_CLUSTER_HOST`                            | -             | Yes, when `use-cluster-internal-url=false` and `kserve-mode-enabled=false` | NIM deploy | Cluster host used to construct the ingress host for NIM services in legacy (standalone) mode. Unused when `kserve-mode-enabled=true`. |
 | `app.nim.deploy.url-schema`               | `K8S_NIM_DEPLOYMENT_URL_SCHEMA`                   | -             | No                                                | NIM deploy   | Override URL schema prefix for resolved NIM service URLs. When empty, defaults apply: `http` for cluster-internal, `https` for external. Accepts values with or without `://` (e.g., both `https` and `https://` work). |
+| `app.nim.deploy.kserve-mode-enabled`      | `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED`          | `false`       | No                                                | NIM deploy   | When `true`, generates NIMService manifests with `inferencePlatform: kserve`, Knative `expose.router`, and Knative autoscaling annotations. When `false` (default), uses standalone mode with ingress-based external exposure. |
 
 #### KServe Configuration
 
@@ -229,6 +231,44 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.kserve.deploy.startup-timeout`          | `K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`       | `3600`        | No                                                | -            | Seconds to wait for a KServe service to become ready. Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration). |
 | `app.kserve.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for KServe deployments                                                                                                                        |
 | `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
+
+
+#### Node Pool Configuration
+
+Node pools define groups of Kubernetes nodes that deployments can be pinned to. When a deployment has a node pool selected, hard node affinity is applied at deploy time to constrain pods to nodes matching the pool's label selector.
+
+| Property | Environment Variable | Default Value | Required | Description |
+|----------|---------------------|---------------|----------|-------------|
+| `app.node-pools.label-key` | `NODE_POOL_LABEL_KEY` | _(empty)_ | Required when `app.node-pools.pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
+| `app.node-pools.pools` | `NODE_POOLS` | _(empty)_ | No | JSON array of node pool configurations. See format below |
+
+**JSON format for `NODE_POOLS`**:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique pool identifier. Also used as the value for the node label selector |
+| `description` | string | No | Human-readable description shown in the UI |
+| `instance` | string | No | Cloud instance type (e.g., `a2-ultragpu-4g`) |
+| `minNodes` | int | No | Minimum number of nodes in this pool (must be >= 0, default 0) |
+| `maxNodes` | int | Yes | Maximum number of nodes in this pool (must be > 0, must be >= minNodes) |
+| `gpu` | object | No | GPU specification per node. Omit or set to `null` for CPU-only pools |
+| `gpu.name` | string | Yes (if gpu set) | GPU model name (e.g., `NVIDIA A100`) |
+| `gpu.vramBytes` | long | Yes (if gpu set) | VRAM capacity per GPU in bytes (must be > 0) |
+| `gpu.count` | int | Yes (if gpu set) | Number of GPUs per node (must be > 0) |
+| `cpu` | object | Yes | CPU specification per node |
+| `cpu.name` | string | No | Processor name (e.g., `AMD EPYC Milan`) |
+| `cpu.milliCpus` | long | Yes | CPU capacity per node in millicores (must be > 0) |
+| `memory` | object | Yes | Memory specification per node |
+| `memory.bytes` | long | Yes | Memory capacity per node in bytes (must be > 0) |
+
+**Startup validation**: The application validates the JSON on startup and fails fast if the JSON is malformed, pool names are duplicated, any required field is missing/invalid, or `app.node-pools.label-key` is blank while node pools are configured.
+
+**Example**:
+
+```bash
+NODE_POOL_LABEL_KEY=node-pool
+NODE_POOLS='[{"name":"gpu-a100-prod","description":"LLM inference & fine-tuning","instance":"a2-ultragpu-4g","maxNodes":10,"gpu":{"name":"NVIDIA A100","vramBytes":85899345920,"count":4},"cpu":{"name":"AMD EPYC Milan","milliCpus":48000},"memory":{"bytes":730144440320}},{"name":"cpu-highmem","description":"Data preprocessing","maxNodes":5,"cpu":{"milliCpus":64000},"memory":{"bytes":549755813888}}]'
+```
 
 
 #### Cleanup and Maintenance Configuration

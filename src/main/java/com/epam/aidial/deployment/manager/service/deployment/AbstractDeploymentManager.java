@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResou
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
@@ -72,6 +73,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected final ContainerPortResolver containerPortResolver;
     protected final DisposableResourceManager disposableResourceManager;
     protected final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
+    protected final NodePoolProperties nodePoolProperties;
     protected final HubbleDomainFlowService hubbleDomainFlowService;
     protected final DeploymentDomainEntryRepository deploymentDomainEntryRepository;
 
@@ -85,6 +87,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         DeploymentRepository deploymentRepository,
                                         ContainerPortResolver containerPortResolver,
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+                                        NodePoolProperties nodePoolProperties,
                                         HubbleDomainFlowService hubbleDomainFlowService,
                                         DeploymentDomainEntryRepository deploymentDomainEntryRepository,
                                         String namespace,
@@ -96,11 +99,22 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         this.containerPortResolver = containerPortResolver;
         this.disposableResourceManager = disposableResourceManager;
         this.ciliumNetworkPolicyCreator = ciliumNetworkPolicyCreator;
+        this.nodePoolProperties = nodePoolProperties;
         this.hubbleDomainFlowService = hubbleDomainFlowService;
         this.deploymentDomainEntryRepository = deploymentDomainEntryRepository;
         this.namespace = namespace;
         this.startupTimeoutSec = startupTimeoutSec;
         this.defaultContainerPort = defaultContainerPort;
+    }
+
+    protected Map<String, String> resolveNodePoolLabels(String nodePool) {
+        if (StringUtils.isBlank(nodePool)) {
+            return null;
+        }
+        if (!nodePoolProperties.exists(nodePool)) {
+            throw new IllegalArgumentException("Node pool '%s' is no longer configured".formatted(nodePool));
+        }
+        return nodePoolProperties.getLabelSelector(nodePool);
     }
 
     @Override

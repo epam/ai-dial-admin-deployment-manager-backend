@@ -75,7 +75,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, simpleEnvs, sensitiveEnvs, Collections.emptyList(), imageName,
-                null, resources, null, null, null, null
+                null, resources, null, null, null, null, null
         );
 
         // Then
@@ -94,7 +94,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                scaling, new Resources(), null, null, null, null
+                scaling, new Resources(), null, null, null, null, null
         );
 
         // Then
@@ -114,7 +114,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                scaling, new Resources(), null, null, null, null
+                scaling, new Resources(), null, null, null, null, null
         );
 
         // Then: class/metric/target are written explicitly (not inherited from cluster defaults)
@@ -144,7 +144,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, resources, null, null, null, null
+                null, resources, null, null, null, null, null
         );
 
         // Then
@@ -163,7 +163,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), containerPort, null, null, null
+                null, new Resources(), containerPort, null, null, null, null
         );
 
         // Then
@@ -186,7 +186,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null
+                null, new Resources(), null, null, null, null, null
         );
 
         // Then
@@ -208,7 +208,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, probeProperties, null, null
+                null, new Resources(), null, probeProperties, null, null, null
         );
 
         // Then
@@ -225,7 +225,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null
+                null, new Resources(), null, null, null, null, null
         );
 
         // Then
@@ -246,7 +246,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, probeProperties, null, null
+                null, new Resources(), null, probeProperties, null, null, null
         );
 
         // Then: container has startup probe with expected path, port and timing
@@ -273,7 +273,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, command, args
+                null, new Resources(), null, null, command, args, null
         );
 
         // Then
@@ -292,7 +292,7 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, command, null
+                null, new Resources(), null, null, command, null, null
         );
 
         // Then
@@ -310,13 +310,58 @@ class KnativeManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null
+                null, new Resources(), null, null, null, null, null
         );
 
         // Then
         var container = generatedService.getSpec().getTemplate().getSpec().getContainers().getFirst();
         assertThat(container.getCommand()).isNullOrEmpty();
         assertThat(container.getArgs()).isNullOrEmpty();
+    }
+
+    @Test
+    void testServiceConfig_withNodePoolLabels_setsNodeAffinity() {
+        // Given
+        var deploymentName = "node-pool-app";
+        var imageName = "my-registry/node-pool-image:v1";
+        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, null, null, nodePoolLabels
+        );
+
+        // Then
+        var affinity = generatedService.getSpec().getTemplate().getSpec().getAffinity();
+        assertThat(affinity).isNotNull();
+        assertThat(affinity.getNodeAffinity()).isNotNull();
+
+        var required = affinity.getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
+        assertThat(required).isNotNull();
+        assertThat(required.getNodeSelectorTerms()).hasSize(1);
+
+        var matchExpressions = required.getNodeSelectorTerms().getFirst().getMatchExpressions();
+        assertThat(matchExpressions).hasSize(1);
+        assertThat(matchExpressions.getFirst().getKey()).isEqualTo("node-pool-key");
+        assertThat(matchExpressions.getFirst().getOperator()).isEqualTo("In");
+        assertThat(matchExpressions.getFirst().getValues()).containsExactly("gpu-pool");
+    }
+
+    @Test
+    void testServiceConfig_withNullNodePoolLabels_doesNotSetAffinity() {
+        // Given
+        var deploymentName = "no-pool-app";
+        var imageName = "my-registry/no-pool-image:v1";
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
+                null, new Resources(), null, null, null, null, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getTemplate().getSpec().getAffinity()).isNull();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

@@ -3,9 +3,6 @@
   "kind" : "NIMService",
   "metadata" : {
     "annotations" : {
-      "autoscaling.knative.dev/initial-scale" : "1",
-      "autoscaling.knative.dev/min-scale" : "1",
-      "autoscaling.knative.dev/max-scale" : "1",
       "serving.knative.dev/progress-deadline" : "3630s"
     },
     "name" : "dm-basic-nim-app"
@@ -28,7 +25,6 @@
       "value" : "basic-nim-app"
     } ],
     "expose" : {
-      "router" : { },
       "service" : {
         "port" : 8000,
         "type" : "ClusterIP"
@@ -40,7 +36,7 @@
       "repository" : "my-registry.io/custom/my-model",
       "tag" : "v1.2.3"
     },
-    "inferencePlatform" : "kserve",
+    "inferencePlatform" : "standalone",
     "replicas" : 1,
     "resources" : {
       "limits" : {

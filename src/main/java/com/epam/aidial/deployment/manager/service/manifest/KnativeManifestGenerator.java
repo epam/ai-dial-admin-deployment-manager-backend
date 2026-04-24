@@ -17,22 +17,28 @@ import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.knative.serving.v1.RevisionSpec;
 import io.fabric8.knative.serving.v1.RevisionTemplateSpec;
 import io.fabric8.knative.serving.v1.Service;
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirementBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorTermBuilder;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -65,7 +71,8 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties,
             @Nullable List<String> command,
-            @Nullable List<String> args
+            @Nullable List<String> args,
+            @Nullable Map<String, String> nodePoolLabels
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneKnativeServiceConfig,
@@ -120,6 +127,11 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
         }
 
         applyStartupProbe(name, containerChain, probeProperties);
+
+        var affinity = buildNodePoolAffinity(nodePoolLabels);
+        if (affinity != null) {
+            revisionSpecChain.data().setAffinity(affinity);
+        }
 
         return config.data();
     }
@@ -199,6 +211,31 @@ public class KnativeManifestGenerator extends DeployableManifestGenerator {
                     .get(KnativeMappers.METADATA_ANNOTATIONS_FIELD).data();
             annotations.put(KnativeAnnotations.PROGRESS_DEADLINE, progressDeadline);
         }
+    }
+
+    @Nullable
+    private Affinity buildNodePoolAffinity(@Nullable Map<String, String> nodePoolLabels) {
+        if (MapUtils.isEmpty(nodePoolLabels)) {
+            return null;
+        }
+
+        var requirements = nodePoolLabels.entrySet().stream()
+                .map(entry -> new NodeSelectorRequirementBuilder()
+                        .withKey(entry.getKey())
+                        .withOperator("In")
+                        .withValues(entry.getValue())
+                        .build())
+                .toList();
+
+        return new AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .withNodeSelectorTerms(new NodeSelectorTermBuilder()
+                        .withMatchExpressions(requirements)
+                        .build())
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
     }
 
     private EnvVarSource buildKnativeSecretRef(SensitiveEnvVar env) {

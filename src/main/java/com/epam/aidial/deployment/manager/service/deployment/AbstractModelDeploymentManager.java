@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
@@ -26,13 +27,14 @@ public abstract class AbstractModelDeploymentManager<D extends Deployment, S ext
                                              DeploymentRepository deploymentRepository,
                                              ContainerPortResolver containerPortResolver,
                                              CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+                                             NodePoolProperties nodePoolProperties,
                                              HubbleDomainFlowService hubbleDomainFlowService,
                                              DeploymentDomainEntryRepository deploymentDomainEntryRepository,
                                              String namespace,
                                              int startupTimeoutSec,
                                              Integer defaultContainerPort) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, hubbleDomainFlowService, deploymentDomainEntryRepository,
+                ciliumNetworkPolicyCreator, nodePoolProperties, hubbleDomainFlowService, deploymentDomainEntryRepository,
                 namespace, startupTimeoutSec, defaultContainerPort);
     }
 

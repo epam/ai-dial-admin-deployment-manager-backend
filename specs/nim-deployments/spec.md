@@ -95,6 +95,36 @@ Status: **Implemented**
 - **WHEN** `POST /api/v1/deployments/{id}/deploy` is called for a NIM deployment with `app.nim.enabled=false`
 - **THEN** the deploy operation fails or is skipped with an appropriate error
 
+### Requirement: NIM inference platform is selected via configuration
+The NIMService manifest's inference platform SHALL be chosen by the `app.nim.deploy.kserve-mode-enabled` property (env `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED`, default `false`). The default (legacy) mode uses `inferencePlatform: standalone` with ingress-based external exposure; the opt-in mode uses `inferencePlatform: kserve` with Knative Serving.
+
+Status: **Implemented**
+
+#### Scenario: Legacy (standalone) mode — cluster-internal URL
+- **GIVEN** `app.nim.deploy.kserve-mode-enabled=false` and `app.nim.deploy.use-cluster-internal-url=true`
+- **WHEN** a NIM deployment is deployed
+- **THEN** the generated NIMService has `inferencePlatform: standalone`, no `expose.ingress`, no `expose.router`, and no Knative autoscaling annotations
+
+#### Scenario: Legacy (standalone) mode — external URL via ingress
+- **GIVEN** `app.nim.deploy.kserve-mode-enabled=false`, `app.nim.deploy.use-cluster-internal-url=false`, and `app.nim.deploy.cluster-host=example.com`
+- **WHEN** a NIM deployment is deployed
+- **THEN** the generated NIMService has `inferencePlatform: standalone` and `expose.ingress` configured with TLS and a rule routed to `<serviceName>.example.com`
+
+#### Scenario: Legacy mode rejects missing cluster host
+- **GIVEN** `app.nim.deploy.kserve-mode-enabled=false`, `app.nim.deploy.use-cluster-internal-url=false`, and `app.nim.deploy.cluster-host` is blank
+- **WHEN** the application starts
+- **THEN** configuration validation (`@AssertTrue NimDeployProperties.isClusterHostValid`) fails and the Spring context does not start
+
+#### Scenario: KServe mode
+- **GIVEN** `app.nim.deploy.kserve-mode-enabled=true`
+- **WHEN** a NIM deployment is deployed
+- **THEN** the generated NIMService has `inferencePlatform: kserve`, `expose.router` set to empty object, no `expose.ingress`, and Knative autoscaling annotations: `min-scale`, `max-scale`, and `initial-scale` are always set (default `1/1/1` when no `Scaling` is provided, otherwise derived from the `Scaling` with `initial-scale = Math.max(minReplicas, 1)`); `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, and `autoscaling.knative.dev/target` are set only when a `Scaling` with `ACTIVE_REQUESTS` strategy is provided (otherwise Knative cluster defaults apply)
+
+#### Scenario: KServe mode does not require cluster host
+- **GIVEN** `app.nim.deploy.kserve-mode-enabled=true`
+- **WHEN** `app.nim.deploy.cluster-host` is blank (regardless of `use-cluster-internal-url`)
+- **THEN** configuration validation passes and NIM manifests are generated — Knative Serving handles external routing
+
 ## Implementation Notes
 - Domain model: `com.epam.aidial.deployment.manager.model.deployment.NimDeployment`
 - Source domain model: `com.epam.aidial.deployment.manager.model.deployment.Source` (unified sealed interface; NIM uses `NgcRegistrySource` variant)

@@ -160,6 +160,7 @@
 | ARGS | JSON | Yes |  |  |
 | SOURCE | JSON | Yes |  |  |
 | SERVICE_NAME | VARCHAR(63) | Yes |  |  |
+| NODE_POOL | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 
@@ -192,10 +193,11 @@
 | SERVICE_NAME | VARCHAR(255) | Yes |  |  |
 | COMMAND | JSON | Yes |  |  |
 | ARGS | JSON | Yes |  |  |
+| NODE_POOL | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 
-- `FK_DEPLOYMENT_AUD_REV_INDEX_D` on (REV)
+- `FK_DEPLOYMENT_AUD_REV_INDEX_6` on (REV)
 
 ## DEPLOYMENT_DOMAIN_ENTRIES
 

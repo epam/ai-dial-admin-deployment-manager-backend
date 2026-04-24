@@ -1,0 +1,52 @@
+{
+  "apiVersion" : "apps.nvidia.com/v1alpha1",
+  "kind" : "NIMService",
+  "metadata" : {
+    "annotations" : {
+      "autoscaling.knative.dev/class" : "kpa.autoscaling.knative.dev",
+      "autoscaling.knative.dev/metric" : "concurrency",
+      "autoscaling.knative.dev/target" : "10",
+      "autoscaling.knative.dev/min-scale" : "2",
+      "autoscaling.knative.dev/max-scale" : "5",
+      "autoscaling.knative.dev/initial-scale" : "2",
+      "serving.knative.dev/progress-deadline" : "3630s"
+    },
+    "name" : "dm-kserve-nim-app"
+  },
+  "spec" : {
+    "authSecret" : "ngc-api-secret",
+    "env" : [ {
+      "name" : "NIM_SERVED_MODEL_NAME",
+      "value" : "kserve-nim-app"
+    } ],
+    "expose" : {
+      "router" : { },
+      "service" : {
+        "port" : 8000,
+        "type" : "ClusterIP"
+      }
+    },
+    "image" : {
+      "pullPolicy" : "IfNotPresent",
+      "pullSecrets" : [ "ngc-secret" ],
+      "repository" : "nvcr.io/nim/meta/llama-3.1-8b-instruct",
+      "tag" : "1.0"
+    },
+    "inferencePlatform" : "kserve",
+    "replicas" : 1,
+    "resources" : {
+      "limits" : {
+        "nvidia.com/gpu" : "1"
+      },
+      "requests" : { }
+    },
+    "storage" : {
+      "pvc" : {
+        "create" : true,
+        "size" : "20Gi",
+        "storageClass" : "default",
+        "volumeAccessMode" : "ReadWriteOnce"
+      }
+    }
+  }
+}
