@@ -1016,6 +1016,35 @@
                     }
                   },
                   "response": []
+                },
+                {
+                  "name": "get node pools",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/node-pools",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "node-pools"
+                      ]
+                    }
+                  },
+                  "response": []
                 }
               ]
             },

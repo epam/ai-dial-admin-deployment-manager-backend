@@ -20,10 +20,12 @@ import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Ports;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.ValueFrom;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.valuefrom.SecretKeyRef;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -56,7 +58,8 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             @Nullable List<String> args,
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties,
-            int startupTimeoutSec
+            int startupTimeoutSec,
+            @Nullable Map<String, String> nodePoolLabels
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
@@ -110,6 +113,10 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         }
 
         applyStartupProbe(name, modelChain, probeProperties);
+
+        if (MapUtils.isNotEmpty(nodePoolLabels)) {
+            predictorChain.data().setNodeSelector(nodePoolLabels);
+        }
 
         return config.data();
     }

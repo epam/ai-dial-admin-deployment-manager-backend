@@ -75,4 +75,6 @@ public abstract class CreateDeploymentRequestDto {
     private String command;
     @Nullable
     private String args;
+    @Nullable
+    private String nodePool;
 }

@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -93,6 +94,8 @@ class NimDeploymentManagerTest {
     @Mock
     private CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
     @Mock
+    private NodePoolProperties nodePoolProperties;
+    @Mock
     private K8sClient k8sClient;
     @Mock
     private K8sNimClient k8sNimClient;
@@ -117,7 +120,7 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager, knativeManifestGenerator,
                 nimManifestGenerator, deploymentRepository, containerPortResolver, ciliumNetworkPolicyCreator,
-                k8sNimClient, nimDeployProperties);
+                nodePoolProperties, k8sNimClient, nimDeployProperties);
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -284,6 +287,7 @@ class NimDeploymentManagerTest {
                 any(),
                 anyInt(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -332,6 +336,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 anyInt(),
+                any(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -415,6 +420,7 @@ class NimDeploymentManagerTest {
                 any(),
                 anyInt(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -459,6 +465,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 anyInt(),
+                any(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -505,6 +512,7 @@ class NimDeploymentManagerTest {
                 any(),
                 anyInt(),
                 any(),
+                any(),
                 any()
         )).thenReturn(serviceSpec);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
@@ -550,6 +558,7 @@ class NimDeploymentManagerTest {
                 any(),
                 any(),
                 anyInt(),
+                any(),
                 any(),
                 any()
         )).thenReturn(serviceSpec);
@@ -720,7 +729,7 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, nodePoolProperties, k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -774,7 +783,7 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, nodePoolProperties, k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -805,7 +814,7 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, nodePoolProperties, k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -836,7 +845,7 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, nodePoolProperties, k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
