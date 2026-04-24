@@ -7,9 +7,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.collections4.CollectionUtils;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Data
@@ -45,4 +48,26 @@ public abstract class ImageDefinition {
 
     private List<String> allowedDomains;
     private ImageBuilder imageBuilder;
+
+    /**
+     * Returns true when {@code other} has the same values for every field that contributes to the
+     * built image. Meta fields (description, author, topics, license) and system-managed fields
+     * (id, timestamps, build outputs) are intentionally excluded. Subtypes that add build-affecting
+     * fields MUST override and compose via {@code super.hasSameBuildAffectingFields(other)}.
+     */
+    public boolean hasSameBuildAffectingFields(ImageDefinition other) {
+        return other != null
+                && getClass() == other.getClass()
+                && Objects.equals(name, other.name)
+                && Objects.equals(version, other.version)
+                && Objects.equals(source, other.source)
+                && sameAllowedDomains(allowedDomains, other.allowedDomains)
+                && Objects.equals(imageBuilder, other.imageBuilder);
+    }
+
+    private static boolean sameAllowedDomains(Collection<String> a, Collection<String> b) {
+        return CollectionUtils.isEqualCollection(
+                a == null ? List.of() : a,
+                b == null ? List.of() : b);
+    }
 }
