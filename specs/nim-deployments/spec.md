@@ -112,13 +112,13 @@ Status: **Implemented**
 
 #### Scenario: Legacy mode rejects missing cluster host
 - **GIVEN** `app.nim.deploy.kserve-mode-enabled=false`, `app.nim.deploy.use-cluster-internal-url=false`, and `app.nim.deploy.cluster-host` is blank
-- **WHEN** the application starts or a NIM manifest is generated
-- **THEN** configuration validation fails (or manifest generation throws `IllegalArgumentException`) indicating that cluster host must be configured
+- **WHEN** the application starts
+- **THEN** configuration validation (`@AssertTrue NimDeployProperties.isClusterHostValid`) fails and the Spring context does not start
 
 #### Scenario: KServe mode
 - **GIVEN** `app.nim.deploy.kserve-mode-enabled=true`
 - **WHEN** a NIM deployment is deployed
-- **THEN** the generated NIMService has `inferencePlatform: kserve`, `expose.router` set to empty object, no `expose.ingress`, and — when a `Scaling` is provided — Knative autoscaling annotations (`min-scale`, `max-scale`, `initial-scale`, and class/metric/target when a strategy is set)
+- **THEN** the generated NIMService has `inferencePlatform: kserve`, `expose.router` set to empty object, no `expose.ingress`, and Knative autoscaling annotations: `min-scale`, `max-scale`, and `initial-scale` are always set (default `1/1/1` when no `Scaling` is provided, otherwise derived from the `Scaling` with `initial-scale = Math.max(minReplicas, 1)`); `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, and `autoscaling.knative.dev/target` are set only when a `Scaling` with `ACTIVE_REQUESTS` strategy is provided (otherwise Knative cluster defaults apply)
 
 #### Scenario: KServe mode does not require cluster host
 - **GIVEN** `app.nim.deploy.kserve-mode-enabled=true`

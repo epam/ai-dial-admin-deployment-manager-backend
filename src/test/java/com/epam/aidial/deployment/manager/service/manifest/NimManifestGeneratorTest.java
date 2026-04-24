@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.lenient;
@@ -372,8 +371,9 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void shouldSetScalingAnnotationsWithoutTarget_whenKserveModeAndNoStrategy() {
-        // Given
+    void shouldSetMinMaxInitialOnly_whenKserveModeAndScalingWithoutStrategy() {
+        // Given: explicit Scaling with no strategy — only min/max/initial are emitted;
+        // class/metric/target are not set and fall back to Knative cluster defaults.
         nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "no-strategy-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
@@ -386,12 +386,14 @@ class NimManifestGeneratorTest {
                 8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
-        // Then: min/max/initial-scale set, but no target annotation
+        // Then: min/max/initial from Scaling; no class/metric/target annotations
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "3")
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
     }
 
@@ -447,8 +449,8 @@ class NimManifestGeneratorTest {
     @Test
     void shouldSetDefaultScalingAnnotations_inKserveModeWhenScalingIsNull() {
         // Given: kserve mode without a Scaling object — generator should emit fixed
-        // 1/1/1 defaults (initial/min/max) so behavior is deterministic and does not
-        // depend on Knative's cluster-level configuration.
+        // 1/1/1 defaults (initial/min/max) so behavior is deterministic. No strategy
+        // means class/metric/target are not set and fall back to Knative cluster defaults.
         nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "kserve-no-scale-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
@@ -466,9 +468,9 @@ class NimManifestGeneratorTest {
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "1")
-                .containsEntry(KnativeAnnotations.AUTOSCALING_CLASS, "kpa.autoscaling.knative.dev")
-                .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, "concurrency")
-                .containsEntry(KnativeAnnotations.AUTOSCALING_TARGET, "10");
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
     }
 
     @Test
@@ -552,24 +554,6 @@ class NimManifestGeneratorTest {
         assertThat(expose.getIngress().getSpec().getRules().getFirst().getHost()).isEqualTo(DM_PREFIX + deploymentName + ".example.com");
         assertThat(expose.getIngress().getSpec().getTls()).hasSize(1);
         assertThat(expose.getRouter()).isNull();
-    }
-
-    @Test
-    void shouldThrow_inLegacyModeWithExternalUrlAndMissingClusterHost() {
-        // Given
-        nimDeployProperties.setUseClusterInternalUrl(false);
-        nimDeployProperties.setClusterHost(null);
-
-        var deploymentName = "missing-host-nim-app";
-        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
-        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-
-        // When / Then
-        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
-                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
-                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
-        )).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("cluster host is not configured");
     }
 
     @Test

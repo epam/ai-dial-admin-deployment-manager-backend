@@ -12,6 +12,8 @@ The KServe migration described below is no longer the default: the pre-migration
 - When the flag is `false` (default): NIMService uses `inferencePlatform: standalone`; external exposure uses `expose.ingress` (TLS + nginx rules from `K8S_NIM_CLUSTER_HOST`) when `use-cluster-internal-url=false`; no `expose.router`; no Knative autoscaling annotations.
 - When the flag is `true`: behavior matches the original FRs in this spec — `inferencePlatform: kserve`, `expose.router`, and Knative autoscaling annotations derived from the deployment `Scaling`.
 
+FR-002 below is refined by current behavior: `min-scale`, `max-scale`, and `initial-scale` are always set (defaulting to `1/1/1` when the caller passes no `Scaling`); `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, and `autoscaling.knative.dev/target` are emitted only when the `Scaling` carries an `ACTIVE_REQUESTS` strategy, otherwise Knative cluster defaults apply.
+
 The configurable PVC storage size feature (FR-008 – FR-014) is unaffected by the flag and applies in both modes.
 
 FR-001 – FR-007 below are scoped to kserve mode (flag `true`). In standalone mode, the legacy behavior documented in `specs/nim-deployments/spec.md` applies.

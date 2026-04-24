@@ -31,7 +31,6 @@ import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -45,12 +44,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private static final String NIM_SERVED_MODEL_NAME_ENV = "NIM_SERVED_MODEL_NAME";
     private static final String TLS_SECRET_NAME_SUFFIX = "-tls-secret";
-    private static final String DEFAULT_INITIAL_SCALE = "1";
-    private static final String DEFAULT_MIN_SCALE = "1";
-    private static final String DEFAULT_MAX_SCALE = "1";
-    private static final String DEFAULT_AUTOSCALING_CLASS = "kpa.autoscaling.knative.dev";
-    private static final String DEFAULT_AUTOSCALING_METRIC = "concurrency";
-    private static final String DEFAULT_AUTOSCALING_TARGET = "10";
+    private static final Scaling DEFAULT_SCALING = new Scaling(1, 1, null, null);
 
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
@@ -86,9 +80,6 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     ) {
         boolean kserveMode = nimDeployProperties.isKserveModeEnabled();
         boolean useExternalUrl = !nimDeployProperties.isUseClusterInternalUrl();
-        if (!kserveMode && useExternalUrl && StringUtils.isBlank(nimDeployProperties.getClusterHost())) {
-            throw new IllegalArgumentException("External NIM URL is enabled but cluster host is not configured");
-        }
 
         var config = createBaseManifestChain(
                 appConfig::cloneNimServiceConfig,
@@ -216,16 +207,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         log.debug("Applying scaling for NIM deployment '{}': {}", name, scaling);
         var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
                 .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
-        if (scaling == null) {
-            annotations.put(KnativeAnnotations.INITIAL_SCALE, DEFAULT_INITIAL_SCALE);
-            annotations.put(KnativeAnnotations.MIN_SCALE, DEFAULT_MIN_SCALE);
-            annotations.put(KnativeAnnotations.MAX_SCALE, DEFAULT_MAX_SCALE);
-            annotations.put(KnativeAnnotations.AUTOSCALING_CLASS, DEFAULT_AUTOSCALING_CLASS);
-            annotations.put(KnativeAnnotations.AUTOSCALING_METRIC, DEFAULT_AUTOSCALING_METRIC);
-            annotations.put(KnativeAnnotations.AUTOSCALING_TARGET, DEFAULT_AUTOSCALING_TARGET);
-            return;
-        }
-        applyScalingAnnotations(name, scaling, annotations);
+        applyScalingAnnotations(name, scaling != null ? scaling : DEFAULT_SCALING, annotations);
     }
 
     private void applyStartupProbe(String name,
