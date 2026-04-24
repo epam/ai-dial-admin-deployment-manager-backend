@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
 import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
@@ -16,11 +17,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nvidia.apps.v1alpha1.NIMService;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
+import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -47,7 +49,8 @@ class NimManifestGeneratorTest {
     private NimProbeConverter nimProbeConverter;
     @Mock
     private ProgressDeadlineCalculator progressDeadlineCalculator;
-    @InjectMocks
+
+    private NimDeployProperties nimDeployProperties;
     private NimManifestGenerator manifestGenerator;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -58,8 +61,14 @@ class NimManifestGeneratorTest {
         var baseServiceJson = ResourceUtils.readResource("/manifest/nim_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, NIMService.class);
 
-        when(appconfig.cloneNimServiceConfig()).thenReturn(baseService);
+        lenient().when(appconfig.cloneNimServiceConfig()).thenReturn(baseService);
         lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
+
+        nimDeployProperties = new NimDeployProperties();
+        nimDeployProperties.setUseClusterInternalUrl(true);
+        nimDeployProperties.setKserveModeEnabled(false);
+
+        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, progressDeadlineCalculator, nimDeployProperties);
     }
 
     @Test
@@ -157,7 +166,7 @@ class NimManifestGeneratorTest {
         // Given: generator with real NimProbeConverter so probe is built from properties
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
-                realCalculator);
+                realCalculator, nimDeployProperties);
         var deploymentName = "probe-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
@@ -319,7 +328,7 @@ class NimManifestGeneratorTest {
         // Given: generator with real calculator so fallback deadline is computed
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealCalculator = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
-                realCalculator);
+                realCalculator, nimDeployProperties);
         var deploymentName = "fallback-deadline-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
 
@@ -335,8 +344,9 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void shouldSetAutoscalingAnnotations_whenScalingWithStrategyProvided() {
+    void shouldSetAutoscalingAnnotations_whenKserveModeAndScalingWithStrategyProvided() {
         // Given
+        nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "scaled-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
@@ -361,8 +371,10 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void shouldSetScalingAnnotationsWithoutTarget_whenNoStrategy() {
-        // Given
+    void shouldSetMinMaxInitialOnly_whenKserveModeAndScalingWithoutStrategy() {
+        // Given: explicit Scaling with no strategy — only min/max/initial are emitted;
+        // class/metric/target are not set and fall back to Knative cluster defaults.
+        nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "no-strategy-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
@@ -374,18 +386,21 @@ class NimManifestGeneratorTest {
                 8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
-        // Then: min/max/initial-scale set, but no target annotation
+        // Then: min/max/initial from Scaling; no class/metric/target annotations
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "3")
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
     }
 
     @Test
-    void shouldSetInitialScaleToOne_whenMinReplicasIsZero() {
+    void shouldSetInitialScaleToOne_whenKserveModeAndMinReplicasIsZero() {
         // Given
+        nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "scale-to-zero-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
@@ -407,9 +422,37 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void shouldPreserveTemplateDefaultScalingAnnotations_whenNoScalingProvided() {
-        // Given
-        var deploymentName = "no-scale-nim-app";
+    void shouldNotSetScalingAnnotations_inLegacyModeEvenWhenScalingProvided() {
+        // Given: legacy mode (kserveModeEnabled=false), scaling provided
+        var deploymentName = "legacy-scale-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scaling = new Scaling(2, 5, null, new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10));
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then: no knative autoscaling annotations are set in legacy mode
+        var annotations = generatedService.getMetadata().getAnnotations();
+        assertThat(annotations)
+                .doesNotContainKey(KnativeAnnotations.MIN_SCALE)
+                .doesNotContainKey(KnativeAnnotations.MAX_SCALE)
+                .doesNotContainKey(KnativeAnnotations.INITIAL_SCALE)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
+    }
+
+    @Test
+    void shouldSetDefaultScalingAnnotations_inKserveModeWhenScalingIsNull() {
+        // Given: kserve mode without a Scaling object — generator should emit fixed
+        // 1/1/1 defaults (initial/min/max) so behavior is deterministic. No strategy
+        // means class/metric/target are not set and fall back to Knative cluster defaults.
+        nimDeployProperties.setKserveModeEnabled(true);
+        var deploymentName = "kserve-no-scale-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
 
@@ -419,18 +462,21 @@ class NimManifestGeneratorTest {
                 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
-        // Then: template defaults survive (min=1, max=1, initial=1), no target
+        // Then
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "1")
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
+                .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
     }
 
     @Test
-    void shouldSetExposeRouter() {
+    void shouldSetExposeRouter_inKserveMode() {
         // Given
+        nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "router-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
@@ -449,8 +495,9 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void shouldSetInferencePlatformToKserve() {
+    void shouldSetInferencePlatformToKserve_inKserveMode() {
         // Given
+        nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "kserve-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
@@ -463,6 +510,151 @@ class NimManifestGeneratorTest {
 
         // Then
         assertThat(generatedService.getSpec().getInferencePlatform().name()).isEqualTo("KSERVE");
+    }
+
+    @Test
+    void shouldLeaveInferencePlatformDefault_inLegacyMode() {
+        // Given: legacy mode (default)
+        var deploymentName = "standalone-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then: inferencePlatform remains the CRD default (standalone)
+        assertThat(generatedService.getSpec().getInferencePlatform().name()).isEqualTo("STANDALONE");
+        assertThat(generatedService.getSpec().getExpose().getRouter()).isNull();
+    }
+
+    @Test
+    void shouldSetIngress_inLegacyModeWithExternalUrl() {
+        // Given: legacy mode with external URL enabled
+        nimDeployProperties.setUseClusterInternalUrl(false);
+        nimDeployProperties.setClusterHost("example.com");
+        stubNimServiceExposeIngressConfig();
+
+        var deploymentName = "ingress-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        var expose = generatedService.getSpec().getExpose();
+        assertThat(expose.getIngress()).isNotNull();
+        assertThat(expose.getIngress().getSpec().getRules()).hasSize(1);
+        assertThat(expose.getIngress().getSpec().getRules().getFirst().getHost()).isEqualTo(DM_PREFIX + deploymentName + ".example.com");
+        assertThat(expose.getIngress().getSpec().getTls()).hasSize(1);
+        assertThat(expose.getRouter()).isNull();
+    }
+
+    @Test
+    void shouldNotRequireClusterHost_inKserveModeEvenWithExternalUrl() {
+        // Given: kserve mode ignores cluster host requirement since Knative handles routing
+        nimDeployProperties.setKserveModeEnabled(true);
+        nimDeployProperties.setUseClusterInternalUrl(false);
+        nimDeployProperties.setClusterHost(null);
+
+        var deploymentName = "kserve-external-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        var expose = generatedService.getSpec().getExpose();
+        assertThat(expose.getRouter()).isNotNull();
+        assertThat(expose.getIngress()).isNull();
+    }
+
+    @Test
+    void testServiceConfig_kserveMode_matchesExpectedManifest() throws JsonProcessingException, JSONException {
+        // Given
+        nimDeployProperties.setKserveModeEnabled(true);
+        var deploymentName = "kserve-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var scaling = new Scaling(2, 5, null, new ScalingStrategy(ScalingStrategyType.ACTIVE_REQUESTS, 10));
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        var jsonOutput = serialize(generatedService);
+        var expected = ResourceUtils.readResource("/manifest/nim_service_kserve_mode.json");
+        JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    @Test
+    void testServiceConfig_legacyModeWithExternalUrl_matchesExpectedManifest() throws JsonProcessingException, JSONException {
+        // Given: legacy mode with external URL (ingress-based exposure)
+        nimDeployProperties.setUseClusterInternalUrl(false);
+        nimDeployProperties.setClusterHost("example.com");
+        stubNimServiceExposeIngressConfig();
+
+        var deploymentName = "legacy-external-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        var jsonOutput = serialize(generatedService);
+        var expected = ResourceUtils.readResource("/manifest/nim_service_legacy_external_url.json");
+        JSONAssert.assertEquals(expected, jsonOutput, true);
+    }
+
+    private void stubNimServiceExposeIngressConfig() {
+        var ingress = new Ingress();
+        ingress.setEnabled(true);
+        ingress.setAnnotations(Map.of(
+                "nginx.ingress.kubernetes.io/proxy-body-size", "0",
+                "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
+                "cert-manager.io/cluster-issuer", "letsencrypt-production",
+                "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
+        ));
+        var ingressSpec = new Spec();
+        ingressSpec.setIngressClassName("nginx");
+        ingress.setSpec(ingressSpec);
+        when(appconfig.cloneNimServiceExposeIngressConfig()).thenReturn(ingress);
+    }
+
+    @Test
+    void shouldNotSetIngress_inLegacyModeWithClusterInternalUrl() {
+        // Given: legacy mode with cluster internal URL (default)
+        var deploymentName = "cluster-internal-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        var expose = generatedService.getSpec().getExpose();
+        assertThat(expose.getIngress()).isNull();
+        assertThat(expose.getRouter()).isNull();
     }
 
     @Test
