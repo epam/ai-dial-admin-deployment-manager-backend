@@ -26,7 +26,6 @@ import io.fabric8.kubernetes.client.dsl.V1BatchAPIGroupDSL;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -41,11 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -503,114 +498,55 @@ class K8sClientTest {
     }
 
     @Test
-    void deleteJobsByLabelAndWait_shouldBeNoOpWhenNoJobsMatch() {
+    void deleteJobsByLabelAndWait_shouldPerformBulkForegroundDeleteWithAggregateTimeout() {
         // Given
-        JobList emptyList = new JobList();
-        emptyList.setItems(List.of());
-
         when(kubernetesClient.batch()).thenReturn(batchApiGroupDsl);
         when(batchApiGroupDsl.v1()).thenReturn(v1BatchApiGroupDsl);
         when(v1BatchApiGroupDsl.jobs()).thenReturn(jobOperation);
         when(jobOperation.inNamespace(NAMESPACE)).thenReturn(namespacedJobOperation);
         when(namespacedJobOperation.withLabel("image-definition-id", "group-1"))
                 .thenAnswer(inv -> namespacedJobOperation);
-        when(namespacedJobOperation.list()).thenReturn(emptyList);
-
-        // When
-        k8sClient.deleteJobsByLabelAndWait(NAMESPACE, "image-definition-id", "group-1", 30);
-
-        // Then
-        verify(namespacedJobOperation).list();
-        verify(namespacedJobOperation, never()).withName(anyString());
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-    void deleteJobsByLabelAndWait_shouldDeleteWithForegroundAndWaitForEachMatchingJob() {
-        // Given
-        Job job1 = jobNamed("job-1");
-        Job job2 = jobNamed("job-2");
-        JobList matchingList = new JobList();
-        matchingList.setItems(List.of(job1, job2));
-
-        when(kubernetesClient.batch()).thenReturn(batchApiGroupDsl);
-        when(batchApiGroupDsl.v1()).thenReturn(v1BatchApiGroupDsl);
-        when(v1BatchApiGroupDsl.jobs()).thenReturn(jobOperation);
-        when(jobOperation.inNamespace(NAMESPACE)).thenReturn(namespacedJobOperation);
-        when(namespacedJobOperation.withLabel("image-definition-id", "group-1"))
+        when(namespacedJobOperation.withPropagationPolicy(DeletionPropagation.FOREGROUND))
                 .thenAnswer(inv -> namespacedJobOperation);
-        when(namespacedJobOperation.list()).thenReturn(matchingList);
-
-        ScalableResource<Job> res1 = mock(ScalableResource.class);
-        ScalableResource<Job> res2 = mock(ScalableResource.class);
-        when(namespacedJobOperation.withName("job-1")).thenReturn(res1);
-        when(namespacedJobOperation.withName("job-2")).thenReturn(res2);
-        doReturn(res1).when(res1).withPropagationPolicy(DeletionPropagation.FOREGROUND);
-        doReturn(res1).when(res1).withGracePeriod(0L);
-        doReturn(res2).when(res2).withPropagationPolicy(DeletionPropagation.FOREGROUND);
-        doReturn(res2).when(res2).withGracePeriod(0L);
-        when(res1.waitUntilCondition((Predicate<Job>) any(Predicate.class), anyLong(), eq(TimeUnit.SECONDS)))
-                .thenReturn(null);
-        when(res2.waitUntilCondition((Predicate<Job>) any(Predicate.class), anyLong(), eq(TimeUnit.SECONDS)))
-                .thenReturn(null);
+        when(namespacedJobOperation.withGracePeriod(0L))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withTimeout(30L, TimeUnit.SECONDS))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.delete()).thenReturn(List.of());
 
         // When
         k8sClient.deleteJobsByLabelAndWait(NAMESPACE, "image-definition-id", "group-1", 30);
 
         // Then
-        verify(res1).withPropagationPolicy(DeletionPropagation.FOREGROUND);
-        verify(res1).withGracePeriod(0L);
-        verify(res1).delete();
-        verify(res2).withPropagationPolicy(DeletionPropagation.FOREGROUND);
-        verify(res2).withGracePeriod(0L);
-        verify(res2).delete();
-        ArgumentCaptor<Predicate<Job>> predicateCaptor = ArgumentCaptor.forClass(Predicate.class);
-        verify(res1).waitUntilCondition(predicateCaptor.capture(), eq(30L), eq(TimeUnit.SECONDS));
-        verify(res2).waitUntilCondition(predicateCaptor.capture(), eq(30L), eq(TimeUnit.SECONDS));
-        // "Job is gone" → predicate returns true on null
-        assertThat(predicateCaptor.getAllValues()).allSatisfy(p -> {
-            assertThat(p.test(null)).isTrue();
-            assertThat(p.test(new Job())).isFalse();
-        });
+        verify(namespacedJobOperation).withLabel("image-definition-id", "group-1");
+        verify(namespacedJobOperation).withPropagationPolicy(DeletionPropagation.FOREGROUND);
+        verify(namespacedJobOperation).withGracePeriod(0L);
+        verify(namespacedJobOperation).withTimeout(30L, TimeUnit.SECONDS);
+        verify(namespacedJobOperation).delete();
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void deleteJobsByLabelAndWait_shouldPropagateKubernetesClientException() {
         // Given
-        Job job1 = jobNamed("job-1");
-        JobList matchingList = new JobList();
-        matchingList.setItems(List.of(job1));
-
         when(kubernetesClient.batch()).thenReturn(batchApiGroupDsl);
         when(batchApiGroupDsl.v1()).thenReturn(v1BatchApiGroupDsl);
         when(v1BatchApiGroupDsl.jobs()).thenReturn(jobOperation);
         when(jobOperation.inNamespace(NAMESPACE)).thenReturn(namespacedJobOperation);
         when(namespacedJobOperation.withLabel("image-definition-id", "group-1"))
                 .thenAnswer(inv -> namespacedJobOperation);
-        when(namespacedJobOperation.list()).thenReturn(matchingList);
-
-        ScalableResource<Job> res1 = mock(ScalableResource.class);
-        when(namespacedJobOperation.withName("job-1")).thenReturn(res1);
-        doReturn(res1).when(res1).withPropagationPolicy(DeletionPropagation.FOREGROUND);
-        doReturn(res1).when(res1).withGracePeriod(0L);
-        when(res1.delete()).thenThrow(new KubernetesClientException("cluster boom"));
+        when(namespacedJobOperation.withPropagationPolicy(DeletionPropagation.FOREGROUND))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withGracePeriod(0L))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.withTimeout(30L, TimeUnit.SECONDS))
+                .thenAnswer(inv -> namespacedJobOperation);
+        when(namespacedJobOperation.delete()).thenThrow(new KubernetesClientException("cluster boom"));
 
         // When / Then
         assertThatThrownBy(() ->
                 k8sClient.deleteJobsByLabelAndWait(NAMESPACE, "image-definition-id", "group-1", 30))
                 .isInstanceOf(KubernetesClientException.class)
                 .hasMessageContaining("cluster boom");
-
-        verify(res1, never()).waitUntilCondition(any(Predicate.class), anyLong(), eq(TimeUnit.SECONDS));
-    }
-
-    private static Job jobNamed(String name) {
-        Job job = new Job();
-        ObjectMeta metadata = new ObjectMeta();
-        metadata.setName(name);
-        job.setMetadata(metadata);
-        return job;
     }
 
     @SuppressWarnings("unchecked")

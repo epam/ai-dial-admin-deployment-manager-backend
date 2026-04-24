@@ -22,7 +22,6 @@ import org.springframework.stereotype.Component;
 
 import java.net.HttpURLConnection;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -161,37 +160,21 @@ public class K8sClient {
     }
 
     /**
-     * Deletes all Jobs matching the given label and waits for each to be fully removed.
-     * Note: {@code timeoutSec} is applied per matched Job, not as an aggregate — worst-case total wait is N × timeoutSec.
+     * Deletes all Jobs matching the given label and blocks until the apiserver confirms removal.
+     * {@code timeoutSec} is aggregate across all matched Jobs, applied to the UID-watch following the delete.
      */
     public void deleteJobsByLabelAndWait(String namespace, String labelKey, String labelValue, int timeoutSec) {
-        var byLabel = client.batch().v1().jobs()
+        log.info("Deleting Job(s) in namespace '{}' with label {}={} (wait up to {}s aggregate)",
+                namespace, labelKey, labelValue, timeoutSec);
+        var deleted = client.batch().v1().jobs()
                 .inNamespace(namespace)
-                .withLabel(labelKey, labelValue);
-        var existing = byLabel.list().getItems();
-        if (existing.isEmpty()) {
-            log.debug("No Jobs in namespace '{}' with label {}={}; nothing to delete.", namespace, labelKey, labelValue);
-            return;
-        }
-        log.info("Deleting {} Job(s) in namespace '{}' with label {}={} (wait up to {}s)",
-                existing.size(), namespace, labelKey, labelValue, timeoutSec);
-        for (Job job : existing) {
-            var name = job.getMetadata().getName();
-            client.batch().v1().jobs()
-                    .inNamespace(namespace)
-                    .withName(name)
-                    .withPropagationPolicy(DeletionPropagation.FOREGROUND)
-                    .withGracePeriod(0L)
-                    .delete();
-        }
-        for (Job job : existing) {
-            var name = job.getMetadata().getName();
-            client.batch().v1().jobs()
-                    .inNamespace(namespace)
-                    .withName(name)
-                    .waitUntilCondition(Objects::isNull, timeoutSec, TimeUnit.SECONDS);
-        }
-        log.debug("All Jobs matching label {}={} in namespace '{}' fully deleted.", labelKey, labelValue, namespace);
+                .withLabel(labelKey, labelValue)
+                .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                .withGracePeriod(0L)
+                .withTimeout(timeoutSec, TimeUnit.SECONDS)
+                .delete();
+        log.debug("Deleted {} Job(s) matching label {}={} in namespace '{}'",
+                deleted.size(), labelKey, labelValue, namespace);
     }
 
     public boolean deletePod(String namespace, String name) {
