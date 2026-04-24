@@ -70,9 +70,11 @@ public class DeploymentLogsService {
                                 } catch (AsyncRequestNotUsableException e) {
                                     log.debug("Client disconnected during log streaming. Deployment {}", id);
                                     emitter.complete();
+                                    return;
                                 } catch (IOException e) {
                                     log.warn("Failed to send log line. Deployment {}", id, e);
                                     emitter.completeWithError(e);
+                                    return;
                                 }
                             }
                         });
