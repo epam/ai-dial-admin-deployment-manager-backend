@@ -235,20 +235,50 @@ If the Relay is deployed in a namespace protected by its own Cilium policy, an e
 
 #### Flow observation for image build pods
 
-When a build job completes (or while it is running), the Deployment Manager queries Hubble Relay for all flows originating from pods with `job-name=<build-job-name>` in the build namespace. The query window covers the job's lifetime (`sinceTime` = job start, `untilTime` = job completion or now).
+When a build job is running (or after it completes), the Deployment Manager subscribes to Hubble Relay flows originating from pods in the build namespace matching the build job. Domain access is observed at the **L7 DNS proxy layer**: Cilium intercepts every DNS query a pod sends to CoreDNS and records the queried domain and the verdict applied by the network policy.
 
-Each returned flow that has a DNS destination is mapped to a domain-access entry:
+Example flows (from Hubble Relay output):
+
+```
+# Blocked domain (DNS query dropped by Cilium policy)
+Feb 25 14:58:46.165: mcp-build/dm-analyser-f4a0b7cf-...:54722 -> kube-system/coredns-...:53 dns-request proxy DROPPED (DNS Query github.com. A)
+
+# Allowed domain (DNS query forwarded by Cilium policy)
+Feb 25 15:30:59.061: mcp-build/dm-base-544a5a87-...:48455 -> kube-system/coredns-...:53 dns-request proxy FORWARDED (DNS Query auth.docker.io. A)
+```
+
+#### Search domain noise filtering
+
+Before mapping flows to domain entries, search-domain-qualified DNS queries must be discarded. Kubernetes pods use `ndots:5` DNS configuration, which causes the resolver to try appending cluster search domains (e.g., `<ns>.svc.cluster.local`, `svc.cluster.local`, `cluster.local`, cloud-provider-internal suffix) before falling back to the bare FQDN. This generates up to 8–10 DROPPED flows per external domain lookup — none of which reflect a Cilium policy decision:
+
+```
+# Search-domain noise — DISCARD these (DNS client behaviour, not a Cilium policy verdict)
+dns-request proxy DROPPED (DNS Query auth.docker.io.mbs.svc.cluster.local. A)
+dns-request proxy DROPPED (DNS Query auth.docker.io.svc.cluster.local. A)
+dns-request proxy DROPPED (DNS Query auth.docker.io.cluster.local. A)
+dns-request proxy DROPPED (DNS Query auth.docker.io.rxsyvptqa2ve5dd5dbhuiiaahf.bx.internal.cloudapp.net. A)
+
+# Bare FQDN — RECORD this (actual Cilium policy verdict)
+dns-request proxy FORWARDED (DNS Query auth.docker.io. A)
+```
+
+**Filter rule**: only process flows where the DNS query name, after stripping the trailing `.`, does not contain cluster-internal or cloud-internal DNS suffixes (`.cluster.local`, `.svc.cluster.local`, `.internal.*`). Only bare external FQDNs are recorded.
+
+#### Flow-to-domain mapping
+
+Each qualifying `dns-request proxy` flow is mapped to a domain-access entry:
 
 | Flow field | Mapped to |
 |---|---|
-| `destination.names[0]` (DNS name from Hubble's FQDN tracking) | domain name |
-| `verdict` | `ALLOWED` (`FORWARDED`) or `BLOCKED` (`DROPPED`) |
+| DNS query name stripped of trailing `.` (e.g., `auth.docker.io`) | domain name |
+| `FORWARDED` verdict | `ALLOWED` |
+| `DROPPED` verdict | `BLOCKED` |
 
-The collected entries are de-duplicated per (domain, verdict) pair and stored for the build's `imageDefinitionId`.
+Both A (IPv4) and AAAA (IPv6) queries are emitted for the same bare FQDN; the `(domain, verdict)` deduplication rule collapses these into a single entry. The collected entries are stored for the build's `imageDefinitionId` and build version.
 
 #### Flow observation for running deployments
 
-For running deployments, the Deployment Manager can maintain a live gRPC stream from Hubble Relay filtered to pods with the deployment's service-name label in the relevant namespace. Domain-access events are streamed to connected SSE clients in real time and persisted for later retrieval.
+For running deployments, the Deployment Manager maintains a live gRPC stream from Hubble Relay filtered to `dns-request proxy` flows from pods with the deployment's service-name label in the deployment namespace. The same flow-to-domain mapping applies: DNS query name → domain, `FORWARDED` → `ALLOWED`, `DROPPED` → `BLOCKED`. Domain-access events are streamed to connected SSE clients in real time and persisted for later retrieval.
 
 #### SSE event type
 
