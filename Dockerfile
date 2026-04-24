@@ -7,6 +7,7 @@ COPY settings.gradle .
 COPY gradle.properties .
 COPY src/ src/
 
+RUN apk add --no-cache gcompat
 RUN gradle --no-daemon clean bootJar
 
 # Runtime stage
