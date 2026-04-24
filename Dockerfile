@@ -5,6 +5,12 @@ WORKDIR /build-workspace
 COPY build.gradle .
 COPY settings.gradle .
 COPY gradle.properties .
+
+# Resolve dependencies (downloads protoc-gen-grpc-java binary) and make it executable.
+# On Alpine Linux, downloaded binaries lack the execute bit — chmod must be explicit.
+RUN gradle --no-daemon dependencies
+RUN find /home/gradle/.gradle -name "protoc-gen-grpc-java-*.exe" -exec chmod +x {} \;
+
 COPY src/ src/
 
 RUN gradle --no-daemon clean bootJar
