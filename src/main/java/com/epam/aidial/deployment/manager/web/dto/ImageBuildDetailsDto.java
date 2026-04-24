@@ -13,6 +13,7 @@ public record ImageBuildDetailsDto(
         @NotNull ImageStatusDto status,
         @Nullable String imageName,
         @NotNull Instant builtAt,
-        @Nullable @Size(min = 1) List<@NotNull String> logs
+        @Nullable @Size(min = 1) List<@NotNull String> logs,
+        @Nullable List<@NotNull DomainEntryDto> domains
 ) {
 }

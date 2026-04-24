@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.deployment;
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -18,6 +19,7 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -102,6 +104,10 @@ class NimDeploymentManagerTest {
     private ContainerResource containerResource;
     @Mock
     private CiliumNetworkPolicy ciliumNetworkPolicy;
+    @Mock
+    private HubbleDomainFlowService hubbleDomainFlowService;
+    @Mock
+    private DeploymentDomainEntryRepository deploymentDomainEntryRepository;
 
     @Captor
     private ArgumentCaptor<Set<Integer>> ciliumPortsCaptor;
@@ -117,7 +123,7 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager, knativeManifestGenerator,
                 nimManifestGenerator, deploymentRepository, containerPortResolver, ciliumNetworkPolicyCreator,
-                k8sNimClient, nimDeployProperties);
+                hubbleDomainFlowService, deploymentDomainEntryRepository, k8sNimClient, nimDeployProperties);
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -720,7 +726,8 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, hubbleDomainFlowService, deploymentDomainEntryRepository,
+                k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -774,7 +781,8 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, hubbleDomainFlowService, deploymentDomainEntryRepository,
+                k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -805,7 +813,8 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, hubbleDomainFlowService, deploymentDomainEntryRepository,
+                k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();
@@ -836,7 +845,8 @@ class NimDeploymentManagerTest {
 
         nimDeploymentManager = new NimDeploymentManager(k8sClient, disposableResourceManager,
                 knativeManifestGenerator, nimManifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, k8sNimClient, nimDeployProperties);
+                ciliumNetworkPolicyCreator, hubbleDomainFlowService, deploymentDomainEntryRepository,
+                k8sNimClient, nimDeployProperties);
 
         NIMService service = new NIMService();
         ObjectMeta metadata = new ObjectMeta();

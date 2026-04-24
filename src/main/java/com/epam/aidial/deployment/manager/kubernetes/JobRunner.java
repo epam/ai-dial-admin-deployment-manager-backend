@@ -25,7 +25,7 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class JobRunner {
 
-    private static final String JOB_NAME_LABEL = "job-name";
+    public static final String JOB_NAME_LABEL = "job-name";
 
     private final GlobalDomainWhitelistService globalDomainWhitelistService;
     private final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;

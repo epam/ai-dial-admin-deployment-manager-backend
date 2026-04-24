@@ -229,7 +229,18 @@ The gRPC channel is created at startup (lazy or eager, depending on the guard fl
 
 #### RBAC requirements for Hubble Relay
 
-No additional Kubernetes RBAC is needed — the Hubble Relay gRPC endpoint is not a Kubernetes API resource. Access is controlled at the network level (the Deployment Manager pod must be able to reach the Relay service) and optionally via mTLS/TLS configuration on the Relay side.
+For direct connectivity (NodePort or LoadBalancer): no additional Kubernetes RBAC is needed — the Hubble Relay gRPC endpoint is not a Kubernetes API resource. Access is controlled at the network level (the Deployment Manager pod must be able to reach the Relay service) and optionally via mTLS/TLS configuration on the Relay side.
+
+**Exception — Kubernetes API port-forward approach**: When using Fabric8 `LocalPortForward` to tunnel gRPC through the K8s API (the default implementation), the Deployment Manager service account requires `pods/portforward` permission on the `cilium` namespace in the untrusted cluster:
+
+```yaml
+rules:
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["create"]
+```
+
+This is in addition to any existing `pods` (get, list, watch) permission needed to locate the `hubble-relay` pod by label selector.
 
 If the Relay is deployed in a namespace protected by its own Cilium policy, an egress rule from the Deployment Manager pod to `hubble-relay.cilium:80` (TCP/gRPC) must exist in the Deployment Manager's own `CiliumNetworkPolicy`.
 
@@ -330,6 +341,8 @@ When Hubble Relay integration is enabled, the system SHALL maintain a live strea
 #### Scenario: Historical domain access available after undeploy
 - **WHEN** a deployment is undeployed and Hubble Relay was enabled during its runtime
 - **THEN** the collected domain access entries remain queryable in the deployment's details until the record is deleted
+
+> **Implementation scope note**: The initial implementation (`specs/018-hubble-relay-domains`) does not expose deployment domain entries via a REST details endpoint. Entries are persisted in `deployment_domain_entries` and are visible via the SSE pod log stream while the deployment is active; they are cleared on each new deploy activation. A deployment domain details REST endpoint is deferred to a follow-on feature.
 
 ---
 

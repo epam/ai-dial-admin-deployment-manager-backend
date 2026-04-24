@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package flow;
+
+option java_package = "io.cilium.api.flow";
+option java_outer_classname = "TypesOuterClass";
+option java_multiple_files = true;
+
+enum FlowType {
+    UNKNOWN_TYPE = 0;
+    L3_L4 = 1;
+    L7 = 2;
+    SOCK = 3;
+}

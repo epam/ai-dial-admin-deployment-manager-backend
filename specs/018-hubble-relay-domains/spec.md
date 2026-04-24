@@ -89,7 +89,7 @@ An administrator monitors a running deployment. Each deployment runs as a Kubern
 - **FR-004**: The build log SSE stream (`GET /api/v1/images/builds/{id}/logs`, where `{id}` is the build run identifier for a specific version) MUST include `domain` events when Hubble Relay is enabled, interleaved with existing `logs` and `status` events
 - **FR-005**: Each `domain` SSE event MUST contain exactly the domain name and the Cilium verdict (`ALLOWED` or `BLOCKED`); no timestamp is included in the event payload — chronological ordering during replay is determined server-side based on stored observation order
 - **FR-006**: The build details endpoint (`GET /api/v1/images/builds/{id}/details`, where `{id}` is the build run identifier for a specific version) MUST include a `domains` list in its response when Hubble Relay is enabled; each entry carries the domain name and verdict
-- **FR-007**: When a client opens the build log stream for a completed build (replay mode), captured domain events MUST be replayed interleaved with stored log lines in chronological order (by observation timestamp), followed by the terminal status event and automatic stream closure
+- **FR-007**: When a client opens the build log stream for a completed build (replay mode), all stored log lines MUST be emitted first (in array order), followed by all captured domain events (in observation order), followed by the terminal status event and automatic stream closure. Note: individual log lines do not carry timestamps; domain events are emitted in insertion order after log lines, providing approximate chronological ordering without requiring log-line timestamps.
 - **FR-008**: Real-time `domain` events for a running deployment pod MUST be delivered via the existing pod log stream endpoint (`GET /api/v1/deployments/{id}/pods/{podId}/logs`), interleaved with `logs` events, when Hubble Relay is enabled; when a client reconnects to an active pod stream, all domain events captured since the current deployment activation MUST be replayed before live events resume
 - **FR-009**: Before recording, DNS flows with cluster-internal or cloud-internal search domain suffixes (e.g., `.svc.cluster.local`, `.cluster.local`, `.internal.*`) MUST be discarded; only bare external FQDNs are processed. After filtering, domain entries MUST be deduplicated by (domain name, verdict) pair — for builds, per build version; for deployments, per deployment lifetime. The same (domain, verdict) combination is stored and streamed only once within its respective scope
 - **FR-010**: When Hubble Relay is disabled, the system MUST NOT emit `domain` SSE events, MUST return an empty or absent `domains` list in build details, and MUST NOT degrade build or deployment behaviour in any way
@@ -114,6 +114,10 @@ An administrator monitors a running deployment. Each deployment runs as a Kubern
 - **SC-004**: A client that reconnects to a completed build stream receives all domain events captured during that build — no domain access information is lost due to reconnection
 - **SC-005**: Hubble Relay connectivity failures result in zero build failures — 100% of builds succeed regardless of Hubble Relay availability
 
+## Out of Scope
+
+- **Deployment domain details REST endpoint**: The Cilium spec defines a scenario "Historical domain access available after undeploy — domain entries remain queryable in the deployment's details until the record is deleted." This feature does **not** implement a `GET /api/v1/deployments/{id}/details` domain list endpoint. Domain entries for deployments are queryable only via the SSE pod log stream (`GET /api/v1/deployments/{id}/pods/{podId}/logs`) while the stream is active or the deployment is running. Post-undeploy domain query for deployments is deferred to a future feature.
+
 ## Assumptions
 
 - Hubble Relay is installed in the **untrusted cluster** — the separate Kubernetes cluster where image build pods (BuildKit) and deployment pods run — not in the trusted cluster where the Deployment Manager itself runs. The Deployment Manager connects to Hubble Relay over the cross-cluster network link (the same link used to manage Kubernetes resources on the untrusted cluster).
@@ -125,7 +129,7 @@ An administrator monitors a running deployment. Each deployment runs as a Kubern
 - The existing `image_build_logs` table pattern (separate table keyed by `imageDefinitionId`, cascade-deleted) is the appropriate storage model for build domain entries; the version column extends the key to distinguish individual build runs
 - Deployment domain entries reflect the current running instance only; they are cleared on each new deploy activation and deleted when the deployment record is deleted
 - Deduplication is enforced at storage time; the live SSE stream may transiently emit a duplicate before deduplication is confirmed, but the persisted record and replay are always deduplicated
-- The cross-cluster gRPC connection to Hubble Relay uses TLS with server-side certificate validation (not mutual TLS); the Deployment Manager validates the Hubble Relay server certificate but does not present a client certificate
+- The cross-cluster gRPC connection to Hubble Relay uses TLS with server-side certificate validation (not mutual TLS); the Deployment Manager validates the Hubble Relay server certificate but does not present a client certificate — deferred to the NodePort/LoadBalancer upgrade path when the port-forward approach is in use (port-forward tunnels gRPC as localhost plaintext; transport security is provided by the Kubernetes API TLS + RBAC layer)
 - The `docs/configuration.md` file MUST be updated to document `HUBBLE_RELAY_ENABLED` and any related Hubble Relay connection properties, including TLS configuration
 
 ## Clarifications

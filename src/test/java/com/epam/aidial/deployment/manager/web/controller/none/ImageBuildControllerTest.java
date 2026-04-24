@@ -1,7 +1,9 @@
 package com.epam.aidial.deployment.manager.web.controller.none;
 
+import com.epam.aidial.deployment.manager.configuration.HubbleRelayProperties;
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.ImageBuildLogsService;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
@@ -55,6 +57,10 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
     private ImageBuildLogsService imageBuildLogsService;
     @MockitoBean
     private ImageBuildRunner imageBuildRunner;
+    @MockitoBean
+    private HubbleDomainFlowService hubbleDomainFlowService;
+    @MockitoBean
+    private HubbleRelayProperties hubbleRelayProperties;
 
     @Test
     void buildImage() throws Exception {

@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.kubernetes.JobRunner;
 import com.epam.aidial.deployment.manager.model.AdapterImageDefinition;
 import com.epam.aidial.deployment.manager.model.ApplicationImageDefinition;
 import com.epam.aidial.deployment.manager.model.DockerImageSource;
@@ -14,10 +15,12 @@ import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageBuildFromGitPipeline;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageCopyPipeline;
 import com.epam.aidial.deployment.manager.service.pipeline.ImageWrapperBuildPipeline;
+import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -38,6 +41,10 @@ public class ImageBuildRunner {
     private final ImageBuildFromGitPipeline imageBuildFromGitPipeline;
     private final ImageWrapperBuildPipeline imageWrapperBuildPipeline;
     private final ImageCopyPipeline imageCopyPipeline;
+    private final HubbleDomainFlowService hubbleDomainFlowService;
+
+    @Value("${app.build-namespace}")
+    private final String buildNamespace;
 
     public ImageDefinition buildImage(UUID imageDefinitionId) {
         var imageDefinition = imageDefinitionService.getImageDefinition(imageDefinitionId)
@@ -89,7 +96,17 @@ public class ImageBuildRunner {
         imageDefinition.setBuildStatus(ImageStatus.BUILDING);
         imageDefinitionService.startBuild(imageDefinition.getId());
 
-        executorService.execute(() -> pipeline.accept(imageDefinition.getId()));
+        var id = imageDefinition.getId();
+        var podLabelSelector = JobRunner.JOB_NAME_LABEL + "=" + K8sNamingUtils.generateName(id.toString());
+        hubbleDomainFlowService.startBuildObservation(id, buildNamespace, podLabelSelector);
+
+        executorService.execute(() -> {
+            try {
+                pipeline.accept(id);
+            } finally {
+                hubbleDomainFlowService.stopBuildObservation(id);
+            }
+        });
 
         return imageDefinition;
     }

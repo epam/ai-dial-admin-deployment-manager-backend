@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceMan
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.ServiceState;
@@ -14,6 +15,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -49,11 +51,14 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
             DeploymentRepository deploymentRepository,
             ContainerPortResolver containerPortResolver,
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+            HubbleDomainFlowService hubbleDomainFlowService,
+            DeploymentDomainEntryRepository deploymentDomainEntryRepository,
             K8sNimClient k8sNimClient,
             NimDeployProperties nimDeployProperties
     ) {
         super(k8sClient, disposableResourceManager, knativeManifestGenerator, deploymentRepository,
-                containerPortResolver, ciliumNetworkPolicyCreator, nimDeployProperties.getNamespace(),
+                containerPortResolver, ciliumNetworkPolicyCreator, hubbleDomainFlowService,
+                deploymentDomainEntryRepository, nimDeployProperties.getNamespace(),
                 nimDeployProperties.getStartupTimeout(), DEFAULT_NIM_SERVICE_PORT);
         this.nimManifestGenerator = nimManifestGenerator;
         this.k8sNimClient = k8sNimClient;

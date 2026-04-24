@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-04-20T13:55:52.778353600Z
+> Generated at: 2026-04-24T12:16:22.382775Z
 
 ## Tables
 
@@ -17,11 +17,13 @@
 - [COMPONENT_REMOVAL](#component_removal)
 - [DEPLOYMENT](#deployment)
 - [DEPLOYMENT_AUD](#deployment_aud)
+- [DEPLOYMENT_DOMAIN_ENTRIES](#deployment_domain_entries)
 - [DEPLOYMENT_TOPICS](#deployment_topics)
 - [DEPLOYMENT_TOPICS_AUD](#deployment_topics_aud)
 - [DISPOSABLE_RESOURCE](#disposable_resource)
 - [DOMAIN_WHITELIST](#domain_whitelist)
 - [DOMAIN_WHITELIST_AUD](#domain_whitelist_aud)
+- [IMAGE_BUILD_DOMAIN_ENTRIES](#image_build_domain_entries)
 - [IMAGE_BUILD_LOGS](#image_build_logs)
 - [IMAGE_DEFINITION](#image_definition)
 - [IMAGE_DEFINITION_AUD](#image_definition_aud)
@@ -195,6 +197,21 @@
 
 - `FK_DEPLOYMENT_AUD_REV_INDEX_D` on (REV)
 
+## DEPLOYMENT_DOMAIN_ENTRIES
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| ID | BIGINT | No |  | PK |
+| DEPLOYMENT_ID | VARCHAR(36) | No |  | FK → DEPLOYMENT.ID |
+| DOMAIN | VARCHAR(255) | No |  |  |
+| VERDICT | VARCHAR(10) | No |  |  |
+| OBSERVED_AT | BIGINT | No |  |  |
+
+**Indexes:**
+
+- `UNIQUE UQ_DEPLOYMENT_DOMAIN_ENTRY_INDEX_4` on (DEPLOYMENT_ID, DOMAIN, VERDICT)
+- `FK_DEPLOYMENT_DOMAIN_ENTRY_DEPLOYMENT_INDEX_4` on (DEPLOYMENT_ID)
+
 ## DEPLOYMENT_TOPICS
 
 | Column | Type | Nullable | Default | Key |
@@ -254,6 +271,21 @@
 **Indexes:**
 
 - `FK_DOMAIN_WHITELIST_AUD_REV_INDEX_6` on (REV)
+
+## IMAGE_BUILD_DOMAIN_ENTRIES
+
+| Column | Type | Nullable | Default | Key |
+|--------|------|----------|---------|-----|
+| ID | BIGINT | No |  | PK |
+| IMAGE_DEFINITION_ID | UUID | No |  | FK → IMAGE_DEFINITION.ID |
+| DOMAIN | VARCHAR(255) | No |  |  |
+| VERDICT | VARCHAR(10) | No |  |  |
+| OBSERVED_AT | BIGINT | No |  |  |
+
+**Indexes:**
+
+- `UNIQUE UQ_IMAGE_BUILD_DOMAIN_ENTRY_INDEX_F` on (IMAGE_DEFINITION_ID, DOMAIN, VERDICT)
+- `FK_IMAGE_BUILD_DOMAIN_ENTRY_IMAGE_DEF_INDEX_F` on (IMAGE_DEFINITION_ID)
 
 ## IMAGE_BUILD_LOGS
 

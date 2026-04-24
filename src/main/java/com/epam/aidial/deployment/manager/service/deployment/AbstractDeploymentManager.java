@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResou
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -20,6 +21,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
@@ -70,6 +72,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected final ContainerPortResolver containerPortResolver;
     protected final DisposableResourceManager disposableResourceManager;
     protected final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
+    protected final HubbleDomainFlowService hubbleDomainFlowService;
+    protected final DeploymentDomainEntryRepository deploymentDomainEntryRepository;
 
     protected final String namespace;
     protected final int startupTimeoutSec;
@@ -81,6 +85,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         DeploymentRepository deploymentRepository,
                                         ContainerPortResolver containerPortResolver,
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
+                                        HubbleDomainFlowService hubbleDomainFlowService,
+                                        DeploymentDomainEntryRepository deploymentDomainEntryRepository,
                                         String namespace,
                                         int startupTimeoutSec,
                                         int defaultContainerPort) {
@@ -90,6 +96,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         this.containerPortResolver = containerPortResolver;
         this.disposableResourceManager = disposableResourceManager;
         this.ciliumNetworkPolicyCreator = ciliumNetworkPolicyCreator;
+        this.hubbleDomainFlowService = hubbleDomainFlowService;
+        this.deploymentDomainEntryRepository = deploymentDomainEntryRepository;
         this.namespace = namespace;
         this.startupTimeoutSec = startupTimeoutSec;
         this.defaultContainerPort = defaultContainerPort;
@@ -111,6 +119,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 deployment.setServiceName(serviceName);
                 deploymentRepository.updateServiceName(id, serviceName);
             }
+
+            deploymentDomainEntryRepository.deleteAllByDeploymentId(id);
+            var podLabelSelector = getServiceNameLabel() + "=" + deployment.getServiceName();
+            hubbleDomainFlowService.startDeploymentObservation(id, namespace, podLabelSelector);
 
             var serviceSpec = prepareServiceSpec(deployment);
 

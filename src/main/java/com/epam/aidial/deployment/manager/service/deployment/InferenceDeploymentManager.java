@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceMan
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
@@ -14,6 +15,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -53,12 +55,15 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             ContainerPortResolver containerPortResolver,
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
             DeploymentRepository deploymentRepository,
+            HubbleDomainFlowService hubbleDomainFlowService,
+            DeploymentDomainEntryRepository deploymentDomainEntryRepository,
             K8sKserveClient k8sKserveClient,
             KserveDeployProperties kserveDeployProperties,
             HuggingFaceProperties huggingFaceProperties
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
-                containerPortResolver, ciliumNetworkPolicyCreator, kserveDeployProperties.getNamespace(),
+                containerPortResolver, ciliumNetworkPolicyCreator, hubbleDomainFlowService,
+                deploymentDomainEntryRepository, kserveDeployProperties.getNamespace(),
                 kserveDeployProperties.getStartupTimeout(), DEFAULT_KSERVE_SERVICE_PORT);
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
