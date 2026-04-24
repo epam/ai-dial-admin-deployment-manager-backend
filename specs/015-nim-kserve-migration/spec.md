@@ -2,8 +2,19 @@
 
 **Feature Branch**: `019-nim-kserve-migration`  
 **Created**: 2026-04-20  
-**Status**: Implemented  
+**Status**: Implemented (kserve mode gated behind a feature flag, see 2026-04-24 revision below)
 **Input**: User description: Migrate NIM CRD generation from standalone inferencePlatform with nginx ingress to kserve inferencePlatform with Knative autoscaling, removing direct ingress management, and adding configurable PVC storage size per deployment.
+
+## Revision 2026-04-24: kserve mode made opt-in
+
+The KServe migration described below is no longer the default: the pre-migration standalone/ingress behavior is restored as the default and KServe mode is enabled via `app.nim.deploy.kserve-mode-enabled` (env `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED`, default `false`).
+
+- When the flag is `false` (default): NIMService uses `inferencePlatform: standalone`; external exposure uses `expose.ingress` (TLS + nginx rules from `K8S_NIM_CLUSTER_HOST`) when `use-cluster-internal-url=false`; no `expose.router`; no Knative autoscaling annotations.
+- When the flag is `true`: behavior matches the original FRs in this spec — `inferencePlatform: kserve`, `expose.router`, and Knative autoscaling annotations derived from the deployment `Scaling`.
+
+The configurable PVC storage size feature (FR-008 – FR-014) is unaffected by the flag and applies in both modes.
+
+FR-001 – FR-007 below are scoped to kserve mode (flag `true`). In standalone mode, the legacy behavior documented in `specs/nim-deployments/spec.md` applies.
 
 ## Clarifications
 
