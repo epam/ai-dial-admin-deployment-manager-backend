@@ -78,6 +78,29 @@ public interface PersistenceImageDefinitionMapper {
         }
     }
 
+    // TODO: unify lines 47-59 with 83-95
+    default void updateMetaFieldsFromDomain(ImageDefinition domain, ImageDefinitionEntity existingEntity) {
+        var updatedEntity = toImageDefinitionEntity(domain);
+
+        if (!existingEntity.getClass().equals(updatedEntity.getClass())) {
+            throw new IllegalArgumentException("""
+                    Updated entity and existing entity types must match.
+                    ImageId: %s. Existing type: %s. Updated type: %s
+                    """.formatted(
+                    domain.getId(),
+                    existingEntity.getClass().getSimpleName(),
+                    updatedEntity.getClass().getSimpleName()
+            )
+            );
+        }
+
+        // Only meta fields — preserves buildStatus, imageName, builtAt and build-affecting fields.
+        existingEntity.setDescription(updatedEntity.getDescription());
+        existingEntity.setAuthor(updatedEntity.getAuthor());
+        existingEntity.setTopics(updatedEntity.getTopics());
+        existingEntity.setLicense(updatedEntity.getLicense());
+    }
+
     @Named("getTypeFromClass")
     default String getTypeFromClass(ImageDefinition domain) {
         Class<?> entityClass = domain.getClass();

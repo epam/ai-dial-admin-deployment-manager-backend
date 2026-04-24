@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
+import com.epam.aidial.deployment.manager.model.DockerImageSource;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.util.AopTestUtils;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -127,7 +129,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
     }
 
     @Test
-    public void shouldPreventUpdateWhenBuildStatusIsSuccessful() {
+    public void shouldRejectBuildAffectingUpdateWhenBuildSuccessful() {
         // Given
         var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
         var imageDefinitionId = imageDef.getId();
@@ -135,7 +137,7 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // Set build status to successful
         imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image:1.0.0", System.currentTimeMillis());
 
-        // When - Try to update
+        // When - Try to update a build-affecting field (name)
         var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
                 .orElseThrow();
         updatedImageDef.setName("updated-name");
@@ -143,7 +145,55 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         // Then - Should throw exception
         assertThatThrownBy(() -> imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Cannot update image definition with status BUILD_SUCCESSFUL");
+                .hasMessageContaining("Cannot update build-affecting fields of a built image definition");
+    }
+
+    @Test
+    public void shouldAllowMetaOnlyUpdateWhenBuildSuccessful() {
+        // Given
+        var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
+        var imageDefinitionId = imageDef.getId();
+        var testImageName = "test-registry/test-image:1.0.0";
+        var testTimestamp = System.currentTimeMillis();
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, testImageName, testTimestamp);
+
+        // When - Update only meta fields (description, author, topics, license)
+        var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
+                .orElseThrow();
+        updatedImageDef.setDescription("updated-description");
+        updatedImageDef.setAuthor("updated-author");
+        updatedImageDef.setTopics(List.of("new-topic-1", "new-topic-2"));
+        updatedImageDef.setLicense("updated-license");
+
+        var result = imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef);
+
+        // Then - Meta fields updated; build state preserved
+        assertThat(result.getDescription()).isEqualTo("updated-description");
+        assertThat(result.getAuthor()).isEqualTo("updated-author");
+        assertThat(result.getTopics()).containsExactly("new-topic-1", "new-topic-2");
+        assertThat(result.getLicense()).isEqualTo("updated-license");
+        assertThat(result.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(result.getImageName()).isEqualTo(testImageName);
+        assertThat(result.getBuiltAt()).isEqualTo(Instant.ofEpochMilli(testTimestamp));
+    }
+
+    @Test
+    public void shouldRejectSourceChangeWhenBuildSuccessful() {
+        // Given
+        var imageDef = imageDefinitionService.createImageDefinition(FunctionalTestHelper.createMcpImageDefinition());
+        var imageDefinitionId = imageDef.getId();
+        imageDefinitionService.completeBuildSuccessfully(imageDefinitionId, "test-image:1.0.0", System.currentTimeMillis());
+
+        // When - Try to update source (build-affecting) along with a meta field
+        var updatedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
+                .orElseThrow();
+        updatedImageDef.setDescription("updated-description");
+        updatedImageDef.setSource(new DockerImageSource("http://different-uri", List.of("entry1"), null));
+
+        // Then - Should throw exception
+        assertThatThrownBy(() -> imageDefinitionService.updateImageDefinition(imageDefinitionId, updatedImageDef))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Cannot update build-affecting fields of a built image definition");
     }
 
     @Test

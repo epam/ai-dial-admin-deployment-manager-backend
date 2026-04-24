@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageDefinitionView;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
+import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -124,13 +126,36 @@ public class ImageDefinitionService {
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 
-        // Allowing update of built images on import
-        if ((!fromImport && existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) || existing.getBuildStatus() == ImageStatus.BUILDING) {
-            throw new IllegalArgumentException("Cannot update image definition with status %s. It is read-only."
-                    .formatted(existing.getBuildStatus()));
+        if (existing.getBuildStatus() == ImageStatus.BUILDING) {
+            throw new IllegalArgumentException("Cannot update image definition with status BUILDING. It is read-only.");
+        }
+
+        if (!fromImport && existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) {
+            if (!areOnlyMetaFieldsChanged(existing, updatedImageDefinition)) {
+                throw new IllegalArgumentException(
+                        "Cannot update build-affecting fields of a built image definition. "
+                                + "Only description, author, topics, and license can be updated while build status is BUILD_SUCCESSFUL.");
+            }
+            return imageDefinitionRepository.updateImageDefinitionMetaFields(id, updatedImageDefinition);
         }
 
         return imageDefinitionRepository.updateImageDefinition(id, updatedImageDefinition);
+    }
+
+    // TODO: refactor 'areOnlyMetaFieldsChanged' method to be more maintainable
+    private static boolean areOnlyMetaFieldsChanged(ImageDefinition existing, ImageDefinition updated) {
+        if (!Objects.equals(existing.getName(), updated.getName())
+                || !Objects.equals(existing.getVersion(), updated.getVersion())
+                || !Objects.equals(existing.getSource(), updated.getSource())
+                || !Objects.equals(existing.getAllowedDomains(), updated.getAllowedDomains())
+                || !Objects.equals(existing.getImageBuilder(), updated.getImageBuilder())) {
+            return false;
+        }
+        if (existing instanceof McpImageDefinition existingMcp && updated instanceof McpImageDefinition updatedMcp
+                && !Objects.equals(existingMcp.getTransportType(), updatedMcp.getTransportType())) {
+            return false;
+        }
+        return true;
     }
 
     @Transactional
