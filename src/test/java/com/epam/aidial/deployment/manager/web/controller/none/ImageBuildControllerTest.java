@@ -68,6 +68,7 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
     private ImageBuildLogsService imageBuildLogsService;
     @MockitoBean
     private ImageBuildRunner imageBuildRunner;
+    @MockitoBean
     private HubbleDomainFlowService hubbleDomainFlowService;
     @MockitoBean
     private HubbleRelayProperties hubbleRelayProperties;
