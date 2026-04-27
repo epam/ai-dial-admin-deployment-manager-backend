@@ -42,31 +42,15 @@ You **MUST** consider the user input before proceeding (if not empty).
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    1. Convert the command name from dot-notation to dash-notation (e.g., `speckit.git.feature` → `speckit-git-feature`)
-    2. Read `.claude/skills/<dash-name>/SKILL.md` and check for `disable-model-invocation: true`
-    3. **If `disable-model-invocation: true`** (shell-script skill):
-       - Generate a concise short name (2-4 words, dash-separated) from the feature description — same rules as step 1 of the Outline below
-       - Follow the skill's **Execution** section and run the bash script directly using the Bash tool:
-         `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" "<feature description>"`
-       - Parse the JSON output to extract `BRANCH_NAME` and `FEATURE_NUM`; note them for use in step 2 of the Outline
-       - Output:
-         ```
-         ## Extension Hooks
+    ```
+    ## Extension Hooks
 
-         **Automatic Pre-Hook**: {extension}
-         Executing: `/{command}` (via Bash)
-         Result: BRANCH_NAME={branch_name}, FEATURE_NUM={feature_num}
-         ```
-    4. **If `disable-model-invocation: false` (or absent)** (model-invoked skill):
-       - Use the Skill tool with the dash-separated skill name
-       - Output:
-         ```
-         ## Extension Hooks
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
 
-         **Automatic Pre-Hook**: {extension}
-         Executing: `/{command}`
-         ```
-    5. Wait for the result before proceeding to the Outline
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
