@@ -124,10 +124,17 @@ public class ImageDefinitionService {
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 
-        // Allowing update of built images on import
-        if ((!fromImport && existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) || existing.getBuildStatus() == ImageStatus.BUILDING) {
-            throw new IllegalArgumentException("Cannot update image definition with status %s. It is read-only."
-                    .formatted(existing.getBuildStatus()));
+        if (existing.getBuildStatus() == ImageStatus.BUILDING) {
+            throw new IllegalArgumentException("Cannot update image definition with status BUILDING. It is read-only.");
+        }
+
+        if (!fromImport && existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) {
+            if (!existing.hasSameBuildAffectingFields(updatedImageDefinition)) {
+                throw new IllegalArgumentException(
+                        "Cannot update build-affecting fields of a built image definition. "
+                                + "Only description, author, topics, and license can be updated while build status is BUILD_SUCCESSFUL.");
+            }
+            return imageDefinitionRepository.updateImageDefinitionMetaFields(id, updatedImageDefinition);
         }
 
         return imageDefinitionRepository.updateImageDefinition(id, updatedImageDefinition);
