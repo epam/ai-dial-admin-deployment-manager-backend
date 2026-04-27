@@ -80,13 +80,37 @@ Status: **Implemented**
 - **THEN** the system responds with 400
 
 ### Requirement: Update image definition
-The system SHALL update an existing image definition by ID.
+The system SHALL update an existing image definition by ID. The set of fields that may be mutated depends on the current `buildStatus`:
+
+- **NOT_BUILT, BUILD_FAILED, BUILD_STOPPED** — full replacement is allowed. Any update resets `buildStatus` to `NOT_BUILT` because the prior build artifact (if any) is no longer valid against the new configuration.
+- **BUILD_SUCCESSFUL** — only **meta fields** may change: `description`, `author`, `topics`, `license`. The update is applied in place; `buildStatus`, `imageName`, `builtAt`, and build logs are preserved, and the built image remains valid. Any change to a build-affecting field (`name`, `version`, `source`, `allowedDomains`, `imageBuilder`, or a subtype-specific field such as MCP `transportType`) is rejected with HTTP 400.
+- **BUILDING** — the image definition is read-only. Any update is rejected with HTTP 400.
+
+`allowedDomains` is compared order-insensitively (multiset semantics) during build-affecting detection — a cosmetic reorder of the same domains is treated as no change, mirroring `DeploymentService.isApplicableForCiliumNetworkPolicyUpdate`.
+
+The configuration import path (`POST /api/v1/configs/import`, see `export-import` spec) bypasses the `BUILD_SUCCESSFUL` restriction and uses full-replacement semantics regardless of the prior build status.
 
 Status: **Implemented**
 
-#### Scenario: Successful update
-- **WHEN** `PUT /api/v1/images/definitions/{id}` is called with a valid body
-- **THEN** the image definition is updated and returned with a new `updatedAt` timestamp
+#### Scenario: Full update when not BUILD_SUCCESSFUL or BUILDING
+- **WHEN** `PUT /api/v1/images/definitions/{id}` is called with a valid body and current `buildStatus` is `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED`
+- **THEN** the image definition is fully replaced, `buildStatus` is reset to `NOT_BUILT`, and a new `updatedAt` timestamp is set
+
+#### Scenario: Meta-only update when BUILD_SUCCESSFUL
+- **WHEN** `PUT /api/v1/images/definitions/{id}` is called while current `buildStatus` is `BUILD_SUCCESSFUL` and only meta fields (`description`, `author`, `topics`, `license`) differ from the stored record
+- **THEN** the meta fields are updated; `buildStatus`, `imageName`, `builtAt`, and build logs are preserved
+
+#### Scenario: allowedDomains reorder is not a build-affecting change
+- **WHEN** `PUT /api/v1/images/definitions/{id}` is called while current `buildStatus` is `BUILD_SUCCESSFUL` and `allowedDomains` contains the same entries as the stored record in a different order (meta fields may also change)
+- **THEN** the update is treated as meta-only and applied in place; `buildStatus` is preserved
+
+#### Scenario: Build-affecting update when BUILD_SUCCESSFUL is rejected
+- **WHEN** `PUT /api/v1/images/definitions/{id}` is called while current `buildStatus` is `BUILD_SUCCESSFUL` and any build-affecting field (`name`, `version`, `source`, `allowedDomains` membership, `imageBuilder`, or a subtype-specific field) differs
+- **THEN** the system responds with 400 and the stored record is unchanged
+
+#### Scenario: Update rejected while BUILDING
+- **WHEN** `PUT /api/v1/images/definitions/{id}` is called while current `buildStatus` is `BUILDING`
+- **THEN** the system responds with 400
 
 #### Scenario: Non-existent ID
 - **WHEN** `PUT /api/v1/images/definitions/{id}` is called with an unknown ID

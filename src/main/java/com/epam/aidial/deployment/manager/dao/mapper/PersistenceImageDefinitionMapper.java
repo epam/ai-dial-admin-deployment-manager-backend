@@ -45,18 +45,7 @@ public interface PersistenceImageDefinitionMapper {
 
     default void updateEntityFromDomain(ImageDefinition domain, ImageDefinitionEntity existingEntity) {
         var updatedEntity = toImageDefinitionEntity(domain);
-
-        if (!existingEntity.getClass().equals(updatedEntity.getClass())) {
-            throw new IllegalArgumentException("""
-                    Updated entity and existing entity types must match.
-                    ImageId: %s. Existing type: %s. Updated type: %s
-                    """.formatted(
-                    domain.getId(),
-                    existingEntity.getClass().getSimpleName(),
-                    updatedEntity.getClass().getSimpleName()
-            )
-            );
-        }
+        assertSameType(domain, existingEntity, updatedEntity);
 
         // do not update id, createdAt, updatedAt, buildStatus, imageName, builtAt, type
         existingEntity.setName(updatedEntity.getName());
@@ -75,6 +64,33 @@ public interface PersistenceImageDefinitionMapper {
         if (existingEntity instanceof McpImageDefinitionEntity existingMcp
                 && updatedEntity instanceof McpImageDefinitionEntity updatedMcp) {
             existingMcp.setTransportType(updatedMcp.getTransportType());
+        }
+    }
+
+    default void updateMetaFieldsFromDomain(ImageDefinition domain, ImageDefinitionEntity existingEntity) {
+        var updatedEntity = toImageDefinitionEntity(domain);
+        assertSameType(domain, existingEntity, updatedEntity);
+
+        // Only meta fields — preserves buildStatus, imageName, builtAt and build-affecting fields.
+        existingEntity.setDescription(updatedEntity.getDescription());
+        existingEntity.setAuthor(updatedEntity.getAuthor());
+        existingEntity.setTopics(updatedEntity.getTopics());
+        existingEntity.setLicense(updatedEntity.getLicense());
+    }
+
+    private static void assertSameType(ImageDefinition domain,
+                                       ImageDefinitionEntity existingEntity,
+                                       ImageDefinitionEntity updatedEntity) {
+        if (!existingEntity.getClass().equals(updatedEntity.getClass())) {
+            throw new IllegalArgumentException("""
+                    Updated entity and existing entity types must match.
+                    ImageId: %s. Existing type: %s. Updated type: %s
+                    """.formatted(
+                    domain.getId(),
+                    existingEntity.getClass().getSimpleName(),
+                    updatedEntity.getClass().getSimpleName()
+            )
+            );
         }
     }
 

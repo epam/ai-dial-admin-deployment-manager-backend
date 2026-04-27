@@ -109,6 +109,16 @@ public class ImageDefinitionRepository {
         return mapper.toImageDefinition(savedEntity);
     }
 
+    public ImageDefinition updateImageDefinitionMetaFields(UUID id, ImageDefinition updatedImageDefinition) {
+        var existingEntity = findImageDefinitionById(id);
+
+        mapper.updateMetaFieldsFromDomain(updatedImageDefinition, existingEntity);
+
+        var savedEntity = imageDefinitionJpaRepository.saveAndFlush(existingEntity);
+        log.debug("Image definition '{}' meta fields updated successfully", id);
+        return mapper.toImageDefinition(savedEntity);
+    }
+
     public void addBuildLogs(UUID id, List<String> logs) {
         if (!imageDefinitionJpaRepository.existsById(id)) {
             throw new EntityNotFoundException("Image definition not found by id: %s".formatted(id));
