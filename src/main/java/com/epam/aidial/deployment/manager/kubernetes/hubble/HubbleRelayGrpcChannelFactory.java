@@ -6,11 +6,13 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.LocalPortForward;
 import io.grpc.CallOptions;
 import io.grpc.ClientCall;
+import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.MethodDescriptor;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,12 +23,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Creates a gRPC {@link ManagedChannel} to Hubble Relay via a Kubernetes API port-forward.
+ * Provides a shared gRPC {@link ManagedChannel} to Hubble Relay via a Kubernetes API port-forward.
  *
- * <p><b>Per-observation lifecycle</b>: {@code createChannel()} is called once per
- * {@code HubbleFlowObserver.observe()} invocation (not at startup). Each call opens its own
- * {@link LocalPortForward} WebSocket tunnel through the K8s API. The returned channel wraps both
- * the gRPC channel and the port-forward so that closing the channel also closes the tunnel.
+ * <p><b>Shared-channel model</b>: A single {@link ManagedChannel} (backed by one
+ * {@link LocalPortForward} WebSocket tunnel) is reused across all concurrent observations.
+ * N parallel builds open N gRPC <em>streams</em> over the shared HTTP/2 connection — not N
+ * separate port-forwards. Channel health is checked on each {@link #getSharedChannel()} call;
+ * a {@code TRANSIENT_FAILURE} or {@code SHUTDOWN} state triggers recreation of the port-forward
+ * and channel. Reconnection timing is governed by the {@code observeWithRetry} loop in
+ * {@code HubbleDomainFlowService}. The shared channel is closed at application shutdown via
+ * {@link #close()}.
  *
  * <p><b>Direct-connect upgrade path</b>: {@code properties.getHost()} holds the Hubble Relay
  * service hostname for the future NodePort/LoadBalancer path, where the channel would target
@@ -48,15 +54,49 @@ public class HubbleRelayGrpcChannelFactory {
     // Injected by type — there is exactly one KubernetesClient bean in both production and test contexts.
     private final KubernetesClient kubeClient;
 
+    // Shared channel — one port-forward for all concurrent observations.
+    private volatile ManagedChannel sharedChannel;
+
     /**
-     * Finds the Hubble Relay pod, opens a port-forward, and returns a gRPC channel bound to the
-     * local port. The returned channel must be shut down when observation finishes; shutting down
-     * the channel also closes the port-forward.
+     * Returns the shared gRPC channel, creating it on first call or recreating it if the current
+     * channel is no longer usable (port-forward died after a Hubble Relay pod restart).
      *
-     * @return a {@link ManagedChannel} whose shutdown also closes the underlying port-forward
+     * @return the shared {@link ManagedChannel}; callers must NOT shut it down
      * @throws IllegalStateException if no matching Hubble Relay pod is found
      */
-    public ManagedChannel createChannel() {
+    public synchronized ManagedChannel getSharedChannel() {
+        if (sharedChannel != null && isChannelUsable(sharedChannel)) {
+            return sharedChannel;
+        }
+        if (sharedChannel != null) {
+            sharedChannel.shutdownNow(); // closes old LocalPortForward via PortForwardChannel
+        }
+        sharedChannel = openNewChannel();
+        return sharedChannel;
+    }
+
+    /**
+     * Closes the shared channel and its underlying port-forward at application shutdown.
+     */
+    @PreDestroy
+    public void close() {
+        synchronized (this) {
+            if (sharedChannel != null) {
+                sharedChannel.shutdownNow();
+                sharedChannel = null;
+            }
+        }
+    }
+
+    private boolean isChannelUsable(ManagedChannel channel) {
+        if (channel.isShutdown()) {
+            return false;
+        }
+        ConnectivityState state = channel.getState(false);
+        return state != ConnectivityState.TRANSIENT_FAILURE && state != ConnectivityState.SHUTDOWN;
+    }
+
+    private ManagedChannel openNewChannel() {
         var namespace = properties.getNamespace();
         var labelSelector = properties.getPodLabelSelector();
         var port = properties.getPort();
@@ -69,11 +109,11 @@ public class HubbleRelayGrpcChannelFactory {
                             .formatted(namespace, labelSelector));
         }
         var podName = pods.get(0).getMetadata().getName();
-        log.debug("Opening port-forward to Hubble Relay pod {}/{} port {}", namespace, podName, port);
+        log.info("Opening port-forward to Hubble Relay pod {}/{} port {}", namespace, podName, port);
 
         var portForward = kubeClient.pods().inNamespace(namespace).withName(podName).portForward(port);
         var localPort = portForward.getLocalPort();
-        log.debug("Port-forward established: localhost:{} -> {}/{}", localPort, namespace, podName);
+        log.info("Port-forward established: localhost:{} -> {}/{}", localPort, namespace, podName);
 
         ManagedChannel channel = buildChannel(localPort);
         return new PortForwardChannel(channel, portForward);
@@ -140,6 +180,11 @@ public class HubbleRelayGrpcChannelFactory {
         @Override
         public boolean isShutdown() {
             return delegate.isShutdown();
+        }
+
+        @Override
+        public ConnectivityState getState(boolean requestConnection) {
+            return delegate.getState(requestConnection);
         }
 
         @Override

@@ -71,7 +71,7 @@ src/main/java/com/epam/aidial/deployment/manager/
 │       └── DeploymentDomainEntryRepository.java      (NEW) — domain repo wrapper
 ├── kubernetes/
 │   └── hubble/
-│       ├── HubbleRelayGrpcChannelFactory.java        (NEW) — creates LocalPortForward + ManagedChannel
+│       ├── HubbleRelayGrpcChannelFactory.java        (NEW) — shared ManagedChannel over a single LocalPortForward; recreates on TRANSIENT_FAILURE
 │       └── HubbleFlowObserver.java                   (NEW) — gRPC GetFlows streaming, DNS filter, callback
 ├── model/
 │   ├── CiliumVerdict.java                            (NEW) — ALLOWED, BLOCKED enum

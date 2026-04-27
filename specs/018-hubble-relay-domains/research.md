@@ -13,6 +13,8 @@
 
 **TLS note**: For the port-forward approach, gRPC-level TLS (`FR-013`) is not applicable — the channel is `localhost:N` (plaintext). Security comes from the K8s API TLS + RBAC layer, which already validates the service account token. If connectivity is later upgraded to NodePort/LoadBalancer, gRPC TLS can be enabled by switching `ManagedChannelBuilder` from `usePlaintext()` to `useTransportSecurity()` with a configured trust store. This change is isolated to `HubbleRelayGrpcChannelFactory`.
 
+**Shared-channel model**: A single `ManagedChannel` (one port-forward WebSocket) is shared across all concurrent observations. N parallel builds open N gRPC *streams* over the shared HTTP/2 connection — not N separate port-forwards. Channel health is checked on each `getSharedChannel()` call; a `TRANSIENT_FAILURE` or `SHUTDOWN` state triggers recreation of the port-forward and channel. Reconnection timing is governed by `observeWithRetry` in `HubbleDomainFlowService`.
+
 ---
 
 ## Decision 2: Hubble Relay gRPC Stubs
@@ -59,7 +61,7 @@ New Gradle plugin: `id 'com.google.protobuf' version '0.9.4'`
 
 **Decision**: `HubbleDomainFlowService` (service layer) manages one `ScheduledFuture` per active observation scope (imageDefinitionId for builds, deploymentId for deployments), stored in thread-safe `ConcurrentHashMap` fields. Observations are started/stopped by callers (`ImageBuildRunner`, `AbstractDeploymentManager`).
 
-**Rationale**: A per-scope handle map allows precise start/stop without a global cleanup sweep. Virtual threads (Java 21) are appropriate for the blocking gRPC stream read loop — they park cheaply.
+**Rationale**: A per-scope handle map allows precise start/stop without a global cleanup sweep. Virtual threads (Java 21) are appropriate for the blocking gRPC stream read loop — they park cheaply. Channel lifecycle (port-forward + `ManagedChannel`) is managed exclusively by `HubbleRelayGrpcChannelFactory.getSharedChannel()` / `close()`, not by individual observers.
 
 **Alternatives considered**:
 - Single global thread pool with task tracking: harder to cancel per-scope. Rejected.

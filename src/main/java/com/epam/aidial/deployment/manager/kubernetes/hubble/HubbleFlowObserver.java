@@ -24,8 +24,9 @@ import java.util.function.Consumer;
  *
  * <p>Observation runs <em>blocking</em> on the calling thread. The caller is responsible for
  * running this on a virtual thread (see {@code HubbleDomainFlowService}). The observation loop
- * terminates when the gRPC stream ends, the thread is interrupted, or {@code channel.shutdownNow()}
- * is called.
+ * terminates when the gRPC stream ends or the thread is interrupted. This class obtains the
+ * shared channel from {@link HubbleRelayGrpcChannelFactory} and does not own its lifecycle —
+ * the channel must not be shut down here.
  *
  * <p>DNS verdict mapping:
  * <ul>
@@ -55,12 +56,12 @@ public class HubbleFlowObserver {
      * @param onEntry          callback invoked for each qualifying {@link DomainEntry}
      */
     public void observe(String podNamespace, String podLabelSelector, Consumer<DomainEntry> onEntry) {
-        var channel = channelFactory.createChannel();
+        var channel = channelFactory.getSharedChannel();
         try {
             var stub = ObserverGrpc.newBlockingStub(channel);
             var request = buildRequest(podNamespace, podLabelSelector);
 
-            log.debug("Starting Hubble flow observation: namespace={}, selector={}",
+            log.info("Starting Hubble flow observation: namespace={}, selector={}",
                     podNamespace, podLabelSelector);
 
             var responses = stub.getFlows(request);
@@ -98,15 +99,17 @@ public class HubbleFlowObserver {
             }
         } catch (Exception e) {
             if (Thread.currentThread().isInterrupted()) {
-                log.debug("Hubble flow observation interrupted: namespace={}, selector={}",
+                log.warn("Hubble flow observation interrupted: namespace={}, selector={}",
                         podNamespace, podLabelSelector);
             } else {
                 log.warn("Hubble flow observation ended unexpectedly: namespace={}, selector={}: {}",
                         podNamespace, podLabelSelector, e.getMessage());
             }
-        } finally {
-            channel.shutdownNow();
         }
+        // Channel lifecycle is managed by HubbleRelayGrpcChannelFactory — do not shut it down here.
+        // When this observation's thread is interrupted (future.cancel(true)), gRPC detects the
+        // interrupt on the next hasNext() call and throws StatusRuntimeException(CANCELLED),
+        // ending only this stream; the shared channel remains open for other observations.
     }
 
     private GetFlowsRequest buildRequest(String podNamespace, String podLabelSelector) {
