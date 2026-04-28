@@ -626,12 +626,6 @@ class NimManifestGeneratorTest {
     private void stubNimServiceExposeIngressConfig() {
         var ingress = new Ingress();
         ingress.setEnabled(true);
-        ingress.setAnnotations(Map.of(
-                "nginx.ingress.kubernetes.io/proxy-body-size", "0",
-                "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
-                "cert-manager.io/cluster-issuer", "letsencrypt-production",
-                "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
-        ));
         var ingressSpec = new Spec();
         ingressSpec.setIngressClassName("nginx");
         ingress.setSpec(ingressSpec);

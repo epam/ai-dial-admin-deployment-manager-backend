@@ -15,12 +15,6 @@
     } ],
     "expose" : {
       "ingress" : {
-        "annotations" : {
-          "nginx.ingress.kubernetes.io/proxy-body-size" : "0",
-          "nginx.ingress.kubernetes.io/proxy-read-timeout" : "600",
-          "cert-manager.io/cluster-issuer" : "letsencrypt-production",
-          "nginx.ingress.kubernetes.io/force-ssl-redirect" : "true"
-        },
         "enabled" : true,
         "spec" : {
           "ingressClassName" : "nginx",
