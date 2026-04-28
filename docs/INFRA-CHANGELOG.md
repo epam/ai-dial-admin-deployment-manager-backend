@@ -10,7 +10,6 @@
 
 #### Deployment & Scaling
 - `app.knative.deploy.ready-grace-period` / `K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC` — grace period after `Ready=False` before reporting `CRASHED` (default: `15`)
-- `app.node-pools.label-key` / `NODE_POOL_LABEL_KEY` and `app.node-pools.pools` / `NODE_POOLS` — define Kubernetes node pools and pin deployments to matching nodes
 
 #### Providers
 - `app.nim.deploy.url-schema` / `K8S_NIM_DEPLOYMENT_URL_SCHEMA` — overrides the URL scheme used for resolved NIM service URLs
