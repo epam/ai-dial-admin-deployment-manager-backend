@@ -236,8 +236,6 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 #### [Preview] Node Pool Configuration
 
-> Preview feature: documented for early evaluation and not included in the 0.16.0 release notes.
-
 Node pools define groups of Kubernetes nodes that deployments can be pinned to. When a deployment has a node pool selected, hard node affinity is applied at deploy time to constrain pods to nodes matching the pool's label selector.
 
 | Property | Environment Variable | Default Value | Required | Description |
