@@ -1,5 +1,44 @@
 # Infra Changelog
 
+## 0.16.0
+
+### Added
+
+#### Configuration Management
+- `spring.jpa.properties.org.hibernate.envers.store_data_at_delete` — stores full deleted entity state for audit trail reconstruction (default: `true`)
+- `app.validation.resources.max-storage-size` / `RESOURCES_STORAGE_MAX_SIZE` — sets the maximum allowed storage size for NIM deployments (default: `200Gi`)
+
+#### Deployment & Scaling
+- `app.knative.deploy.ready-grace-period` / `K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC` — grace period after `Ready=False` before reporting `CRASHED` (default: `15`)
+- `app.node-pools.label-key` / `NODE_POOL_LABEL_KEY` and `app.node-pools.pools` / `NODE_POOLS` — define Kubernetes node pools and pin deployments to matching nodes
+
+#### Providers
+- `app.nim.deploy.url-schema` / `K8S_NIM_DEPLOYMENT_URL_SCHEMA` — overrides the URL scheme used for resolved NIM service URLs
+- `app.nim.deploy.kserve-mode-enabled` / `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED` — enables NIMService generation for KServe inference platform mode (default: `false`)
+- `app.nim-service-expose-ingress-config.spec.ingressClassName` / `K8S_NIM_INGRESS_CLASS_NAME` — configures the ingress class for legacy external NIM ingress (default: `nginx`)
+
+---
+
+### Changed
+
+#### Configuration Management
+- Validation resource properties were renamed from `app.resources.*` to `app.validation.resources.*`; existing environment variable names remain unchanged
+
+#### Deployment & Scaling
+- Progress deadline behavior now applies a fallback of `startup-timeout + buffer-seconds` for KServe and NIM deployments when no startup probe is configured
+
+#### Providers
+- `app.nim.deploy.cluster-host` / `K8S_NIM_CLUSTER_HOST` — now applies only to legacy standalone external NIM URLs and is unused when NIM KServe mode is enabled
+
+---
+
+### Removed
+
+#### Providers
+- `app.nim-service-expose-ingress-config.enabled` and `app.nim-service-expose-ingress-config.annotations` — removed configurable enable flag and annotation overrides for NIM ingress
+
+---
+
 ## 0.15.0
 
 ### Added
