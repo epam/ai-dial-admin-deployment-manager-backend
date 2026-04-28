@@ -227,16 +227,8 @@ app:
           port: 8000
   nim-service-expose-ingress-config:
     enabled: true
-    annotations:
-      # Allow large payloads (often needed for large prompts/images)
-      "[nginx.ingress.kubernetes.io/proxy-body-size]": "0"
-      # Increase timeout (LLMs can take time to stream responses)
-      "[nginx.ingress.kubernetes.io/proxy-read-timeout]": "600"
-      # Cert-manager for SSL
-      "[cert-manager.io/cluster-issuer]": "letsencrypt-production"
-      "[nginx.ingress.kubernetes.io/force-ssl-redirect]": "true"
     spec:
-      ingressClassName: nginx
+      ingressClassName: ${K8S_NIM_INGRESS_CLASS_NAME:nginx}
   builder-job-config:
     apiVersion: batch/v1
     kind: Job
