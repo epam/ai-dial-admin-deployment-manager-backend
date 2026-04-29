@@ -234,14 +234,14 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
 
 
-#### Node Pool Configuration
+#### [Preview] Node Pool Configuration
 
 Node pools define groups of Kubernetes nodes that deployments can be pinned to. When a deployment has a node pool selected, hard node affinity is applied at deploy time to constrain pods to nodes matching the pool's label selector.
 
 | Property | Environment Variable | Default Value | Required | Description |
 |----------|---------------------|---------------|----------|-------------|
-| `app.node-pools.label-key` | `NODE_POOL_LABEL_KEY` | _(empty)_ | Required when `app.node-pools.pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
-| `app.node-pools.pools` | `NODE_POOLS` | _(empty)_ | No | JSON array of node pool configurations. See format below |
+| `app.node-pools.label-key` | `NODE_POOL_LABEL_KEY` [Preview] | _(empty)_ | Required when `app.node-pools.pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
+| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | JSON array of node pool configurations. See format below |
 
 **JSON format for `NODE_POOLS`**:
 
