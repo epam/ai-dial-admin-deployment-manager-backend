@@ -16,7 +16,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 |---|---|---|---|
 | [001-deployment-topics](001-deployment-topics/spec.md) | Implemented | topics | Add topic assignment on deployments, mirroring image-definition topics |
 | [002-deployment-command-args](002-deployment-command-args/spec.md) | Implemented | deployments | Support `command` and `args` configuration for all deployment types |
-| [003-unified-deployment-source](003-unified-deployment-source/spec.md) | Draft | deployments | Unified deployment source model with direct `imageReference` for Knative |
+| [003-unified-deployment-source](003-unified-deployment-source/spec.md) | Implemented | deployments | Unified deployment source model with direct `imageReference` for Knative |
 | [004-store-service-name](004-store-service-name/spec.md) | Implemented | deployments | Persist resolved K8s service name on deployment row to survive prefix changes |
 | [005-external-registry-ref](005-external-registry-ref/spec.md) | Implemented | image-definitions | External registry reference on image/deployment sources for client lookups |
 | [006-config-export-preview](006-config-export-preview/spec.md) | Implemented | export-import | `POST` preview endpoint that previews export contents without producing the ZIP |
@@ -30,7 +30,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [014-auditing](014-auditing/spec.md) | Implemented | _new capability_ `auditing` | Activity history for deployment resources via Hibernate Envers |
 | [015-nim-kserve-migration](015-nim-kserve-migration/spec.md) | Implemented (gated) | nim-deployments, kubernetes-manifests | Migrate NIM CRD generation to KServe `inferencePlatform` (opt-in via env flag) |
 | [016-node-pool-selector](016-node-pool-selector/spec.md) | Implemented | deployments | Node-pool selector API + per-deployment node pool assignment |
-| [017-stop-image-build](017-stop-image-build/spec.md) | Partially implemented | image-builds | Stop in-flight image builds from the UI/API — core ships; tests T024–T026, T032–T033 outstanding |
+| [017-stop-image-build](017-stop-image-build/spec.md) | Implemented | image-builds | Stop in-flight image builds from the UI/API |
 
 ---
 

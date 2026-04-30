@@ -2,7 +2,7 @@
 
 **Feature Branch**: `016-node-pool-selector`  
 **Created**: 2026-04-21  
-**Status**: Draft  
+**Status**: Implemented  
 **Capability**: deployments  
 **Input**: User description: "Design an API for a node pool selector UI. Users select a single node pool for their deployment. A new API returns available node pools with live Kubernetes resource utilization. Deployment create/update/get endpoints are extended to carry the selected node pool."
 
