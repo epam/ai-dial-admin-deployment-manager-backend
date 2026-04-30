@@ -2,7 +2,7 @@
 
 **Feature Branch**: `009-mcp-registry-filtering`
 **Created**: 2026-03-18
-**Status**: Draft
+**Status**: Implemented
 **Capability**: mcp-registry
 **Input**: User description: "I want to adjust MCP registry functionality. Want to support filtering on BE for some properties. MCP registry itself doesn't support filters except for name. Hence I propose to filter it on BE runtime. Read up to N pages from MCP registry and try to collect one page or response collected result after N."
 

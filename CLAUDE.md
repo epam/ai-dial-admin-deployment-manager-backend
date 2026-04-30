@@ -40,8 +40,6 @@ When you change behaviour, contracts, or invariants documented in any `specs/<ca
 2. If a capability spec mentions the API/behaviour/invariant you changed, update the spec to match the new state.
 3. If you've checked and no spec update is needed, say so explicitly in your final summary so the user doesn't have to ask.
 
-A `Stop` hook (`.claude/hooks/check-spec-staleness.sh`) enforces this once per session: if significant source files changed without any spec update, it blocks with a list of likely capability specs to review. The block fires once per session — to release it, either update a spec or affirmatively state "no spec update needed because …" and try to stop again.
-
 ### Speckit-vendored files are off-limits
 
 The following paths are vendored from github/spec-kit and **MUST NOT** be edited — they get overwritten on `specify update`:

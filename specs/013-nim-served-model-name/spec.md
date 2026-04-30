@@ -2,7 +2,7 @@
 
 **Feature Branch**: `013-nim-served-model-name`  
 **Created**: 2026-04-08  
-**Status**: Draft  
+**Status**: Implemented  
 **Capability**: nim-deployments  
 **Input**: User description: "NIM containers serve models under a name derived from the image. Users want to override the model name exposed via the NIM API (/v1/models, /v1/chat/completions). NVIDIA NIM supports the NIM_SERVED_MODEL_NAME environment variable for this."
 

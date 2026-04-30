@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-external-registry-ref`
 **Created**: 2026-03-13
-**Status**: Draft
+**Status**: Implemented
 **Capability**: image-definitions
 **Input**: User description: "Store a ref/link to an external storage/registry inside general image/deployment sources (e.g. Docker image source, Git dockerfile source, direct image reference). These functional sources describe how to obtain an artifact but carry no information about where the artifact is catalogued — the external registry reference fills that gap for informational client purposes."
 
