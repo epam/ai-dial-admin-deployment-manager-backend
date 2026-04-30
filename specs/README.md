@@ -28,7 +28,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [012-nim-url-schema](012-nim-url-schema/spec.md) | Implemented | nim-deployments | Add `http`/`https` schema prefix to NIM service URLs based on endpoint kind |
 | [013-nim-served-model-name](013-nim-served-model-name/spec.md) | Implemented | nim-deployments | Override served model name via `NIM_SERVED_MODEL_NAME` env var |
 | [014-auditing](014-auditing/spec.md) | Implemented | _new capability_ `auditing` | Activity history for deployment resources via Hibernate Envers |
-| [015-nim-kserve-migration](015-nim-kserve-migration/spec.md) | Implemented (gated) | nim-deployments, kubernetes-manifests | Migrate NIM CRD generation to KServe `inferencePlatform` (opt-in via env flag) |
+| [015-nim-kserve-migration](015-nim-kserve-migration/spec.md) | Implemented | nim-deployments, kubernetes-manifests | Migrate NIM CRD generation to KServe `inferencePlatform` (opt-in via env flag) |
 | [016-node-pool-selector](016-node-pool-selector/spec.md) | Implemented | deployments | Node-pool selector API + per-deployment node pool assignment |
 | [017-stop-image-build](017-stop-image-build/spec.md) | Implemented | image-builds | Stop in-flight image builds from the UI/API |
 
@@ -76,6 +76,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [security](security/spec.md) | Implemented | Configurable security modes (none / basic / oidc), JWT/OIDC multi-provider authentication (Azure, Keycloak, Auth0, Okta, Cognito), Azure Identity SDK |
 | [api-conventions](api-conventions/spec.md) | Implemented | REST API contract — versioning, ErrorView response structure with distributed tracing (traceparent), pagination patterns |
 | [observability-and-logging](observability-and-logging/spec.md) | Implemented | OpenTelemetry log integration, W3C Trace Context propagation, `@LogExecution` AOP convention |
+| [auditing](auditing/spec.md) | Implemented | Hibernate Envers change-tracking + denormalized activity feed; activity / revision / per-entity snapshot endpoints |
 
 ## Infrastructure
 

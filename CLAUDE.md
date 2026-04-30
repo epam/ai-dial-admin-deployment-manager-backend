@@ -68,5 +68,5 @@ Where `<slug>` is the directory name under `specs/` that the feature belongs to 
 
 **When `/speckit.implement` finishes**, before reporting complete:
 1. Edit `specs/NNN-<short-name>/spec.md` to flip `**Status**:` from `Draft` to `Implemented` (or `Partially implemented — <reason>` if not all P1+ stories landed).
-2. Read the `**Capability**:` line; for each listed slug, open `specs/<slug>/spec.md` and update the affected Requirement(s)/Scenario(s) to match the shipped behaviour. Add a one-line `Implemented via NNN-<feature>` cross-reference near the changed Requirement.
+2. Read the `**Capability**:` line; for each listed slug, open `specs/<slug>/spec.md` and update the affected Requirement(s)/Scenario(s) to match the shipped behaviour. Add a one-line `Implemented via NNN-<feature>` cross-reference near the changed Requirement, and remove or upgrade any `Pending: NNN-<feature>` note for this feature.
 3. If the field is `N/A — creates new capability <slug>`, scaffold `specs/<slug>/spec.md` from the house style (use `specs/api-conventions/spec.md` as a model) and add a row to `specs/README.md`.

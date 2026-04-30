@@ -1,5 +1,5 @@
 <!-- Sync Impact Report
-Version change: 1.3.0 → 1.4.0 (MINOR: tech-stack reframe, inline enforcement tags, soften CONFIG_REST_SECURITY_MODE, expanded numbered-spec lifecycle, Out-of-scope + Amendment History sections)
+Version change: 1.2.2 → 1.4.0 (MINOR: per-directory CLAUDE.md acknowledgment, Capability ↔ numbered cross-link rule, tech-stack reframe, inline enforcement tags, soften CONFIG_REST_SECURITY_MODE, expanded numbered-spec lifecycle, Out-of-Scope + Amendment History sections)
 Modified sections:
   - Tech Stack (reframed: build.gradle is canonical for versions; this section pins only constitutionally-significant libs; added ArchUnit, Hibernate Envers, Commons Lang3/Collections4 since rules cite them; documented actuator 3.5.12 as a deliberate BOM override; corrected log4j-core to 2.25.4; corrected Lombok plugin wording; pinned base package)
   - Architecture Principles II (separated `*JpaRepository` from `*Repository` `@Transactional` semantics)
@@ -9,9 +9,9 @@ Modified sections:
   - Naming Conventions, Code Style, API Conventions, Anti-Patterns, Patterns, Testing (added inline `(Checkstyle)` / `(ArchUnit)` / `(review)` enforcement tags)
   - Anti-Patterns (deduped #4 to reference Principle II; reworded #5/#9 likewise)
   - API Conventions (strengthened base-path uniqueness to invariants)
-  - spec-kit Workflow Rules (added Cancelled / Superseded numbered-spec statuses; added `/speckit.checklist` cleanup guidance)
+  - spec-kit Workflow Rules (added Capability ↔ numbered cross-link rule; added Cancelled / Superseded numbered-spec statuses; added `/speckit.checklist` cleanup guidance)
   - Tooling Commands (added `./gradlew bootRun`)
-  - Governance (added Out-of-Scope section, Amendment History footer, enforcement-mechanism legend)
+  - Governance (added per-directory CLAUDE.md acknowledgment paragraph; added Out-of-Scope section, Amendment History footer, enforcement-mechanism legend)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly

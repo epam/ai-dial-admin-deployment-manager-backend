@@ -6,7 +6,7 @@ REST controllers, DTOs, MapStruct DTO mappers, exception handlers, security filt
 
 - May call `service/`. MUST NOT call `dao/` or `kubernetes/` directly.
 - `@Transactional` is forbidden here (constitution Principle II).
-- `@LogExecution` MUST be on every `@RestController` / `@Controller` / `@Component`.
+- `@LogExecution` MUST be on every `@RestController` / `@Component`.
 
 ## Naming
 
