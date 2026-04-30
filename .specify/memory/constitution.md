@@ -1,7 +1,8 @@
 <!-- Sync Impact Report
-Version change: 1.2.1 → 1.2.2 (PATCH: added single-source-of-truth rule for configuration property defaults)
-Modified sections: Key Patterns (added Configuration property defaults rule)
-Added: Rule that @ConfigurationProperties field defaults MUST be declared only in application.yml, not duplicated in Java code
+Version change: 1.2.2 → 1.3.0 (MINOR: per-directory CLAUDE.md layered-docs acknowledgment + new spec-kit workflow rule for Capability cross-links)
+Modified sections:
+  - Governance (added paragraph about per-directory CLAUDE.md files)
+  - spec-kit Workflow Rules (added Capability ↔ numbered cross-link rule)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -226,6 +227,8 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 
 - **No per-feature checklists**: Do NOT generate `checklists/requirements.md` inside individual feature directories via `/speckit.checklist`. The generic checklist adds no per-feature value and creates redundant files. If a project-wide checklist is needed, maintain a single one in `specs/`.
 
+- **Capability ↔ numbered cross-links**: Numbered specs under `specs/NNN-<short-name>/spec.md` MUST declare a `**Capability**:` field directly under `**Status**:` (the convention is recorded in root `CLAUDE.md`). When a numbered feature ships, the matching capability spec MUST be updated and gain an `Implemented via NNN-<feature>` reference near the affected Requirement. Capability specs MAY reference in-flight numbered specs as `Pending: NNN-<feature>` notes; these MUST be removed or upgraded to `Implemented via …` when the feature ships.
+
 ## Tooling Commands
 
 | Command | Purpose |
@@ -246,6 +249,8 @@ considering the task done. Use `./gradlew testFast` to run tests during developm
 
 This constitution is the authoritative source of architectural truth for the DIAL Deployment Manager Backend. It supersedes any conflicting guidance in PR comments, local convention notes, or informal team agreements.
 
+Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `service/`, `dao/`, `kubernetes/`, `configuration/`) and the migration trees; they restate this constitution's rules in local form and add subpackage navigation. The constitution remains the single source of truth — local files MUST NOT contradict it.
+
 **Amendment procedure**:
 1. Raise a PR with changes to this file; at least one approval required.
 2. Include a migration note if the amendment changes existing code patterns (link to a follow-up issue for affected code).
@@ -258,4 +263,4 @@ This constitution is the authoritative source of architectural truth for the DIA
 
 **Compliance review**: All PRs MUST be checked against this constitution. Automated checks (Checkstyle, `-Werror`) enforce code style sections; architectural sections are enforced via PR review.
 
-**Version**: 1.2.2 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-03-19
+**Version**: 1.3.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-04-29

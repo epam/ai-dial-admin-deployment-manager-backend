@@ -3,6 +3,7 @@
 **Feature Branch**: `003-unified-deployment-source`
 **Created**: 2026-03-10
 **Status**: Draft
+**Capability**: deployments
 **Input**: User description: "Unified deployment source model with direct imageReference support for Knative deployments"
 
 ## User Scenarios & Testing *(mandatory)*

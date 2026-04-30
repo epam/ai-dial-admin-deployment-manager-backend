@@ -3,6 +3,7 @@
 **Feature Branch**: `019-nim-kserve-migration`  
 **Created**: 2026-04-20  
 **Status**: Implemented (kserve mode gated behind a feature flag, see 2026-04-24 revision below)
+**Capability**: nim-deployments, kubernetes-manifests
 **Input**: User description: Migrate NIM CRD generation from standalone inferencePlatform with nginx ingress to kserve inferencePlatform with Knative autoscaling, removing direct ingress management, and adding configurable PVC storage size per deployment.
 
 ## Revision 2026-04-24: kserve mode made opt-in

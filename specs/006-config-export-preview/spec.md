@@ -3,6 +3,7 @@
 **Feature Branch**: `006-config-export-preview`
 **Created**: 2026-03-16
 **Status**: Draft
+**Capability**: export-import
 **Input**: User description: "Implement endpoint for config export preview. Request body should be the same as on export - ExportRequestDto. Response should be ExportConfigPreviewDto (new class) which has the following fields: List<String> globalImageBuildDomainWhitelist, List<ExportComponentInfoDto> imageDefinitions, List<ExportComponentInfoDto> deployments. New class ExportComponentInfoDto should have the following fields: String name, String displayName, String version, String description, ExportConfigComponentTypeDto type."
 
 ## User Scenarios & Testing *(mandatory)*

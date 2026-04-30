@@ -3,6 +3,7 @@
 **Feature Branch**: `002-deployment-command-args`
 **Created**: 2026-03-09
 **Status**: Draft
+**Capability**: deployments
 **Input**: User description: "Support `command` and `args` configuration for all deployment types"
 **Source Issue**: [#204](https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/204)
 

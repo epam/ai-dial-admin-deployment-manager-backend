@@ -3,6 +3,7 @@
 **Feature Branch**: `011-application-type`
 **Created**: 2026-03-20
 **Status**: Draft
+**Capability**: application-image-definitions, application-deployments
 **Input**: User description: "Support new image definition and deployment type - Application. It should be identical to Adapter image definition and deployment (for now, can change in the future)"
 
 ## User Scenarios & Testing *(mandatory)*

@@ -3,6 +3,7 @@
 **Feature Branch**: `014-auditing`
 **Created**: 2026-04-14
 **Status**: Draft
+**Capability**: N/A — creates new capability auditing
 **Input**: User description: "Add auditing in ai-dial-admin-deployment-manager-backend based on ai-dial-admin-backend patterns. Use the same patterns, technologies and endpoints."
 
 ## User Scenarios & Testing *(mandatory)*

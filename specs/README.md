@@ -4,6 +4,34 @@ This directory contains one spec file per capability implemented in the AI DIAL 
 
 **Workflow:** New features follow the spec-kit workflow: `/speckit.specify` (create spec) → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`. Use `/speckit.constitution` to amend project-wide conventions.
 
+Numbered feature specs (`NNN-<short-name>/`) declare a `**Capability**:` field that maps them to the capability specs below; on implementation, the matching capability spec is updated and gains an `Implemented via NNN-<feature>` reference. See root `CLAUDE.md` § "Numbered-spec hygiene" and `.specify/memory/constitution.md` § "spec-kit Workflow Rules".
+
+---
+
+## In-flight & recent features
+
+Numbered specs created via `/speckit.specify`. `Status` reflects the value in each spec's header — flip to `Implemented` only when the feature ships and the matching capability spec(s) are updated.
+
+| Feature | Status | Capability | Brief |
+|---|---|---|---|
+| [001-deployment-topics](001-deployment-topics/spec.md) | Draft | topics | Add topic assignment on deployments, mirroring image-definition topics |
+| [002-deployment-command-args](002-deployment-command-args/spec.md) | Draft | deployments | Support `command` and `args` configuration for all deployment types |
+| [003-unified-deployment-source](003-unified-deployment-source/spec.md) | Draft | deployments | Unified deployment source model with direct `imageReference` for Knative |
+| [004-store-service-name](004-store-service-name/spec.md) | Implemented | deployments | Persist resolved K8s service name on deployment row to survive prefix changes |
+| [005-external-registry-ref](005-external-registry-ref/spec.md) | Draft | image-definitions | External registry reference on image/deployment sources for client lookups |
+| [006-config-export-preview](006-config-export-preview/spec.md) | Draft | export-import | `POST` preview endpoint that previews export contents without producing the ZIP |
+| [007-config-import-preview](007-config-import-preview/spec.md) | Draft | export-import | Preview import outcome (creates / overwrites / skips) before committing |
+| [008-read-only-role](008-read-only-role/spec.md) | Draft | security | Read-only admin role; non-read endpoints carry write annotations |
+| [009-mcp-registry-filtering](009-mcp-registry-filtering/spec.md) | Draft | mcp-registry | Backend filtering of MCP registry beyond what the upstream registry supports |
+| [010-import-validations](010-import-validations/spec.md) | Draft | export-import | Validate deserialized domain objects on import with the same rules as DTOs |
+| [011-application-type](011-application-type/spec.md) | Draft | application-image-definitions, application-deployments | New `Application` image-definition + deployment subtype |
+| [012-nim-url-schema](012-nim-url-schema/spec.md) | Draft | nim-deployments | Add `http`/`https` schema prefix to NIM service URLs based on endpoint kind |
+| [013-nim-served-model-name](013-nim-served-model-name/spec.md) | Draft | nim-deployments | Override served model name via `NIM_SERVED_MODEL_NAME` env var |
+| [014-auditing](014-auditing/spec.md) | Draft | _new capability_ `auditing` | Activity history for deployment resources via Hibernate Envers |
+| [015-nim-kserve-migration](015-nim-kserve-migration/spec.md) | Implemented (gated) | nim-deployments, kubernetes-manifests | Migrate NIM CRD generation to KServe `inferencePlatform` (opt-in via env flag) |
+| [016-node-pool-selector](016-node-pool-selector/spec.md) | Draft | deployments | Node-pool selector API + per-deployment node pool assignment |
+| [017-stop-image-build](017-stop-image-build/spec.md) | Draft | image-builds | Stop in-flight image builds from the UI/API |
+
 ---
 
 ## Core Domain

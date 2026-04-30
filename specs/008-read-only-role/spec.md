@@ -3,6 +3,7 @@
 **Feature Branch**: `008-read-only-role`
 **Created**: 2026-03-18
 **Status**: Draft
+**Capability**: security
 **Input**: User description: "There is a need to provide read-only access to operations in deployment manager. GitHub issue with more details: https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/149. Example implementation: https://github.com/epam/ai-dial-admin-backend/pull/761. Implementation in ai-dial-admin-backend can be carried over to deployment manager, adding new annotations on non-read operations to controllers and modifying existing tests"
 
 ## User Scenarios & Testing *(mandatory)*

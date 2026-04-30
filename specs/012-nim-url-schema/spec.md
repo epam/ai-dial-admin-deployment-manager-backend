@@ -3,6 +3,7 @@
 **Feature Branch**: `012-nim-url-schema`  
 **Created**: 2026-03-31  
 **Status**: Draft  
+**Capability**: nim-deployments  
 **Input**: User description: "NIM service contains URL without schema (http://, https://), but we need to return URL with schema. You need to modify URL extraction logic, so schema prefix would be added depending on what URL is used. If clusterEndpoint - add http, if externalEndpoint - add https. Ability to overwrite schema should be present."
 
 ## User Scenarios & Testing *(mandatory)*
