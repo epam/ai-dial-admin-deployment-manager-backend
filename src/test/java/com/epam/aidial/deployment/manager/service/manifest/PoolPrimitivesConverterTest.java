@@ -1,0 +1,103 @@
+package com.epam.aidial.deployment.manager.service.manifest;
+
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PoolPrimitivesConverterTest {
+
+    @Test
+    void shouldReturnNull_whenSourceAffinityIsNull() {
+        var result = PoolPrimitivesConverter.convertAffinity(null, com.nvidia.apps.v1alpha1.nimservicespec.Affinity.class);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void shouldReturnNull_whenSourceTolerationsIsNull() {
+        var result = PoolPrimitivesConverter.convertTolerations(null, com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void shouldReturnNull_whenSourceTolerationsIsEmpty() {
+        var result = PoolPrimitivesConverter.convertTolerations(List.of(), com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void shouldRoundTripAffinityToNimSpecTypePreservingMatchExpressions() {
+        var fabric8Affinity = new AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("accelerator-type").withOperator("In").addToValues("nvidia-a100", "nvidia-h100")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+
+        var converted = PoolPrimitivesConverter.convertAffinity(
+                fabric8Affinity, com.nvidia.apps.v1alpha1.nimservicespec.Affinity.class);
+
+        assertThat(converted).isNotNull();
+        assertThat(converted.getNodeAffinity()).isNotNull();
+        var required = converted.getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
+        assertThat(required).isNotNull();
+        assertThat(required.getNodeSelectorTerms()).hasSize(1);
+        var match = required.getNodeSelectorTerms().get(0).getMatchExpressions().get(0);
+        assertThat(match.getKey()).isEqualTo("accelerator-type");
+        assertThat(match.getOperator()).isEqualTo("In");
+        assertThat(match.getValues()).containsExactly("nvidia-a100", "nvidia-h100");
+    }
+
+    @Test
+    void shouldRoundTripTolerationsToNimSpecTypePreservingFields() {
+        var fabric8Tolerations = List.of(
+                new TolerationBuilder().withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule").build(),
+                new TolerationBuilder().withKey("workload").withOperator("Exists").withEffect("PreferNoSchedule").build()
+        );
+
+        var converted = PoolPrimitivesConverter.convertTolerations(
+                fabric8Tolerations, com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+
+        assertThat(converted).isNotNull().hasSize(2);
+        assertThat(converted.get(0).getKey()).isEqualTo("dedicated");
+        assertThat(converted.get(0).getValue()).isEqualTo("gpu");
+        assertThat(converted.get(0).getEffect()).isEqualTo("NoSchedule");
+        assertThat(converted.get(1).getKey()).isEqualTo("workload");
+        assertThat(converted.get(1).getEffect()).isEqualTo("PreferNoSchedule");
+    }
+
+    @Test
+    void shouldRoundTripAffinityToKserveSpecType() {
+        var fabric8Affinity = new AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("zone").withOperator("In").addToValues("us-east-1a")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+
+        var converted = PoolPrimitivesConverter.convertAffinity(
+                fabric8Affinity, io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity.class);
+
+        assertThat(converted).isNotNull();
+        assertThat(converted.getNodeAffinity()).isNotNull();
+        var required = converted.getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
+        assertThat(required).isNotNull();
+        assertThat(required.getNodeSelectorTerms().get(0).getMatchExpressions().get(0).getKey()).isEqualTo("zone");
+    }
+}
