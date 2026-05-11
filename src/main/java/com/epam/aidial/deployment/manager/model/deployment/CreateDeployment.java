@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,4 +32,17 @@ public abstract class CreateDeployment {
     private List<String> command;
     private List<String> args;
     private String nodePool;
+
+    /**
+     * Tracks whether the {@code nodePool} field was explicitly present in the inbound payload
+     * (with any value, including {@code null}). Distinguishes "field omitted → run create-time
+     * cascade" from "explicit null → store null verbatim" (FR-013, FR-018). Not serialized.
+     */
+    @JsonIgnore
+    private transient boolean nodePoolFieldPresent;
+
+    public void setNodePool(String nodePool) {
+        this.nodePool = nodePool;
+        this.nodePoolFieldPresent = true;
+    }
 }

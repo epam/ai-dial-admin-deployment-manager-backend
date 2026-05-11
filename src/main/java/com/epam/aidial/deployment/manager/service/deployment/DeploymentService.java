@@ -69,6 +69,7 @@ public class DeploymentService {
     private final DisposableResourceManager disposableResourceManager;
     private final HistoryService historyService;
     private final NodePoolProperties nodePoolProperties;
+    private final com.epam.aidial.deployment.manager.service.nodepool.NodePoolService nodePoolService;
 
     @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -129,6 +130,7 @@ public class DeploymentService {
 
         checkNoResourcesAreAssociatedWithId(id);
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
+        applyCreateTimeNodePoolCascade(request);
         validateNodePool(request.getNodePool());
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
@@ -157,12 +159,18 @@ public class DeploymentService {
                     .formatted(id, request.getId()));
         }
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
-        validateNodePool(request.getNodePool());
 
         ImageDefinition imageDefinition = resolveImageDefinition(request).orElse(null);
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var existingDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+
+        // FR-014: when the payload omits nodePool, preserve the stored value; do NOT re-run the cascade.
+        if (!request.isNodePoolFieldPresent()) {
+            request.setNodePool(existingDeployment.getNodePool());
+            request.setNodePoolFieldPresent(false);
+        }
+        validateNodePool(request.getNodePool());
         var existingStatus = existingDeployment.getStatus();
 
         if (existingStatus.isIntermediate()) {
@@ -397,6 +405,20 @@ public class DeploymentService {
         if (StringUtils.isNotBlank(nodePool) && nodePoolProperties.findByName(nodePool).isEmpty()) {
             throw new IllegalArgumentException("Node pool '%s' is not configured".formatted(nodePool));
         }
+    }
+
+    /**
+     * FR-018: when the create payload omits {@code nodePool}, resolve via the cascade and stamp the
+     * result onto the request so it persists onto the deployment record. When the field is present
+     * (with any value, including null) we honour it verbatim.
+     */
+    private void applyCreateTimeNodePoolCascade(CreateDeployment request) {
+        if (request.isNodePoolFieldPresent()) {
+            return;
+        }
+        var resolved = nodePoolService.resolveForCreate(request);
+        request.setNodePool(resolved);
+        request.setNodePoolFieldPresent(false);
     }
 
     private void validateEnvNameNotReserved(String name) {

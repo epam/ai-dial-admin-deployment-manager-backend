@@ -120,6 +120,7 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "name", source = "id")
     @Mapping(target = "source", ignore = true)
     @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
+    @Mapping(target = "nodePoolFieldPresent", ignore = true)
     @SubclassMapping(source = McpDeployment.class, target = CreateMcpDeploymentRequestDto.class)
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeploymentRequestDto.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeploymentRequestDto.class)

@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.dto.nodepool;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,6 +28,7 @@ public record NodePoolListResponseDto(
             @Schema(description = "Name of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL)")
             String model
     ) {
+        @JsonIgnore
         public boolean isEmpty() {
             return defaultPool == null && model == null;
         }

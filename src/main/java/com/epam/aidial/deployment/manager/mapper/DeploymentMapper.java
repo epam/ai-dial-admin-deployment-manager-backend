@@ -53,6 +53,7 @@ public abstract class DeploymentMapper {
         return deployment;
     }
 
+    @Mapping(target = "nodePoolFieldPresent", ignore = true)
     @SubclassMapping(source = McpDeployment.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeployment.class)
@@ -65,6 +66,8 @@ public abstract class DeploymentMapper {
         var createDeployment = toCreateDeployment(etalonDeployment);
         createDeployment.setId(newDeploymentId);
         createDeployment.setDisplayName(newDeploymentDisplayName);
+        // FR-020: duplicate copies the source's nodePool verbatim; bypass the create-time cascade.
+        createDeployment.setNodePoolFieldPresent(true);
 
         // For sensitive envs, the value is already resolved from K8s secrets
         var envsMap = toEnvValuesMap(etalonDeployment.getEnvs());

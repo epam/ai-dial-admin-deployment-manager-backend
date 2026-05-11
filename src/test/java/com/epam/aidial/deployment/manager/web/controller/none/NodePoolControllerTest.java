@@ -1,10 +1,8 @@
 package com.epam.aidial.deployment.manager.web.controller.none;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.CpuSpec;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.GpuSpec;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.MemorySpec;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.NodePoolConfig;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.NodePoolController;
@@ -16,9 +14,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,64 +29,38 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
     private NodePoolService nodePoolService;
 
     @Test
-    void testGetNodePools() throws Exception {
-        // Given
-        var gpu = new GpuSpec();
-        gpu.setName("NVIDIA A100");
-        gpu.setVramBytes(85899345920L);
-        gpu.setCount(4);
+    void testGetNodePoolsWithPrimitivesAndDefaults() throws Exception {
+        var gpuPool = new PoolConfig();
+        gpuPool.setName("gpu_pool");
+        gpuPool.setDescription("GPU pool");
+        gpuPool.setNodeSelector(Map.of("accelerator-type", "nvidia-a100"));
 
-        var gpuCpu = new CpuSpec();
-        gpuCpu.setName("AMD EPYC Milan");
-        gpuCpu.setMilliCpus(48000);
+        var cpuPool = new PoolConfig();
+        cpuPool.setName("cpu_pool");
+        cpuPool.setDescription("CPU pool");
 
-        var gpuMemory = new MemorySpec();
-        gpuMemory.setBytes(730144440320L);
+        var properties = new NodePoolProperties();
+        properties.setPools(List.of(gpuPool, cpuPool));
+        properties.setDefaultPool("cpu_pool");
+        properties.setDefaultModelPool("gpu_pool");
 
-        var gpuPool = new NodePoolConfig();
-        gpuPool.setName("gpu-a100-prod");
-        gpuPool.setDescription("LLM inference & fine-tuning");
-        gpuPool.setInstance("a2-ultragpu-4g");
-        gpuPool.setMinNodes(2);
-        gpuPool.setMaxNodes(10);
-        gpuPool.setGpu(gpu);
-        gpuPool.setCpu(gpuCpu);
-        gpuPool.setMemory(gpuMemory);
+        doReturn(properties).when(nodePoolService).getProperties();
 
-        var cpuCpu = new CpuSpec();
-        cpuCpu.setMilliCpus(64000);
-
-        var cpuMemory = new MemorySpec();
-        cpuMemory.setBytes(549755813888L);
-
-        var cpuPool = new NodePoolConfig();
-        cpuPool.setName("cpu-highmem");
-        cpuPool.setDescription("Data preprocessing");
-        cpuPool.setMaxNodes(5);
-        cpuPool.setCpu(cpuCpu);
-        cpuPool.setMemory(cpuMemory);
-
-        doReturn(List.of(gpuPool, cpuPool)).when(nodePoolService).getNodePools();
-
-        // When & Then
         var expectedJson = ResourceUtils.readResource("/nodepool/node_pools_response.json");
         mockMvc.perform(get("/api/v1/node-pools"))
                 .andExpect(status().isOk())
                 .andExpect(content().json(expectedJson, JsonCompareMode.STRICT));
-
-        verify(nodePoolService).getNodePools();
     }
 
     @Test
     void testGetNodePoolsEmpty() throws Exception {
-        // Given
-        doReturn(List.of()).when(nodePoolService).getNodePools();
+        var properties = new NodePoolProperties();
+        properties.setPools(List.of());
 
-        // When & Then
+        doReturn(properties).when(nodePoolService).getProperties();
+
         mockMvc.perform(get("/api/v1/node-pools"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]", JsonCompareMode.STRICT));
-
-        verify(nodePoolService).getNodePools();
+                .andExpect(content().json("{}", JsonCompareMode.STRICT));
     }
 }

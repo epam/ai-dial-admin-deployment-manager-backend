@@ -340,41 +340,53 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withNodePoolLabels_setsNodeSelector() {
-        // Given
+    void testServiceConfig_projectsPoolPrimitivesOntoPredictor() {
         var deploymentName = "node-pool-inference-app";
         var storageUri = "s3://my-bucket/node-pool-model";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+        var affinity = new io.fabric8.kubernetes.api.model.AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("accelerator-type").withOperator("In").addToValues("nvidia-a100")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+        var toleration = new io.fabric8.kubernetes.api.model.TolerationBuilder()
+                .withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule")
+                .build();
+        var primitives = new PoolSchedulingPrimitives(Map.of("workload", "gpu"), affinity, java.util.List.of(toleration));
 
-        // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, nodePoolLabels
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, primitives
         );
 
-        // Then
-        assertThat(generatedService.getSpec().getPredictor().getNodeSelector())
-                .isNotNull()
-                .containsEntry("node-pool-key", "gpu-pool")
-                .hasSize(1);
+        var predictor = generatedService.getSpec().getPredictor();
+        assertThat(predictor.getNodeSelector()).containsEntry("workload", "gpu");
+        assertThat(predictor.getAffinity()).isNotNull();
+        assertThat(predictor.getTolerations()).hasSize(1);
+        assertThat(predictor.getTolerations().get(0).getKey()).isEqualTo("dedicated");
     }
 
     @Test
-    void testServiceConfig_withNullNodePoolLabels_doesNotSetNodeSelector() {
-        // Given
+    void testServiceConfig_withEmptyPrimitives_doesNotSetSchedulingFields() {
         var deploymentName = "no-pool-inference-app";
         var storageUri = "s3://my-bucket/no-pool-model";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
 
-        // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, PoolSchedulingPrimitives.EMPTY
         );
 
-        // Then
-        assertThat(generatedService.getSpec().getPredictor().getNodeSelector()).isNull();
+        var predictor = generatedService.getSpec().getPredictor();
+        assertThat(predictor.getNodeSelector()).isNullOrEmpty();
+        assertThat(predictor.getAffinity()).isNull();
+        assertThat(predictor.getTolerations()).isNullOrEmpty();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

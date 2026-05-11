@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.web.dto.probe.ProbePropertiesDto;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
 import com.epam.aidial.deployment.manager.web.validation.ValidResources;
 import com.epam.aidial.deployment.manager.web.validation.ValidTopics;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import jakarta.validation.Valid;
@@ -77,4 +78,17 @@ public abstract class CreateDeploymentRequestDto {
     private String args;
     @Nullable
     private String nodePool;
+
+    /**
+     * Tracks whether the {@code nodePool} field was explicitly present in the inbound JSON
+     * (with any value, including {@code null}). Distinguishes "field omitted → run create-time
+     * cascade" from "explicit null → store null verbatim" (FR-013, FR-018). Not serialized.
+     */
+    @JsonIgnore
+    private transient boolean nodePoolFieldPresent;
+
+    public void setNodePool(String nodePool) {
+        this.nodePool = nodePool;
+        this.nodePoolFieldPresent = true;
+    }
 }

@@ -1,10 +1,12 @@
 package com.epam.aidial.deployment.manager.service.nodepool;
 
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.CpuSpec;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.GpuSpec;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.MemorySpec;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.NodePoolConfig;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
+import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.Toleration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -27,91 +30,98 @@ class NodePoolServiceTest {
 
     @Test
     void shouldReturnEmptyList_whenNoPoolsConfigured() {
-        doReturn(null).when(nodePoolProperties).getNodePools();
+        doReturn(null).when(nodePoolProperties).getPools();
 
-        var result = nodePoolService.getNodePools();
-
-        assertThat(result).isEmpty();
+        assertThat(nodePoolService.getNodePools()).isEmpty();
     }
 
     @Test
     void shouldReturnEmptyList_whenPoolsListIsEmpty() {
-        doReturn(List.of()).when(nodePoolProperties).getNodePools();
+        doReturn(List.of()).when(nodePoolProperties).getPools();
 
-        var result = nodePoolService.getNodePools();
-
-        assertThat(result).isEmpty();
+        assertThat(nodePoolService.getNodePools()).isEmpty();
     }
 
     @Test
-    void shouldReturnConfiguredPools() {
-        var gpu = new GpuSpec();
-        gpu.setName("NVIDIA A100");
-        gpu.setVramBytes(85899345920L);
-        gpu.setCount(4);
+    void shouldReturnConfiguredPoolsWithPrimitives() {
+        var config = poolWithPrimitives("gpu_pool", Map.of("accelerator", "a100"), new Affinity(), List.of(new Toleration()));
 
-        var cpu = new CpuSpec();
-        cpu.setName("AMD EPYC Milan");
-        cpu.setMilliCpus(48000);
-
-        var memory = new MemorySpec();
-        memory.setBytes(730144440320L);
-
-        var config = new NodePoolConfig();
-        config.setName("gpu-a100");
-        config.setDescription("GPU pool");
-        config.setInstance("a2-ultragpu-4g");
-        config.setMinNodes(2);
-        config.setMaxNodes(10);
-        config.setGpu(gpu);
-        config.setCpu(cpu);
-        config.setMemory(memory);
-
-        doReturn(List.of(config)).when(nodePoolProperties).getNodePools();
+        doReturn(List.of(config)).when(nodePoolProperties).getPools();
 
         var result = nodePoolService.getNodePools();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("gpu-a100");
-        assertThat(result.get(0).getDescription()).isEqualTo("GPU pool");
-        assertThat(result.get(0).getInstance()).isEqualTo("a2-ultragpu-4g");
-        assertThat(result.get(0).getMinNodes()).isEqualTo(2);
-        assertThat(result.get(0).getMaxNodes()).isEqualTo(10);
-        assertThat(result.get(0).getGpu()).isNotNull();
-        assertThat(result.get(0).getGpu().getName()).isEqualTo("NVIDIA A100");
-        assertThat(result.get(0).getGpu().getVramBytes()).isEqualTo(85899345920L);
-        assertThat(result.get(0).getGpu().getCount()).isEqualTo(4);
-        assertThat(result.get(0).getCpu().getName()).isEqualTo("AMD EPYC Milan");
-        assertThat(result.get(0).getCpu().getMilliCpus()).isEqualTo(48000);
-        assertThat(result.get(0).getMemory().getBytes()).isEqualTo(730144440320L);
+        assertThat(result.get(0).getName()).isEqualTo("gpu_pool");
+        assertThat(result.get(0).getNodeSelector()).containsEntry("accelerator", "a100");
+        assertThat(result.get(0).getAffinity()).isNotNull();
+        assertThat(result.get(0).getTolerations()).hasSize(1);
     }
 
     @Test
-    void shouldReturnCpuOnlyPool_withNullGpu() {
-        var cpu = new CpuSpec();
-        cpu.setMilliCpus(64000);
+    void shouldResolveModelOverrideForModelWorkload() {
+        doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPool();
 
-        var memory = new MemorySpec();
-        memory.setBytes(549755813888L);
+        var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
 
-        var config = new NodePoolConfig();
-        config.setName("cpu-pool");
-        config.setMaxNodes(5);
-        config.setCpu(cpu);
-        config.setMemory(memory);
+        assertThat(result).isEqualTo("gpu_pool");
+    }
 
-        doReturn(List.of(config)).when(nodePoolProperties).getNodePools();
+    @Test
+    void shouldResolveModelOverrideForKserveInferenceWorkload() {
+        doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPool();
 
-        var result = nodePoolService.getNodePools();
+        var result = nodePoolService.resolveForCreate(new CreateInferenceDeployment());
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("cpu-pool");
-        assertThat(result.get(0).getDescription()).isNull();
-        assertThat(result.get(0).getInstance()).isNull();
-        assertThat(result.get(0).getMinNodes()).isZero();
-        assertThat(result.get(0).getGpu()).isNull();
-        assertThat(result.get(0).getCpu().getName()).isNull();
-        assertThat(result.get(0).getCpu().getMilliCpus()).isEqualTo(64000);
-        assertThat(result.get(0).getMemory().getBytes()).isEqualTo(549755813888L);
+        assertThat(result).isEqualTo("gpu_pool");
+    }
+
+    @Test
+    void shouldFallThroughToCatchAllForNonModelWorkload() {
+        doReturn("cpu_pool").when(nodePoolProperties).getDefaultPool();
+
+        var result = nodePoolService.resolveForCreate(new CreateMcpDeployment());
+
+        assertThat(result).isEqualTo("cpu_pool");
+    }
+
+    @Test
+    void shouldFallThroughToCatchAllForModelWorkload_whenModelOverrideUnset() {
+        doReturn(null).when(nodePoolProperties).getDefaultModelPool();
+        doReturn("cpu_pool").when(nodePoolProperties).getDefaultPool();
+
+        var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
+
+        assertThat(result).isEqualTo("cpu_pool");
+    }
+
+    @Test
+    void shouldResolveToNull_whenNoDefaultsConfigured() {
+        doReturn(null).when(nodePoolProperties).getDefaultPool();
+
+        var result = nodePoolService.resolveForCreate(new CreateMcpDeployment());
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void shouldResolveToNullForModelWorkload_whenNoDefaultsConfigured() {
+        doReturn(null).when(nodePoolProperties).getDefaultModelPool();
+        doReturn(null).when(nodePoolProperties).getDefaultPool();
+
+        var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
+
+        assertThat(result).isNull();
+    }
+
+    private static PoolConfig poolWithPrimitives(String name,
+                                                 Map<String, String> nodeSelector,
+                                                 Affinity affinity,
+                                                 List<Toleration> tolerations) {
+        var pool = new PoolConfig();
+        pool.setName(name);
+        pool.setNodeSelector(nodeSelector);
+        pool.setAffinity(affinity);
+        pool.setTolerations(tolerations);
+        return pool;
     }
 }
