@@ -171,6 +171,12 @@ dependencies {
         implementation ('io.netty:netty-codec-http:4.2.10.Final') {
             because("previous versions have vulnerabilities")
         }
+        implementation ('io.netty:netty-codec-dns:4.2.13.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-transport-native-epoll:4.2.13.Final') {
+            because("previous versions have vulnerabilities")
+        }
         implementation ('org.springframework:spring-webmvc:6.2.17') {
             because("previous versions have vulnerabilities")
         }
