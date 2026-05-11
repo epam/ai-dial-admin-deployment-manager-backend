@@ -20,12 +20,12 @@ import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Ports;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.ValueFrom;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.valuefrom.SecretKeyRef;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -59,7 +59,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties,
             int startupTimeoutSec,
-            @Nullable Map<String, String> nodePoolLabels
+            PoolSchedulingPrimitives poolPrimitives
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
@@ -114,11 +114,34 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
         applyStartupProbe(name, modelChain, probeProperties);
 
-        if (MapUtils.isNotEmpty(nodePoolLabels)) {
-            predictorChain.data().setNodeSelector(nodePoolLabels);
-        }
+        applyPoolPrimitives(predictorChain, poolPrimitives);
 
         return config.data();
+    }
+
+    private void applyPoolPrimitives(MappingChain<Predictor> predictorChain, PoolSchedulingPrimitives primitives) {
+        if (primitives == null || primitives.isEmpty()) {
+            return;
+        }
+        if (MapUtils.isNotEmpty(primitives.nodeSelector())) {
+            predictorChain.data().setNodeSelector(primitives.nodeSelector());
+        }
+        var convertedAffinity = PoolPrimitivesConverter.convertAffinity(
+                primitives.affinity(), io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity.class);
+        if (convertedAffinity != null) {
+            predictorChain.data().setAffinity(convertedAffinity);
+        }
+        var convertedTolerations = PoolPrimitivesConverter.convertTolerations(
+                primitives.tolerations(), io.kserve.serving.v1beta1.inferenceservicespec.predictor.Tolerations.class);
+        if (CollectionUtils.isNotEmpty(convertedTolerations)) {
+            var existing = predictorChain.data().getTolerations();
+            var merged = new java.util.ArrayList<io.kserve.serving.v1beta1.inferenceservicespec.predictor.Tolerations>();
+            if (existing != null) {
+                merged.addAll(existing);
+            }
+            merged.addAll(convertedTolerations);
+            predictorChain.data().setTolerations(merged);
+        }
     }
 
     private void applyStartupProbe(String name,

@@ -394,7 +394,7 @@ public class DeploymentService {
     }
 
     private void validateNodePool(String nodePool) {
-        if (StringUtils.isNotBlank(nodePool) && !nodePoolProperties.exists(nodePool)) {
+        if (StringUtils.isNotBlank(nodePool) && nodePoolProperties.findByName(nodePool).isEmpty()) {
             throw new IllegalArgumentException("Node pool '%s' is not configured".formatted(nodePool));
         }
     }

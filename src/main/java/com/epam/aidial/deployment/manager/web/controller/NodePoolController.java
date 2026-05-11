@@ -2,7 +2,7 @@ package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
-import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolDto;
+import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolListResponseDto;
 import com.epam.aidial.deployment.manager.web.mapper.NodePoolDtoMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/node-pools")
@@ -25,10 +23,12 @@ public class NodePoolController {
     private final NodePoolDtoMapper nodePoolDtoMapper;
 
     @GetMapping
-    @Operation(summary = "List available node pools",
-            description = "Returns all configured node pools with their hardware specifications")
+    @Operation(summary = "List available node pools and currently-configured defaults",
+            description = "Returns the configured pool catalogue (with per-pool nodeSelector / affinity / tolerations) "
+                    + "and a top-level defaults block reporting NODE_POOL_DEFAULT and NODE_POOL_DEFAULT_MODEL. "
+                    + "Fields that are not configured are omitted from the response.")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
-    public List<NodePoolDto> getNodePools() {
-        return nodePoolDtoMapper.toNodePoolDtoList(nodePoolService.getNodePools());
+    public NodePoolListResponseDto getNodePools() {
+        return nodePoolDtoMapper.toListResponse(nodePoolService.getProperties());
     }
 }

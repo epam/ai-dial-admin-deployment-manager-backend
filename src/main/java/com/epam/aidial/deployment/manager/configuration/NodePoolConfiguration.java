@@ -1,8 +1,10 @@
 package com.epam.aidial.deployment.manager.configuration;
 
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.NodePoolConfig;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
@@ -20,42 +22,57 @@ import java.util.stream.Collectors;
 @Configuration
 public class NodePoolConfiguration {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory())
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
 
     @Bean
     public NodePoolProperties nodePoolProperties(
-            @Value("${app.node-pools.label-key:}") String nodePoolLabelKey,
-            @Value("${app.node-pools.pools:}") String nodePoolsJson,
+            @Value("${app.node-pools.pools:}") String nodePoolsYaml,
+            @Value("${app.node-pools.default:}") String defaultPool,
+            @Value("${app.node-pools.default-model:}") String defaultModelPool,
+            @Value("${NODE_POOL_LABEL_KEY:}") String legacyLabelKey,
             Validator validator) {
 
-        var properties = new NodePoolProperties();
-        properties.setNodePoolLabelKey(nodePoolLabelKey);
-
-        if (StringUtils.isBlank(nodePoolsJson)) {
-            properties.setNodePools(new ArrayList<>());
-        } else {
-            try {
-                List<NodePoolConfig> pools = MAPPER.readValue(nodePoolsJson, new TypeReference<>() {
-                });
-                validateNodePools(pools, validator);
-                properties.setNodePools(pools);
-                log.info("Successfully loaded {} node pool configurations", pools.size());
-            } catch (IllegalArgumentException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid JSON format for node-pools: " + e.getMessage(), e);
-            }
-        }
-
-        if (!properties.getNodePools().isEmpty() && StringUtils.isBlank(nodePoolLabelKey)) {
+        if (StringUtils.isNotBlank(legacyLabelKey)) {
             throw new IllegalArgumentException(
-                    "Node pool label key (app.node-pools.label-key) must not be blank when node pools are configured");
+                    "NODE_POOL_LABEL_KEY is no longer supported. Pool selection is now expressed via per-pool "
+                            + "nodeSelector/affinity/tolerations. See docs/configuration.md.");
         }
+
+        var properties = new NodePoolProperties();
+        properties.setPools(parsePools(nodePoolsYaml, validator));
+        properties.setDefaultPool(StringUtils.trimToNull(defaultPool));
+        properties.setDefaultModelPool(StringUtils.trimToNull(defaultModelPool));
+
+        validateDefaults(properties);
+
+        log.info("Loaded {} node pool configurations (default={}, default-model={})",
+                properties.getPools().size(),
+                properties.getDefaultPool(),
+                properties.getDefaultModelPool());
 
         return properties;
     }
 
-    private void validateNodePools(List<NodePoolConfig> pools, Validator validator) {
+    private List<PoolConfig> parsePools(String nodePoolsYaml, Validator validator) {
+        if (StringUtils.isBlank(nodePoolsYaml)) {
+            return new ArrayList<>();
+        }
+        List<PoolConfig> pools;
+        try {
+            pools = YAML_MAPPER.readValue(nodePoolsYaml, new TypeReference<>() {
+            });
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid NODE_POOLS configuration: " + e.getMessage(), e);
+        }
+        if (pools == null) {
+            return new ArrayList<>();
+        }
+        validatePoolsInternal(pools, validator);
+        return pools;
+    }
+
+    private void validatePoolsInternal(List<PoolConfig> pools, Validator validator) {
         var names = new HashSet<String>();
         for (int i = 0; i < pools.size(); i++) {
             var pool = pools.get(i);
@@ -67,14 +84,24 @@ public class NodePoolConfiguration {
                         .collect(Collectors.joining("; "));
                 throw new IllegalArgumentException("Node pool %s: %s".formatted(poolLabel, messages));
             }
-            if (pool.getMinNodes() > pool.getMaxNodes()) {
-                throw new IllegalArgumentException(
-                        "Node pool '%s': 'minNodes' (%d) must not exceed 'maxNodes' (%d)"
-                                .formatted(pool.getName(), pool.getMinNodes(), pool.getMaxNodes()));
-            }
             if (!names.add(pool.getName())) {
                 throw new IllegalArgumentException("Duplicate node pool name: '%s'".formatted(pool.getName()));
             }
+        }
+    }
+
+    private void validateDefaults(NodePoolProperties properties) {
+        validateDefaultReference(properties, properties.getDefaultPool(), "NODE_POOL_DEFAULT");
+        validateDefaultReference(properties, properties.getDefaultModelPool(), "NODE_POOL_DEFAULT_MODEL");
+    }
+
+    private void validateDefaultReference(NodePoolProperties properties, String poolName, String envVarName) {
+        if (poolName == null) {
+            return;
+        }
+        if (properties.findByName(poolName).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "%s references node pool '%s' which is not present in NODE_POOLS.".formatted(envVarName, poolName));
         }
     }
 }
