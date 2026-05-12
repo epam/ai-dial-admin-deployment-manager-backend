@@ -30,14 +30,7 @@ public class NodePoolConfiguration {
             @Value("${app.node-pools.pools:}") String nodePoolsYaml,
             @Value("${app.node-pools.default:}") String defaultPoolId,
             @Value("${app.node-pools.default-model:}") String defaultModelPoolId,
-            @Value("${NODE_POOL_LABEL_KEY:}") String legacyLabelKey,
             Validator validator) {
-
-        if (StringUtils.isNotBlank(legacyLabelKey)) {
-            throw new IllegalArgumentException(
-                    "NODE_POOL_LABEL_KEY is no longer supported. Pool selection is now expressed via per-pool "
-                            + "nodeSelector/affinity/tolerations. See docs/configuration.md.");
-        }
 
         var properties = new NodePoolProperties();
         properties.setPools(parsePools(nodePoolsYaml, validator));

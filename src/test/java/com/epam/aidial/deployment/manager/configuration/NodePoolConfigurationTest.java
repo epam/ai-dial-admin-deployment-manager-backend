@@ -20,7 +20,7 @@ class NodePoolConfigurationTest {
     @NullAndEmptySource
     @ValueSource(strings = {"   ", "\t"})
     void shouldReturnEmptyPools_whenNodePoolsIsBlankOrNull(String yaml) {
-        var properties = configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR);
+        var properties = configuration.nodePoolProperties(yaml, "", "", VALIDATOR);
 
         assertThat(properties.getPools()).isEmpty();
         assertThat(properties.getDefaultPoolId()).isNull();
@@ -31,7 +31,7 @@ class NodePoolConfigurationTest {
     void shouldParseSingleLineJson_asYamlSubset() {
         var json = "[{\"id\":\"cpu-pool\",\"name\":\"CPU pool\",\"description\":\"CPU\",\"nodeSelector\":{\"workload\":\"cpu\"}}]";
 
-        var properties = configuration.nodePoolProperties(json, "", "", "", VALIDATOR);
+        var properties = configuration.nodePoolProperties(json, "", "", VALIDATOR);
 
         assertThat(properties.getPools()).hasSize(1);
         var pool = properties.getPools().get(0);
@@ -63,7 +63,7 @@ class NodePoolConfigurationTest {
                     effect: NoSchedule
                 """;
 
-        var properties = configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR);
+        var properties = configuration.nodePoolProperties(yaml, "", "", VALIDATOR);
 
         assertThat(properties.getPools()).hasSize(1);
         var pool = properties.getPools().get(0);
@@ -83,7 +83,7 @@ class NodePoolConfigurationTest {
                   maxNodes: 10
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid NODE_POOLS configuration");
     }
@@ -97,17 +97,9 @@ class NodePoolConfigurationTest {
                     milliCpus: 1000
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid NODE_POOLS configuration");
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {"node-pool", "   key   "})
-    void shouldRejectLegacyNodePoolLabelKeyEnvVar(String legacyValue) {
-        assertThatThrownBy(() -> configuration.nodePoolProperties("", "", "", legacyValue, VALIDATOR))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("NODE_POOL_LABEL_KEY is no longer supported");
     }
 
     @Test
@@ -117,7 +109,7 @@ class NodePoolConfigurationTest {
                   name: "Pool"
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'id' is required and must not be blank");
     }
@@ -129,7 +121,7 @@ class NodePoolConfigurationTest {
                   name: ""
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'name' is required and must not be blank");
     }
@@ -143,7 +135,7 @@ class NodePoolConfigurationTest {
                   name: Pool B
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate node pool id: 'pool'");
     }
@@ -157,7 +149,7 @@ class NodePoolConfigurationTest {
                   name: Pool
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Duplicate node pool name: 'Pool'");
     }
@@ -171,7 +163,7 @@ class NodePoolConfigurationTest {
                   name: GPU pool
                 """;
 
-        var properties = configuration.nodePoolProperties(yaml, "cpu-pool", "gpu-pool", "", VALIDATOR);
+        var properties = configuration.nodePoolProperties(yaml, "cpu-pool", "gpu-pool", VALIDATOR);
 
         assertThat(properties.getDefaultPoolId()).isEqualTo("cpu-pool");
         assertThat(properties.getDefaultModelPoolId()).isEqualTo("gpu-pool");
@@ -184,7 +176,7 @@ class NodePoolConfigurationTest {
                   name: CPU pool
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "ghost-pool", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "ghost-pool", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("NODE_POOL_DEFAULT references node pool id 'ghost-pool'");
     }
@@ -196,14 +188,14 @@ class NodePoolConfigurationTest {
                   name: CPU pool
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "ghost-pool", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "ghost-pool", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("NODE_POOL_DEFAULT_MODEL references node pool id 'ghost-pool'");
     }
 
     @Test
     void shouldRejectDefault_whenNodePoolsEmpty() {
-        assertThatThrownBy(() -> configuration.nodePoolProperties("", "any-pool", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties("", "any-pool", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("NODE_POOL_DEFAULT references node pool id 'any-pool'");
     }
