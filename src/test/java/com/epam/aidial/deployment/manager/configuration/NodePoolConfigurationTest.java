@@ -103,6 +103,34 @@ class NodePoolConfigurationTest {
     }
 
     @Test
+    void shouldRejectLegacyMemoryField() {
+        var yaml = """
+                - id: pool
+                  name: pool
+                  memory:
+                    minGb: 16
+                """;
+
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid NODE_POOLS configuration");
+    }
+
+    @Test
+    void shouldRejectLegacyGpuField() {
+        var yaml = """
+                - id: pool
+                  name: pool
+                  gpu:
+                    count: 2
+                """;
+
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", VALIDATOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Invalid NODE_POOLS configuration");
+    }
+
+    @Test
     void shouldRejectBlankPoolId() {
         var yaml = """
                 - id: ""

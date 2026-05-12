@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategy;
@@ -19,7 +20,6 @@ import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -48,7 +48,9 @@ class InferenceManifestGeneratorTest {
     private KserveProbeConverter kserveProbeConverter;
     @Mock
     private ProgressDeadlineCalculator progressDeadlineCalculator;
-    @InjectMocks
+
+    private final PoolPrimitivesConverter poolPrimitivesConverter =
+            new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
     private InferenceManifestGenerator manifestGenerator;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -61,6 +63,9 @@ class InferenceManifestGeneratorTest {
 
         when(appconfig.cloneInferenceServiceConfig()).thenReturn(baseService);
         lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
+
+        manifestGenerator = new InferenceManifestGenerator(appconfig, kserveProbeConverter,
+                progressDeadlineCalculator, poolPrimitivesConverter);
     }
 
     @Test
@@ -273,7 +278,8 @@ class InferenceManifestGeneratorTest {
     void testServiceConfig_withProbeProperties_setsProgressDeadlineAnnotation() {
         // Given
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
-        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()),
+                realCalculator, poolPrimitivesConverter);
         var deploymentName = "deadline-inference-app";
         var storageUri = "s3://my-bucket/deadline-model";
         // deadline = 5 + ((2-1) * 10) + 3 + 30 = 48
@@ -295,7 +301,8 @@ class InferenceManifestGeneratorTest {
     void testServiceConfig_withoutProbe_setsFallbackProgressDeadlineAnnotation() {
         // Given
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
-        var generatorWithRealCalculator = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
+        var generatorWithRealCalculator = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()),
+                realCalculator, poolPrimitivesConverter);
         var deploymentName = "fallback-deadline-inference-app";
         var storageUri = "s3://my-bucket/fallback-deadline-model";
 
@@ -314,7 +321,8 @@ class InferenceManifestGeneratorTest {
     void testServiceConfig_withProbeProperties_setsStartupProbeOnModel() {
         // Given: generator with real KserveProbeConverter so probe is built from properties
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
-        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()), realCalculator);
+        var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()),
+                realCalculator, poolPrimitivesConverter);
         var deploymentName = "probe-inference-app";
         var storageUri = "s3://my-bucket/probe-model";
         var httpGet = new HttpGetProbe("/health", 8080);

@@ -1,11 +1,14 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
+import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.apache.commons.collections4.CollectionUtils;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -16,28 +19,31 @@ import java.util.List;
  * type families are JSON-equivalent to the Fabric8 model, so a Jackson convertValue round-trip is
  * lossless.
  */
-public final class PoolPrimitivesConverter {
+@Component
+@LogExecution
+public class PoolPrimitivesConverter {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+    private final ObjectMapper mapper;
 
-    private PoolPrimitivesConverter() {
+    public PoolPrimitivesConverter(JsonMapper jsonMapper) {
+        this.mapper = jsonMapper.copy()
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
     }
 
     @Nullable
-    public static <T> T convertAffinity(@Nullable Affinity source, Class<T> targetType) {
+    public <T> T convertAffinity(@Nullable Affinity source, Class<T> targetType) {
         if (source == null) {
             return null;
         }
-        return MAPPER.convertValue(source, targetType);
+        return mapper.convertValue(source, targetType);
     }
 
     @Nullable
-    public static <T> List<T> convertTolerations(@Nullable List<Toleration> source, Class<T> targetElementType) {
+    public <T> List<T> convertTolerations(@Nullable List<Toleration> source, Class<T> targetElementType) {
         if (CollectionUtils.isEmpty(source)) {
             return null;
         }
-        var listType = MAPPER.getTypeFactory().constructCollectionType(List.class, targetElementType);
-        return MAPPER.convertValue(source, listType);
+        var listType = mapper.getTypeFactory().constructCollectionType(List.class, targetElementType);
+        return mapper.convertValue(source, listType);
     }
 }

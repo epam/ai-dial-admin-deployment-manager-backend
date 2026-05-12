@@ -13,9 +13,5 @@
       "name": "CPU pool",
       "description": "CPU pool"
     }
-  ],
-  "defaults": {
-    "defaultId": "cpu-pool",
-    "modelId": "gpu-pool"
-  }
+  ]
 }

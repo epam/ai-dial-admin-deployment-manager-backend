@@ -29,7 +29,7 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
     private NodePoolService nodePoolService;
 
     @Test
-    void testGetNodePoolsWithPrimitivesAndDefaults() throws Exception {
+    void testGetNodePoolsWithPrimitives() throws Exception {
         var gpuPool = new PoolConfig();
         gpuPool.setId("gpu-pool");
         gpuPool.setName("GPU pool");
@@ -63,6 +63,6 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
 
         mockMvc.perform(get("/api/v1/node-pools"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("{}", JsonCompareMode.STRICT));
+                .andExpect(content().json("{\"pools\":[]}", JsonCompareMode.STRICT));
     }
 }

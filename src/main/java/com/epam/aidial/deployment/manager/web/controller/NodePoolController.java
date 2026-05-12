@@ -23,10 +23,10 @@ public class NodePoolController {
     private final NodePoolDtoMapper nodePoolDtoMapper;
 
     @GetMapping
-    @Operation(summary = "List available node pools and currently-configured defaults",
-            description = "Returns the configured pool catalogue (with per-pool nodeSelector / affinity / tolerations) "
-                    + "and a top-level defaults block reporting NODE_POOL_DEFAULT and NODE_POOL_DEFAULT_MODEL. "
-                    + "Fields that are not configured are omitted from the response.")
+    @Operation(summary = "List available node pools",
+            description = "Returns the configured pool catalogue (with per-pool nodeSelector / affinity / tolerations). "
+                    + "Pool-level fields that are not configured are omitted from each pool's representation. "
+                    + "The `pools` array is always present and is empty when no pools are configured.")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
     public NodePoolListResponseDto getNodePools() {
         return nodePoolDtoMapper.toListResponse(nodePoolService.getProperties());

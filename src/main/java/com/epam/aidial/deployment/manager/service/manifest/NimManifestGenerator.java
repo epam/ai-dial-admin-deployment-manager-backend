@@ -15,8 +15,10 @@ import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
 import com.google.cloud.tools.jib.api.ImageReference;
 import com.nvidia.apps.v1alpha1.NIMService;
 import com.nvidia.apps.v1alpha1.NIMServiceSpec;
+import com.nvidia.apps.v1alpha1.nimservicespec.Affinity;
 import com.nvidia.apps.v1alpha1.nimservicespec.Env;
 import com.nvidia.apps.v1alpha1.nimservicespec.Expose;
+import com.nvidia.apps.v1alpha1.nimservicespec.Tolerations;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.ValueFrom;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.valuefrom.SecretKeyRef;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.Router;
@@ -50,15 +52,18 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
     private final NimDeployProperties nimDeployProperties;
+    private final PoolPrimitivesConverter poolPrimitivesConverter;
 
     public NimManifestGenerator(AppProperties appconfig,
                                 NimProbeConverter nimProbeConverter,
                                 ProgressDeadlineCalculator progressDeadlineCalculator,
-                                NimDeployProperties nimDeployProperties) {
+                                NimDeployProperties nimDeployProperties,
+                                PoolPrimitivesConverter poolPrimitivesConverter) {
         super(appconfig);
         this.nimProbeConverter = nimProbeConverter;
         this.progressDeadlineCalculator = progressDeadlineCalculator;
         this.nimDeployProperties = nimDeployProperties;
+        this.poolPrimitivesConverter = poolPrimitivesConverter;
     }
 
     @SneakyThrows
@@ -145,16 +150,14 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         if (MapUtils.isNotEmpty(primitives.nodeSelector())) {
             specChain.data().setNodeSelector(primitives.nodeSelector());
         }
-        var convertedAffinity = PoolPrimitivesConverter.convertAffinity(
-                primitives.affinity(), com.nvidia.apps.v1alpha1.nimservicespec.Affinity.class);
+        var convertedAffinity = poolPrimitivesConverter.convertAffinity(primitives.affinity(), Affinity.class);
         if (convertedAffinity != null) {
             specChain.data().setAffinity(convertedAffinity);
         }
-        var convertedTolerations = PoolPrimitivesConverter.convertTolerations(
-                primitives.tolerations(), com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+        var convertedTolerations = poolPrimitivesConverter.convertTolerations(primitives.tolerations(), Tolerations.class);
         if (CollectionUtils.isNotEmpty(convertedTolerations)) {
             var existing = specChain.data().getTolerations();
-            var merged = new ArrayList<com.nvidia.apps.v1alpha1.nimservicespec.Tolerations>();
+            var merged = new ArrayList<Tolerations>();
             if (existing != null) {
                 merged.addAll(existing);
             }

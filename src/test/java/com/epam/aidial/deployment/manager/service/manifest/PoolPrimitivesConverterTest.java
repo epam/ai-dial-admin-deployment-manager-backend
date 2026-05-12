@@ -1,7 +1,11 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
+import com.nvidia.apps.v1alpha1.nimservicespec.Affinity;
+import com.nvidia.apps.v1alpha1.nimservicespec.Tolerations;
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,23 +14,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PoolPrimitivesConverterTest {
 
+    private PoolPrimitivesConverter converter;
+
+    @BeforeEach
+    void setUp() {
+        converter = new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
+    }
+
     @Test
     void shouldReturnNull_whenSourceAffinityIsNull() {
-        var result = PoolPrimitivesConverter.convertAffinity(null, com.nvidia.apps.v1alpha1.nimservicespec.Affinity.class);
+        var result = converter.convertAffinity(null, Affinity.class);
 
         assertThat(result).isNull();
     }
 
     @Test
     void shouldReturnNull_whenSourceTolerationsIsNull() {
-        var result = PoolPrimitivesConverter.convertTolerations(null, com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+        var result = converter.convertTolerations(null, Tolerations.class);
 
         assertThat(result).isNull();
     }
 
     @Test
     void shouldReturnNull_whenSourceTolerationsIsEmpty() {
-        var result = PoolPrimitivesConverter.convertTolerations(List.of(), com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+        var result = converter.convertTolerations(List.of(), Tolerations.class);
 
         assertThat(result).isNull();
     }
@@ -45,8 +56,7 @@ class PoolPrimitivesConverterTest {
                 .endNodeAffinity()
                 .build();
 
-        var converted = PoolPrimitivesConverter.convertAffinity(
-                fabric8Affinity, com.nvidia.apps.v1alpha1.nimservicespec.Affinity.class);
+        var converted = converter.convertAffinity(fabric8Affinity, Affinity.class);
 
         assertThat(converted).isNotNull();
         assertThat(converted.getNodeAffinity()).isNotNull();
@@ -66,8 +76,7 @@ class PoolPrimitivesConverterTest {
                 new TolerationBuilder().withKey("workload").withOperator("Exists").withEffect("PreferNoSchedule").build()
         );
 
-        var converted = PoolPrimitivesConverter.convertTolerations(
-                fabric8Tolerations, com.nvidia.apps.v1alpha1.nimservicespec.Tolerations.class);
+        var converted = converter.convertTolerations(fabric8Tolerations, Tolerations.class);
 
         assertThat(converted).isNotNull().hasSize(2);
         assertThat(converted.get(0).getKey()).isEqualTo("dedicated");
@@ -91,7 +100,7 @@ class PoolPrimitivesConverterTest {
                 .endNodeAffinity()
                 .build();
 
-        var converted = PoolPrimitivesConverter.convertAffinity(
+        var converted = converter.convertAffinity(
                 fabric8Affinity, io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity.class);
 
         assertThat(converted).isNotNull();

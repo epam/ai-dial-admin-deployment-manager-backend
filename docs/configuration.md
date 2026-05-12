@@ -240,7 +240,7 @@ Node pools are scheduling presets. Each pool carries `nodeSelector`, `affinity`,
 
 Each pool has two identifiers:
 
-- `id` — **immutable** machine identifier. Deployments persist this value (column `deployment.node_pool_id`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key.
+- `id` — **immutable** machine identifier. Deployments persist this value (column `deployment.node_pool`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key.
 - `name` — human-readable display label shown on the UI. **Safe to change at any time** — deployments are not affected because they reference the pool by id, not name. The current `name` is resolved from configuration at read time and exposed on deployment responses as `nodePoolName`.
 
 | Property | Environment Variable | Default | Required | Description |
@@ -250,6 +250,8 @@ Each pool has two identifiers:
 | `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
 Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
+
+**Operator note — admin-edit asymmetry**: edits to a pool's `nodeSelector` / `affinity` / `tolerations` are picked up by every existing deployment that references the pool **automatically on the next redeploy** — pool primitives are re-tunable. In contrast, changes to `NODE_POOL_DEFAULT` or `NODE_POOL_DEFAULT_MODEL` apply only to deployments **created after the change**; existing deployments retain whichever pool id was stamped at their creation time. To migrate an existing deployment to a new pool, edit its `nodePoolId` field via the standard update endpoint — there is no batch migration. Pool identity (`id`) is immutable by design; pool contents are mutable. The legacy `NODE_POOL_LABEL_KEY` env variable is ignored if still set — it has no effect on scheduling.
 
 **Example**:
 
@@ -280,7 +282,7 @@ NODE_POOL_DEFAULT=cpu-pool
 NODE_POOL_DEFAULT_MODEL=gpu-pool
 ```
 
-**Migrating from a prior preview**: before Feature 018's id-vs-name split, the same string served as both identity and display label and was stored in `deployment.node_pool`. The schema migration renames that column to `deployment.node_pool_id` without rewriting row values. To preserve continuity for existing deployments, set each pool's `id` on the first post-migration config to the value the pool previously had under `name`. Rows whose value does not match any current pool `id` become dangling — read endpoints still return the stored id verbatim with `nodePoolName: null`, but redeploy fails until the deployment is updated via the standard update API.
+**Migrating from a prior preview**: before Feature 018's id-vs-name split, the same string served as both identity and display label and was stored in `deployment.node_pool`. The DB column name is unchanged (still `deployment.node_pool`); only the Java field, the wire field, and the conceptual meaning move from "name" to "id". To preserve continuity for existing deployments, set each pool's `id` on the first post-migration config to the value the pool previously had under `name`. Rows whose value does not match any current pool `id` become dangling — read endpoints still return the stored id verbatim with `nodePoolName: null`, but redeploy fails until the deployment is updated via the standard update API.
 
 #### Cleanup and Maintenance Configuration
 

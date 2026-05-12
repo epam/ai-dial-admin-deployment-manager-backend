@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
 import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -52,6 +53,8 @@ class NimManifestGeneratorTest {
 
     private NimDeployProperties nimDeployProperties;
     private NimManifestGenerator manifestGenerator;
+    private final PoolPrimitivesConverter poolPrimitivesConverter =
+            new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .enable(SerializationFeature.INDENT_OUTPUT);
@@ -68,7 +71,8 @@ class NimManifestGeneratorTest {
         nimDeployProperties.setUseClusterInternalUrl(true);
         nimDeployProperties.setKserveModeEnabled(false);
 
-        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, progressDeadlineCalculator, nimDeployProperties);
+        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, progressDeadlineCalculator,
+                nimDeployProperties, poolPrimitivesConverter);
     }
 
     @Test
@@ -166,7 +170,7 @@ class NimManifestGeneratorTest {
         // Given: generator with real NimProbeConverter so probe is built from properties
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
-                realCalculator, nimDeployProperties);
+                realCalculator, nimDeployProperties, poolPrimitivesConverter);
         var deploymentName = "probe-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
@@ -328,7 +332,7 @@ class NimManifestGeneratorTest {
         // Given: generator with real calculator so fallback deadline is computed
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealCalculator = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
-                realCalculator, nimDeployProperties);
+                realCalculator, nimDeployProperties, poolPrimitivesConverter);
         var deploymentName = "fallback-deadline-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
 
