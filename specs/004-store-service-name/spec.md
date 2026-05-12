@@ -3,6 +3,7 @@
 **Feature Branch**: `004-store-service-name`
 **Created**: 2026-03-11
 **Status**: Implemented
+**Capability**: deployments
 **Input**: User description: "Currently, we often rely on our naming conventions (K8sNamingUtils and IdExtractor) to define deployment by K8s objects and vice versa - it becomes a problem when 'resourceNamePrefix' changes, since existing K8s resources become lost. Deployment service (Knative/NIM/Kserve) name should be stored per each deployment (in deployment table) and used instead of id extraction."
 
 ## User Scenarios & Testing *(mandatory)*

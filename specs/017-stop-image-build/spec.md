@@ -2,7 +2,8 @@
 
 **Feature Branch**: `017-stop-image-build`  
 **Created**: 2026-04-20  
-**Status**: Draft  
+**Status**: Implemented  
+**Capability**: image-builds  
 **Input**: User description: "Currently, there is no ability to interrupt image build process - this feature should be implemented."
 
 ## Clarifications
