@@ -137,7 +137,7 @@ public abstract class PersistenceDeploymentMapper {
         existingEntity.setServiceName(updatedEntity.getServiceName());
         existingEntity.setCommand(updatedEntity.getCommand());
         existingEntity.setArgs(updatedEntity.getArgs());
-        existingEntity.setNodePool(updatedEntity.getNodePool());
+        existingEntity.setNodePoolId(updatedEntity.getNodePoolId());
 
         if (existingEntity instanceof McpDeploymentEntity existingMcp
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {

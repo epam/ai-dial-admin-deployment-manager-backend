@@ -131,7 +131,7 @@ public class DeploymentService {
         checkNoResourcesAreAssociatedWithId(id);
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
         applyCreateTimeNodePoolCascade(request);
-        validateNodePool(request.getNodePool());
+        validateNodePoolId(request.getNodePoolId());
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
@@ -165,12 +165,12 @@ public class DeploymentService {
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var existingDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
 
-        // FR-014: when the payload omits nodePool, preserve the stored value; do NOT re-run the cascade.
-        if (!request.isNodePoolFieldPresent()) {
-            request.setNodePool(existingDeployment.getNodePool());
-            request.setNodePoolFieldPresent(false);
+        // FR-014: when the payload omits nodePoolId, preserve the stored value; do NOT re-run the cascade.
+        if (!request.isNodePoolIdFieldPresent()) {
+            request.setNodePoolId(existingDeployment.getNodePoolId());
+            request.setNodePoolIdFieldPresent(false);
         }
-        validateNodePool(request.getNodePool());
+        validateNodePoolId(request.getNodePoolId());
         var existingStatus = existingDeployment.getStatus();
 
         if (existingStatus.isIntermediate()) {
@@ -401,24 +401,24 @@ public class DeploymentService {
         return () -> new EntityNotFoundException("%s not found: '%s'".formatted(what, id));
     }
 
-    private void validateNodePool(String nodePool) {
-        if (StringUtils.isNotBlank(nodePool) && nodePoolProperties.findByName(nodePool).isEmpty()) {
-            throw new IllegalArgumentException("Node pool '%s' is not configured".formatted(nodePool));
+    private void validateNodePoolId(String nodePoolId) {
+        if (StringUtils.isNotBlank(nodePoolId) && nodePoolProperties.findById(nodePoolId).isEmpty()) {
+            throw new IllegalArgumentException("Node pool id '%s' is not configured".formatted(nodePoolId));
         }
     }
 
     /**
-     * FR-018: when the create payload omits {@code nodePool}, resolve via the cascade and stamp the
+     * FR-018: when the create payload omits {@code nodePoolId}, resolve via the cascade and stamp the
      * result onto the request so it persists onto the deployment record. When the field is present
      * (with any value, including null) we honour it verbatim.
      */
     private void applyCreateTimeNodePoolCascade(CreateDeployment request) {
-        if (request.isNodePoolFieldPresent()) {
+        if (request.isNodePoolIdFieldPresent()) {
             return;
         }
         var resolved = nodePoolService.resolveForCreate(request);
-        request.setNodePool(resolved);
-        request.setNodePoolFieldPresent(false);
+        request.setNodePoolId(resolved);
+        request.setNodePoolIdFieldPresent(false);
     }
 
     private void validateEnvNameNotReserved(String name) {
@@ -468,7 +468,7 @@ public class DeploymentService {
                 || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
                 || !Objects.equals(existing.getScaling(), updated.getScaling())
                 || !Objects.equals(existing.getResources(), updated.getResources())
-                || !Objects.equals(existing.getNodePool(), updated.getNodePool());
+                || !Objects.equals(existing.getNodePoolId(), updated.getNodePoolId());
     }
 
     private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {

@@ -1,19 +1,21 @@
 {
   "pools": [
     {
-      "name": "gpu_pool",
+      "id": "gpu-pool",
+      "name": "GPU pool",
       "description": "GPU pool",
       "nodeSelector": {
         "accelerator-type": "nvidia-a100"
       }
     },
     {
-      "name": "cpu_pool",
+      "id": "cpu-pool",
+      "name": "CPU pool",
       "description": "CPU pool"
     }
   ],
   "defaults": {
-    "default": "cpu_pool",
-    "model": "gpu_pool"
+    "defaultId": "cpu-pool",
+    "modelId": "gpu-pool"
   }
 }

@@ -53,6 +53,9 @@ class DeploymentInternalControllerTest extends AbstractControllerNoneSecureTest 
     @MockitoBean
     private ImageDefinitionService imageDefinitionService;
 
+    @MockitoBean
+    private com.epam.aidial.deployment.manager.configuration.NodePoolProperties nodePoolProperties;
+
     @Test
     void testGetDeploymentById_found() throws Exception {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/internal/deployment_by_id_response.json");

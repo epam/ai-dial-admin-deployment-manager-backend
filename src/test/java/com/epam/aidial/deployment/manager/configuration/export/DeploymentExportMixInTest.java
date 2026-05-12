@@ -18,24 +18,24 @@ class DeploymentExportMixInTest {
     }
 
     @Test
-    void shouldStripNodePoolFromExportPayload() throws Exception {
+    void shouldStripNodePoolIdFromExportPayload() throws Exception {
         var deployment = new McpDeployment();
         deployment.setId("hello");
-        deployment.setNodePool("gpu_pool");
+        deployment.setNodePoolId("gpu-pool");
 
         var json = exportMapper.writeValueAsString(deployment);
 
-        assertThat(json).doesNotContain("nodePool");
-        assertThat(json).doesNotContain("gpu_pool");
+        assertThat(json).doesNotContain("nodePoolId");
+        assertThat(json).doesNotContain("gpu-pool");
     }
 
     @Test
-    void shouldIgnoreIncomingNodePoolOnImport() throws Exception {
+    void shouldIgnoreIncomingNodePoolIdOnImport() throws Exception {
         var legacyJson = """
                 {
                   "$type": "mcp",
                   "id": "hello",
-                  "nodePool": "gpu_pool"
+                  "nodePoolId": "gpu-pool"
                 }
                 """;
 
@@ -43,6 +43,6 @@ class DeploymentExportMixInTest {
                 com.epam.aidial.deployment.manager.model.deployment.Deployment.class);
 
         assertThat(imported.getId()).isEqualTo("hello");
-        assertThat(imported.getNodePool()).isNull();
+        assertThat(imported.getNodePoolId()).isNull();
     }
 }

@@ -102,6 +102,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private ImageDefinitionService imageDefinitionService;
     @MockitoBean
     private EventStreamingService eventStreamingService;
+    @MockitoBean
+    private com.epam.aidial.deployment.manager.configuration.NodePoolProperties nodePoolProperties;
 
     @Captor
     private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;

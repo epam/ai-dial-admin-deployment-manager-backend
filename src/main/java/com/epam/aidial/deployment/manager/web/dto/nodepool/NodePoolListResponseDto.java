@@ -2,7 +2,6 @@ package com.epam.aidial.deployment.manager.web.dto.nodepool;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,16 +20,15 @@ public record NodePoolListResponseDto(
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record DefaultsDto(
             @Nullable
-            @JsonProperty("default")
-            @Schema(description = "Name of the catch-all default pool (NODE_POOL_DEFAULT)")
-            String defaultPool,
+            @Schema(description = "Pool id of the catch-all default pool (NODE_POOL_DEFAULT)")
+            String defaultId,
             @Nullable
-            @Schema(description = "Name of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL)")
-            String model
+            @Schema(description = "Pool id of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL)")
+            String modelId
     ) {
         @JsonIgnore
         public boolean isEmpty() {
-            return defaultPool == null && model == null;
+            return defaultId == null && modelId == null;
         }
     }
 }

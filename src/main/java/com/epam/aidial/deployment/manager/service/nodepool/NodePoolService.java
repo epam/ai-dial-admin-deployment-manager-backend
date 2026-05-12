@@ -44,9 +44,9 @@ public class NodePoolService {
      */
     @Nullable
     public String resolveForCreate(CreateDeployment deployment) {
-        if (WorkloadClassifier.isModelWorkload(deployment) && nodePoolProperties.getDefaultModelPool() != null) {
-            return nodePoolProperties.getDefaultModelPool();
+        if (WorkloadClassifier.isModelWorkload(deployment) && nodePoolProperties.getDefaultModelPoolId() != null) {
+            return nodePoolProperties.getDefaultModelPoolId();
         }
-        return nodePoolProperties.getDefaultPool();
+        return nodePoolProperties.getDefaultPoolId();
     }
 }

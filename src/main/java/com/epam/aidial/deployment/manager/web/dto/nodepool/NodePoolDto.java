@@ -12,7 +12,10 @@ import java.util.Map;
 @Schema(description = "Node pool configuration")
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record NodePoolDto(
-        @Schema(description = "Pool name", example = "gpu_node_pool")
+        @Schema(description = "Immutable pool identifier (referenced by deployments)", example = "gpu-a100")
+        String id,
+        @Schema(description = "Human-readable display label (may be changed without breaking deployments)",
+                example = "GPU A100 Pool")
         String name,
         @Nullable
         @Schema(description = "Human-readable description")

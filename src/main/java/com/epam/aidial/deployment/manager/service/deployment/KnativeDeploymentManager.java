@@ -114,7 +114,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
-        var poolPrimitives = resolvePoolPrimitives(deployment.getNodePool());
+        var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
         return knativeManifestGenerator.serviceConfig(
                 deployment.getId(),

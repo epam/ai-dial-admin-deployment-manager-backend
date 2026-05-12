@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-04-21T13:35:17.766734900Z
+> Generated at: 2026-05-12T10:23:14.796977100Z
 
 ## Tables
 
@@ -158,7 +158,7 @@
 | ARGS | JSON | Yes |  |  |
 | SOURCE | JSON | Yes |  |  |
 | SERVICE_NAME | VARCHAR(63) | Yes |  |  |
-| NODE_POOL | VARCHAR(255) | Yes |  |  |
+| NODE_POOL_ID | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 
@@ -191,7 +191,7 @@
 | SERVICE_NAME | VARCHAR(255) | Yes |  |  |
 | COMMAND | JSON | Yes |  |  |
 | ARGS | JSON | Yes |  |  |
-| NODE_POOL | VARCHAR(255) | Yes |  |  |
+| NODE_POOL_ID | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 

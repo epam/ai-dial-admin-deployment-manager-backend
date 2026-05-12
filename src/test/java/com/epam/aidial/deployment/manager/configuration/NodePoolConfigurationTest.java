@@ -23,19 +23,20 @@ class NodePoolConfigurationTest {
         var properties = configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR);
 
         assertThat(properties.getPools()).isEmpty();
-        assertThat(properties.getDefaultPool()).isNull();
-        assertThat(properties.getDefaultModelPool()).isNull();
+        assertThat(properties.getDefaultPoolId()).isNull();
+        assertThat(properties.getDefaultModelPoolId()).isNull();
     }
 
     @Test
     void shouldParseSingleLineJson_asYamlSubset() {
-        var json = "[{\"name\":\"cpu_pool\",\"description\":\"CPU\",\"nodeSelector\":{\"workload\":\"cpu\"}}]";
+        var json = "[{\"id\":\"cpu-pool\",\"name\":\"CPU pool\",\"description\":\"CPU\",\"nodeSelector\":{\"workload\":\"cpu\"}}]";
 
         var properties = configuration.nodePoolProperties(json, "", "", "", VALIDATOR);
 
         assertThat(properties.getPools()).hasSize(1);
         var pool = properties.getPools().get(0);
-        assertThat(pool.getName()).isEqualTo("cpu_pool");
+        assertThat(pool.getId()).isEqualTo("cpu-pool");
+        assertThat(pool.getName()).isEqualTo("CPU pool");
         assertThat(pool.getDescription()).isEqualTo("CPU");
         assertThat(pool.getNodeSelector()).containsEntry("workload", "cpu");
     }
@@ -43,7 +44,8 @@ class NodePoolConfigurationTest {
     @Test
     void shouldParseMultiLineYaml() {
         var yaml = """
-                - name: gpu_pool
+                - id: gpu-pool
+                  name: GPU pool
                   description: GPU pool
                   # comment is ignored
                   affinity:
@@ -65,7 +67,8 @@ class NodePoolConfigurationTest {
 
         assertThat(properties.getPools()).hasSize(1);
         var pool = properties.getPools().get(0);
-        assertThat(pool.getName()).isEqualTo("gpu_pool");
+        assertThat(pool.getId()).isEqualTo("gpu-pool");
+        assertThat(pool.getName()).isEqualTo("GPU pool");
         assertThat(pool.getAffinity()).isNotNull();
         assertThat(pool.getAffinity().getNodeAffinity()).isNotNull();
         assertThat(pool.getTolerations()).hasSize(1);
@@ -75,7 +78,8 @@ class NodePoolConfigurationTest {
     @Test
     void shouldRejectLegacyMaxNodesField() {
         var yaml = """
-                - name: pool
+                - id: pool
+                  name: pool
                   maxNodes: 10
                 """;
 
@@ -87,7 +91,8 @@ class NodePoolConfigurationTest {
     @Test
     void shouldRejectLegacyCpuField() {
         var yaml = """
-                - name: pool
+                - id: pool
+                  name: pool
                   cpu:
                     milliCpus: 1000
                 """;
@@ -106,9 +111,22 @@ class NodePoolConfigurationTest {
     }
 
     @Test
+    void shouldRejectBlankPoolId() {
+        var yaml = """
+                - id: ""
+                  name: "Pool"
+                """;
+
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'id' is required and must not be blank");
+    }
+
+    @Test
     void shouldRejectBlankPoolName() {
         var yaml = """
-                - name: ""
+                - id: "pool"
+                  name: ""
                 """;
 
         assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
@@ -117,56 +135,76 @@ class NodePoolConfigurationTest {
     }
 
     @Test
-    void shouldRejectDuplicatePoolNames() {
+    void shouldRejectDuplicatePoolIds() {
         var yaml = """
-                - name: pool
-                - name: pool
+                - id: pool
+                  name: Pool A
+                - id: pool
+                  name: Pool B
                 """;
 
         assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Duplicate node pool name: 'pool'");
+                .hasMessageContaining("Duplicate node pool id: 'pool'");
+    }
+
+    @Test
+    void shouldRejectDuplicatePoolNames() {
+        var yaml = """
+                - id: pool-a
+                  name: Pool
+                - id: pool-b
+                  name: Pool
+                """;
+
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "", "", VALIDATOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate node pool name: 'Pool'");
     }
 
     @Test
     void shouldStampDefaultValues() {
         var yaml = """
-                - name: cpu_pool
-                - name: gpu_pool
+                - id: cpu-pool
+                  name: CPU pool
+                - id: gpu-pool
+                  name: GPU pool
                 """;
 
-        var properties = configuration.nodePoolProperties(yaml, "cpu_pool", "gpu_pool", "", VALIDATOR);
+        var properties = configuration.nodePoolProperties(yaml, "cpu-pool", "gpu-pool", "", VALIDATOR);
 
-        assertThat(properties.getDefaultPool()).isEqualTo("cpu_pool");
-        assertThat(properties.getDefaultModelPool()).isEqualTo("gpu_pool");
+        assertThat(properties.getDefaultPoolId()).isEqualTo("cpu-pool");
+        assertThat(properties.getDefaultModelPoolId()).isEqualTo("gpu-pool");
     }
 
     @Test
     void shouldRejectDefaultPoolNotPresentInNodePools() {
         var yaml = """
-                - name: cpu_pool
+                - id: cpu-pool
+                  name: CPU pool
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "ghost_pool", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "ghost-pool", "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("NODE_POOL_DEFAULT references node pool 'ghost_pool'");
+                .hasMessageContaining("NODE_POOL_DEFAULT references node pool id 'ghost-pool'");
     }
 
     @Test
     void shouldRejectDefaultModelPoolNotPresentInNodePools() {
         var yaml = """
-                - name: cpu_pool
+                - id: cpu-pool
+                  name: CPU pool
                 """;
 
-        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "ghost_pool", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties(yaml, "", "ghost-pool", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("NODE_POOL_DEFAULT_MODEL references node pool 'ghost_pool'");
+                .hasMessageContaining("NODE_POOL_DEFAULT_MODEL references node pool id 'ghost-pool'");
     }
 
     @Test
     void shouldRejectDefault_whenNodePoolsEmpty() {
-        assertThatThrownBy(() -> configuration.nodePoolProperties("", "any_pool", "", "", VALIDATOR))
+        assertThatThrownBy(() -> configuration.nodePoolProperties("", "any-pool", "", "", VALIDATOR))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("NODE_POOL_DEFAULT references node pool 'any_pool'");
+                .hasMessageContaining("NODE_POOL_DEFAULT references node pool id 'any-pool'");
     }
 }

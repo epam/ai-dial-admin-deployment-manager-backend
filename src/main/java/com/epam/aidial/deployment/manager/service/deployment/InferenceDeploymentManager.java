@@ -98,7 +98,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
-        var poolPrimitives = resolvePoolPrimitives(deployment.getNodePool());
+        var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
         return inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),

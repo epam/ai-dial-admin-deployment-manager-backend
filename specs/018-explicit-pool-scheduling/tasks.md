@@ -134,11 +134,29 @@ This phase intentionally contains no tasks. Proceed to Phase 2.
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [X] T038 [P] Rewrote the **Node Pool Configuration** section of `docs/configuration.md`. Covers the three configuration entries with property keys + env vars + required-when conditions; the YAML document shape with per-field table; a complete worked example in both env-var and `application.yml` forms; the startup validation rules (strict parsing, defaults must reference existing pools, `NODE_POOL_LABEL_KEY` rejection); the create-time cascade resolution rule and the no-cascade-on-update guarantee; the operator-facing asymmetry note about pool-primitives propagating on redeploy while default env-var changes never migrate existing deployments; a Feature-016 migration section; and the export/import behaviour.
-- [ ] T039 [P] Confirm OpenAPI `@Schema` documentation on `NodePoolDto`, `NodePoolListResponseDto`, the deployment create / update request DTOs reflects the new field semantics (omit / null / value rules for `nodePool`; `defaults` block omission rule). Run `./gradlew bootRun`, hit `/v3/api-docs`, and inspect.
+- [ ] T039 [P] Confirm OpenAPI `@Schema` documentation on `NodePoolDto`, `NodePoolListResponseDto`, the deployment create / update request DTOs reflects the new field semantics (omit / null / value rules for `nodePoolId`; `defaults` block omission rule). Run `./gradlew bootRun`, hit `/v3/api-docs`, and inspect.
 - [ ] T040 Run `./gradlew checkstyleMain checkstyleTest` and resolve any violations introduced by the schema reshape / new files.
 - [ ] T041 Run `./gradlew testFast` to verify the H2-only test suite passes end-to-end.
 - [ ] T042 Run the manual smoke test in `specs/018-explicit-pool-scheduling/quickstart.md` §1–§9 against a local app instance. Verify each section behaves as documented.
 - [ ] T043 Final `./gradlew clean build` to confirm the full suite (including PostgreSQL + SQL Server Testcontainers) passes.
+
+---
+
+## Phase 8: Decouple Pool Identity From Display Name (Clarifications Session 2026-05-12)
+
+**Purpose**: Pre-merge fix for the pool-rename hazard. The original 018 design used a single string (`name`) as both the persistence key and the FE display label, so an operator renaming a pool in `NODE_POOLS` would orphan every deployment that referenced it. This phase splits identity (`id`, immutable) from display (`name`, mutable) and renames the persistence column accordingly. Land **inside 018**; no data backfill.
+
+- [X] T044 [P] Reshape `src/main/java/com/epam/aidial/deployment/manager/configuration/NodePoolProperties.java`: add `@NotBlank String id` to `PoolConfig`; rename `defaultPool` → `defaultPoolId` and `defaultModelPool` → `defaultModelPoolId`; replace `findByName(...)` with `findById(...)`.
+- [X] T045 [P] Update `src/main/java/com/epam/aidial/deployment/manager/configuration/NodePoolConfiguration.java`: validate `id` uniqueness (in addition to existing `name` uniqueness); defaults validation looks up by `findById`; error messages reference "node pool id".
+- [X] T046 Add Flyway migration `V1.59__RenameDeploymentNodePoolToNodePoolId.sql` for H2 / POSTGRES / MS_SQL_SERVER — pure column rename on `deployment` and `deployment_aud`, no data transformation.
+- [X] T047 Rename `DeploymentEntity.nodePool` → `nodePoolId` (column `node_pool` → `node_pool_id`).
+- [X] T048 Rename `Deployment.nodePool` → `nodePoolId`, `CreateDeployment.nodePool` → `nodePoolId` (and the `nodePoolFieldPresent` flag → `nodePoolIdFieldPresent`). Update every caller (`DeploymentService` cascade and validation, manager `resolvePoolPrimitives(...)` argument, `DeploymentMapper`, `PersistenceDeploymentMapper.updateEntityFromDomain`, `DeploymentExportMixIn`).
+- [X] T049 [P] Reshape `NodePoolDto` to add `String id`; reshape `NodePoolListResponseDto.DefaultsDto` to `{defaultId, modelId}`; rename `CreateDeploymentRequestDto.nodePool` → `nodePoolId`; add `String nodePoolName` (read-only resolved label) to `DeploymentDto`.
+- [X] T050 [P] Inject `NodePoolProperties` into `DeploymentDtoMapper` and add a `resolveNodePoolName(deployment)` MapStruct `@Named` helper that resolves the label from the persisted id against the current configuration (null when id is null or dangling).
+- [X] T051 [P] Update `NodePoolDtoMapper.toListResponse(...)` to read `getDefaultPoolId()` / `getDefaultModelPoolId()`.
+- [X] T052 [P] Tests: `NodePoolConfigurationTest` covers id-blank, id-duplicate, name-duplicate, defaults-reference-id; `NodePoolServiceTest` mocks `getDefaultPoolId` / `getDefaultModelPoolId`; `NodePoolControllerTest` JSON resource updated to the new id-bearing shape; `DeploymentExportMixInTest` covers the renamed field; `DeploymentControllerTest` / `DeploymentInternalControllerTest` add `@MockitoBean NodePoolProperties` to the slice (mapper dependency).
+- [X] T053 [P] Rewrite the **Node Pool Configuration** section of `docs/configuration.md` to lead with `id` (immutable) vs `name` (display), include the migration cutover guidance ("set `id` to the previous `name` on the first post-migration config to preserve continuity for existing rows").
+- [X] T054 Update `specs/018-explicit-pool-scheduling/spec.md` (Key Entities, Story 1 acceptance scenarios for rename, Clarifications Session 2026-05-12) and `specs/018-explicit-pool-scheduling/data-model.md` (§1 PoolConfig, §2 persistence column + state table, §4 DTOs).
 
 ---
 

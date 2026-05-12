@@ -23,17 +23,17 @@ public class NodePoolProperties {
     private List<PoolConfig> pools;
 
     @Nullable
-    private String defaultPool;
+    private String defaultPoolId;
 
     @Nullable
-    private String defaultModelPool;
+    private String defaultModelPoolId;
 
-    public Optional<PoolConfig> findByName(String name) {
+    public Optional<PoolConfig> findById(String id) {
         if (CollectionUtils.isEmpty(pools)) {
             return Optional.empty();
         }
         return pools.stream()
-                .filter(pool -> pool.getName().equals(name))
+                .filter(pool -> pool.getId().equals(id))
                 .findFirst();
     }
 
@@ -45,6 +45,9 @@ public class NodePoolProperties {
     @Setter
     @NoArgsConstructor
     public static class PoolConfig {
+
+        @NotBlank(message = "'id' is required and must not be blank")
+        private String id;
 
         @NotBlank(message = "'name' is required and must not be blank")
         private String name;

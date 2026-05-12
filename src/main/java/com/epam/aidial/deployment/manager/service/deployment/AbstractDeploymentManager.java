@@ -100,12 +100,13 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         this.defaultContainerPort = defaultContainerPort;
     }
 
-    protected PoolSchedulingPrimitives resolvePoolPrimitives(String nodePool) {
-        if (StringUtils.isBlank(nodePool)) {
+    protected PoolSchedulingPrimitives resolvePoolPrimitives(String nodePoolId) {
+        if (StringUtils.isBlank(nodePoolId)) {
             return PoolSchedulingPrimitives.EMPTY;
         }
-        var pool = nodePoolProperties.findByName(nodePool)
-                .orElseThrow(() -> new IllegalArgumentException("Node pool '%s' is no longer configured".formatted(nodePool)));
+        var pool = nodePoolProperties.findById(nodePoolId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Node pool id '%s' is no longer configured".formatted(nodePoolId)));
         return PoolSchedulingPrimitives.of(pool);
     }
 

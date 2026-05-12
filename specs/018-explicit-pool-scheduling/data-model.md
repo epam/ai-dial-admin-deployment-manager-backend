@@ -16,19 +16,19 @@ public class NodePoolProperties {
     @Valid
     private List<PoolConfig> pools;
 
-    /** Name of the catch-all default pool (NODE_POOL_DEFAULT). Null when not configured. */
+    /** Id of the catch-all default pool (NODE_POOL_DEFAULT). Null when not configured. */
     @Nullable
-    private String defaultPool;
+    private String defaultPoolId;
 
-    /** Name of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL). Null when not configured. */
+    /** Id of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL). Null when not configured. */
     @Nullable
-    private String defaultModelPool;
+    private String defaultModelPoolId;
 
-    public Optional<PoolConfig> findByName(String name) {
+    public Optional<PoolConfig> findById(String id) {
         if (CollectionUtils.isEmpty(pools)) {
             return Optional.empty();
         }
-        return pools.stream().filter(p -> p.getName().equals(name)).findFirst();
+        return pools.stream().filter(p -> p.getId().equals(id)).findFirst();
     }
 
     public boolean isPoolConfigured() {
@@ -40,6 +40,11 @@ public class NodePoolProperties {
     @NoArgsConstructor
     public static class PoolConfig {
 
+        /** Immutable machine identifier — the foreign-key-style reference from deployments. Required, unique. */
+        @NotBlank(message = "'id' is required and must not be blank")
+        private String id;
+
+        /** Human-readable display label — safe to rename. Required, recommended unique across pools. */
         @NotBlank(message = "'name' is required and must not be blank")
         private String name;
 
@@ -63,28 +68,28 @@ public class NodePoolProperties {
 
 **Removed from Feature 016**: `nodePoolLabelKey`, `getLabelSelector(...)`, `minNodes`, `maxNodes`, `instance`, `gpu`, `cpu`, `memory`, `GpuSpec`, `CpuSpec`, `MemorySpec`. Their absence is enforced by FR-003's strict YAML parsing.
 
-**Identity & uniqueness**: `name` MUST be unique across `pools`. Enforced by `NodePoolConfiguration` after parsing, before bean publication.
+**Identity & uniqueness**: `id` (immutable, foreign-key-style identifier referenced by deployments) MUST be unique across `pools`. `name` (display-only label) MUST also be unique across `pools` (enforced for now; relaxation is a future-feature decision). Both are enforced by `NodePoolConfiguration` after parsing, before bean publication. Renaming `name` between restarts is non-breaking; changing `id` is breaking — it orphans deployments that referenced the old value.
 
-**Default-references-existing-pool invariant**: `defaultPool` and `defaultModelPool`, when non-null, MUST match a `pools[].name` value. Enforced at startup (FR-015).
+**Default-references-existing-pool invariant**: `defaultPoolId` and `defaultModelPoolId`, when non-null, MUST match a `pools[].id` value. Enforced at startup (FR-015).
 
 ## 2. Persisted entity (`dao/entity/deployment/DeploymentEntity`)
 
-**No schema change**. The `node_pool` column (added by V1.58 for Feature 016) is reused as-is:
+The Feature 016 column `node_pool` is **renamed** to `node_pool_id` to reflect the id-vs-name split (see Clarifications Session 2026-05-12). Migration `V1.59__RenameDeploymentNodePoolToNodePoolId.sql` performs a pure column rename on both `deployment` and the audit mirror `deployment_aud` — no data transformation. To preserve continuity for existing rows across the cutover, operators are advised in `docs/configuration.md` to set each pool's `id` on the first post-migration config to the value the pool previously had under `name`.
 
 ```java
-@Column(name = "node_pool")
-private String nodePool;
+@Column(name = "node_pool_id")
+private String nodePoolId;
 ```
 
-Length VARCHAR(255) is ample for pool names. The audit-table mirror (`deployment_aud.node_pool`) is already in place from V1.58.
+Length VARCHAR(255) is ample for pool ids.
 
 **Permitted states**:
 
 | Stored value | Meaning |
 |---|---|
-| Non-null pool name in current `NODE_POOLS` | Pool's primitives apply at deploy time. |
-| Non-null pool name **not** in current `NODE_POOLS` (dangling) | Read-side returns it verbatim; redeploy fails (Feature 016 semantics, retained). |
-| `null` | "Any" — no pool primitives at deploy time. Reachable from explicit user selection, from the cascade terminating at null on create, or from a legacy record. |
+| Non-null pool id in current `NODE_POOLS` | Pool's primitives apply at deploy time; read responses populate `nodePoolName` from the pool's current `name`. |
+| Non-null pool id **not** in current `NODE_POOLS` (dangling) | Read-side returns the id verbatim with `nodePoolName: null`; redeploy fails (Feature 016 semantics, retained). |
+| `null` | "Any" — no pool primitives at deploy time, `nodePoolName: null` on the response. Reachable from explicit user selection, from the cascade terminating at null on create, or from a legacy record. |
 
 ## 3. Service-layer carrier (`service/manifest/`)
 
@@ -132,25 +137,25 @@ public record NodePoolListResponseDto(
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     public record DefaultsDto(
             @Nullable
-            @Schema(description = "Name of the catch-all default pool (NODE_POOL_DEFAULT)")
-            String defaultPool,
+            @Schema(description = "Pool id of the catch-all default pool (NODE_POOL_DEFAULT)")
+            String defaultId,
             @Nullable
-            @Schema(description = "Name of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL)")
-            String model
+            @Schema(description = "Pool id of the model-workload override default pool (NODE_POOL_DEFAULT_MODEL)")
+            String modelId
     ) {}
 }
 ```
 
-Wire field naming: the catch-all is serialized as JSON property `default` (Java field `defaultPool`, mapped via `@JsonProperty("default")` because `default` is a Java keyword). The model override is `model`.
-
 ### Per-pool DTO
 
-`NodePoolDto` is reshaped — drop the capacity fields, add the three primitive sections. Fabric8 types are serialized as-is by Jackson (canonical K8s field names):
+`NodePoolDto` is reshaped — add the immutable `id` alongside the display `name`, plus the three primitive sections. Fabric8 types are serialized as-is by Jackson (canonical K8s field names):
 
 ```java
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record NodePoolDto(
-        @Schema(description = "Pool name", example = "gpu_pool")
+        @Schema(description = "Immutable pool id", example = "gpu-a100")
+        String id,
+        @Schema(description = "Human-readable display label", example = "GPU A100 Pool")
         String name,
         @Nullable
         @Schema(description = "Human-readable description")
@@ -171,14 +176,32 @@ public record NodePoolDto(
 
 ### Deployment create/update DTO field
 
-The deployment create / update DTOs gain a `JsonNullable<String>` for `nodePool` (Research §7). The field is positioned alongside other deployment metadata; existing deployment-DTO records are amended.
+The deployment create / update DTOs carry a nullable `String nodePoolId` (the persisted pool id). The field uses a `transient nodePoolIdFieldPresent` flag to distinguish "absent" from "explicit null" (FR-013, FR-018) without a `JsonNullable` dependency. The response DTO additionally carries a read-only `String nodePoolName` resolved from the current `NODE_POOLS` configuration at read time.
 
 ```java
-public record CreateDeploymentRequestDto(
-        // ... existing fields ...
-        @Schema(description = "Optional node pool selection. Omit to use the system default; explicit null = 'Any' (no pool primitives).")
-        JsonNullable<String> nodePool
-) {}
+@Data
+public abstract class CreateDeploymentRequestDto {
+    // ... existing fields ...
+    @Nullable
+    private String nodePoolId;             // input + persisted id
+
+    @JsonIgnore
+    private transient boolean nodePoolIdFieldPresent;
+
+    public void setNodePoolId(String nodePoolId) {
+        this.nodePoolId = nodePoolId;
+        this.nodePoolIdFieldPresent = true;
+    }
+}
+
+@Data
+public abstract class DeploymentDto {
+    // ... existing fields ...
+    @Nullable
+    private String nodePoolId;             // persisted id, or null
+    @Nullable
+    private String nodePoolName;           // resolved display label at read time, null when id is null or dangling
+}
 ```
 
 Three input states (Research §7):
@@ -186,8 +209,8 @@ Three input states (Research §7):
 | Wire form | Interpretation on create | Interpretation on update |
 |---|---|---|
 | field absent | Cascade resolves (FR-018) | Stored value unchanged |
-| `"nodePool": null` | Stored as null ("Any") | Stored as null ("Any") |
-| `"nodePool": "gpu_pool"` | Validated, stored | Validated, stored |
+| `"nodePoolId": null` | Stored as null ("Any") | Stored as null ("Any") |
+| `"nodePoolId": "gpu-pool"` | Validated by id, stored | Validated by id, stored |
 
 ## 5. Export / import shape
 

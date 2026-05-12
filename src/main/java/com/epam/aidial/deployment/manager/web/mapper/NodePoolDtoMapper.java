@@ -18,7 +18,7 @@ public interface NodePoolDtoMapper {
 
     default NodePoolListResponseDto toListResponse(NodePoolProperties properties) {
         var pools = toNodePoolDtoList(properties.getPools());
-        var defaults = new DefaultsDto(properties.getDefaultPool(), properties.getDefaultModelPool());
+        var defaults = new DefaultsDto(properties.getDefaultPoolId(), properties.getDefaultModelPoolId());
         return new NodePoolListResponseDto(pools, defaults.isEmpty() ? null : defaults);
     }
 }

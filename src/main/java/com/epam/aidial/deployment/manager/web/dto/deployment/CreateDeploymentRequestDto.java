@@ -77,18 +77,18 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     private String args;
     @Nullable
-    private String nodePool;
+    private String nodePoolId;
 
     /**
-     * Tracks whether the {@code nodePool} field was explicitly present in the inbound JSON
+     * Tracks whether the {@code nodePoolId} field was explicitly present in the inbound JSON
      * (with any value, including {@code null}). Distinguishes "field omitted → run create-time
      * cascade" from "explicit null → store null verbatim" (FR-013, FR-018). Not serialized.
      */
     @JsonIgnore
-    private transient boolean nodePoolFieldPresent;
+    private transient boolean nodePoolIdFieldPresent;
 
-    public void setNodePool(String nodePool) {
-        this.nodePool = nodePool;
-        this.nodePoolFieldPresent = true;
+    public void setNodePoolId(String nodePoolId) {
+        this.nodePoolId = nodePoolId;
+        this.nodePoolIdFieldPresent = true;
     }
 }

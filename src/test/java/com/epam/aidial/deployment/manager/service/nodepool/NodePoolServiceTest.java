@@ -44,14 +44,16 @@ class NodePoolServiceTest {
 
     @Test
     void shouldReturnConfiguredPoolsWithPrimitives() {
-        var config = poolWithPrimitives("gpu_pool", Map.of("accelerator", "a100"), new Affinity(), List.of(new Toleration()));
+        var config = poolWithPrimitives("gpu-pool", "GPU pool",
+                Map.of("accelerator", "a100"), new Affinity(), List.of(new Toleration()));
 
         doReturn(List.of(config)).when(nodePoolProperties).getPools();
 
         var result = nodePoolService.getNodePools();
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("gpu_pool");
+        assertThat(result.get(0).getId()).isEqualTo("gpu-pool");
+        assertThat(result.get(0).getName()).isEqualTo("GPU pool");
         assertThat(result.get(0).getNodeSelector()).containsEntry("accelerator", "a100");
         assertThat(result.get(0).getAffinity()).isNotNull();
         assertThat(result.get(0).getTolerations()).hasSize(1);
@@ -59,7 +61,7 @@ class NodePoolServiceTest {
 
     @Test
     void shouldResolveModelOverrideForModelWorkload() {
-        doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPool();
+        doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPoolId();
 
         var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
 
@@ -68,7 +70,7 @@ class NodePoolServiceTest {
 
     @Test
     void shouldResolveModelOverrideForKserveInferenceWorkload() {
-        doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPool();
+        doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPoolId();
 
         var result = nodePoolService.resolveForCreate(new CreateInferenceDeployment());
 
@@ -77,7 +79,7 @@ class NodePoolServiceTest {
 
     @Test
     void shouldFallThroughToCatchAllForNonModelWorkload() {
-        doReturn("cpu_pool").when(nodePoolProperties).getDefaultPool();
+        doReturn("cpu_pool").when(nodePoolProperties).getDefaultPoolId();
 
         var result = nodePoolService.resolveForCreate(new CreateMcpDeployment());
 
@@ -86,8 +88,8 @@ class NodePoolServiceTest {
 
     @Test
     void shouldFallThroughToCatchAllForModelWorkload_whenModelOverrideUnset() {
-        doReturn(null).when(nodePoolProperties).getDefaultModelPool();
-        doReturn("cpu_pool").when(nodePoolProperties).getDefaultPool();
+        doReturn(null).when(nodePoolProperties).getDefaultModelPoolId();
+        doReturn("cpu_pool").when(nodePoolProperties).getDefaultPoolId();
 
         var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
 
@@ -96,7 +98,7 @@ class NodePoolServiceTest {
 
     @Test
     void shouldResolveToNull_whenNoDefaultsConfigured() {
-        doReturn(null).when(nodePoolProperties).getDefaultPool();
+        doReturn(null).when(nodePoolProperties).getDefaultPoolId();
 
         var result = nodePoolService.resolveForCreate(new CreateMcpDeployment());
 
@@ -105,19 +107,21 @@ class NodePoolServiceTest {
 
     @Test
     void shouldResolveToNullForModelWorkload_whenNoDefaultsConfigured() {
-        doReturn(null).when(nodePoolProperties).getDefaultModelPool();
-        doReturn(null).when(nodePoolProperties).getDefaultPool();
+        doReturn(null).when(nodePoolProperties).getDefaultModelPoolId();
+        doReturn(null).when(nodePoolProperties).getDefaultPoolId();
 
         var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
 
         assertThat(result).isNull();
     }
 
-    private static PoolConfig poolWithPrimitives(String name,
+    private static PoolConfig poolWithPrimitives(String id,
+                                                 String name,
                                                  Map<String, String> nodeSelector,
                                                  Affinity affinity,
                                                  List<Toleration> tolerations) {
         var pool = new PoolConfig();
+        pool.setId(id);
         pool.setName(name);
         pool.setNodeSelector(nodeSelector);
         pool.setAffinity(affinity);

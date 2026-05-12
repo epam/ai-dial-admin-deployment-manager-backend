@@ -236,24 +236,31 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 #### [Preview] Node Pool Configuration
 
-Node pools are named scheduling presets. Each pool carries `nodeSelector`, `affinity`, and/or `tolerations` that the deployment manager projects onto the workload's pod template at deploy time.
+Node pools are scheduling presets. Each pool carries `nodeSelector`, `affinity`, and/or `tolerations` that the deployment manager projects onto the workload's pod template at deploy time.
+
+Each pool has two identifiers:
+
+- `id` — **immutable** machine identifier. Deployments persist this value (column `deployment.node_pool_id`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key.
+- `name` — human-readable display label shown on the UI. **Safe to change at any time** — deployments are not affected because they reference the pool by id, not name. The current `name` is resolved from configuration at read time and exposed on deployment responses as `nodePoolName`.
 
 | Property | Environment Variable | Default | Required | Description |
 |----------|---------------------|---------|----------|-------------|
-| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Each entry: `name` (required, unique), optional `description`, and any combination of `nodeSelector`, `affinity`, `tolerations` (standard Kubernetes shapes). |
-| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default. Stamped onto deployments created without an explicit `nodePool`. Must reference a pool in `NODE_POOLS`. |
-| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must reference a pool in `NODE_POOLS`. |
+| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Each entry: `id` (required, unique, immutable), `name` (required, unique display label), optional `description`, and any combination of `nodeSelector`, `affinity`, `tolerations` (standard Kubernetes shapes). |
+| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
+| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
-Defaults are stamped at create time and persisted on the record; updates never re-run the cascade.
+Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
 
 **Example**:
 
 ```bash
 NODE_POOLS=$(cat <<'YAML'
-- name: cpu_node_pool
+- id: cpu-pool
+  name: CPU pool
   nodeSelector:
     workload: cpu
-- name: gpu_node_pool
+- id: gpu-pool
+  name: GPU pool
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -269,9 +276,11 @@ NODE_POOLS=$(cat <<'YAML'
     effect: NoSchedule
 YAML
 )
-NODE_POOL_DEFAULT=cpu_node_pool
-NODE_POOL_DEFAULT_MODEL=gpu_node_pool
+NODE_POOL_DEFAULT=cpu-pool
+NODE_POOL_DEFAULT_MODEL=gpu-pool
 ```
+
+**Migrating from a prior preview**: before Feature 018's id-vs-name split, the same string served as both identity and display label and was stored in `deployment.node_pool`. The schema migration renames that column to `deployment.node_pool_id` without rewriting row values. To preserve continuity for existing deployments, set each pool's `id` on the first post-migration config to the value the pool previously had under `name`. Rows whose value does not match any current pool `id` become dangling — read endpoints still return the stored id verbatim with `nodePoolName: null`, but redeploy fails until the deployment is updated via the standard update API.
 
 #### Cleanup and Maintenance Configuration
 

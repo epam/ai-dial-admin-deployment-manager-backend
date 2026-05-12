@@ -31,18 +31,20 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
     @Test
     void testGetNodePoolsWithPrimitivesAndDefaults() throws Exception {
         var gpuPool = new PoolConfig();
-        gpuPool.setName("gpu_pool");
+        gpuPool.setId("gpu-pool");
+        gpuPool.setName("GPU pool");
         gpuPool.setDescription("GPU pool");
         gpuPool.setNodeSelector(Map.of("accelerator-type", "nvidia-a100"));
 
         var cpuPool = new PoolConfig();
-        cpuPool.setName("cpu_pool");
+        cpuPool.setId("cpu-pool");
+        cpuPool.setName("CPU pool");
         cpuPool.setDescription("CPU pool");
 
         var properties = new NodePoolProperties();
         properties.setPools(List.of(gpuPool, cpuPool));
-        properties.setDefaultPool("cpu_pool");
-        properties.setDefaultModelPool("gpu_pool");
+        properties.setDefaultPoolId("cpu-pool");
+        properties.setDefaultModelPoolId("gpu-pool");
 
         doReturn(properties).when(nodePoolService).getProperties();
 

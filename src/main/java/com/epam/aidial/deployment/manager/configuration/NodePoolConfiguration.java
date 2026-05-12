@@ -28,8 +28,8 @@ public class NodePoolConfiguration {
     @Bean
     public NodePoolProperties nodePoolProperties(
             @Value("${app.node-pools.pools:}") String nodePoolsYaml,
-            @Value("${app.node-pools.default:}") String defaultPool,
-            @Value("${app.node-pools.default-model:}") String defaultModelPool,
+            @Value("${app.node-pools.default:}") String defaultPoolId,
+            @Value("${app.node-pools.default-model:}") String defaultModelPoolId,
             @Value("${NODE_POOL_LABEL_KEY:}") String legacyLabelKey,
             Validator validator) {
 
@@ -41,15 +41,15 @@ public class NodePoolConfiguration {
 
         var properties = new NodePoolProperties();
         properties.setPools(parsePools(nodePoolsYaml, validator));
-        properties.setDefaultPool(StringUtils.trimToNull(defaultPool));
-        properties.setDefaultModelPool(StringUtils.trimToNull(defaultModelPool));
+        properties.setDefaultPoolId(StringUtils.trimToNull(defaultPoolId));
+        properties.setDefaultModelPoolId(StringUtils.trimToNull(defaultModelPoolId));
 
         validateDefaults(properties);
 
         log.info("Loaded {} node pool configurations (default={}, default-model={})",
                 properties.getPools().size(),
-                properties.getDefaultPool(),
-                properties.getDefaultModelPool());
+                properties.getDefaultPoolId(),
+                properties.getDefaultModelPoolId());
 
         return properties;
     }
@@ -73,16 +73,22 @@ public class NodePoolConfiguration {
     }
 
     private void validatePoolsInternal(List<PoolConfig> pools, Validator validator) {
+        var ids = new HashSet<String>();
         var names = new HashSet<String>();
         for (int i = 0; i < pools.size(); i++) {
             var pool = pools.get(i);
             var violations = validator.validate(pool);
             if (!violations.isEmpty()) {
-                var poolLabel = StringUtils.isNotBlank(pool.getName()) ? "'%s'".formatted(pool.getName()) : "[%d]".formatted(i);
+                var poolLabel = StringUtils.isNotBlank(pool.getId())
+                        ? "'%s'".formatted(pool.getId())
+                        : "[%d]".formatted(i);
                 var messages = violations.stream()
                         .map(ConstraintViolation::getMessage)
                         .collect(Collectors.joining("; "));
                 throw new IllegalArgumentException("Node pool %s: %s".formatted(poolLabel, messages));
+            }
+            if (!ids.add(pool.getId())) {
+                throw new IllegalArgumentException("Duplicate node pool id: '%s'".formatted(pool.getId()));
             }
             if (!names.add(pool.getName())) {
                 throw new IllegalArgumentException("Duplicate node pool name: '%s'".formatted(pool.getName()));
@@ -91,17 +97,17 @@ public class NodePoolConfiguration {
     }
 
     private void validateDefaults(NodePoolProperties properties) {
-        validateDefaultReference(properties, properties.getDefaultPool(), "NODE_POOL_DEFAULT");
-        validateDefaultReference(properties, properties.getDefaultModelPool(), "NODE_POOL_DEFAULT_MODEL");
+        validateDefaultReference(properties, properties.getDefaultPoolId(), "NODE_POOL_DEFAULT");
+        validateDefaultReference(properties, properties.getDefaultModelPoolId(), "NODE_POOL_DEFAULT_MODEL");
     }
 
-    private void validateDefaultReference(NodePoolProperties properties, String poolName, String envVarName) {
-        if (poolName == null) {
+    private void validateDefaultReference(NodePoolProperties properties, String poolId, String envVarName) {
+        if (poolId == null) {
             return;
         }
-        if (properties.findByName(poolName).isEmpty()) {
+        if (properties.findById(poolId).isEmpty()) {
             throw new IllegalArgumentException(
-                    "%s references node pool '%s' which is not present in NODE_POOLS.".formatted(envVarName, poolName));
+                    "%s references node pool id '%s' which is not present in NODE_POOLS.".formatted(envVarName, poolId));
         }
     }
 }
