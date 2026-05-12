@@ -1,7 +1,7 @@
 <!-- Sync Impact Report
 Version change: 1.2.2 → 1.4.0 (MINOR: per-directory CLAUDE.md acknowledgment, Capability ↔ numbered cross-link rule, tech-stack reframe, inline enforcement tags, soften CONFIG_REST_SECURITY_MODE, expanded numbered-spec lifecycle, Out-of-Scope + Amendment History sections)
 Modified sections:
-  - Tech Stack (reframed: build.gradle is canonical for versions; this section pins only constitutionally-significant libs; added ArchUnit, Hibernate Envers, Commons Lang3/Collections4 since rules cite them; documented actuator 3.5.12 as a deliberate BOM override; corrected log4j-core to 2.25.4; corrected Lombok plugin wording; pinned base package)
+  - Tech Stack (reframed: build.gradle is canonical for versions; this section pins only constitutionally-significant libs; added ArchUnit, Hibernate Envers, Commons Lang3/Collections4 since rules cite them; documented actuator 3.5.14 as a deliberate BOM override; corrected log4j-core to 2.25.4; corrected Lombok plugin wording; pinned base package)
   - Architecture Principles II (separated `*JpaRepository` from `*Repository` `@Transactional` semantics)
   - Architecture Principles III + Anti-pattern #9 (clarified "polling" = K8s-API polling; scheduled tasks operating on local state are out of scope)
   - Architecture Principles IV (aligned `@LogExecution` Spring-component list with what ArchUnit actually enforces — added `@Repository`, dropped unused `@Controller`)
@@ -30,7 +30,7 @@ The base package for all production sources MUST be `com.epam.aidial.deployment.
 
 Constitutionally-significant libraries (any upgrade MUST go through a PR with a security or feature rationale):
 
-- **Runtime**: Java 21, Spring Boot 3.5.10, Gradle 8.13. `spring-boot-starter-actuator` is pinned to 3.5.12 as a **deliberate override** of the BOM; the rationale (security/feature) MUST be recorded in the build file at bump time.
+- **Runtime**: Java 21, Spring Boot 3.5.10, Gradle 8.13. `spring-boot-starter-actuator` is pinned to 3.5.14 as a **deliberate override** of the BOM; the rationale (security/feature) MUST be recorded in the build file at bump time.
 - **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.0
 - **Database migrations**: Flyway 11.14.0 (`flyway-core` for H2, `flyway-database-postgresql`, `flyway-sqlserver`)
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, `io.kubernetes:client-java` 22.0.0
