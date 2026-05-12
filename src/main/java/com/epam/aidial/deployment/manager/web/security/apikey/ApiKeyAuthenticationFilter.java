@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.web.security.apikey;
 
-import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.web.handler.ErrorView;
 import com.epam.aidial.deployment.manager.web.security.UserSecurityDetails;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +28,6 @@ import java.io.IOException;
 
 @Slf4j
 @Component
-@LogExecution
 @RequiredArgsConstructor
 @ConditionalOnProperty(value = "config.rest.security.api-key.enabled", havingValue = "true")
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {

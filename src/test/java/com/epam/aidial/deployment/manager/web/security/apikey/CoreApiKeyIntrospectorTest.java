@@ -96,4 +96,19 @@ class CoreApiKeyIntrospectorTest {
         assertThat(result.project()).isEqualTo("acme");
         assertThat(result.rawRoles()).isEmpty();
     }
+
+    @Test
+    void shouldParseJsonBodyServedAsOctetStream() {
+        mockServer.expect(requestTo(CORE_URL))
+                .andExpect(method(GET))
+                .andExpect(header("Api-Key", "valid-key"))
+                .andExpect(header("Accept", MediaType.APPLICATION_JSON_VALUE))
+                .andRespond(withSuccess("{\"roles\":[\"admin\"],\"project\":\"acme\"}", MediaType.APPLICATION_OCTET_STREAM));
+
+        IntrospectionResult result = introspector.introspect("valid-key");
+
+        assertThat(result.project()).isEqualTo("acme");
+        assertThat(result.rawRoles()).containsExactly("admin");
+        mockServer.verify();
+    }
 }

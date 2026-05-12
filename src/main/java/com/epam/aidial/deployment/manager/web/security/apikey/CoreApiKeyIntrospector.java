@@ -9,8 +9,10 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.PostConstruct;
@@ -41,6 +44,16 @@ public class CoreApiKeyIntrospector {
         this.restTemplate = builder
                 .connectTimeout(timeout)
                 .readTimeout(timeout)
+                .additionalCustomizers(rt -> rt.getMessageConverters().stream()
+                        .filter(MappingJackson2HttpMessageConverter.class::isInstance)
+                        .map(MappingJackson2HttpMessageConverter.class::cast)
+                        .findFirst()
+                        .ifPresent(c -> {
+                            // DIAL Core's /v1/user/info returns JSON body but labels it application/octet-stream.
+                            List<MediaType> types = new ArrayList<>(c.getSupportedMediaTypes());
+                            types.add(MediaType.APPLICATION_OCTET_STREAM);
+                            c.setSupportedMediaTypes(types);
+                        }))
                 .build();
     }
 
@@ -51,6 +64,7 @@ public class CoreApiKeyIntrospector {
         }
         HttpHeaders headers = new HttpHeaders();
         headers.set(API_KEY_HEADER, "dm-startup-probe");
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         RequestEntity<Void> request = RequestEntity.get(properties.getCoreUserInfoUrl())
                 .headers(headers)
                 .build();
@@ -88,6 +102,7 @@ public class CoreApiKeyIntrospector {
     private Map<String, Object> callCore(String apiKey) {
         HttpHeaders headers = new HttpHeaders();
         headers.set(API_KEY_HEADER, apiKey);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
         RequestEntity<Void> request = RequestEntity.get(properties.getCoreUserInfoUrl())
                 .headers(headers)
