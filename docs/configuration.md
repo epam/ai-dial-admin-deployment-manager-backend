@@ -236,60 +236,24 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 #### [Preview] Node Pool Configuration
 
-Node pools define named scheduling presets that deployments can select from. Each pool carries the Kubernetes scheduling primitives — `nodeSelector`, `affinity`, `tolerations` — that the deployment manager projects verbatim onto the workload's pod template (or the CRD's pod-template equivalent for NIM and KServe-Inference deployments) at deploy time.
+Node pools are named scheduling presets. Each pool carries `nodeSelector`, `affinity`, and/or `tolerations` that the deployment manager projects onto the workload's pod template at deploy time.
 
-| Property | Environment Variable | Default Value | Required | Description |
-|----------|---------------------|---------------|----------|-------------|
-| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML document listing pool entries. See format below. JSON (the syntactic subset of YAML) is also accepted, so single-line JSON inputs continue to work. |
-| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Name of the catch-all default pool. When set, deployments created without an explicit `nodePool` in the payload are stamped with this pool's name at create time. The referenced pool MUST exist in `NODE_POOLS`. |
-| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Name of the model-workload default pool. When set, takes precedence over `NODE_POOL_DEFAULT` at create time for NIM and KServe-Inference deployments. The referenced pool MUST exist in `NODE_POOLS`. |
+| Property | Environment Variable | Default | Required | Description |
+|----------|---------------------|---------|----------|-------------|
+| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Each entry: `name` (required, unique), optional `description`, and any combination of `nodeSelector`, `affinity`, `tolerations` (standard Kubernetes shapes). |
+| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default. Stamped onto deployments created without an explicit `nodePool`. Must reference a pool in `NODE_POOLS`. |
+| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must reference a pool in `NODE_POOLS`. |
 
-**YAML format for `NODE_POOLS`**:
+Defaults are stamped at create time and persisted on the record; updates never re-run the cascade.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Unique pool identifier across the list. Non-blank. |
-| `description` | string | No | Human-readable description shown in the UI. |
-| `nodeSelector` | map of string → string | No | Optional simple key=value node selector. Equivalent to a Kubernetes pod template's `spec.nodeSelector`. |
-| `affinity` | Kubernetes Affinity object | No | Optional full Kubernetes Affinity (`nodeAffinity`, `podAffinity`, `podAntiAffinity` are all accepted). Equivalent to a pod template's `spec.affinity`. |
-| `tolerations` | list of Kubernetes Toleration objects | No | Optional list of standard tolerations (`key`, `operator`, `value`, `effect`, `tolerationSeconds`). Appended to whatever tolerations the deployment type already supplies by default. |
-
-A pool may declare any combination of the three primitive sections (one, two, or all three). A pool with none of them is legal — it produces no pool-derived scheduling primitives on the workload, useful as an explicit "no constraints" option in the FE picker.
-
-**Startup validation** — the application fails to start when:
-
-- The YAML cannot be parsed.
-- Any pool entry carries an unknown field (e.g. a typo in `affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringEcecution`) — strict parsing rejects unknown fields at every level of the document.
-- Two pool entries share the same `name`.
-- A pool's `name` is blank.
-- A pool's `nodeSelector`, `affinity`, or `tolerations` violates the Kubernetes API schema (invalid enum values, missing required sub-fields, type mismatches).
-- `NODE_POOL_DEFAULT` or `NODE_POOL_DEFAULT_MODEL` references a pool name not present in `NODE_POOLS`.
-- The deprecated `NODE_POOL_LABEL_KEY` environment variable is set (it is no longer supported; pool selection is now expressed directly via per-pool primitives — see migration note below).
-- The deprecated per-pool fields `maxNodes`, `minNodes`, `instance`, `gpu`, `cpu`, or `memory` are present (removed in this version; live capacity is reported via the separate `?includeUtilization=true` query on the listing endpoint).
-
-**How a deployment's `nodePool` value is resolved at create time**:
-
-1. If the create payload includes `nodePool` (with any value, including `null`), that value is honoured verbatim. Non-null names must exist in `NODE_POOLS`.
-2. Otherwise, the system applies the fallback cascade:
-   - `NODE_POOL_DEFAULT_MODEL` if set **and** the deployment is a model workload (NIM or KServe-Inference).
-   - Otherwise `NODE_POOL_DEFAULT` if set.
-   - Otherwise `null` ("Any" — no pool primitives).
-3. The resolved value is **persisted onto the deployment record** and returned in the create response. Users see the actual pool that will be used; there are no hidden defaults.
-
-Updates **never re-run the cascade**: omitting `nodePool` in an update payload leaves the stored value unchanged. Changing `NODE_POOL_DEFAULT` / `NODE_POOL_DEFAULT_MODEL` and restarting affects only deployments **created after** the change — existing records keep whatever was stamped at their own creation time. Migrating an existing deployment to a different pool is an explicit per-deployment update.
-
-**Resolution at deploy time is by-name** — operators should be aware: a deployment record stores only the pool name; the pool's `nodeSelector` / `affinity` / `tolerations` are looked up by name from the current `NODE_POOLS` configuration on every redeploy. Editing a pool's primitives in `NODE_POOLS` and restarting therefore propagates the new primitives to **every existing deployment referencing that pool** on its next redeploy — silently, with no per-deployment edit. This is the intended behaviour (a pool is a re-tunable preset) but it is asymmetric to the create-time stamping of pool **identity** (the deployment's chosen pool name does not migrate when defaults change). Both behaviours are correct; the asymmetry is deliberate.
-
-**Example** — operator declares one CPU pool, one GPU pool, and uses the GPU pool as the model default:
+**Example**:
 
 ```bash
 NODE_POOLS=$(cat <<'YAML'
 - name: cpu_node_pool
-  description: General-purpose CPU pool
   nodeSelector:
     workload: cpu
 - name: gpu_node_pool
-  description: GPU pool for inference & fine-tuning
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -297,9 +261,7 @@ NODE_POOLS=$(cat <<'YAML'
         - matchExpressions:
           - key: accelerator-type
             operator: In
-            values:
-            - nvidia-a100
-            - nvidia-h100
+            values: [nvidia-a100, nvidia-h100]
   tolerations:
   - key: dedicated
     operator: Equal
@@ -310,44 +272,6 @@ YAML
 NODE_POOL_DEFAULT=cpu_node_pool
 NODE_POOL_DEFAULT_MODEL=gpu_node_pool
 ```
-
-The equivalent `application.yml` form (Spring Boot's standard property precedence applies — environment variables override `application.yml` values when both are present):
-
-```yaml
-app:
-  node-pools:
-    default: cpu_node_pool
-    default-model: gpu_node_pool
-    pools:
-      - name: cpu_node_pool
-        description: General-purpose CPU pool
-        nodeSelector:
-          workload: cpu
-      - name: gpu_node_pool
-        description: GPU pool for inference & fine-tuning
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: accelerator-type
-                  operator: In
-                  values: [nvidia-a100, nvidia-h100]
-        tolerations:
-        - key: dedicated
-          operator: Equal
-          value: gpu
-          effect: NoSchedule
-```
-
-**Migration from the previous (Feature 016) shape** — the prior format used a cluster-wide `NODE_POOL_LABEL_KEY` env var plus per-pool capacity numbers (`maxNodes`, `minNodes`, `instance`, `gpu`, `cpu`, `memory`). All of these are removed and their continued presence is a startup error. To upgrade:
-
-1. Drop `NODE_POOL_LABEL_KEY` from the deployment environment.
-2. Rewrite each pool entry in `NODE_POOLS` to express scheduling intent directly via `nodeSelector` / `affinity` / `tolerations` instead of the old `{labelKey: poolName}` derived selector.
-3. Capacity numbers no longer live in `NODE_POOLS`. Live utilisation per pool is reported by `GET /api/v1/node-pools?includeUtilization=true` (Feature 020).
-
-**Exporting and importing deployments across environments** — `nodePool` is treated as environment-specific configuration. The export payload does **not** include `nodePool`; on import, each deployment goes through the target environment's normal create flow with `nodePool` absent, so the target's own defaults (or `null`) are stamped onto the imported record. Pool selection does not travel across environment boundaries.
-
 
 #### Cleanup and Maintenance Configuration
 
