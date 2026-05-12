@@ -3,6 +3,7 @@
 **Feature Branch**: `018-explicit-pool-scheduling`
 **Created**: 2026-05-11
 **Status**: Draft
+**Capability**: deployments
 **Input**: User description: "Node pool selector API need modification. Remove min/max node count, cpu, memory. Instead of configuring node selector programmatically, administrator passes selector, affinity, and tolerations explicitly per pool. Both nodeSelector and nodeAffinity must be supported."
 
 ## User Scenarios & Testing *(mandatory)*
