@@ -2,7 +2,8 @@
 
 **Feature Branch**: `001-deployment-topics`
 **Created**: 2026-03-05
-**Status**: Draft
+**Status**: Implemented
+**Capability**: topics
 **Input**: User description: "It should be possible to add topics on deployments, similarly to image definitions"
 
 ## User Scenarios & Testing *(mandatory)*
