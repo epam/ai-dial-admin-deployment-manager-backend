@@ -485,7 +485,7 @@ API_KEY_ROLES_MAPPING={"admin":["FULL_ADMIN"],"default":["READ_ONLY_ADMIN"]}
 **Notes:**
 
 - API keys themselves live in DIAL Core (`config.json` for project keys, or Redis for per-request keys). DM does not store or persist keys; the cache only holds `sha256(apiKey)` for the configured TTL.
-- A 401 from Core is propagated as a 401 to the caller; a connection failure (Core unreachable) returns 503.
+- Any non-2xx response from Core (including 401, 403, 404, 5xx) is mapped to 401 to the caller; a transport-level failure (connect timeout, refused) returns 503.
 - Cache failures are never cached: revoked keys propagate after at most one cache TTL.
 - When the JWT path validates a request, the api-key filter is a no-op; existing JWT flows are unaffected.
 

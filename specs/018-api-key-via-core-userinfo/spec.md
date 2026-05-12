@@ -105,7 +105,7 @@ When `api-key.enabled=true` and `api-key.startup-probe=true`, DM probes Core's u
 - **FR-001**: System MUST accept an `Api-Key` header as an alternative credential when `config.rest.security.mode=oidc` and `config.rest.security.api-key.enabled=true`.
 - **FR-002**: System MUST validate API keys by issuing `GET <core-user-info-url>` with header `Api-Key: <key>` and treating HTTP 200 as success.
 - **FR-003**: System MUST parse Core's response shape `{"roles": [...], "project": "..."}` and use `project` as the Spring principal name.
-- **FR-004**: System MUST map Core's role names to DM application roles via `config.rest.security.api-key.roles-mapping`, reusing the existing `RolesMappingResolver` merge semantics.
+- **FR-004**: System MUST map Core's role names to DM application roles via `config.rest.security.api-key.roles-mapping` JSON (same shape as `providers.*.roles-mapping`), using `UserRolesResolver` directly. `config.rest.security.default.roles-mapping` is intentionally **not** merged into the api-key path — api-key callers have their own dedicated mapping.
 - **FR-005**: System MUST cache successful introspection results in-process, keyed by `sha256(apiKey)`, with configurable TTL (default 60 s) and max size (default 10 000).
 - **FR-006**: System MUST NOT cache non-2xx responses; revoked keys must propagate after one cache TTL at most.
 - **FR-007**: System MUST treat `Authorization: Bearer <token>` as taking precedence: when both headers are present, the existing JWT/opaque-token chain handles the request and the api-key is ignored.
@@ -115,7 +115,7 @@ When `api-key.enabled=true` and `api-key.startup-probe=true`, DM probes Core's u
 
 ### Key Entities
 
-- **ApiKeyProperties**: Configuration block under `config.rest.security.api-key.*`. Includes `enabled`, `coreUserInfoUrl`, `cacheTtlSeconds`, `cacheMaxSize`, `requestTimeoutMs`, `rolesMapping` (JSON), `principalFrom`, `startupProbe`.
+- **ApiKeyProperties**: Configuration block under `config.rest.security.api-key.*`. Includes `enabled`, `coreUserInfoUrl`, `cacheTtlSeconds`, `cacheMaxSize`, `requestTimeoutMs`, `rolesMapping` (JSON), `startupProbe`.
 - **IntrospectionResult**: Internal record `(String project, List<String> rawRoles)` produced by `CoreApiKeyIntrospector` from Core's response.
 - **ApiKeyAuthenticationToken**: A Spring `AbstractAuthenticationToken` carrying the project as principal and the mapped `FULL_ADMIN`/`READ_ONLY_ADMIN` authorities.
 

@@ -2,7 +2,6 @@ package com.epam.aidial.deployment.manager.web.security.apikey;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -72,8 +71,16 @@ public class CoreApiKeyIntrospector {
             restTemplate.exchange(request, STRING_OBJECT_MAP);
             log.info("DIAL Core /v1/user/info reachable at {}", properties.getCoreUserInfoUrl());
         } catch (RestClientResponseException ex) {
-            log.info("DIAL Core /v1/user/info reachable at {} (responded {})",
-                    properties.getCoreUserInfoUrl(), ex.getStatusCode());
+            if (ex.getStatusCode().is4xxClientError()) {
+                log.info("DIAL Core /v1/user/info reachable at {} (responded {})",
+                        properties.getCoreUserInfoUrl(), ex.getStatusCode());
+            } else {
+                throw new IllegalStateException(
+                        "DIAL Core /v1/user/info responded with " + ex.getStatusCode() + " at "
+                                + properties.getCoreUserInfoUrl()
+                                + ". Disable startup probe via API_KEY_STARTUP_PROBE=false to skip this check.",
+                        ex);
+            }
         } catch (Exception ex) {
             throw new IllegalStateException(
                     "DIAL Core /v1/user/info is unreachable at " + properties.getCoreUserInfoUrl()
@@ -108,13 +115,9 @@ public class CoreApiKeyIntrospector {
                 .headers(headers)
                 .build();
 
+        ResponseEntity<Map<String, Object>> response;
         try {
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(request, STRING_OBJECT_MAP);
-            if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
-                log.debug("Core /v1/user/info responded with {}", response.getStatusCode());
-                throw new BadCredentialsException("Invalid API key");
-            }
-            return response.getBody();
+            response = restTemplate.exchange(request, STRING_OBJECT_MAP);
         } catch (RestClientResponseException ex) {
             log.debug("Core /v1/user/info rejected API key with status {}", ex.getStatusCode());
             throw new BadCredentialsException("Invalid API key");
@@ -122,12 +125,19 @@ public class CoreApiKeyIntrospector {
             log.warn("Failed to reach Core /v1/user/info at {}", properties.getCoreUserInfoUrl(), ex);
             throw new AuthenticationServiceException("Failed to validate API key with DIAL Core", ex);
         }
+        if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {
+            log.debug("Core /v1/user/info responded with {}", response.getStatusCode());
+            throw new BadCredentialsException("Invalid API key");
+        }
+        return response.getBody();
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> extractRoles(Object rolesClaim) {
         if (rolesClaim instanceof List<?> list) {
-            return ListUtils.emptyIfNull((List<String>) list);
+            return list.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .toList();
         }
         return List.of();
     }

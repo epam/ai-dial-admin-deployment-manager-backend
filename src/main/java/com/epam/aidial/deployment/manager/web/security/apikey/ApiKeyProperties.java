@@ -4,8 +4,9 @@ import com.epam.aidial.deployment.manager.web.security.UserRole;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,12 +18,13 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.PostConstruct;
 
-@Data
+@Getter
+@Setter
 @Slf4j
 @Component
 @RequiredArgsConstructor
 @ConfigurationProperties(prefix = "config.rest.security.api-key")
-@ConditionalOnProperty(value = "config.rest.security.mode", havingValue = "oidc", matchIfMissing = true)
+@ConditionalOnProperty(value = "config.rest.security.api-key.enabled", havingValue = "true")
 public class ApiKeyProperties {
 
     private final ObjectMapper objectMapper;

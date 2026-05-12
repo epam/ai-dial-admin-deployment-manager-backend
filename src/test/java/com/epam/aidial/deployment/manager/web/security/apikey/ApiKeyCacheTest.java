@@ -2,7 +2,6 @@ package com.epam.aidial.deployment.manager.web.security.apikey;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
@@ -71,22 +70,5 @@ class ApiKeyCacheTest {
 
     private static Authentication token(String project) {
         return new ApiKeyAuthenticationToken(project, List.of());
-    }
-
-    @SuppressWarnings("unused")
-    private static class TestToken extends AbstractAuthenticationToken {
-        TestToken() {
-            super(List.of());
-        }
-
-        @Override
-        public Object getCredentials() {
-            return null;
-        }
-
-        @Override
-        public Object getPrincipal() {
-            return "test";
-        }
     }
 }

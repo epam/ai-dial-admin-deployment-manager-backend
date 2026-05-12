@@ -154,6 +154,29 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
+    void blankApiKeyHeaderIsTreatedAsAbsent() throws Exception {
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "   "))
+                .andExpect(status().is(HttpStatus.UNAUTHORIZED.value()));
+
+        verify(introspector, times(0)).introspect(anyString());
+    }
+
+    @Test
+    void repeatedInvalidKeysAreNotCached() throws Exception {
+        when(introspector.introspect("bad-key"))
+                .thenThrow(new BadCredentialsException("Invalid API key"));
+
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "bad-key"))
+                .andExpect(status().is(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "bad-key"))
+                .andExpect(status().is(HttpStatus.UNAUTHORIZED.value()));
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "bad-key"))
+                .andExpect(status().is(HttpStatus.UNAUTHORIZED.value()));
+
+        verify(introspector, times(3)).introspect("bad-key");
+    }
+
+    @Test
     void jwtTakesPrecedenceOverApiKeyWhenBothPresent() throws Exception {
         String jwt = JwtUtils.generateTestToken(
                 "audience_test",

@@ -12,8 +12,10 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import java.net.SocketTimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -109,6 +111,47 @@ class CoreApiKeyIntrospectorTest {
 
         assertThat(result.project()).isEqualTo("acme");
         assertThat(result.rawRoles()).containsExactly("admin");
+        mockServer.verify();
+    }
+
+    @Test
+    void probeShouldSucceedWhenCoreRespondsWith4xx() {
+        properties.setStartupProbe(true);
+        mockServer.expect(requestTo(CORE_URL))
+                .andExpect(header("Api-Key", "dm-startup-probe"))
+                .andRespond(withStatus(UNAUTHORIZED));
+
+        assertThatCode(introspector::probeCore).doesNotThrowAnyException();
+        mockServer.verify();
+    }
+
+    @Test
+    void probeShouldFailWhenCoreUnreachable() {
+        properties.setStartupProbe(true);
+        mockServer.expect(requestTo(CORE_URL))
+                .andRespond(withException(new SocketTimeoutException("connect timeout")));
+
+        assertThatThrownBy(introspector::probeCore)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("unreachable");
+    }
+
+    @Test
+    void probeShouldFailWhenCoreResponds5xx() {
+        properties.setStartupProbe(true);
+        mockServer.expect(requestTo(CORE_URL))
+                .andRespond(withStatus(INTERNAL_SERVER_ERROR));
+
+        assertThatThrownBy(introspector::probeCore)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("500");
+    }
+
+    @Test
+    void probeShouldNoOpWhenDisabled() {
+        properties.setStartupProbe(false);
+        // No mockServer expectation set; probeCore must make no HTTP call.
+        assertThatCode(introspector::probeCore).doesNotThrowAnyException();
         mockServer.verify();
     }
 }

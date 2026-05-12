@@ -31,13 +31,7 @@ public class ApiKeyCache {
 
     public Authentication getOrAuthenticate(String apiKey, Supplier<Authentication> loader) {
         String cacheKey = DigestUtils.sha256Hex(apiKey);
-        Authentication cached = cache.getIfPresent(cacheKey);
-        if (cached != null) {
-            return cached;
-        }
-        Authentication fresh = loader.get();
-        cache.put(cacheKey, fresh);
-        return fresh;
+        return cache.get(cacheKey, k -> loader.get());
     }
 
     public long size() {

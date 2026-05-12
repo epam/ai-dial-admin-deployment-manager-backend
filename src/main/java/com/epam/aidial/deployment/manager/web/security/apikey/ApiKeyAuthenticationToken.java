@@ -1,10 +1,12 @@
 package com.epam.aidial.deployment.manager.web.security.apikey;
 
+import lombok.Getter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.Collection;
 
+@Getter
 public class ApiKeyAuthenticationToken extends AbstractAuthenticationToken {
 
     private final String project;
