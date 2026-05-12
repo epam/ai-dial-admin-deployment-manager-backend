@@ -108,29 +108,24 @@ Expected response (matches the contract in `contracts/node-pools-api.md` §1):
 {
   "pools": [
     {
-      "name": "cpu_node_pool",
-      "description": "General-purpose CPU pool",
-      "nodeSelector": { "workload": "cpu" }
+      "id": "cpu_node_pool",
+      "name": "CPU pool",
+      "description": "General-purpose CPU pool"
     },
     {
-      "name": "gpu_node_pool",
-      "description": "GPU pool for inference & fine-tuning",
-      "affinity": { "nodeAffinity": { "...": "..." } },
-      "tolerations": [ { "key": "dedicated", "operator": "Equal", "value": "gpu", "effect": "NoSchedule" } ]
+      "id": "gpu_node_pool",
+      "name": "GPU pool",
+      "description": "GPU pool for inference & fine-tuning"
     },
     {
-      "name": "unconstrained",
-      "description": "No scheduling constraints — operator escape hatch"
+      "id": "unconstrained",
+      "name": "Unconstrained"
     }
-  ],
-  "defaults": {
-    "default": "cpu_node_pool",
-    "model": "gpu_node_pool"
-  }
+  ]
 }
 ```
 
-Note that `pools[0]` carries only `nodeSelector` (no `affinity` or `tolerations` keys), `pools[2]` carries neither nodeSelector nor affinity nor tolerations — fields are **omitted**, not returned as `null` or `{}`.
+The response is intentionally minimal: `id`, `name`, and optional `description` — the catalogue needed to populate a deployment-creation picker. Each pool's `nodeSelector` / `affinity` / `tolerations` are **internal** and never appear here regardless of what the pool declared. To confirm that the primitives are actually applied, inspect a workload's pod template after deploy (§5 below).
 
 ## 4. Verify the create-time cascade
 

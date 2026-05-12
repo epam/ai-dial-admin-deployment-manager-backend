@@ -3,10 +3,7 @@
     {
       "id": "gpu-pool",
       "name": "GPU pool",
-      "description": "GPU pool",
-      "nodeSelector": {
-        "accelerator-type": "nvidia-a100"
-      }
+      "description": "GPU pool"
     },
     {
       "id": "cpu-pool",

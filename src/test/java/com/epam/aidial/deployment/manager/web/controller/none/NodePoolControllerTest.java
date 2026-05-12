@@ -14,7 +14,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -29,12 +28,11 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
     private NodePoolService nodePoolService;
 
     @Test
-    void testGetNodePoolsWithPrimitives() throws Exception {
+    void testGetNodePools() throws Exception {
         var gpuPool = new PoolConfig();
         gpuPool.setId("gpu-pool");
         gpuPool.setName("GPU pool");
         gpuPool.setDescription("GPU pool");
-        gpuPool.setNodeSelector(Map.of("accelerator-type", "nvidia-a100"));
 
         var cpuPool = new PoolConfig();
         cpuPool.setId("cpu-pool");

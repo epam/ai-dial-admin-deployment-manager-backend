@@ -24,8 +24,8 @@ public class NodePoolController {
 
     @GetMapping
     @Operation(summary = "List available node pools",
-            description = "Returns the configured pool catalogue (with per-pool nodeSelector / affinity / tolerations). "
-                    + "Pool-level fields that are not configured are omitted from each pool's representation. "
+            description = "Returns the configured pool catalogue (id, name, optional description). "
+                    + "Scheduling primitives are internal configuration and not exposed via this endpoint. "
                     + "The `pools` array is always present and is empty when no pools are configured.")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
     public NodePoolListResponseDto getNodePools() {

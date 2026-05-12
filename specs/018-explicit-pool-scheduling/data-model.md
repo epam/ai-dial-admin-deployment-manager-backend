@@ -148,7 +148,7 @@ public record NodePoolListResponseDto(
 
 ### Per-pool DTO
 
-`NodePoolDto` is reshaped — add the immutable `id` alongside the display `name`, plus the three primitive sections. Fabric8 types are serialized as-is by Jackson (canonical K8s field names):
+`NodePoolDto` carries the catalogue fields only: immutable `id`, display `name`, and optional `description`. The scheduling primitives (`nodeSelector`, `affinity`, `tolerations`) stay on `PoolConfig` (internal — §1) and `PoolSchedulingPrimitives` (service-layer carrier — §3); they are not part of the wire DTO and are not exposed by `GET /api/v1/node-pools` (FR-011).
 
 ```java
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -159,20 +159,11 @@ public record NodePoolDto(
         String name,
         @Nullable
         @Schema(description = "Human-readable description")
-        String description,
-        @Nullable
-        @Schema(description = "Optional node selector (key=value map)")
-        Map<String, String> nodeSelector,
-        @Nullable
-        @Schema(description = "Optional Kubernetes Affinity object", implementation = Affinity.class)
-        Affinity affinity,
-        @Nullable
-        @Schema(description = "Optional list of Kubernetes Tolerations")
-        List<Toleration> tolerations
+        String description
 ) {}
 ```
 
-**Removed from Feature 016**: `instance`, `minNodes`, `maxNodes`, `gpu`, `cpu`, `memory`, plus the `GpuSpecDto` / `CpuSpecDto` / `MemorySpecDto` records.
+**Removed from Feature 016**: `instance`, `minNodes`, `maxNodes`, `gpu`, `cpu`, `memory`, plus the `GpuSpecDto` / `CpuSpecDto` / `MemorySpecDto` records. `nodeSelector` / `affinity` / `tolerations` are also not part of the wire DTO — they remain internal.
 
 ### Deployment create/update DTO field
 

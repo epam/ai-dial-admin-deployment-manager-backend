@@ -20,26 +20,7 @@ Phase 1 output. Pins the wire-format shape for `GET /api/v1/node-pools` (FR-011,
     {
       "id": "gpu-pool",
       "name": "GPU pool",
-      "description": "General-purpose GPU pool",
-      "nodeSelector": {
-        "accelerator-type": "nvidia-a100"
-      },
-      "affinity": {
-        "nodeAffinity": {
-          "requiredDuringSchedulingIgnoredDuringExecution": {
-            "nodeSelectorTerms": [
-              {
-                "matchExpressions": [
-                  { "key": "accelerator-type", "operator": "In", "values": ["nvidia-a100", "nvidia-h100"] }
-                ]
-              }
-            ]
-          }
-        }
-      },
-      "tolerations": [
-        { "key": "dedicated", "operator": "Equal", "value": "gpu", "effect": "NoSchedule" }
-      ]
+      "description": "General-purpose GPU pool"
     },
     {
       "id": "cpu-pool",
@@ -56,11 +37,10 @@ Phase 1 output. Pins the wire-format shape for `GET /api/v1/node-pools` (FR-011,
 - `pools[].id` — required, non-nullable (`requiredMode: REQUIRED`, `nullable: false`).
 - `pools[].name` — required, non-nullable (`requiredMode: REQUIRED`, `nullable: false`).
 - `pools[].description` — omitted when not declared.
-- `pools[].nodeSelector` — omitted when not declared (no `null`, no `{}`).
-- `pools[].affinity` — omitted when not declared.
-- `pools[].tolerations` — omitted when not declared.
 
 **Defaults are not surfaced via this endpoint.** The values of `NODE_POOL_DEFAULT` and `NODE_POOL_DEFAULT_MODEL` are admin-only configuration and are not part of any public read response. A FE that needs to pre-fill a deployment-creation picker does not read the defaults off this endpoint — it relies on the create response, which carries the cascade-resolved `nodePoolId` after the user submits with `nodePoolId: null`.
+
+**Scheduling primitives are not surfaced via this endpoint.** Each pool's `nodeSelector`, `affinity`, and `tolerations` are internal scheduling configuration: operators author them in `NODE_POOLS` and the system applies them verbatim onto the workload's pod template at deploy time (FR-006), but they are not part of the wire DTO and never appear in the response — regardless of whether the pool declares any of them. The catalogue's purpose is to populate a deployment-creation picker; primitives are not needed by API consumers.
 
 **Removed from Feature 016 response shape**: `instance`, `minNodes`, `maxNodes`, `gpu`, `cpu`, `memory` — none of these fields appear on a pool entry. Capacity numbers are now sourced from `?includeUtilization=true` (Feature 020).
 
