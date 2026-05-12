@@ -458,6 +458,37 @@ The configuration is defined in environment variables
 **Note:** The configuration for identity providers in the deployment manager utilizes the existing configuration from DIAL admin providers, including settings for clients and roles. 
 For detailed instructions on setting up Azure and Keycloak providers, please refer to the DIAL admin providers documentation available at [DIAL Admin Providers Documentation](https://github.com/epam/ai-dial-admin-backend/tree/development/docs).
 
+### API-Key Authentication Configuration
+
+Applied when: `config.rest.security.mode=oidc` and `config.rest.security.api-key.enabled=true`.
+
+When enabled, DM accepts an `Api-Key` header as an alternative credential alongside JWT/OIDC. Keys are validated by delegating to DIAL Core's `GET /v1/user/info` endpoint; Core's `roles` are mapped to DM's application roles via `api-key.roles-mapping`. JWT/OIDC continues to work unchanged. When both `Api-Key` and `Authorization` headers are present, the JWT path takes precedence and the `Api-Key` is ignored.
+
+| Property                                              | Environment Variable          | Default | Required               | Description                                                                                                            |
+| ----------------------------------------------------- | ----------------------------- | ------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `config.rest.security.api-key.enabled`                | `API_KEY_ENABLED`             | `false` | No                     | If `true` (and `mode=oidc`), the `Api-Key` header is accepted as an alternative credential.                            |
+| `config.rest.security.api-key.core-user-info-url`     | `API_KEY_CORE_USER_INFO_URL`  | -       | Yes, when `enabled=true` | Full URL to DIAL Core's `/v1/user/info` (e.g. `http://dial-core/v1/user/info`).                                      |
+| `config.rest.security.api-key.cache-ttl-seconds`      | `API_KEY_CACHE_TTL_SECONDS`   | `60`    | No                     | TTL for cached introspection results (in-process Caffeine cache). Mirrors Core's own user-info cache TTL.              |
+| `config.rest.security.api-key.cache-max-size`         | `API_KEY_CACHE_MAX_SIZE`      | `10000` | No                     | Maximum entries in the introspection cache.                                                                            |
+| `config.rest.security.api-key.request-timeout-ms`     | `API_KEY_REQUEST_TIMEOUT_MS`  | `3000`  | No                     | Per-call timeout (connect + read) for HTTP requests to Core's `/v1/user/info`.                                         |
+| `config.rest.security.api-key.roles-mapping`          | `API_KEY_ROLES_MAPPING`       | `{}`    | No                     | JSON mapping of Core role names to DM application roles. Same shape as `providers.*.roles-mapping`.                    |
+| `config.rest.security.api-key.startup-probe`          | `API_KEY_STARTUP_PROBE`       | `true`  | No                     | If `true`, DM probes `core-user-info-url` once at startup and aborts boot if the URL is unreachable.                   |
+
+**Example** — accept API keys for machine callers, mapping Core's `admin` role to `FULL_ADMIN`:
+
+```
+API_KEY_ENABLED=true
+API_KEY_CORE_USER_INFO_URL=http://dial-core/v1/user/info
+API_KEY_ROLES_MAPPING={"admin":["FULL_ADMIN"],"default":["READ_ONLY_ADMIN"]}
+```
+
+**Notes:**
+
+- API keys themselves live in DIAL Core (`config.json` for project keys, or Redis for per-request keys). DM does not store or persist keys; the cache only holds `sha256(apiKey)` for the configured TTL.
+- A 401 from Core is propagated as a 401 to the caller; a connection failure (Core unreachable) returns 503.
+- Cache failures are never cached: revoked keys propagate after at most one cache TTL.
+- When the JWT path validates a request, the api-key filter is a no-op; existing JWT flows are unaffected.
+
 ## Cloud Provider Configuration
 
 ### Azure Configuration

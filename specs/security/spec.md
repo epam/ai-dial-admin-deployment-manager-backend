@@ -146,6 +146,46 @@ Status: **Implemented**
 - **WHEN** authentication succeeds but the user lacks required authority (e.g., READ_ONLY_ADMIN on a `@FullAdminOnly` endpoint)
 - **THEN** the response status is 403 and the body follows the `ErrorView` contract
 
+### Requirement: API-key authentication via DIAL Core delegation
+In `oidc` mode with `config.rest.security.api-key.enabled=true`, the system SHALL also accept `Api-Key` headers and validate them by calling DIAL Core's `/v1/user/info` endpoint. Roles returned by Core SHALL be mapped to application roles via `config.rest.security.api-key.roles-mapping`.
+
+Status: **Implemented** (feature 018-api-key-via-core-userinfo)
+
+#### Scenario: Valid api-key, no Authorization header
+- **WHEN** a request includes `Api-Key: <valid-key>` and no `Authorization` header
+- **THEN** DM calls Core's `/v1/user/info` with `Api-Key: <valid-key>`
+- **AND** on HTTP 200 maps `roles` to application roles via `api-key.roles-mapping`
+- **AND** sets the Spring principal to the response `project` field
+
+#### Scenario: Invalid api-key
+- **WHEN** Core's `/v1/user/info` responds non-200 for the supplied key
+- **THEN** DM returns 401 with the standard `ErrorView` body
+- **AND** the failure is NOT cached
+
+#### Scenario: Both Api-Key and Authorization present
+- **WHEN** both `Api-Key` and `Authorization` headers are present
+- **THEN** the JWT/opaque-token path handles the request exclusively; the `Api-Key` header is ignored (JWT-first precedence)
+- **AND** DM does NOT call Core's `/v1/user/info`
+
+#### Scenario: Api-key role with no mapping
+- **WHEN** Core returns roles that have no entry in `api-key.roles-mapping`
+- **THEN** the request is authenticated but receives no application authorities
+- **AND** any protected endpoint returns 403
+
+#### Scenario: Core unreachable
+- **WHEN** Core's `/v1/user/info` is unreachable (timeout / connection refused)
+- **THEN** DM returns 503 with the standard `ErrorView` body
+- **AND** the failure is NOT cached
+
+#### Scenario: Cache hit
+- **WHEN** the same valid api-key is presented N times within `cache-ttl-seconds`
+- **THEN** DM calls Core's `/v1/user/info` exactly once and serves the remaining N-1 requests from the in-process cache
+- **AND** the cache key is `sha256(apiKey)` so raw key material is not retained
+
+#### Scenario: Startup probe fails
+- **WHEN** `api-key.enabled=true`, `api-key.startup-probe=true`, and `core-user-info-url` is unreachable at startup
+- **THEN** DM fails to start with a clear error log
+
 ## Mutating endpoints protected by @FullAdminOnly
 
 | Controller | Method | Path | Operation |
@@ -179,4 +219,5 @@ Status: **Implemented**
 - Always-public paths: `/api/v1/health/**`, `/api/internal/**`
 - Conditionally-public paths: `/swagger-ui/**`, `/v3/api-docs/**` (only when `config.rest.security.disable-swagger-authorization=true`)
 - Azure Identity SDK: azure-identity 1.18.0; credential types in `AzureAuthConfig`: managed identity, CLI, client-secret
-- Related specs: `api-conventions`, `008-read-only-role`
+- API-key authentication (oidc mode only, opt-in via `config.rest.security.api-key.enabled=true`): `ApiKeyAuthenticationFilter` (under `web/security/apikey/`) installed via `addFilterBefore(BearerTokenAuthenticationFilter)`; introspector `CoreApiKeyIntrospector` calls Core's `/v1/user/info`; results cached in `ApiKeyCache` (Caffeine, key=`sha256(apiKey)`, TTL from `api-key.cache-ttl-seconds`); role mapping via `ApiKeyAuthorityResolver` reusing `UserRolesResolver` with provider name `"api-key"`; principal = Core's `project` field carried by `ApiKeyAuthenticationToken`.
+- Related specs: `api-conventions`, `008-read-only-role`, `018-api-key-via-core-userinfo`
