@@ -126,11 +126,17 @@ public class DeploymentService {
 
     @Transactional
     public Deployment createDeployment(CreateDeployment request) {
+        return createDeployment(request, true);
+    }
+
+    private Deployment createDeployment(CreateDeployment request, boolean applyNodePoolDefaultIfEmpty) {
         var id = request.getId();
 
         checkNoResourcesAreAssociatedWithId(id);
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
-        applyCreateTimeNodePoolCascade(request);
+        if (applyNodePoolDefaultIfEmpty) {
+            applyCreateTimeNodePoolCascade(request);
+        }
         validateNodePoolId(request.getNodePoolId());
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
@@ -165,11 +171,6 @@ public class DeploymentService {
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var existingDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
 
-        // FR-014: when the payload omits nodePoolId, preserve the stored value; do NOT re-run the cascade.
-        if (!request.isNodePoolIdFieldPresent()) {
-            request.setNodePoolId(existingDeployment.getNodePoolId());
-            request.setNodePoolIdFieldPresent(false);
-        }
         validateNodePoolId(request.getNodePoolId());
         var existingStatus = existingDeployment.getStatus();
 
@@ -247,7 +248,7 @@ public class DeploymentService {
         var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentId, cloneDeploymentDisplayName);
         createDeployment.setAuthor(securityClaimsExtractor.getEmail());
 
-        return createDeployment(createDeployment);
+        return createDeployment(createDeployment, false);
     }
 
     @Transactional
@@ -408,17 +409,15 @@ public class DeploymentService {
     }
 
     /**
-     * FR-018: when the create payload omits {@code nodePoolId}, resolve via the cascade and stamp the
-     * result onto the request so it persists onto the deployment record. When the field is present
-     * (with any value, including null) we honour it verbatim.
+     * FR-018: when the create payload leaves {@code nodePoolId} null, resolve via the cascade and
+     * stamp the result onto the request so it persists onto the record. The duplicate flow opts
+     * out of this entirely by calling the worker with {@code applyNodePoolDefaultIfEmpty=false}.
      */
     private void applyCreateTimeNodePoolCascade(CreateDeployment request) {
-        if (request.isNodePoolIdFieldPresent()) {
+        if (request.getNodePoolId() != null) {
             return;
         }
-        var resolved = nodePoolService.resolveForCreate(request);
-        request.setNodePoolId(resolved);
-        request.setNodePoolIdFieldPresent(false);
+        request.setNodePoolId(nodePoolService.resolveForCreate(request));
     }
 
     private void validateEnvNameNotReserved(String name) {

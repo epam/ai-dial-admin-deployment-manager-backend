@@ -176,7 +176,7 @@ public record NodePoolDto(
 
 ### Deployment create/update DTO field
 
-The deployment create / update DTOs carry a nullable `String nodePoolId` (the persisted pool id). The field uses a `transient nodePoolIdFieldPresent` flag to distinguish "absent" from "explicit null" (FR-013, FR-018) without a `JsonNullable` dependency. The response DTO additionally carries a read-only `String nodePoolName` resolved from the current `NODE_POOLS` configuration at read time.
+The deployment create / update DTO and service model both carry a single nullable `String nodePoolId` (the persisted pool id) — no presence tracking, no intent flag. Whether the create flow runs the defaults cascade is decided by the **service entry point**: `DeploymentService.createDeployment(CreateDeployment)` delegates to a private overload `createDeployment(CreateDeployment, boolean applyNodePoolDefaultIfEmpty)`. Normal create passes `true`; the duplicate flow calls the private overload with `false` so the source's pool is preserved verbatim. Update is PUT-style for `nodePoolId`: callers always send the field. The response DTO additionally carries a read-only `String nodePoolName` resolved from the current `NODE_POOLS` configuration at read time.
 
 ```java
 @Data
@@ -184,14 +184,6 @@ public abstract class CreateDeploymentRequestDto {
     // ... existing fields ...
     @Nullable
     private String nodePoolId;             // input + persisted id
-
-    @JsonIgnore
-    private transient boolean nodePoolIdFieldPresent;
-
-    public void setNodePoolId(String nodePoolId) {
-        this.nodePoolId = nodePoolId;
-        this.nodePoolIdFieldPresent = true;
-    }
 }
 
 @Data
