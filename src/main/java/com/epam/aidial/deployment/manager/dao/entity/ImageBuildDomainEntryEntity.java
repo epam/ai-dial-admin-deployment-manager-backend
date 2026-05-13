@@ -21,9 +21,6 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-// Do NOT use @Data — it generates equals/hashCode over all fields, causing JPA collection membership
-// bugs when entities are added to Sets before being persisted. @EqualsAndHashCode(of = "id") ensures
-// PK-based identity, matching JPA's own notion of entity equality.
 @EqualsAndHashCode(of = "id")
 @ToString
 public class ImageBuildDomainEntryEntity {
