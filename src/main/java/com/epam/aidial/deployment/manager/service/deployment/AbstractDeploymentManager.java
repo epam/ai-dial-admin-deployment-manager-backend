@@ -24,6 +24,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
+import com.epam.aidial.deployment.manager.service.manifest.PoolSchedulingPrimitives;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
@@ -107,14 +108,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         this.defaultContainerPort = defaultContainerPort;
     }
 
-    protected Map<String, String> resolveNodePoolLabels(String nodePool) {
-        if (StringUtils.isBlank(nodePool)) {
-            return null;
+    protected PoolSchedulingPrimitives resolvePoolPrimitives(String nodePoolId) {
+        if (StringUtils.isBlank(nodePoolId)) {
+            return PoolSchedulingPrimitives.EMPTY;
         }
-        if (!nodePoolProperties.exists(nodePool)) {
-            throw new IllegalArgumentException("Node pool '%s' is no longer configured".formatted(nodePool));
-        }
-        return nodePoolProperties.getLabelSelector(nodePool);
+        var pool = nodePoolProperties.findById(nodePoolId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Node pool id '%s' is no longer configured".formatted(nodePoolId)));
+        return PoolSchedulingPrimitives.of(pool);
     }
 
     @Override

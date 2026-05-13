@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.configuration.NimDeployProperties;
 import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -52,6 +53,8 @@ class NimManifestGeneratorTest {
 
     private NimDeployProperties nimDeployProperties;
     private NimManifestGenerator manifestGenerator;
+    private final PoolPrimitivesConverter poolPrimitivesConverter =
+            new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .enable(SerializationFeature.INDENT_OUTPUT);
@@ -68,7 +71,8 @@ class NimManifestGeneratorTest {
         nimDeployProperties.setUseClusterInternalUrl(true);
         nimDeployProperties.setKserveModeEnabled(false);
 
-        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, progressDeadlineCalculator, nimDeployProperties);
+        manifestGenerator = new NimManifestGenerator(appconfig, nimProbeConverter, progressDeadlineCalculator,
+                nimDeployProperties, poolPrimitivesConverter);
     }
 
     @Test
@@ -166,7 +170,7 @@ class NimManifestGeneratorTest {
         // Given: generator with real NimProbeConverter so probe is built from properties
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealConverter = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
-                realCalculator, nimDeployProperties);
+                realCalculator, nimDeployProperties, poolPrimitivesConverter);
         var deploymentName = "probe-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
         var httpGet = new HttpGetProbe("/ready", 9090);
@@ -328,7 +332,7 @@ class NimManifestGeneratorTest {
         // Given: generator with real calculator so fallback deadline is computed
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealCalculator = new NimManifestGenerator(appconfig, new NimProbeConverter(new ProbeConverter()),
-                realCalculator, nimDeployProperties);
+                realCalculator, nimDeployProperties, poolPrimitivesConverter);
         var deploymentName = "fallback-deadline-nim-app";
         var imageName = "my-registry.io/probe-image:v1";
 
@@ -626,12 +630,6 @@ class NimManifestGeneratorTest {
     private void stubNimServiceExposeIngressConfig() {
         var ingress = new Ingress();
         ingress.setEnabled(true);
-        ingress.setAnnotations(Map.of(
-                "nginx.ingress.kubernetes.io/proxy-body-size", "0",
-                "nginx.ingress.kubernetes.io/proxy-read-timeout", "600",
-                "cert-manager.io/cluster-issuer", "letsencrypt-production",
-                "nginx.ingress.kubernetes.io/force-ssl-redirect", "true"
-        ));
         var ingressSpec = new Spec();
         ingressSpec.setIngressClassName("nginx");
         ingress.setSpec(ingressSpec);
@@ -692,41 +690,53 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withNodePoolLabels_setsNodeSelector() {
-        // Given
+    void testServiceConfig_projectsPoolPrimitivesOntoNimSpec() {
         var deploymentName = "node-pool-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
-        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+        var affinity = new io.fabric8.kubernetes.api.model.AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("accelerator-type").withOperator("In").addToValues("nvidia-a100")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+        var toleration = new io.fabric8.kubernetes.api.model.TolerationBuilder()
+                .withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule")
+                .build();
+        var primitives = new PoolSchedulingPrimitives(Map.of("workload", "gpu"), affinity, java.util.List.of(toleration));
 
-        // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(),
-                resources, imageName, 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, nodePoolLabels
+                resources, imageName, 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, primitives
         );
 
-        // Then
-        assertThat(generatedService.getSpec().getNodeSelector())
-                .isNotNull()
-                .containsEntry("node-pool-key", "gpu-pool")
-                .hasSize(1);
+        var spec = generatedService.getSpec();
+        assertThat(spec.getNodeSelector()).containsEntry("workload", "gpu");
+        assertThat(spec.getAffinity()).isNotNull();
+        assertThat(spec.getTolerations()).hasSize(1);
+        assertThat(spec.getTolerations().get(0).getKey()).isEqualTo("dedicated");
     }
 
     @Test
-    void testServiceConfig_withNullNodePoolLabels_doesNotSetNodeSelector() {
-        // Given
+    void testServiceConfig_withEmptyPrimitives_doesNotSetSchedulingFields() {
         var deploymentName = "no-pool-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
         var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
 
-        // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(),
-                resources, imageName, 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+                resources, imageName, 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, PoolSchedulingPrimitives.EMPTY
         );
 
-        // Then
-        assertThat(generatedService.getSpec().getNodeSelector()).isNull();
+        var spec = generatedService.getSpec();
+        assertThat(spec.getNodeSelector()).isNullOrEmpty();
+        assertThat(spec.getAffinity()).isNull();
+        assertThat(spec.getTolerations()).isNullOrEmpty();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

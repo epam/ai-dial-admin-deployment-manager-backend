@@ -15,8 +15,10 @@ import com.epam.aidial.deployment.manager.utils.mapping.NimMappers;
 import com.google.cloud.tools.jib.api.ImageReference;
 import com.nvidia.apps.v1alpha1.NIMService;
 import com.nvidia.apps.v1alpha1.NIMServiceSpec;
+import com.nvidia.apps.v1alpha1.nimservicespec.Affinity;
 import com.nvidia.apps.v1alpha1.nimservicespec.Env;
 import com.nvidia.apps.v1alpha1.nimservicespec.Expose;
+import com.nvidia.apps.v1alpha1.nimservicespec.Tolerations;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.ValueFrom;
 import com.nvidia.apps.v1alpha1.nimservicespec.env.valuefrom.SecretKeyRef;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.Router;
@@ -30,12 +32,13 @@ import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.spec.rules.http.pa
 import io.fabric8.kubernetes.api.model.IntOrString;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -49,15 +52,18 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
     private final NimProbeConverter nimProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
     private final NimDeployProperties nimDeployProperties;
+    private final PoolPrimitivesConverter poolPrimitivesConverter;
 
     public NimManifestGenerator(AppProperties appconfig,
                                 NimProbeConverter nimProbeConverter,
                                 ProgressDeadlineCalculator progressDeadlineCalculator,
-                                NimDeployProperties nimDeployProperties) {
+                                NimDeployProperties nimDeployProperties,
+                                PoolPrimitivesConverter poolPrimitivesConverter) {
         super(appconfig);
         this.nimProbeConverter = nimProbeConverter;
         this.progressDeadlineCalculator = progressDeadlineCalculator;
         this.nimDeployProperties = nimDeployProperties;
+        this.poolPrimitivesConverter = poolPrimitivesConverter;
     }
 
     @SneakyThrows
@@ -76,7 +82,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
             int startupTimeoutSec,
             @Nullable List<String> command,
             @Nullable List<String> args,
-            @Nullable Map<String, String> nodePoolLabels
+            PoolSchedulingPrimitives poolPrimitives
     ) {
         boolean kserveMode = nimDeployProperties.isKserveModeEnabled();
         boolean useExternalUrl = !nimDeployProperties.isUseClusterInternalUrl();
@@ -132,11 +138,32 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         applyStartupProbe(name, specChain, probeProperties);
         applyProgressDeadline(probeProperties, startupTimeoutSec, config);
 
-        if (MapUtils.isNotEmpty(nodePoolLabels)) {
-            specChain.data().setNodeSelector(nodePoolLabels);
-        }
+        applyPoolPrimitives(specChain, poolPrimitives);
 
         return config.data();
+    }
+
+    private void applyPoolPrimitives(MappingChain<NIMServiceSpec> specChain, PoolSchedulingPrimitives primitives) {
+        if (primitives == null || primitives.isEmpty()) {
+            return;
+        }
+        if (MapUtils.isNotEmpty(primitives.nodeSelector())) {
+            specChain.data().setNodeSelector(primitives.nodeSelector());
+        }
+        var convertedAffinity = poolPrimitivesConverter.convertAffinity(primitives.affinity(), Affinity.class);
+        if (convertedAffinity != null) {
+            specChain.data().setAffinity(convertedAffinity);
+        }
+        var convertedTolerations = poolPrimitivesConverter.convertTolerations(primitives.tolerations(), Tolerations.class);
+        if (CollectionUtils.isNotEmpty(convertedTolerations)) {
+            var existing = specChain.data().getTolerations();
+            var merged = new ArrayList<Tolerations>();
+            if (existing != null) {
+                merged.addAll(existing);
+            }
+            merged.addAll(convertedTolerations);
+            specChain.data().setTolerations(merged);
+        }
     }
 
     private void applyStorageSize(MappingChain<NIMServiceSpec> specChain, @Nullable String storageSize) {

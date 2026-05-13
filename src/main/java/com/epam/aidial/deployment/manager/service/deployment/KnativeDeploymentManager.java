@@ -119,7 +119,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var containerPort = resolveContainerPort(deployment::getContainerPort);
 
-        var nodePoolLabels = resolveNodePoolLabels(deployment.getNodePool());
+        var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
         return knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
@@ -134,7 +134,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 deployment.getProbeProperties(),
                 deployment.getCommand(),
                 deployment.getArgs(),
-                nodePoolLabels);
+                poolPrimitives);
     }
 
     private String resolveImageName(Deployment deployment) {

@@ -14,18 +14,21 @@ import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.inferenceservicespec.Predictor;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Model;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Tolerations;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Env;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Ports;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.ValueFrom;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.env.valuefrom.SecretKeyRef;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -36,13 +39,16 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
     private final KserveProbeConverter kserveProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
+    private final PoolPrimitivesConverter poolPrimitivesConverter;
 
     public InferenceManifestGenerator(AppProperties appconfig,
                                      KserveProbeConverter kserveProbeConverter,
-                                     ProgressDeadlineCalculator progressDeadlineCalculator) {
+                                     ProgressDeadlineCalculator progressDeadlineCalculator,
+                                     PoolPrimitivesConverter poolPrimitivesConverter) {
         super(appconfig);
         this.kserveProbeConverter = kserveProbeConverter;
         this.progressDeadlineCalculator = progressDeadlineCalculator;
+        this.poolPrimitivesConverter = poolPrimitivesConverter;
     }
 
     public InferenceService serviceConfig(
@@ -59,7 +65,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties,
             int startupTimeoutSec,
-            @Nullable Map<String, String> nodePoolLabels
+            PoolSchedulingPrimitives poolPrimitives
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
@@ -114,11 +120,32 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
         applyStartupProbe(name, modelChain, probeProperties);
 
-        if (MapUtils.isNotEmpty(nodePoolLabels)) {
-            predictorChain.data().setNodeSelector(nodePoolLabels);
-        }
+        applyPoolPrimitives(predictorChain, poolPrimitives);
 
         return config.data();
+    }
+
+    private void applyPoolPrimitives(MappingChain<Predictor> predictorChain, PoolSchedulingPrimitives primitives) {
+        if (primitives == null || primitives.isEmpty()) {
+            return;
+        }
+        if (MapUtils.isNotEmpty(primitives.nodeSelector())) {
+            predictorChain.data().setNodeSelector(primitives.nodeSelector());
+        }
+        var convertedAffinity = poolPrimitivesConverter.convertAffinity(primitives.affinity(), Affinity.class);
+        if (convertedAffinity != null) {
+            predictorChain.data().setAffinity(convertedAffinity);
+        }
+        var convertedTolerations = poolPrimitivesConverter.convertTolerations(primitives.tolerations(), Tolerations.class);
+        if (CollectionUtils.isNotEmpty(convertedTolerations)) {
+            var existing = predictorChain.data().getTolerations();
+            var merged = new ArrayList<Tolerations>();
+            if (existing != null) {
+                merged.addAll(existing);
+            }
+            merged.addAll(convertedTolerations);
+            predictorChain.data().setTolerations(merged);
+        }
     }
 
     private void applyStartupProbe(String name,

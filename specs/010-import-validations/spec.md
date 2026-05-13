@@ -2,7 +2,8 @@
 
 **Feature Branch**: `010-import-validations`
 **Created**: 2026-03-19
-**Status**: Draft
+**Status**: Implemented
+**Capability**: export-import
 **Input**: User description: "Config import does not validate deserialized entities. In DTOs there are annotations on fields, some of them are linked to custom validators. Import must validate deserialized entities (domain objects) similarly to how DTOs are validated. Do a research to find the best way to solve this issue."
 
 ## User Scenarios & Testing *(mandatory)*

@@ -83,6 +83,18 @@ The system SHALL create a new deployment of the specified subtype. New deploymen
 
 Status: **Implemented**
 
+#### Scenario: Create-time node-pool defaults cascade — Implemented via 019-explicit-pool-scheduling
+- **WHEN** `POST /api/v1/deployments` is called with a `nodePoolId` value of null (whether omitted or explicit null in the payload)
+- **THEN** the system resolves a value via the cascade `NODE_POOL_DEFAULT_MODEL` (for NIM / KServe-Inference workloads, when set) → `NODE_POOL_DEFAULT` (when set) → null, stamps the resolved value onto the deployment record, and returns the stamped value in the create response — the caller sees exactly which pool the workload will use without re-fetching
+
+#### Scenario: Explicit non-null nodePoolId on create
+- **WHEN** `POST /api/v1/deployments` is called with `nodePoolId` set to the id of a pool currently in `NODE_POOLS`
+- **THEN** the supplied value is honoured verbatim, persisted on the deployment record, and returned in the create response — neither default env var overrides an explicit choice
+
+#### Scenario: Unknown nodePoolId rejected
+- **WHEN** `POST /api/v1/deployments` is called with `nodePoolId` referencing a pool not present in the current `NODE_POOLS`
+- **THEN** the system responds with 400
+
 #### Scenario: Create image-based deployment with internal_image source (by ID)
 - **WHEN** `POST /api/v1/deployments` is called with `type: MCP|INTERCEPTOR|ADAPTER|APPLICATION` and `source: { "$type": "internal_image", "imageDefinitionId": "<uuid>" }`
 - **THEN** a new deployment is persisted in `NOT_DEPLOYED` status with the `internal_image` source; HTTP 201 is returned
@@ -128,6 +140,10 @@ Status: **Implemented**
 - **WHEN** `PUT /api/v1/deployments/{id}` is called with an unknown ID
 - **THEN** the system responds with 404
 
+#### Scenario: PUT-style nodePoolId semantics on update — Implemented via 019-explicit-pool-scheduling
+- **WHEN** `PUT /api/v1/deployments/{id}` is called with a body in which `nodePoolId` is explicitly null, or in which `nodePoolId` is omitted entirely
+- **THEN** the stored `nodePoolId` is cleared to null; the create-time defaults cascade (`NODE_POOL_DEFAULT` / `NODE_POOL_DEFAULT_MODEL`) is NOT consulted on update — admins who want to migrate an existing deployment to a different pool must set the field explicitly
+
 ### Requirement: Delete deployment
 The system SHALL delete a deployment record and remove its associated Kubernetes resources. The response is HTTP 204.
 
@@ -145,6 +161,10 @@ Status: **Implemented**
 #### Scenario: Duplicate
 - **WHEN** `POST /api/v1/deployments/duplicate` is called with `sourceDeploymentName`, `newDeploymentName` (max 36 chars, `^[a-z0-9-]+`), and `newDeploymentDisplayName`
 - **THEN** a new deployment is created with the same configuration, the specified new name and display name, and `NOT_DEPLOYED` status
+
+#### Scenario: Duplicate copies nodePoolId verbatim, bypassing the create cascade — Implemented via 019-explicit-pool-scheduling
+- **WHEN** a deployment whose source has `nodePoolId: foo` (or `nodePoolId: null`) is duplicated
+- **THEN** the new deployment carries the same `nodePoolId` as the source — the create-time defaults cascade does NOT run on duplicate, even when `NODE_POOL_DEFAULT` or `NODE_POOL_DEFAULT_MODEL` is configured; the source's value is treated as authoritative as if the user had typed it
 
 ### Requirement: Change image definition for deployments
 The system SHALL allow reassigning one or more image-based deployments to reference a different image definition version.
@@ -213,6 +233,8 @@ All deployment types SHALL carry these fields:
 | `scaling` | ScalingDto | No | Scaling configuration — replicas, strategy, scale-to-zero. See structure below. |
 | `command` | String | No | Container entrypoint override. Parsed into a list of tokens using shell-like parsing (handling quoted strings, spaces, special characters). Applied to container spec in generated manifests. |
 | `args` | String | No | Container arguments override. Same parsing as `command`. Applied to container spec in generated manifests. |
+| `nodePoolId` | String | No | Immutable pool identifier (id from `NODE_POOLS`) — see `019-explicit-pool-scheduling`. Null means "Any" (no pool-derived scheduling primitives applied). On create, a null payload value triggers the defaults cascade; on update, the payload value is authoritative (PUT-style). Persisted column: `deployment.node_pool`. Stripped on export. |
+| `nodePoolName` | String | No (response only) | Resolved display label of the deployment's `nodePoolId` against the current `NODE_POOLS`. Null when `nodePoolId` is null or when the id no longer resolves (pool removed). Computed at read time — never persisted. |
 | `status` | DeploymentStatusDto | Yes (response) | Current lifecycle status (see status lifecycle above). |
 | `url` | String | No (response only) | Auto-generated service URL. Set when deployment becomes RUNNING; cleared on undeploy/stop. Not user-supplied. |
 | `serviceName` | String | No (internal) | Kubernetes service name. Generated at first deploy via `K8sNamingUtils.generateName()`, persisted in DB, and used for all subsequent K8s operations. Immutable once assigned. Not exposed via API; excluded from config export. NULL for NOT_DEPLOYED deployments that have never been deployed. |

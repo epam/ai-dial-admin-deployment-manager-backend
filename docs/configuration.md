@@ -220,6 +220,7 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.nim.deploy.cluster-host`             | `K8S_NIM_CLUSTER_HOST`                            | -             | Yes, when `use-cluster-internal-url=false` and `kserve-mode-enabled=false` | NIM deploy | Cluster host used to construct the ingress host for NIM services in legacy (standalone) mode. Unused when `kserve-mode-enabled=true`. |
 | `app.nim.deploy.url-schema`               | `K8S_NIM_DEPLOYMENT_URL_SCHEMA`                   | -             | No                                                | NIM deploy   | Override URL schema prefix for resolved NIM service URLs. When empty, defaults apply: `http` for cluster-internal, `https` for external. Accepts values with or without `://` (e.g., both `https` and `https://` work). |
 | `app.nim.deploy.kserve-mode-enabled`      | `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED`          | `false`       | No                                                | NIM deploy   | When `true`, generates NIMService manifests with `inferencePlatform: kserve`, Knative `expose.router`, and Knative autoscaling annotations. When `false` (default), uses standalone mode with ingress-based external exposure. |
+| `app.nim-service-expose-ingress-config.spec.ingressClassName` | `K8S_NIM_INGRESS_CLASS_NAME`                              | `nginx` | No | NIM deploy (legacy mode with external URL) | Ingress class name applied to the generated NIM Ingress resource (e.g., `nginx`, `traefik`).            |
 
 #### KServe Configuration
 
@@ -233,43 +234,59 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
 
 
-#### Node Pool Configuration
+#### [Preview] Node Pool Configuration
 
-Node pools define groups of Kubernetes nodes that deployments can be pinned to. When a deployment has a node pool selected, hard node affinity is applied at deploy time to constrain pods to nodes matching the pool's label selector.
+Node pools are scheduling presets. Each pool projects its scheduling primitives onto the workload's pod template at deploy time.
 
-| Property | Environment Variable | Default Value | Required | Description |
-|----------|---------------------|---------------|----------|-------------|
-| `app.node-pools.label-key` | `NODE_POOL_LABEL_KEY` | _(empty)_ | Required when `app.node-pools.pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
-| `app.node-pools.pools` | `NODE_POOLS` | _(empty)_ | No | JSON array of node pool configurations. See format below |
+Each pool entry has the following fields:
 
-**JSON format for `NODE_POOLS`**:
+- `id` — **required, immutable** machine identifier. Deployments persist this value (column `deployment.node_pool`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key. Must be unique across pools.
+- `name` — **required** human-readable display label shown on the UI. **Safe to change at any time** — deployments are not affected because they reference the pool by id, not name. The current `name` is resolved from configuration at read time and exposed on deployment responses as `nodePoolName`. Recommended unique but not enforced.
+- `description` — optional free-form text shown alongside the pool in the UI. No functional meaning.
+- `nodeSelector` — optional map of label key/value pairs. Applied verbatim to the pod template's `nodeSelector`; an existing template value is overwritten.
+- `affinity` — optional full Kubernetes `Affinity` object (`nodeAffinity`, `podAffinity`, `podAntiAffinity`). Validated against the Kubernetes schema at startup. Applied verbatim to the pod template; an existing template value is overwritten.
+- `tolerations` — optional list of Kubernetes `Toleration` objects. Appended to the pod template's existing tolerations (not replaced).
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Unique pool identifier. Also used as the value for the node label selector |
-| `description` | string | No | Human-readable description shown in the UI |
-| `instance` | string | No | Cloud instance type (e.g., `a2-ultragpu-4g`) |
-| `minNodes` | int | No | Minimum number of nodes in this pool (must be >= 0, default 0) |
-| `maxNodes` | int | Yes | Maximum number of nodes in this pool (must be > 0, must be >= minNodes) |
-| `gpu` | object | No | GPU specification per node. Omit or set to `null` for CPU-only pools |
-| `gpu.name` | string | Yes (if gpu set) | GPU model name (e.g., `NVIDIA A100`) |
-| `gpu.vramBytes` | long | Yes (if gpu set) | VRAM capacity per GPU in bytes (must be > 0) |
-| `gpu.count` | int | Yes (if gpu set) | Number of GPUs per node (must be > 0) |
-| `cpu` | object | Yes | CPU specification per node |
-| `cpu.name` | string | No | Processor name (e.g., `AMD EPYC Milan`) |
-| `cpu.milliCpus` | long | Yes | CPU capacity per node in millicores (must be > 0) |
-| `memory` | object | Yes | Memory specification per node |
-| `memory.bytes` | long | Yes | Memory capacity per node in bytes (must be > 0) |
+| Property | Environment Variable | Default | Required | Description |
+|----------|---------------------|---------|----------|-------------|
+| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Per-entry field schema described above. |
+| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
+| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
-**Startup validation**: The application validates the JSON on startup and fails fast if the JSON is malformed, pool names are duplicated, any required field is missing/invalid, or `app.node-pools.label-key` is blank while node pools are configured.
+Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
+
+**Operator note — admin-edit asymmetry**: edits to a pool's `nodeSelector` / `affinity` / `tolerations` are picked up by every existing deployment that references the pool **automatically on the next redeploy** — pool primitives are re-tunable. In contrast, changes to `NODE_POOL_DEFAULT` or `NODE_POOL_DEFAULT_MODEL` apply only to deployments **created after the change**; existing deployments retain whichever pool id was stamped at their creation time. To migrate an existing deployment to a new pool, edit its `nodePoolId` field via the standard update endpoint — there is no batch migration. Pool identity (`id`) is immutable by design; pool contents are mutable. The legacy `NODE_POOL_LABEL_KEY` env variable is ignored if still set — it has no effect on scheduling.
 
 **Example**:
 
 ```bash
-NODE_POOL_LABEL_KEY=node-pool
-NODE_POOLS='[{"name":"gpu-a100-prod","description":"LLM inference & fine-tuning","instance":"a2-ultragpu-4g","maxNodes":10,"gpu":{"name":"NVIDIA A100","vramBytes":85899345920,"count":4},"cpu":{"name":"AMD EPYC Milan","milliCpus":48000},"memory":{"bytes":730144440320}},{"name":"cpu-highmem","description":"Data preprocessing","maxNodes":5,"cpu":{"milliCpus":64000},"memory":{"bytes":549755813888}}]'
+NODE_POOLS=$(cat <<'YAML'
+- id: cpu-pool
+  name: CPU pool
+  description: General-purpose CPU workloads
+  nodeSelector:
+    workload: cpu
+- id: gpu-pool
+  name: GPU pool
+  description: Inference and fine-tuning on A100/H100
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: accelerator-type
+            operator: In
+            values: [nvidia-a100, nvidia-h100]
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu
+    effect: NoSchedule
+YAML
+)
+NODE_POOL_DEFAULT=cpu-pool
+NODE_POOL_DEFAULT_MODEL=gpu-pool
 ```
-
 
 #### Cleanup and Maintenance Configuration
 
@@ -476,6 +493,65 @@ The configuration is defined in environment variables
 
 **Note:** The configuration for identity providers in the deployment manager utilizes the existing configuration from DIAL admin providers, including settings for clients and roles. 
 For detailed instructions on setting up Azure and Keycloak providers, please refer to the DIAL admin providers documentation available at [DIAL Admin Providers Documentation](https://github.com/epam/ai-dial-admin-backend/tree/development/docs).
+
+### API-Key Authentication Configuration
+
+Applied when: `config.rest.security.mode=oidc` and `config.rest.security.api-key.enabled=true`.
+
+When enabled, DM accepts an `Api-Key` header as an alternative credential alongside JWT/OIDC. Keys are validated by delegating to DIAL Core's `GET /v1/user/info` endpoint. DM handles both kinds of credentials Core may surface:
+
+| Response shape from Core `/v1/user/info` | Caller                                                     | Spring principal                          | Roles mapped via                         | `UserSecurityDetails.email`         |
+|------------------------------------------|------------------------------------------------------------|-------------------------------------------|------------------------------------------|-------------------------------------|
+| `{roles, project}`                       | Project key (or per-request key minted from a project-key root) | `project`                                 | `api-key.roles-mapping`                  | `null`                              |
+| `{roles, userClaims}`                    | Per-request key minted from a JWT root (Core → DM-MCP → DM chain) | `userClaims[default.principal-claim]`     | `default.roles-mapping`                  | `userClaims[default.email-claim]`   |
+
+When both `Api-Key` and `Authorization` headers are present, the JWT/opaque-token path takes precedence and the `Api-Key` is ignored.
+
+| Property                                              | Environment Variable          | Default | Required               | Description                                                                                                            |
+| ----------------------------------------------------- | ----------------------------- | ------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `config.rest.security.api-key.enabled`                | `API_KEY_ENABLED`             | `false` | No                     | If `true` (and `mode=oidc`), the `Api-Key` header is accepted as an alternative credential.                            |
+| `config.rest.security.api-key.core-url`               | `API_KEY_CORE_URL`            | -       | Yes, when `enabled=true` | Base URL of DIAL Core (e.g. `http://dial-core`). DM appends `/v1/user/info` when validating API keys.                |
+| `config.rest.security.api-key.cache-ttl-seconds`      | `API_KEY_CACHE_TTL_SECONDS`   | `60`    | No                     | TTL for cached introspection results (in-process Caffeine cache). Mirrors Core's own user-info cache TTL.              |
+| `config.rest.security.api-key.cache-max-size`         | `API_KEY_CACHE_MAX_SIZE`      | `10000` | No                     | Maximum entries in the introspection cache. Per-request keys are higher-cardinality than project keys; raise this if eviction pressure shows up in metrics. |
+| `config.rest.security.api-key.request-timeout-ms`     | `API_KEY_REQUEST_TIMEOUT_MS`  | `3000`  | No                     | Per-call timeout (connect + read) for HTTP requests to Core's `/v1/user/info`.                                         |
+| `config.rest.security.api-key.roles-mapping`          | `API_KEY_ROLES_MAPPING`       | -       | At least one of `api-key.roles-mapping` or `default.roles-mapping` must be non-empty when `enabled=true` | JSON mapping of Core **project-key** role names to DM application roles. Same shape as `providers.*.roles-mapping`. Used only for the `{project, roles}` response shape. |
+| `config.rest.security.api-key.startup-probe`          | `API_KEY_STARTUP_PROBE`       | `true`  | No                     | If `true`, DM probes `<core-url>/v1/user/info` once at startup and aborts boot if the URL is unreachable.              |
+
+The JWT-rooted (`userClaims`) path reuses **OIDC defaults** to extract the principal/email and to map roles. The relevant properties are configured in the OIDC block (`config.rest.security.default.*`), not under `api-key.*`:
+
+| Property                                            | Used by api-key path for...                  |
+|-----------------------------------------------------|----------------------------------------------|
+| `config.rest.security.default.roles-mapping`        | Mapping JWT-root roles to FULL_ADMIN / READ_ONLY_ADMIN |
+| `config.rest.security.default.principal-claim`      | Picking the Spring principal from `userClaims`. Same value used for direct JWT auth (application default: `oid`). |
+| `config.rest.security.default.email-claim`          | Picking the email from `userClaims`. Same value used for direct JWT auth (application default: `unique_name`). |
+
+**Example — only project-key callers (CI/CD machines):**
+
+```
+API_KEY_ENABLED=true
+API_KEY_CORE_URL=http://dial-core
+API_KEY_ROLES_MAPPING={"admin":["FULL_ADMIN"],"default":["READ_ONLY_ADMIN"]}
+```
+
+**Example — only JWT-rooted per-request keys (admin UI through DM-MCP):**
+
+```
+API_KEY_ENABLED=true
+API_KEY_CORE_URL=http://dial-core
+# Reuse the same default.roles-mapping that authenticates SSO users calling DM directly:
+SECURITY_ROLES_MAPPING={"sso-admin":["FULL_ADMIN"],"sso-viewer":["READ_ONLY_ADMIN"]}
+# api-key.roles-mapping can be left empty in this topology.
+```
+
+**Notes:**
+
+- API keys themselves live in DIAL Core (`config.json` for project keys, or Redis for per-request keys). DM does not store or persist keys; the cache only holds `sha256(apiKey)` for the configured TTL.
+- Any non-2xx response from Core (including 401, 403, 404, 5xx) is mapped to 401 to the caller; a transport-level failure (connect timeout, refused) returns 503.
+- A 200 response that contains neither `project` nor a non-empty `userClaims` is treated as malformed and rejected with 401 (not cached).
+- For JWT-rooted callers, audit fields (`deployment.author`, `imageDefinition.author`, `AuditRevision.email`) record the end-user email from `userClaims[default.email-claim]`. Project-key callers have `null` email.
+- Failures are never cached: revoked keys propagate after at most one cache TTL.
+- When the JWT path validates a request, the api-key filter is a no-op; existing JWT flows are unaffected.
+- Boot fails if **both** `api-key.roles-mapping` and `default.roles-mapping` are blank or `{}` (every authenticated caller would otherwise be rejected with 403). Either alone is sufficient.
 
 ## Cloud Provider Configuration
 

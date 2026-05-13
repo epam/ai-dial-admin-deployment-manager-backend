@@ -107,6 +107,6 @@ public class DeploymentEntity {
     private List<String> args;
 
     @Column(name = "node_pool")
-    private String nodePool;
+    private String nodePoolId;
 
 }

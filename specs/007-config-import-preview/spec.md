@@ -2,7 +2,8 @@
 
 **Feature Branch**: `007-config-import-preview`
 **Created**: 2026-03-16
-**Status**: Draft
+**Status**: Implemented
+**Capability**: export-import
 **Input**: User description: "Implement preview for config import. New endpoint POST /api/v1/configs/import/preview — same inputs as /import (multipart/form-data: file + resolutionPolicy), returns ImportConfigPreviewDto."
 
 ## User Scenarios & Testing *(mandatory)*

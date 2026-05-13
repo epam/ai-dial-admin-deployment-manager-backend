@@ -29,6 +29,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.EnvVarChangeDetector;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
@@ -69,6 +70,7 @@ public class DeploymentService {
     private final DisposableResourceManager disposableResourceManager;
     private final HistoryService historyService;
     private final NodePoolProperties nodePoolProperties;
+    private final NodePoolService nodePoolService;
 
     @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;
@@ -125,11 +127,18 @@ public class DeploymentService {
 
     @Transactional
     public Deployment createDeployment(CreateDeployment request) {
+        return createDeployment(request, true);
+    }
+
+    private Deployment createDeployment(CreateDeployment request, boolean applyNodePoolDefaultIfEmpty) {
         var id = request.getId();
 
         checkNoResourcesAreAssociatedWithId(id);
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
-        validateNodePool(request.getNodePool());
+        if (applyNodePoolDefaultIfEmpty) {
+            applyCreateTimeNodePoolCascade(request);
+        }
+        validateNodePoolId(request.getNodePoolId());
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var deploymentManager = deploymentManagerProvider.provide(request);
@@ -157,12 +166,13 @@ public class DeploymentService {
                     .formatted(id, request.getId()));
         }
         DeploymentSourceValidator.validateSourceForDeploymentType(request);
-        validateNodePool(request.getNodePool());
 
         ImageDefinition imageDefinition = resolveImageDefinition(request).orElse(null);
 
         var envsPartition = validateAndPartitionEnvs(request.getMetadata());
         var existingDeployment = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+
+        validateNodePoolId(request.getNodePoolId());
         var existingStatus = existingDeployment.getStatus();
 
         if (existingStatus.isIntermediate()) {
@@ -239,7 +249,7 @@ public class DeploymentService {
         var createDeployment = deploymentMapper.toCreateCloneDeployment(etalonDeployment, cloneDeploymentId, cloneDeploymentDisplayName);
         createDeployment.setAuthor(securityClaimsExtractor.getEmail());
 
-        return createDeployment(createDeployment);
+        return createDeployment(createDeployment, false);
     }
 
     @Transactional
@@ -393,10 +403,22 @@ public class DeploymentService {
         return () -> new EntityNotFoundException("%s not found: '%s'".formatted(what, id));
     }
 
-    private void validateNodePool(String nodePool) {
-        if (StringUtils.isNotBlank(nodePool) && !nodePoolProperties.exists(nodePool)) {
-            throw new IllegalArgumentException("Node pool '%s' is not configured".formatted(nodePool));
+    private void validateNodePoolId(String nodePoolId) {
+        if (StringUtils.isNotBlank(nodePoolId) && nodePoolProperties.findById(nodePoolId).isEmpty()) {
+            throw new IllegalArgumentException("Node pool id '%s' is not configured".formatted(nodePoolId));
         }
+    }
+
+    /**
+     * FR-018: when the create payload leaves {@code nodePoolId} null, resolve via the cascade and
+     * stamp the result onto the request so it persists onto the record. The duplicate flow opts
+     * out of this entirely by calling the worker with {@code applyNodePoolDefaultIfEmpty=false}.
+     */
+    private void applyCreateTimeNodePoolCascade(CreateDeployment request) {
+        if (request.getNodePoolId() != null) {
+            return;
+        }
+        request.setNodePoolId(nodePoolService.resolveForCreate(request));
     }
 
     private void validateEnvNameNotReserved(String name) {
@@ -446,7 +468,7 @@ public class DeploymentService {
                 || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
                 || !Objects.equals(existing.getScaling(), updated.getScaling())
                 || !Objects.equals(existing.getResources(), updated.getResources())
-                || !Objects.equals(existing.getNodePool(), updated.getNodePool());
+                || !Objects.equals(existing.getNodePoolId(), updated.getNodePoolId());
     }
 
     private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {

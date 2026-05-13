@@ -70,5 +70,12 @@ public abstract class DeploymentDto {
     @Nullable
     private String args;
     @Nullable
-    private String nodePool;
+    private String nodePoolId;
+    /**
+     * Display label of the pool referenced by {@link #nodePoolId}, resolved from the current
+     * {@code NODE_POOLS} configuration at read time. {@code null} when {@code nodePoolId} is
+     * {@code null} or references a pool that is no longer configured (dangling).
+     */
+    @Nullable
+    private String nodePoolName;
 }

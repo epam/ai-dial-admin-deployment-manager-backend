@@ -129,7 +129,7 @@
                         ],
                         "body": {
                           "mode": "raw",
-                          "raw": "{\n\t\"$type\": \"mcp\",\n\t\"name\": \"fetch\",\n\t\"version\": \"1.0.0\",\n\t\"description\": \"Fetch MCP\",\n\t\"source\": {\n\t\t\"$type\": \"docker\",\n\t\t\"imageUri\": \"mcp/fetch\"\n\t},\n    \"transportType\": \"local\",\n\t\"license\": \"MIT License\",\n\t\"topics\": [\"fetch\"],\n\t\"author\": \"local-user\"\n}",
+                          "raw": "{\n\t\"$type\": \"mcp\",\n\t\"name\": \"fetch\",\n\t\"version\": \"1.0.0\",\n\t\"description\": \"Fetch MCP\",\n\t\"source\": {\n\t\t\"$type\": \"docker\",\n\t\t\"imageUri\": \"mcp/fetch\"\n\t},\n    \"transportType\": \"local\",\n\t\"license\": \"MIT License\",\n\t\"topics\": [\"fetch\"],\n\t\"author\": \"local-user\",\n    \"imageBuilder\": \"buildkit_rootless\"\n}",
                           "options": {
                             "raw": {
                               "language": "json"
@@ -541,7 +541,7 @@
                   "name": "mcp",
                   "item": [
                     {
-                      "name": "create deployment",
+                      "name": "create deployment from internal image",
                       "protocolProfileBehavior": {
                         "followRedirects": true,
                         "disableUrlEncoding": false,
@@ -557,7 +557,45 @@
                         ],
                         "body": {
                           "mode": "raw",
-                          "raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{IMAGE_DEFINITION_ID}}\",\n    \"name\": \"{{DEPLOYMENT_NAME}}\",\n    \"displayName\": \"Fetch\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
+                          "raw": "{\n    \"$type\": \"mcp\",\n    \"name\": \"{{DEPLOYMENT_NAME}}\",\n    \"displayName\": \"Fetch\",\n    \"description\": \"Fetch MCP\",\n    \"source\": {\n        \"$type\": \"internal_image\",\n        \"imageDefinitionId\": \"{{IMAGE_DEFINITION_ID}}\"\n    },\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/deployments",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "deployments"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "create deployment from image reference",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "POST",
+                        "header": [
+                          {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                          }
+                        ],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{IMAGE_DEFINITION_ID}}\",\n    \"name\": \"{{DEPLOYMENT_NAME}}\",\n    \"displayName\": \"Fetch\",\n    \"description\": \"Fetch MCP\",\n    \"source\": {\n        \"$type\": \"image_reference\",\n        \"imageReference\": \"d0nets/simple-mcp-http\"\n    },\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\"\n}",
                           "options": {
                             "raw": {
                               "language": "json"
@@ -595,7 +633,7 @@
                         ],
                         "body": {
                           "mode": "raw",
-                          "raw": "{\n    \"$type\": \"mcp\",\n    \"imageDefinitionId\": \"{{image-definition-id}}\",\n    \"name\": \"fetch-1\",\n    \"displayName\": \"Fetch 1\",\n    \"description\": \"Fetch MCP\",\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ],\n    \"probeProperties\": {\n        \"enabled\": false,\n        \"initialDelaySeconds\": 15,\n        \"periodSeconds\": 5,\n        \"timeoutSeconds\": 10,\n        \"failureThreshold\": 7,\n        \"probe\": {\n            \"$type\": \"httpGet\",\n            \"path\": \"/health\",\n            \"port\": 8080\n        }\n    }\n}",
+                          "raw": "{\n    \"$type\": \"mcp\",\n    \"name\": \"{{DEPLOYMENT_NAME}}\",\n    \"displayName\": \"Fetch 1\",\n    \"description\": \"Fetch MCP\",\n    \"source\": {\n        \"$type\": \"image_reference\",\n        \"imageReference\": \"d0nets/simple-mcp-http\"\n    },\n    \"metadata\": {\n        \"envs\": [\n            {\n                \"name\": \"EXAMPLE_ENV\",\n                \"value\": {\n                    \"$type\": \"simple\",\n                    \"value\": \"test value\"\n                },\n                \"mountType\": \"secure_content\",\n                \"description\": \"Example env description\"\n            }\n        ]\n    },\n    \"transport\": \"http_streaming\",\n    \"containerPort\": 8080,\n    \"initialScale\": 1,\n    \"minScale\": 0,\n    \"maxScale\": 2,\n    \"resources\": {\n        \"limits\": {\n            \"cpu\": \"0.1\",\n            \"memory\": \"104857600\"\n        },\n        \"requests\": {\n            \"cpu\": \"0.05\",\n            \"memory\": \"52428800\"\n        }\n    },\n    \"author\": \"local-user\",\n    \"allowedDomains\": [\n        \"epam.com\"\n    ],\n    \"probeProperties\": {\n        \"enabled\": false,\n        \"initialDelaySeconds\": 15,\n        \"periodSeconds\": 5,\n        \"timeoutSeconds\": 10,\n        \"failureThreshold\": 7,\n        \"probe\": {\n            \"$type\": \"httpGet\",\n            \"path\": \"/health\",\n            \"port\": 8080\n        }\n    },\n    \"nodePoolId\": \"test\"\n}",
                           "options": {
                             "raw": {
                               "language": "json"

@@ -1,3 +1,7 @@
 {
+<<<<<<< 018-hubble-relay-domains
   "feature_directory": "specs/018-hubble-relay-domains"
+=======
+  "feature_directory": "specs/019-explicit-pool-scheduling"
+>>>>>>> development
 }

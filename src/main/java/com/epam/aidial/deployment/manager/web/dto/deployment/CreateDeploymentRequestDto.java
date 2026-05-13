@@ -76,5 +76,5 @@ public abstract class CreateDeploymentRequestDto {
     @Nullable
     private String args;
     @Nullable
-    private String nodePool;
+    private String nodePoolId;
 }

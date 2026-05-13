@@ -4,6 +4,36 @@ This directory contains one spec file per capability implemented in the AI DIAL 
 
 **Workflow:** New features follow the spec-kit workflow: `/speckit.specify` (create spec) → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`. Use `/speckit.constitution` to amend project-wide conventions.
 
+Numbered feature specs (`NNN-<short-name>/`) declare a `**Capability**:` field that maps them to the capability specs below; on implementation, the matching capability spec is updated and gains an `Implemented via NNN-<feature>` reference. See root `CLAUDE.md` § "Numbered-spec hygiene" and `.specify/memory/constitution.md` § "spec-kit Workflow Rules".
+
+---
+
+## In-flight & recent features
+
+Numbered specs created via `/speckit.specify`. `Status` reflects the value in each spec's header — flip to `Implemented` only when the feature ships and the matching capability spec(s) are updated.
+
+| Feature | Status | Capability | Brief |
+|---|---|---|---|
+| [001-deployment-topics](001-deployment-topics/spec.md) | Implemented | topics | Add topic assignment on deployments, mirroring image-definition topics |
+| [002-deployment-command-args](002-deployment-command-args/spec.md) | Implemented | deployments | Support `command` and `args` configuration for all deployment types |
+| [003-unified-deployment-source](003-unified-deployment-source/spec.md) | Implemented | deployments | Unified deployment source model with direct `imageReference` for Knative |
+| [004-store-service-name](004-store-service-name/spec.md) | Implemented | deployments | Persist resolved K8s service name on deployment row to survive prefix changes |
+| [005-external-registry-ref](005-external-registry-ref/spec.md) | Implemented | image-definitions | External registry reference on image/deployment sources for client lookups |
+| [006-config-export-preview](006-config-export-preview/spec.md) | Implemented | export-import | `POST` preview endpoint that previews export contents without producing the ZIP |
+| [007-config-import-preview](007-config-import-preview/spec.md) | Implemented | export-import | Preview import outcome (creates / overwrites / skips) before committing |
+| [008-read-only-role](008-read-only-role/spec.md) | Implemented | security | Read-only admin role; non-read endpoints carry write annotations |
+| [009-mcp-registry-filtering](009-mcp-registry-filtering/spec.md) | Implemented | mcp-registry | Backend filtering of MCP registry beyond what the upstream registry supports |
+| [010-import-validations](010-import-validations/spec.md) | Implemented | export-import | Validate deserialized domain objects on import with the same rules as DTOs |
+| [011-application-type](011-application-type/spec.md) | Implemented | application-image-definitions, application-deployments | New `Application` image-definition + deployment subtype |
+| [012-nim-url-schema](012-nim-url-schema/spec.md) | Implemented | nim-deployments | Add `http`/`https` schema prefix to NIM service URLs based on endpoint kind |
+| [013-nim-served-model-name](013-nim-served-model-name/spec.md) | Implemented | nim-deployments | Override served model name via `NIM_SERVED_MODEL_NAME` env var |
+| [014-auditing](014-auditing/spec.md) | Implemented | N/A — creates new capability auditing | Activity history for deployment resources via Hibernate Envers |
+| [015-nim-kserve-migration](015-nim-kserve-migration/spec.md) | Implemented | nim-deployments, kubernetes-manifests | Migrate NIM CRD generation to KServe `inferencePlatform` (opt-in via env flag) |
+| [016-node-pool-selector](016-node-pool-selector/spec.md) | Implemented | deployments | Node-pool selector API + per-deployment node pool assignment |
+| [017-stop-image-build](017-stop-image-build/spec.md) | Implemented | image-builds | Stop in-flight image builds from the UI/API |
+| [018-api-key-via-core-userinfo](018-api-key-via-core-userinfo/spec.md) | Implemented | security | Accept `Api-Key` header in oidc mode; validate via DIAL Core `/v1/user/info` |
+| [019-explicit-pool-scheduling](019-explicit-pool-scheduling/spec.md) | Implemented | deployments | Replace derived label-key + capacity-numbers pool config with explicit nodeSelector/affinity/tolerations; create-time defaults cascade for new deployments |
+
 ---
 
 ## Core Domain
@@ -48,6 +78,7 @@ This directory contains one spec file per capability implemented in the AI DIAL 
 | [security](security/spec.md) | Implemented | Configurable security modes (none / basic / oidc), JWT/OIDC multi-provider authentication (Azure, Keycloak, Auth0, Okta, Cognito), Azure Identity SDK |
 | [api-conventions](api-conventions/spec.md) | Implemented | REST API contract — versioning, ErrorView response structure with distributed tracing (traceparent), pagination patterns |
 | [observability-and-logging](observability-and-logging/spec.md) | Implemented | OpenTelemetry log integration, W3C Trace Context propagation, `@LogExecution` AOP convention |
+| [auditing](auditing/spec.md) | Implemented | Hibernate Envers change-tracking + denormalized activity feed; activity / revision / per-entity snapshot endpoints |
 
 ## Infrastructure
 
