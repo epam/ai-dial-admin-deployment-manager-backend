@@ -16,6 +16,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
@@ -93,7 +94,7 @@ public class CoreApiKeyIntrospector {
                                 + ". Disable startup probe via API_KEY_STARTUP_PROBE=false to skip this check.",
                         ex);
             }
-        } catch (Exception ex) {
+        } catch (ResourceAccessException ex) {
             throw new IllegalStateException(
                     "DIAL Core /v1/user/info is unreachable at " + userInfoUrl
                             + ". Disable startup probe via API_KEY_STARTUP_PROBE=false to skip this check.",
@@ -144,7 +145,7 @@ public class CoreApiKeyIntrospector {
         } catch (RestClientResponseException ex) {
             log.debug("Core /v1/user/info rejected API key with status {}", ex.getStatusCode());
             throw new BadCredentialsException("Invalid API key");
-        } catch (Exception ex) {
+        } catch (ResourceAccessException ex) {
             log.warn("Failed to reach Core /v1/user/info at {}", userInfoUrl, ex);
             throw new AuthenticationServiceException("Failed to validate API key with DIAL Core", ex);
         }

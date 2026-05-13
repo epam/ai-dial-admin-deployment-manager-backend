@@ -88,7 +88,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void fullAdminProjectKeyCanListAndDelete() throws Exception {
+    void shouldAllowListAndDelete_whenFullAdminProjectKey() throws Exception {
         when(introspector.introspect("full-admin-key"))
                 .thenReturn(new IntrospectionResult("acme", null, List.of("admin"), true));
 
@@ -109,7 +109,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void readOnlyAdminProjectKeyCanReadButCannotDelete() throws Exception {
+    void shouldAllowReadButForbidDelete_whenReadOnlyAdminProjectKey() throws Exception {
         when(introspector.introspect("viewer-key"))
                 .thenReturn(new IntrospectionResult("acme", null, List.of("viewer"), true));
 
@@ -121,7 +121,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void jwtRootPerRequestKeyResolvesViaDefaultRolesMapping() throws Exception {
+    void shouldResolveViaDefaultRolesMapping_whenJwtRootPerRequestKey() throws Exception {
         when(introspector.introspect("per-request-key"))
                 .thenReturn(new IntrospectionResult("user-123", "u@example.com", List.of("sso-admin"), false));
 
@@ -142,7 +142,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void jwtRootPerRequestKeyReadOnlyRoleMapsToReadOnlyAdmin() throws Exception {
+    void shouldMapReadOnlyRoleToReadOnlyAdmin_whenJwtRootPerRequestKey() throws Exception {
         when(introspector.introspect("viewer-jwt-key"))
                 .thenReturn(new IntrospectionResult("user-456", "v@example.com", List.of("sso-viewer"), false));
 
@@ -154,7 +154,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void projectKeyRoleNotMappedInDefaultMappingDoesNotLeakAcross() throws Exception {
+    void shouldFailAuthorization_whenProjectKeyRoleNotInDefaultMapping() throws Exception {
         // role "admin" is mapped in api-key.roles-mapping but treated as JWT-root here.
         // It must NOT resolve via api-key.roles-mapping.
         when(introspector.introspect("misrouted"))
@@ -165,7 +165,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void unmappedRoleProducesForbidden() throws Exception {
+    void shouldReturnForbidden_whenRoleIsUnmapped() throws Exception {
         when(introspector.introspect("unmapped-key"))
                 .thenReturn(new IntrospectionResult("acme", null, List.of("unknown"), true));
 
@@ -174,7 +174,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void invalidApiKeyReturnsUnauthorized() throws Exception {
+    void shouldReturnUnauthorized_whenApiKeyIsInvalid() throws Exception {
         when(introspector.introspect(anyString()))
                 .thenThrow(new BadCredentialsException("Invalid API key"));
 
@@ -183,7 +183,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void cacheHitAvoidsSecondIntrospectionCall() throws Exception {
+    void shouldServeFromCache_whenSameKeyPresentedAgain() throws Exception {
         when(introspector.introspect("repeat-key"))
                 .thenReturn(new IntrospectionResult("acme", null, List.of("admin"), true));
 
@@ -198,7 +198,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void blankApiKeyHeaderIsTreatedAsAbsent() throws Exception {
+    void shouldTreatBlankApiKeyHeaderAsAbsent() throws Exception {
         mockMvc.perform(get(ENDPOINT).header("Api-Key", "   "))
                 .andExpect(status().is(HttpStatus.UNAUTHORIZED.value()));
 
@@ -206,7 +206,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void repeatedInvalidKeysAreNotCached() throws Exception {
+    void shouldNotCacheInvalidKeys() throws Exception {
         when(introspector.introspect("bad-key"))
                 .thenThrow(new BadCredentialsException("Invalid API key"));
 
@@ -221,7 +221,7 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void jwtTakesPrecedenceOverApiKeyWhenBothPresent() throws Exception {
+    void shouldPreferJwt_whenBothApiKeyAndJwtPresent() throws Exception {
         String jwt = JwtUtils.generateTestToken(
                 "audience_test",
                 "https://sts.windows.net/issuer_test/",
