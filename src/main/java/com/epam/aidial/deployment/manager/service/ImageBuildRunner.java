@@ -17,7 +17,6 @@ import com.epam.aidial.deployment.manager.service.pipeline.ImageWrapperBuildPipe
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -63,7 +62,7 @@ public class ImageBuildRunner {
         }
     }
 
-    private @NonNull Consumer<UUID> getPipeline(ImageDefinition imageDefinition) {
+    private Consumer<UUID> getPipeline(ImageDefinition imageDefinition) {
         var imageSource = imageDefinition.getSource();
         Consumer<UUID> pipeline;
         if (imageSource instanceof DockerImageSource) {
