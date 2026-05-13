@@ -134,11 +134,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 deploymentRepository.updateServiceName(id, serviceName);
             }
 
-            deploymentDomainEntryRepository.deleteAllByDeploymentId(id);
-            var podLabelSelector = getServiceNameLabel() + "=" + deployment.getServiceName();
-            hubbleDomainFlowService.startDeploymentObservation(id, namespace, podLabelSelector);
-
             var serviceSpec = prepareServiceSpec(deployment);
+            var podLabelSelector = getServiceNameLabel() + "=" + deployment.getServiceName();
 
             saveDisposableResource(id, deployment.getServiceName(), namespace);
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
@@ -146,11 +143,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    deploymentDomainEntryRepository.deleteAllByDeploymentId(id);
+                    hubbleDomainFlowService.startDeploymentObservation(id, namespace, podLabelSelector);
                     try {
                         createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
                                 getCiliumIngressPorts(deployment), deployment.getServiceName());
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
+                        hubbleDomainFlowService.stopDeploymentObservation(id);
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
                         log.warn(errorMessage, e);
                         markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
@@ -193,6 +193,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    hubbleDomainFlowService.stopDeploymentObservation(id);
                     try {
                         deleteService(namespace, serviceName);
                         deleteCiliumNetworkPolicy(cnpName);
