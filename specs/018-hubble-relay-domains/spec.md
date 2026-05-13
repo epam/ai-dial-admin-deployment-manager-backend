@@ -116,7 +116,7 @@ An administrator monitors a running deployment. Each deployment runs as a Kubern
 
 ## Out of Scope
 
-- **Deployment domain details REST endpoint**: The Cilium spec defines a scenario "Historical domain access available after undeploy — domain entries remain queryable in the deployment's details until the record is deleted." This feature does **not** implement a `GET /api/v1/deployments/{id}/details` domain list endpoint. Domain entries for deployments are queryable only via the SSE pod log stream (`GET /api/v1/deployments/{id}/pods/{podId}/logs`) while the stream is active or the deployment is running. Post-undeploy domain query for deployments is deferred to a future feature.
+- **Deployment domain details REST endpoint**: This feature does **not** implement a `GET /api/v1/deployments/{id}/details` domain list endpoint. Domain entries for deployments are queryable only via the SSE pod log stream (`GET /api/v1/deployments/{id}/pods/{podId}/logs`) while the stream is active or the deployment is running.
 
 ## Assumptions
 
