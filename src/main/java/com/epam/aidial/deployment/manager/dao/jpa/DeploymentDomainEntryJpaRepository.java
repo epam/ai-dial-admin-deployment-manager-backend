@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface DeploymentDomainEntryJpaRepository extends JpaRepository<DeploymentDomainEntryEntity, Long> {
 
-    List<DeploymentDomainEntryEntity> findByDeploymentIdOrderById(String deploymentId);
+    List<DeploymentDomainEntryEntity> findByDeploymentIdOrderByObservedAt(String deploymentId);
 
     void deleteByDeploymentId(String deploymentId);
 }

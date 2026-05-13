@@ -35,7 +35,7 @@ public class DeploymentDomainEntryRepository {
 
     @Transactional(readOnly = true)
     public List<DeploymentDomainEntryEntity> findAllByDeploymentId(String deploymentId) {
-        return jpaRepository.findByDeploymentIdOrderById(deploymentId);
+        return jpaRepository.findByDeploymentIdOrderByObservedAt(deploymentId);
     }
 
     @Transactional

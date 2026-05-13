@@ -36,7 +36,7 @@ public class ImageBuildDomainEntryRepository {
 
     @Transactional(readOnly = true)
     public List<ImageBuildDomainEntryEntity> findAllByImageDefinitionId(UUID imageDefinitionId) {
-        return jpaRepository.findByImageDefinitionIdOrderById(imageDefinitionId);
+        return jpaRepository.findByImageDefinitionIdOrderByObservedAt(imageDefinitionId);
     }
 
     @Transactional
