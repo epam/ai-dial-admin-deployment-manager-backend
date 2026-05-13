@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.Future;
 
 /**
@@ -87,11 +88,22 @@ public class HubbleDomainFlowService {
         imageBuildDomainEntryRepository.deleteAllByImageDefinitionId(imageDefinitionId);
 
         var key = imageDefinitionId.toString();
-        var future = hubbleExecutor.submit(() -> observeWithRetry(
-                podNamespace, podLabelSelector,
-                entry -> imageBuildDomainEntryRepository.saveIgnoreDuplicate(
-                        imageDefinitionId, entry.domain(), entry.verdict(), entry.observedAt()),
-                "build " + key));
+        var selfRef = new AtomicReference<Future<?>>();
+        var future = hubbleExecutor.submit(() -> {
+            try {
+                observeWithRetry(
+                        podNamespace, podLabelSelector,
+                        entry -> imageBuildDomainEntryRepository.saveIgnoreDuplicate(
+                                imageDefinitionId, entry.domain(), entry.verdict(), entry.observedAt()),
+                        "build " + key);
+            } finally {
+                var self = selfRef.get();
+                if (self != null) {
+                    activeBuildObservations.remove(key, self);
+                }
+            }
+        });
+        selfRef.set(future);
         var prev = activeBuildObservations.put(key, future);
         if (prev != null) {
             prev.cancel(true);
@@ -120,11 +132,22 @@ public class HubbleDomainFlowService {
             return;
         }
 
-        var future = hubbleExecutor.submit(() -> observeWithRetry(
-                podNamespace, podLabelSelector,
-                entry -> deploymentDomainEntryRepository.saveIgnoreDuplicate(
-                        deploymentId, entry.domain(), entry.verdict(), entry.observedAt()),
-                "deployment " + deploymentId));
+        var selfRef = new AtomicReference<Future<?>>();
+        var future = hubbleExecutor.submit(() -> {
+            try {
+                observeWithRetry(
+                        podNamespace, podLabelSelector,
+                        entry -> deploymentDomainEntryRepository.saveIgnoreDuplicate(
+                                deploymentId, entry.domain(), entry.verdict(), entry.observedAt()),
+                        "deployment " + deploymentId);
+            } finally {
+                var self = selfRef.get();
+                if (self != null) {
+                    activeDeploymentObservations.remove(deploymentId, self);
+                }
+            }
+        });
+        selfRef.set(future);
         var prev = activeDeploymentObservations.put(deploymentId, future);
         if (prev != null) {
             prev.cancel(true);
