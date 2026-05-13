@@ -62,7 +62,7 @@ class ApiKeyCacheTest {
     }
 
     private static ApiKeyCache newCache(int ttlSeconds, int maxSize) {
-        ApiKeyProperties properties = new ApiKeyProperties(new ObjectMapper());
+        ApiKeyProperties properties = new ApiKeyProperties(new ObjectMapper(), "");
         properties.setCacheTtlSeconds(ttlSeconds);
         properties.setCacheMaxSize(maxSize);
         return new ApiKeyCache(properties);

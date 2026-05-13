@@ -72,12 +72,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private Authentication authenticate(String apiKey) {
         IntrospectionResult result = introspector.introspect(apiKey);
-        var authorities = authorityResolver.resolve(result.rawRoles());
-        var token = new ApiKeyAuthenticationToken(result.project(), authorities);
-        token.setDetails(new UserSecurityDetails(null));
+        var authorities = authorityResolver.resolve(result.rawRoles(), result.fromProjectKey());
+        var token = new ApiKeyAuthenticationToken(result.principal(), authorities);
+        token.setDetails(new UserSecurityDetails(result.email()));
         if (authorities.isEmpty()) {
-            log.warn("Authenticated api-key for project {} has no mapped application authorities — request will be denied",
-                    result.project());
+            log.warn("Authenticated api-key principal '{}' (fromProjectKey={}) has no mapped application authorities "
+                    + "— request will be denied", result.principal(), result.fromProjectKey());
             token.setAuthenticated(false);
         }
         return token;

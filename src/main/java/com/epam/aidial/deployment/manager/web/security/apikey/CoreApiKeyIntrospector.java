@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.web.security.apikey;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
@@ -20,6 +21,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.PostConstruct;
@@ -38,10 +40,17 @@ public class CoreApiKeyIntrospector {
     private final RestTemplate restTemplate;
     private final ApiKeyProperties properties;
     private final String userInfoUrl;
+    private final String defaultPrincipalClaim;
+    private final String defaultEmailClaim;
 
-    public CoreApiKeyIntrospector(RestTemplateBuilder builder, ApiKeyProperties properties) {
+    public CoreApiKeyIntrospector(RestTemplateBuilder builder,
+                                  ApiKeyProperties properties,
+                                  @Value("${config.rest.security.default.principal-claim:sub}") String defaultPrincipalClaim,
+                                  @Value("${config.rest.security.default.email-claim:email}") String defaultEmailClaim) {
         this.properties = properties;
         this.userInfoUrl = StringUtils.removeEnd(properties.getCoreUrl(), "/") + USER_INFO_PATH;
+        this.defaultPrincipalClaim = defaultPrincipalClaim;
+        this.defaultEmailClaim = defaultEmailClaim;
         Duration timeout = Duration.ofMillis(properties.getRequestTimeoutMs());
         this.restTemplate = builder
                 .connectTimeout(timeout)
@@ -98,15 +107,26 @@ public class CoreApiKeyIntrospector {
 
     public IntrospectionResult introspect(String apiKey) {
         Map<String, Object> response = callCore(apiKey);
+        List<String> rawRoles = extractRoles(response.get("roles"));
 
-        Object projectClaim = response.get("project");
-        if (!(projectClaim instanceof String project) || StringUtils.isBlank(project)) {
-            log.warn("Core /v1/user/info response is missing the 'project' field");
-            throw new BadCredentialsException("Malformed Core user-info response");
+        if (response.get("project") instanceof String project && StringUtils.isNotBlank(project)) {
+            return new IntrospectionResult(project, null, rawRoles, true);
         }
 
-        List<String> rawRoles = extractRoles(response.get("roles"));
-        return new IntrospectionResult(project, rawRoles);
+        if (response.get("userClaims") instanceof Map<?, ?> userClaimsRaw && !userClaimsRaw.isEmpty()) {
+            Map<String, List<String>> userClaims = normalizeUserClaims(userClaimsRaw);
+            String principal = firstNonBlank(userClaims.get(defaultPrincipalClaim));
+            if (StringUtils.isBlank(principal)) {
+                log.warn("Core /v1/user/info userClaims response is missing the configured principal claim '{}'",
+                        defaultPrincipalClaim);
+                throw new BadCredentialsException("Malformed Core user-info response");
+            }
+            String email = firstNonBlank(userClaims.get(defaultEmailClaim));
+            return new IntrospectionResult(principal, email, rawRoles, false);
+        }
+
+        log.warn("Core /v1/user/info response contains neither 'project' nor 'userClaims'");
+        throw new BadCredentialsException("Malformed Core user-info response");
     }
 
     private Map<String, Object> callCore(String apiKey) {
@@ -143,5 +163,35 @@ public class CoreApiKeyIntrospector {
                     .toList();
         }
         return List.of();
+    }
+
+    private static Map<String, List<String>> normalizeUserClaims(Map<?, ?> raw) {
+        Map<String, List<String>> result = new HashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (!(entry.getKey() instanceof String name)) {
+                continue;
+            }
+            Object value = entry.getValue();
+            if (value instanceof List<?> list) {
+                List<String> strings = list.stream()
+                        .filter(String.class::isInstance)
+                        .map(String.class::cast)
+                        .toList();
+                result.put(name, strings);
+            } else if (value instanceof String s) {
+                result.put(name, List.of(s));
+            }
+        }
+        return result;
+    }
+
+    private static String firstNonBlank(List<String> values) {
+        if (values == null) {
+            return null;
+        }
+        return values.stream()
+                .filter(StringUtils::isNotBlank)
+                .findFirst()
+                .orElse(null);
     }
 }

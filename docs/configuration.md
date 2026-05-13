@@ -462,19 +462,34 @@ For detailed instructions on setting up Azure and Keycloak providers, please ref
 
 Applied when: `config.rest.security.mode=oidc` and `config.rest.security.api-key.enabled=true`.
 
-When enabled, DM accepts an `Api-Key` header as an alternative credential alongside JWT/OIDC. Keys are validated by delegating to DIAL Core's `GET /v1/user/info` endpoint; Core's `roles` are mapped to DM's application roles via `api-key.roles-mapping`. JWT/OIDC continues to work unchanged. When both `Api-Key` and `Authorization` headers are present, the JWT path takes precedence and the `Api-Key` is ignored.
+When enabled, DM accepts an `Api-Key` header as an alternative credential alongside JWT/OIDC. Keys are validated by delegating to DIAL Core's `GET /v1/user/info` endpoint. DM handles both kinds of credentials Core may surface:
+
+| Response shape from Core `/v1/user/info` | Caller                                                     | Spring principal                          | Roles mapped via                         | `UserSecurityDetails.email`         |
+|------------------------------------------|------------------------------------------------------------|-------------------------------------------|------------------------------------------|-------------------------------------|
+| `{roles, project}`                       | Project key (or per-request key minted from a project-key root) | `project`                                 | `api-key.roles-mapping`                  | `null`                              |
+| `{roles, userClaims}`                    | Per-request key minted from a JWT root (Core → DM-MCP → DM chain) | `userClaims[default.principal-claim]`     | `default.roles-mapping`                  | `userClaims[default.email-claim]`   |
+
+When both `Api-Key` and `Authorization` headers are present, the JWT/opaque-token path takes precedence and the `Api-Key` is ignored.
 
 | Property                                              | Environment Variable          | Default | Required               | Description                                                                                                            |
 | ----------------------------------------------------- | ----------------------------- | ------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `config.rest.security.api-key.enabled`                | `API_KEY_ENABLED`             | `false` | No                     | If `true` (and `mode=oidc`), the `Api-Key` header is accepted as an alternative credential.                            |
 | `config.rest.security.api-key.core-url`               | `API_KEY_CORE_URL`            | -       | Yes, when `enabled=true` | Base URL of DIAL Core (e.g. `http://dial-core`). DM appends `/v1/user/info` when validating API keys.                |
 | `config.rest.security.api-key.cache-ttl-seconds`      | `API_KEY_CACHE_TTL_SECONDS`   | `60`    | No                     | TTL for cached introspection results (in-process Caffeine cache). Mirrors Core's own user-info cache TTL.              |
-| `config.rest.security.api-key.cache-max-size`         | `API_KEY_CACHE_MAX_SIZE`      | `10000` | No                     | Maximum entries in the introspection cache.                                                                            |
+| `config.rest.security.api-key.cache-max-size`         | `API_KEY_CACHE_MAX_SIZE`      | `10000` | No                     | Maximum entries in the introspection cache. Per-request keys are higher-cardinality than project keys; raise this if eviction pressure shows up in metrics. |
 | `config.rest.security.api-key.request-timeout-ms`     | `API_KEY_REQUEST_TIMEOUT_MS`  | `3000`  | No                     | Per-call timeout (connect + read) for HTTP requests to Core's `/v1/user/info`.                                         |
-| `config.rest.security.api-key.roles-mapping`          | `API_KEY_ROLES_MAPPING`       | -       | Yes, when `enabled=true` | JSON mapping of Core role names to DM application roles. Same shape as `providers.*.roles-mapping`. Must map at least one Core role to `FULL_ADMIN` or `READ_ONLY_ADMIN`; DM fails to start on a blank or empty (`{}`) mapping. |
+| `config.rest.security.api-key.roles-mapping`          | `API_KEY_ROLES_MAPPING`       | -       | At least one of `api-key.roles-mapping` or `default.roles-mapping` must be non-empty when `enabled=true` | JSON mapping of Core **project-key** role names to DM application roles. Same shape as `providers.*.roles-mapping`. Used only for the `{project, roles}` response shape. |
 | `config.rest.security.api-key.startup-probe`          | `API_KEY_STARTUP_PROBE`       | `true`  | No                     | If `true`, DM probes `<core-url>/v1/user/info` once at startup and aborts boot if the URL is unreachable.              |
 
-**Example** — accept API keys for machine callers, mapping Core's `admin` role to `FULL_ADMIN`:
+The JWT-rooted (`userClaims`) path reuses **OIDC defaults** to extract the principal/email and to map roles. The relevant properties are configured in the OIDC block (`config.rest.security.default.*`), not under `api-key.*`:
+
+| Property                                            | Used by api-key path for...                  |
+|-----------------------------------------------------|----------------------------------------------|
+| `config.rest.security.default.roles-mapping`        | Mapping JWT-root roles to FULL_ADMIN / READ_ONLY_ADMIN |
+| `config.rest.security.default.principal-claim`      | Picking the Spring principal from `userClaims`. Same value used for direct JWT auth (application default: `oid`). |
+| `config.rest.security.default.email-claim`          | Picking the email from `userClaims`. Same value used for direct JWT auth (application default: `unique_name`). |
+
+**Example — only project-key callers (CI/CD machines):**
 
 ```
 API_KEY_ENABLED=true
@@ -482,12 +497,25 @@ API_KEY_CORE_URL=http://dial-core
 API_KEY_ROLES_MAPPING={"admin":["FULL_ADMIN"],"default":["READ_ONLY_ADMIN"]}
 ```
 
+**Example — only JWT-rooted per-request keys (admin UI through DM-MCP):**
+
+```
+API_KEY_ENABLED=true
+API_KEY_CORE_URL=http://dial-core
+# Reuse the same default.roles-mapping that authenticates SSO users calling DM directly:
+SECURITY_ROLES_MAPPING={"sso-admin":["FULL_ADMIN"],"sso-viewer":["READ_ONLY_ADMIN"]}
+# api-key.roles-mapping can be left empty in this topology.
+```
+
 **Notes:**
 
 - API keys themselves live in DIAL Core (`config.json` for project keys, or Redis for per-request keys). DM does not store or persist keys; the cache only holds `sha256(apiKey)` for the configured TTL.
 - Any non-2xx response from Core (including 401, 403, 404, 5xx) is mapped to 401 to the caller; a transport-level failure (connect timeout, refused) returns 503.
-- Cache failures are never cached: revoked keys propagate after at most one cache TTL.
+- A 200 response that contains neither `project` nor a non-empty `userClaims` is treated as malformed and rejected with 401 (not cached).
+- For JWT-rooted callers, audit fields (`deployment.author`, `imageDefinition.author`, `AuditRevision.email`) record the end-user email from `userClaims[default.email-claim]`. Project-key callers have `null` email.
+- Failures are never cached: revoked keys propagate after at most one cache TTL.
 - When the JWT path validates a request, the api-key filter is a no-op; existing JWT flows are unaffected.
+- Boot fails if **both** `api-key.roles-mapping` and `default.roles-mapping` are blank or `{}` (every authenticated caller would otherwise be rejected with 403). Either alone is sufficient.
 
 ## Cloud Provider Configuration
 

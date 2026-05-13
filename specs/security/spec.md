@@ -147,15 +147,39 @@ Status: **Implemented**
 - **THEN** the response status is 403 and the body follows the `ErrorView` contract
 
 ### Requirement: API-key authentication via DIAL Core delegation
-In `oidc` mode with `config.rest.security.api-key.enabled=true`, the system SHALL also accept `Api-Key` headers and validate them by calling DIAL Core's `/v1/user/info` endpoint. Roles returned by Core SHALL be mapped to application roles via `config.rest.security.api-key.roles-mapping`.
+In `oidc` mode with `config.rest.security.api-key.enabled=true`, the system SHALL also accept `Api-Key` headers and validate them by calling DIAL Core's `/v1/user/info` endpoint. Validation handles both project keys and per-request keys (project-key roots and JWT roots). Roles SHALL be mapped to application roles via `config.rest.security.api-key.roles-mapping` for project-key responses, or via `config.rest.security.default.roles-mapping` for JWT-rooted `userClaims` responses.
 
 Status: **Implemented** (feature 018-api-key-via-core-userinfo)
 
-#### Scenario: Valid api-key, no Authorization header
+#### Scenario: Valid project-key, no Authorization header
 - **WHEN** a request includes `Api-Key: <valid-key>` and no `Authorization` header
-- **THEN** DM calls Core's `/v1/user/info` with `Api-Key: <valid-key>`
-- **AND** on HTTP 200 maps `roles` to application roles via `api-key.roles-mapping`
-- **AND** sets the Spring principal to the response `project` field
+- **AND** Core's `/v1/user/info` responds `{"roles":[...], "project":"<p>"}` (project-key auth, or per-request key minted from a project-key root)
+- **THEN** DM maps `roles` to application roles via `api-key.roles-mapping`
+- **AND** sets the Spring principal to `project`
+- **AND** sets `UserSecurityDetails.email` to null
+
+#### Scenario: JWT-rooted per-request key (Core → DM-MCP → DM chain)
+- **WHEN** a request includes `Api-Key: <per-request-key>` whose Core root was a JWT
+- **AND** Core's `/v1/user/info` responds `{"roles":[...], "userClaims":{...}}` (no `project`)
+- **THEN** DM maps `roles` to application roles via `config.rest.security.default.roles-mapping`
+- **AND** sets the Spring principal to `userClaims[default.principal-claim]`
+- **AND** sets `UserSecurityDetails.email` to `userClaims[default.email-claim]` (or null if absent)
+- **AND** audit fields (`deployment.author`, `imageDefinition.author`, `AuditRevision.email`) record the end-user email
+
+#### Scenario: JWT-rooted per-request key with missing principal claim
+- **WHEN** Core's `/v1/user/info` response has `userClaims` but lacks the configured `default.principal-claim`
+- **THEN** DM returns 401 (`Malformed Core user-info response`)
+- **AND** the failure is NOT cached
+
+#### Scenario: Response carries neither `project` nor `userClaims`
+- **WHEN** Core's `/v1/user/info` returns 200 with neither field populated
+- **THEN** DM returns 401 (`Malformed Core user-info response`)
+- **AND** the failure is NOT cached
+
+#### Scenario: Cross-mapping isolation
+- **WHEN** a role name appears in `api-key.roles-mapping` but not in `default.roles-mapping`, and Core returns that role on the JWT-rooted (`userClaims`) path
+- **THEN** the request is authenticated but receives no application authorities; protected endpoints return 403
+- **AND** symmetrically: a role only in `default.roles-mapping` is not granted on the project-key path
 
 #### Scenario: Invalid api-key
 - **WHEN** Core's `/v1/user/info` responds non-200 for the supplied key
@@ -168,7 +192,7 @@ Status: **Implemented** (feature 018-api-key-via-core-userinfo)
 - **AND** DM does NOT call Core's `/v1/user/info`
 
 #### Scenario: Api-key role with no mapping
-- **WHEN** Core returns roles that have no entry in `api-key.roles-mapping`
+- **WHEN** Core returns roles that have no entry in the applicable mapping (`api-key.roles-mapping` for project-key path, `default.roles-mapping` for JWT-root path)
 - **THEN** the request is authenticated but receives no application authorities
 - **AND** any protected endpoint returns 403
 
@@ -186,10 +210,10 @@ Status: **Implemented** (feature 018-api-key-via-core-userinfo)
 - **WHEN** `api-key.enabled=true`, `api-key.startup-probe=true`, and `core-url` is unreachable at startup
 - **THEN** DM fails to start with a clear error log
 
-#### Scenario: Empty roles-mapping rejected at startup
-- **WHEN** `api-key.enabled=true` and `api-key.roles-mapping` is blank or parses to an empty object
-- **THEN** DM fails to start with a clear error message naming `api-key.roles-mapping`
-- **AND** the rationale is that an empty mapping would 403 every API-key request, so the feature would be enabled but unusable
+#### Scenario: Both roles mappings empty rejected at startup
+- **WHEN** `api-key.enabled=true` and **both** `api-key.roles-mapping` and `default.roles-mapping` are blank or parse to empty objects
+- **THEN** DM fails to start with a clear error message naming both properties
+- **AND** the rationale is that with both empty, every authenticated api-key caller would receive 403, so the feature would be enabled but unusable. Either alone is sufficient: operators serving only project-key callers can leave `default.roles-mapping` empty; operators whose api-key traffic is purely JWT-rooted per-request keys can leave `api-key.roles-mapping` empty
 
 ## Mutating endpoints protected by @FullAdminOnly
 
@@ -224,5 +248,5 @@ Status: **Implemented** (feature 018-api-key-via-core-userinfo)
 - Always-public paths: `/api/v1/health/**`, `/api/internal/**`
 - Conditionally-public paths: `/swagger-ui/**`, `/v3/api-docs/**` (only when `config.rest.security.disable-swagger-authorization=true`)
 - Azure Identity SDK: azure-identity 1.18.0; credential types in `AzureAuthConfig`: managed identity, CLI, client-secret
-- API-key authentication (oidc mode only, opt-in via `config.rest.security.api-key.enabled=true`): `ApiKeyAuthenticationFilter` (under `web/security/apikey/`, registered as a `@Bean` inside `OidcSecurityConfiguration` and installed via `addFilterBefore(BearerTokenAuthenticationFilter)`); introspector `CoreApiKeyIntrospector` calls Core's `/v1/user/info`; results cached in `ApiKeyCache` (Caffeine, key=`sha256(apiKey)`, TTL from `api-key.cache-ttl-seconds`); role mapping via `ApiKeyAuthorityResolver` using `UserRolesResolver` directly on `api-key.roles-mapping` (no merge with `default.roles-mapping`); principal = Core's `project` field carried by `ApiKeyAuthenticationToken`.
+- API-key authentication (oidc mode only, opt-in via `config.rest.security.api-key.enabled=true`): `ApiKeyAuthenticationFilter` (under `web/security/apikey/`, registered as a `@Bean` inside `OidcSecurityConfiguration` and installed via `addFilterBefore(BearerTokenAuthenticationFilter)`); introspector `CoreApiKeyIntrospector` calls Core's `/v1/user/info` and parses either `{project, roles}` (project-key auth, including per-request keys minted from a project-key root) or `{userClaims, roles}` (JWT-rooted per-request keys from the Core → DM-MCP → DM chain); results cached in `ApiKeyCache` (Caffeine, key=`sha256(apiKey)`, TTL from `api-key.cache-ttl-seconds`); role mapping via `ApiKeyAuthorityResolver` which routes by response shape — project-key responses resolve through `api-key.roles-mapping`, `userClaims` responses through `default.roles-mapping` (no cross-mapping); principal = `project` or `userClaims[default.principal-claim]` carried by `ApiKeyAuthenticationToken`; `UserSecurityDetails.email` populated from `userClaims[default.email-claim]` for JWT-root callers so audit fields record the end user.
 - Related specs: `api-conventions`, `008-read-only-role`, `018-api-key-via-core-userinfo`

@@ -43,10 +43,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = ImageDefinitionController.class)
 @TestPropertySource(properties = {
         "config.rest.security.mode=oidc",
-        "config.rest.security.default.email-claim=unique_name",
+        "config.rest.security.default.email-claim=email",
         "config.rest.security.default.principal-claim=oid",
         "config.rest.security.default.allowedRoles=ConfigAdmin,admin",
-        "config.rest.security.default.roles-mapping={}",
+        "config.rest.security.default.roles-mapping={\"sso-admin\":[\"FULL_ADMIN\"],\"sso-viewer\":[\"READ_ONLY_ADMIN\"]}",
 
         "providers.test.issuer=https://sts.windows.net/issuer_test/",
         "providers.test.jwk-set-uri=https://test/keys",
@@ -88,9 +88,9 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void fullAdminApiKeyCanListAndDelete() throws Exception {
+    void fullAdminProjectKeyCanListAndDelete() throws Exception {
         when(introspector.introspect("full-admin-key"))
-                .thenReturn(new IntrospectionResult("acme", List.of("admin")));
+                .thenReturn(new IntrospectionResult("acme", null, List.of("admin"), true));
 
         mockMvc.perform(get(ENDPOINT).header("Api-Key", "full-admin-key"))
                 .andExpect(status().is(HttpStatus.OK.value()))
@@ -109,9 +109,9 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
-    void readOnlyAdminApiKeyCanReadButCannotDelete() throws Exception {
+    void readOnlyAdminProjectKeyCanReadButCannotDelete() throws Exception {
         when(introspector.introspect("viewer-key"))
-                .thenReturn(new IntrospectionResult("acme", List.of("viewer")));
+                .thenReturn(new IntrospectionResult("acme", null, List.of("viewer"), true));
 
         mockMvc.perform(get(ENDPOINT).header("Api-Key", "viewer-key"))
                 .andExpect(status().is(HttpStatus.OK.value()));
@@ -121,9 +121,53 @@ class ApiKeyControllerSecurityTest {
     }
 
     @Test
+    void jwtRootPerRequestKeyResolvesViaDefaultRolesMapping() throws Exception {
+        when(introspector.introspect("per-request-key"))
+                .thenReturn(new IntrospectionResult("user-123", "u@example.com", List.of("sso-admin"), false));
+
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "per-request-key"))
+                .andExpect(status().is(HttpStatus.OK.value()))
+                .andExpect(authenticated().withAuthentication(auth -> {
+                    assertThat(auth.getName()).isEqualTo("user-123");
+                    assertThat(auth.getAuthorities())
+                            .extracting("authority")
+                            .containsExactly(UserRole.FULL_ADMIN.name());
+                    assertThat(auth.getDetails()).isInstanceOfSatisfying(
+                            UserSecurityDetails.class,
+                            details -> assertThat(details.email()).isEqualTo("u@example.com"));
+                }));
+
+        mockMvc.perform(delete(ENDPOINT + "/{id}", TEST_ID).header("Api-Key", "per-request-key"))
+                .andExpect(status().is(HttpStatus.NO_CONTENT.value()));
+    }
+
+    @Test
+    void jwtRootPerRequestKeyReadOnlyRoleMapsToReadOnlyAdmin() throws Exception {
+        when(introspector.introspect("viewer-jwt-key"))
+                .thenReturn(new IntrospectionResult("user-456", "v@example.com", List.of("sso-viewer"), false));
+
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "viewer-jwt-key"))
+                .andExpect(status().is(HttpStatus.OK.value()));
+
+        mockMvc.perform(delete(ENDPOINT + "/{id}", TEST_ID).header("Api-Key", "viewer-jwt-key"))
+                .andExpect(status().is(HttpStatus.FORBIDDEN.value()));
+    }
+
+    @Test
+    void projectKeyRoleNotMappedInDefaultMappingDoesNotLeakAcross() throws Exception {
+        // role "admin" is mapped in api-key.roles-mapping but treated as JWT-root here.
+        // It must NOT resolve via api-key.roles-mapping.
+        when(introspector.introspect("misrouted"))
+                .thenReturn(new IntrospectionResult("user-789", null, List.of("admin"), false));
+
+        mockMvc.perform(get(ENDPOINT).header("Api-Key", "misrouted"))
+                .andExpect(status().is(HttpStatus.FORBIDDEN.value()));
+    }
+
+    @Test
     void unmappedRoleProducesForbidden() throws Exception {
         when(introspector.introspect("unmapped-key"))
-                .thenReturn(new IntrospectionResult("acme", List.of("unknown")));
+                .thenReturn(new IntrospectionResult("acme", null, List.of("unknown"), true));
 
         mockMvc.perform(get(ENDPOINT).header("Api-Key", "unmapped-key"))
                 .andExpect(status().is(HttpStatus.FORBIDDEN.value()));
@@ -141,7 +185,7 @@ class ApiKeyControllerSecurityTest {
     @Test
     void cacheHitAvoidsSecondIntrospectionCall() throws Exception {
         when(introspector.introspect("repeat-key"))
-                .thenReturn(new IntrospectionResult("acme", List.of("admin")));
+                .thenReturn(new IntrospectionResult("acme", null, List.of("admin"), true));
 
         mockMvc.perform(get(ENDPOINT).header("Api-Key", "repeat-key"))
                 .andExpect(status().is(HttpStatus.OK.value()));

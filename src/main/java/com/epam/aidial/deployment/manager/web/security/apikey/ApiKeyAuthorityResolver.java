@@ -17,13 +17,21 @@ import java.util.List;
 @ConditionalOnProperty(value = "config.rest.security.api-key.enabled", havingValue = "true")
 public class ApiKeyAuthorityResolver {
 
-    private final UserRolesResolver delegate;
+    private final UserRolesResolver projectKeyResolver;
+    private final UserRolesResolver userClaimsResolver;
 
     public ApiKeyAuthorityResolver(ApiKeyProperties properties) {
-        this.delegate = new UserRolesResolver(properties.getParsedRolesMapping());
+        // Project-key responses (response.project present) use api-key.roles-mapping —
+        // Core's project-key role names (e.g. "admin", "default") get their own mapping.
+        this.projectKeyResolver = new UserRolesResolver(properties.getParsedRolesMapping());
+        // JWT-rooted per-request key responses (response.userClaims present) use the OIDC
+        // default.roles-mapping — the JWT roles are the same names the user would carry
+        // when calling DM directly with a JWT, so the same mapping applies.
+        this.userClaimsResolver = new UserRolesResolver(properties.getParsedDefaultRolesMapping());
     }
 
-    public Collection<? extends GrantedAuthority> resolve(List<String> rawRoles) {
+    public Collection<? extends GrantedAuthority> resolve(List<String> rawRoles, boolean fromProjectKey) {
+        UserRolesResolver delegate = fromProjectKey ? projectKeyResolver : userClaimsResolver;
         List<SimpleGrantedAuthority> granted = rawRoles.stream()
                 .map(SimpleGrantedAuthority::new)
                 .toList();
