@@ -16,6 +16,7 @@ public interface NodePoolDtoMapper {
     List<NodePoolDto> toNodePoolDtoList(List<PoolConfig> configs);
 
     default NodePoolListResponseDto toListResponse(NodePoolProperties properties) {
-        return new NodePoolListResponseDto(toNodePoolDtoList(properties.getPools()));
+        List<PoolConfig> pools = properties.getPools() == null ? List.of() : properties.getPools();
+        return new NodePoolListResponseDto(toNodePoolDtoList(pools));
     }
 }

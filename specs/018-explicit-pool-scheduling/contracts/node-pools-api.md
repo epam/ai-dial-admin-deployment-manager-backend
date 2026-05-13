@@ -113,8 +113,9 @@ Response carries the stored `nodePoolId` value verbatim (id string or null) **an
 
 **Behaviour** (FR-021):
 
-- The import flow consumes the import DTO; the DTO does NOT declare `nodePoolId`. Legacy exports that carry `nodePool` or `nodePoolId` are silently dropped by Jackson on the import side (the import-side `ObjectMapper` uses default `FAIL_ON_UNKNOWN_PROPERTIES = false`).
-- Each imported deployment goes through the target environment's normal `create(...)` flow with `nodePoolId` absent → cascade runs per FR-018 → record is stamped with the target environment's appropriate default (or null).
+- The import flow consumes the import DTO; the DTO does NOT declare `nodePoolId`. Legacy exports that carry `nodePool` or `nodePoolId` are silently dropped by Jackson on the import side (the import-side `ObjectMapper` uses default `FAIL_ON_UNKNOWN_PROPERTIES = false`). Both branches below therefore see `nodePoolId` absent on the inbound payload.
+- **Newly created imports** (no existing deployment with the same id): go through `create(...)` with `nodePoolId` absent → cascade runs per FR-018 inside the create path → record is stamped with the target environment's appropriate default (or null).
+- **OVERWRITE imports** (conflict policy `OVERWRITE`, existing deployment in target): the import layer applies the FR-018 cascade to the request (via `NodePoolService.resolveForCreate`) before invoking `update(...)`, so the overwritten record ends up stamped with the same value it would have received as a fresh create. Direct user-issued updates remain PUT-style and do not invoke the cascade (FR-014) — only the import layer pre-stamps the request.
 - No cross-environment pool validation; no partial-success rejection; import succeeds regardless of source/target pool naming differences.
 
 ## 8. Startup-time validation errors
