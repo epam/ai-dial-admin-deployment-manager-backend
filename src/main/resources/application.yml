@@ -399,6 +399,14 @@ config:
         roles-mapping: "${SECURITY_ROLES_MAPPING:{}}"
         email-claim: ${CLAIMS_EMAIL_KEY:unique_name}
         principal-claim: ${SECURITY_USER_CLAIM:oid}
+      api-key:
+        enabled: ${API_KEY_ENABLED:false}
+        core-url: ${API_KEY_CORE_URL:}
+        cache-ttl-seconds: ${API_KEY_CACHE_TTL_SECONDS:60}
+        cache-max-size: ${API_KEY_CACHE_MAX_SIZE:10000}
+        request-timeout-ms: ${API_KEY_REQUEST_TIMEOUT_MS:3000}
+        roles-mapping: "${API_KEY_ROLES_MAPPING:}"
+        startup-probe: ${API_KEY_STARTUP_PROBE:true}
 
 azure:
   auth:

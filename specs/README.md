@@ -31,6 +31,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [015-nim-kserve-migration](015-nim-kserve-migration/spec.md) | Implemented | nim-deployments, kubernetes-manifests | Migrate NIM CRD generation to KServe `inferencePlatform` (opt-in via env flag) |
 | [016-node-pool-selector](016-node-pool-selector/spec.md) | Implemented | deployments | Node-pool selector API + per-deployment node pool assignment |
 | [017-stop-image-build](017-stop-image-build/spec.md) | Implemented | image-builds | Stop in-flight image builds from the UI/API |
+| [018-api-key-via-core-userinfo](018-api-key-via-core-userinfo/spec.md) | Implemented | security | Accept `Api-Key` header in oidc mode; validate via DIAL Core `/v1/user/info` |
 | [018-explicit-pool-scheduling](018-explicit-pool-scheduling/spec.md) | Implemented | deployments | Replace derived label-key + capacity-numbers pool config with explicit nodeSelector/affinity/tolerations; create-time defaults cascade for new deployments |
 
 ---
