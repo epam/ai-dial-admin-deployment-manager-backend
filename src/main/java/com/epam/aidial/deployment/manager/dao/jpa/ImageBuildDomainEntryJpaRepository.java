@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface ImageBuildDomainEntryJpaRepository extends JpaRepository<ImageBuildDomainEntryEntity, Long> {
 
     List<ImageBuildDomainEntryEntity> findByImageDefinitionIdOrderById(UUID imageDefinitionId);
+
+    void deleteByImageDefinitionId(UUID imageDefinitionId);
 }

@@ -38,4 +38,9 @@ public class ImageBuildDomainEntryRepository {
     public List<ImageBuildDomainEntryEntity> findAllByImageDefinitionId(UUID imageDefinitionId) {
         return jpaRepository.findByImageDefinitionIdOrderById(imageDefinitionId);
     }
+
+    @Transactional
+    public void deleteAllByImageDefinitionId(UUID imageDefinitionId) {
+        jpaRepository.deleteByImageDefinitionId(imageDefinitionId);
+    }
 }

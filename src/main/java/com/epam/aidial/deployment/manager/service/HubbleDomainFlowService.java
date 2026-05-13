@@ -76,6 +76,8 @@ public class HubbleDomainFlowService {
             return;
         }
 
+        imageBuildDomainEntryRepository.deleteAllByImageDefinitionId(imageDefinitionId);
+
         var key = imageDefinitionId.toString();
         var future = hubbleExecutor.submit(() -> observeWithRetry(
                 podNamespace, podLabelSelector,
