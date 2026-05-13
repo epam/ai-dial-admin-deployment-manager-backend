@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -80,11 +81,11 @@ public class OidcSecurityConfiguration {
     }
 
     @Bean
-    public FilterRegistrationBean<ApiKeyAuthenticationFilter> apiKeyFilterRegistration(ObjectProvider<ApiKeyAuthenticationFilter> filter) {
+    @ConditionalOnBean(ApiKeyAuthenticationFilter.class)
+    public FilterRegistrationBean<ApiKeyAuthenticationFilter> apiKeyFilterRegistration(ApiKeyAuthenticationFilter filter) {
         // Suppress Spring Boot's auto-registration: the filter is wired into the Spring Security chain
         // via addFilterBefore() in securityFilterChain(), not as a top-level servlet filter.
-        FilterRegistrationBean<ApiKeyAuthenticationFilter> registration = new FilterRegistrationBean<>();
-        filter.ifAvailable(registration::setFilter);
+        FilterRegistrationBean<ApiKeyAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }
