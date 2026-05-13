@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRe
 import com.epam.aidial.deployment.manager.dao.repository.ImageBuildDomainEntryRepository;
 import com.epam.aidial.deployment.manager.kubernetes.hubble.HubbleFlowObserver;
 import com.epam.aidial.deployment.manager.model.DomainEntry;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,15 @@ public class HubbleDomainFlowService {
         this.ciliumNetworkPoliciesEnabled = ciliumNetworkPoliciesEnabled;
     }
 
+    @PostConstruct
+    void warnIfMisconfigured() {
+        if (properties.isEnabled() && !ciliumNetworkPoliciesEnabled) {
+            log.warn("Hubble Relay is enabled but CILIUM_NETWORK_POLICIES_ENABLED=false — "
+                    + "Cilium is not enforcing DNS policies so no DNS flows will be visible; "
+                    + "domain streaming will produce no events");
+        }
+    }
+
     /**
      * Starts a Hubble observation session for an image build pod.
      * No-op when Hubble Relay is disabled or Cilium is not enforcing policies.
@@ -71,9 +81,6 @@ public class HubbleDomainFlowService {
             return;
         }
         if (!ciliumNetworkPoliciesEnabled) {
-            log.warn("Hubble Relay is enabled but CILIUM_NETWORK_POLICIES_ENABLED=false — "
-                    + "Cilium is not enforcing DNS policies so no DNS flows will be visible; "
-                    + "domain streaming will produce no events");
             return;
         }
 
@@ -107,9 +114,6 @@ public class HubbleDomainFlowService {
             return;
         }
         if (!ciliumNetworkPoliciesEnabled) {
-            log.warn("Hubble Relay is enabled but CILIUM_NETWORK_POLICIES_ENABLED=false — "
-                    + "Cilium is not enforcing DNS policies so no DNS flows will be visible; "
-                    + "domain streaming will produce no events");
             return;
         }
 
