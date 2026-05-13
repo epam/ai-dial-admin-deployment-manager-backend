@@ -1,7 +1,7 @@
 # Implementation Plan: Explicit Node Pool Scheduling
 
 **Branch**: `018-explicit-pool-scheduling` | **Date**: 2026-05-11 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/018-explicit-pool-scheduling/spec.md`
+**Input**: Feature specification from `/specs/019-explicit-pool-scheduling/spec.md`
 
 ## Summary
 
@@ -47,7 +47,7 @@ All gates PASS. No deviations requiring justification in Complexity Tracking.
 ### Documentation (this feature)
 
 ```text
-specs/018-explicit-pool-scheduling/
+specs/019-explicit-pool-scheduling/
 ├── plan.md              # This file
 ├── spec.md              # Feature specification
 ├── research.md          # Phase 0 — decisions on YAML parsing, Fabric8 deserialization, listing-API shape

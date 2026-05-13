@@ -1,10 +1,10 @@
 ---
-description: "Task list for implementing 018-explicit-pool-scheduling"
+description: "Task list for implementing 019-explicit-pool-scheduling"
 ---
 
 # Tasks: Explicit Node Pool Scheduling
 
-**Input**: Design documents from `specs/018-explicit-pool-scheduling/`
+**Input**: Design documents from `specs/019-explicit-pool-scheduling/`
 **Prerequisites**: plan.md (loaded), spec.md (4 user stories — US1/US2 P1, US3/US4 P2), research.md, data-model.md, contracts/, quickstart.md
 
 **Tests**: Included as per Constitution Testing Conventions — all new service/controller code carries unit tests, and the user-facing acceptance scenarios are covered by integration tests.
@@ -137,7 +137,7 @@ This phase intentionally contains no tasks. Proceed to Phase 2.
 - [ ] T039 [P] Confirm OpenAPI `@Schema` documentation on `NodePoolDto`, `NodePoolListResponseDto`, the deployment create / update request DTOs reflects the new field semantics (omit / null / value rules for `nodePoolId`; `defaults` block omission rule). Run `./gradlew bootRun`, hit `/v3/api-docs`, and inspect.
 - [ ] T040 Run `./gradlew checkstyleMain checkstyleTest` and resolve any violations introduced by the schema reshape / new files.
 - [ ] T041 Run `./gradlew testFast` to verify the H2-only test suite passes end-to-end.
-- [ ] T042 Run the manual smoke test in `specs/018-explicit-pool-scheduling/quickstart.md` §1–§9 against a local app instance. Verify each section behaves as documented.
+- [ ] T042 Run the manual smoke test in `specs/019-explicit-pool-scheduling/quickstart.md` §1–§9 against a local app instance. Verify each section behaves as documented.
 - [ ] T043 Final `./gradlew clean build` to confirm the full suite (including PostgreSQL + SQL Server Testcontainers) passes.
 
 ---
@@ -156,7 +156,7 @@ This phase intentionally contains no tasks. Proceed to Phase 2.
 - [X] T051 [P] Update `NodePoolDtoMapper.toListResponse(...)` to read `getDefaultPoolId()` / `getDefaultModelPoolId()`.
 - [X] T052 [P] Tests: `NodePoolConfigurationTest` covers id-blank, id-duplicate, name-duplicate, defaults-reference-id; `NodePoolServiceTest` mocks `getDefaultPoolId` / `getDefaultModelPoolId`; `NodePoolControllerTest` JSON resource updated to the new id-bearing shape; `DeploymentExportMixInTest` covers the renamed field; `DeploymentControllerTest` / `DeploymentInternalControllerTest` add `@MockitoBean NodePoolProperties` to the slice (mapper dependency).
 - [X] T053 [P] Rewrite the **Node Pool Configuration** section of `docs/configuration.md` to lead with `id` (immutable) vs `name` (display), include the migration cutover guidance ("set `id` to the previous `name` on the first post-migration config to preserve continuity for existing rows").
-- [X] T054 Update `specs/018-explicit-pool-scheduling/spec.md` (Key Entities, Story 1 acceptance scenarios for rename, Clarifications Session 2026-05-12) and `specs/018-explicit-pool-scheduling/data-model.md` (§1 PoolConfig, §2 persistence column + state table, §4 DTOs).
+- [X] T054 Update `specs/019-explicit-pool-scheduling/spec.md` (Key Entities, Story 1 acceptance scenarios for rename, Clarifications Session 2026-05-12) and `specs/019-explicit-pool-scheduling/data-model.md` (§1 PoolConfig, §2 persistence column + state table, §4 DTOs).
 
 ---
 
