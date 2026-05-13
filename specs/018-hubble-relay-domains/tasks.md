@@ -114,8 +114,8 @@ All Java source paths are relative to:
 
 **Purpose**: Documentation, schema regen, and final verification.
 
-- [ ] T029 [P] Update `docs/configuration.md` with Hubble Relay configuration section: document all `HUBBLE_RELAY_*` env vars (`HUBBLE_RELAY_ENABLED`, `HUBBLE_RELAY_HOST`, `HUBBLE_RELAY_NAMESPACE`, `HUBBLE_RELAY_POD_LABEL_SELECTOR`, `HUBBLE_RELAY_PORT`, `HUBBLE_RELAY_CONNECT_RETRY_COUNT`, `HUBBLE_RELAY_CONNECT_RETRY_INTERVAL_MS`, `HUBBLE_RELAY_TLS_ENABLED`, `HUBBLE_RELAY_CA_CERT_PATH`) with types, defaults, and descriptions matching `quickstart.md`; include note that `HUBBLE_RELAY_ENABLED=true` requires `CILIUM_NETWORK_POLICIES_ENABLED=true`
-- [ ] T030 Run `./gradlew generateDbSchema` to regenerate `docs/db-schema.md` after the V1.59 and V1.60 migrations are in place; commit the updated file
+- [X] T029 [P] Update `docs/configuration.md` with Hubble Relay configuration section: document all `HUBBLE_RELAY_*` env vars (`HUBBLE_RELAY_ENABLED`, `HUBBLE_RELAY_HOST`, `HUBBLE_RELAY_NAMESPACE`, `HUBBLE_RELAY_POD_LABEL_SELECTOR`, `HUBBLE_RELAY_PORT`, `HUBBLE_RELAY_CONNECT_RETRY_COUNT`, `HUBBLE_RELAY_CONNECT_RETRY_INTERVAL_MS`, `HUBBLE_RELAY_TLS_ENABLED`, `HUBBLE_RELAY_CA_CERT_PATH`) with types, defaults, and descriptions matching `quickstart.md`; include note that `HUBBLE_RELAY_ENABLED=true` requires `CILIUM_NETWORK_POLICIES_ENABLED=true`
+- [X] T030 Run `./gradlew generateDbSchema` to regenerate `docs/db-schema.md` after the V1.59 and V1.60 migrations are in place; commit the updated file
 - [X] T031 Run `./gradlew checkstyleMain checkstyleTest` and resolve all Checkstyle violations in new and modified files (Google Java Style, 180-char line limit, no wildcard imports, `@LogExecution` on all Spring components)
 - [X] T032 Run `./gradlew testFast` (full H2 suite) and ensure no regressions in existing tests; run `./gradlew test` for the complete vendor matrix before PR
 

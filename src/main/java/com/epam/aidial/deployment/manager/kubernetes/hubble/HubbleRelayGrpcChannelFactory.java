@@ -140,6 +140,8 @@ public class HubbleRelayGrpcChannelFactory {
     /**
      * Parses a Kubernetes label selector string (e.g. {@code "k8s-app=hubble-relay,tier=control"})
      * into a {@code Map<String, String>} for use with {@code withLabels()}.
+     * Supports equality-based requirements ({@code key=value}) only — set-based operators
+     * ({@code in}, {@code notin}, {@code !=}) are not handled and will be silently ignored.
      */
     static Map<String, String> parseLabelSelector(String labelSelector) {
         var labels = new HashMap<String, String>();
