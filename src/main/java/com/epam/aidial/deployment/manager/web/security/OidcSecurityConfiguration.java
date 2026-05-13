@@ -1,11 +1,14 @@
 package com.epam.aidial.deployment.manager.web.security;
 
 import com.epam.aidial.deployment.manager.utils.SecretUtils;
+import com.epam.aidial.deployment.manager.web.security.apikey.ApiKeyAuthenticationFilter;
 import com.nimbusds.jwt.SignedJWT;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,6 +26,7 @@ import org.springframework.security.oauth2.server.resource.authentication.Opaque
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.text.ParseException;
@@ -76,8 +80,19 @@ public class OidcSecurityConfiguration {
     }
 
     @Bean
+    public FilterRegistrationBean<ApiKeyAuthenticationFilter> apiKeyFilterRegistration(ObjectProvider<ApiKeyAuthenticationFilter> filter) {
+        // Suppress Spring Boot's auto-registration: the filter is wired into the Spring Security chain
+        // via addFilterBefore() in securityFilterChain(), not as a top-level servlet filter.
+        FilterRegistrationBean<ApiKeyAuthenticationFilter> registration = new FilterRegistrationBean<>();
+        filter.ifAvailable(registration::setFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver) throws Exception {
+                                                   AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver,
+                                                   ObjectProvider<ApiKeyAuthenticationFilter> apiKeyFilter) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(publicPathsResolver.resolvePublicPathPatterns()).permitAll()
@@ -86,6 +101,7 @@ public class OidcSecurityConfiguration {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer
                         .authenticationManagerResolver(authenticationManagerResolver));
+        apiKeyFilter.ifAvailable(filter -> http.addFilterBefore(filter, BearerTokenAuthenticationFilter.class));
         return http.build();
     }
 
