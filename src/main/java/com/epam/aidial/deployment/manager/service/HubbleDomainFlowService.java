@@ -143,18 +143,18 @@ public class HubbleDomainFlowService {
 
     /**
      * Calls {@code HubbleFlowObserver.observe()} with retry logic.
-     * On connection failure, retries up to {@code connectRetryCount} times with
-     * {@code connectRetryIntervalMs} delay. If all retries are exhausted, logs a warning and returns.
+     * Makes up to {@code connectRetryCount} total attempts with {@code connectRetryIntervalMs} delay
+     * between them. If all attempts are exhausted, logs a warning and returns.
      * Observation failures MUST NOT propagate to the caller — builds and deployments must not fail
      * due to Hubble Relay unavailability (FR-011).
      */
     private void observeWithRetry(String podNamespace, String podLabelSelector,
                                    java.util.function.Consumer<com.epam.aidial.deployment.manager.model.DomainEntry> onEntry,
                                    String scopeLabel) {
-        int maxRetries = properties.getConnectRetryCount();
+        int maxAttempts = properties.getConnectRetryCount();
         long retryIntervalMs = properties.getConnectRetryIntervalMs();
 
-        for (int attempt = 0; attempt <= maxRetries; attempt++) {
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
             if (Thread.currentThread().isInterrupted()) {
                 return;
             }
@@ -165,9 +165,9 @@ public class HubbleDomainFlowService {
                 if (Thread.currentThread().isInterrupted()) {
                     return;
                 }
-                if (attempt < maxRetries) {
+                if (attempt < maxAttempts - 1) {
                     log.warn("Hubble Relay connection failed for {} (attempt {}/{}): {}. Retrying in {} ms...",
-                            scopeLabel, attempt + 1, maxRetries, e.getMessage(), retryIntervalMs);
+                            scopeLabel, attempt + 1, maxAttempts, e.getMessage(), retryIntervalMs);
                     try {
                         Thread.sleep(retryIntervalMs);
                     } catch (InterruptedException ie) {
@@ -178,7 +178,7 @@ public class HubbleDomainFlowService {
                     log.warn("Hubble Relay connection failed for {} after {} attempts: {}. "
                                     + "Domain streaming disabled for this scope. "
                                     + "Build/deployment will continue without domain events.",
-                            scopeLabel, maxRetries + 1, e.getMessage());
+                            scopeLabel, maxAttempts, e.getMessage());
                 }
             }
         }
