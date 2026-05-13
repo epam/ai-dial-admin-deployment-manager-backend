@@ -236,16 +236,20 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 #### [Preview] Node Pool Configuration
 
-Node pools are scheduling presets. Each pool carries `nodeSelector`, `affinity`, and/or `tolerations` that the deployment manager projects onto the workload's pod template at deploy time.
+Node pools are scheduling presets. Each pool projects its scheduling primitives onto the workload's pod template at deploy time.
 
-Each pool has two identifiers:
+Each pool entry has the following fields:
 
-- `id` — **immutable** machine identifier. Deployments persist this value (column `deployment.node_pool`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key.
-- `name` — human-readable display label shown on the UI. **Safe to change at any time** — deployments are not affected because they reference the pool by id, not name. The current `name` is resolved from configuration at read time and exposed on deployment responses as `nodePoolName`.
+- `id` — **required, immutable** machine identifier. Deployments persist this value (column `deployment.node_pool`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key. Must be unique across pools.
+- `name` — **required** human-readable display label shown on the UI. **Safe to change at any time** — deployments are not affected because they reference the pool by id, not name. The current `name` is resolved from configuration at read time and exposed on deployment responses as `nodePoolName`. Recommended unique but not enforced.
+- `description` — optional free-form text shown alongside the pool in the UI. No functional meaning.
+- `nodeSelector` — optional map of label key/value pairs. Applied verbatim to the pod template's `nodeSelector`; an existing template value is overwritten.
+- `affinity` — optional full Kubernetes `Affinity` object (`nodeAffinity`, `podAffinity`, `podAntiAffinity`). Validated against the Kubernetes schema at startup. Applied verbatim to the pod template; an existing template value is overwritten.
+- `tolerations` — optional list of Kubernetes `Toleration` objects. Appended to the pod template's existing tolerations (not replaced).
 
 | Property | Environment Variable | Default | Required | Description |
 |----------|---------------------|---------|----------|-------------|
-| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Each entry: `id` (required, unique, immutable), `name` (required, unique display label), optional `description`, and any combination of `nodeSelector`, `affinity`, `tolerations` (standard Kubernetes shapes). |
+| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Per-entry field schema described above. |
 | `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
 | `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
@@ -259,10 +263,12 @@ Defaults are stamped at create time and persisted on the record; updates never r
 NODE_POOLS=$(cat <<'YAML'
 - id: cpu-pool
   name: CPU pool
+  description: General-purpose CPU workloads
   nodeSelector:
     workload: cpu
 - id: gpu-pool
   name: GPU pool
+  description: Inference and fine-tuning on A100/H100
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -281,8 +287,6 @@ YAML
 NODE_POOL_DEFAULT=cpu-pool
 NODE_POOL_DEFAULT_MODEL=gpu-pool
 ```
-
-**Migrating from a prior preview**: before Feature 018's id-vs-name split, the same string served as both identity and display label and was stored in `deployment.node_pool`. The DB column name is unchanged (still `deployment.node_pool`); only the Java field, the wire field, and the conceptual meaning move from "name" to "id". To preserve continuity for existing deployments, set each pool's `id` on the first post-migration config to the value the pool previously had under `name`. Rows whose value does not match any current pool `id` become dangling — read endpoints still return the stored id verbatim with `nodePoolName: null`, but redeploy fails until the deployment is updated via the standard update API.
 
 #### Cleanup and Maintenance Configuration
 
