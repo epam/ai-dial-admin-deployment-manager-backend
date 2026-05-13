@@ -29,17 +29,17 @@ class PoolPrimitivesConverterTest {
     }
 
     @Test
-    void shouldReturnNull_whenSourceTolerationsIsNull() {
+    void shouldReturnEmptyList_whenSourceTolerationsIsNull() {
         var result = converter.convertTolerations(null, Tolerations.class);
 
-        assertThat(result).isNull();
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void shouldReturnNull_whenSourceTolerationsIsEmpty() {
+    void shouldReturnEmptyList_whenSourceTolerationsIsEmpty() {
         var result = converter.convertTolerations(List.of(), Tolerations.class);
 
-        assertThat(result).isNull();
+        assertThat(result).isEmpty();
     }
 
     @Test

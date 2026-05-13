@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.web.mapper;
 
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolDto;
 import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolListResponseDto;
@@ -15,8 +14,7 @@ public interface NodePoolDtoMapper {
 
     List<NodePoolDto> toNodePoolDtoList(List<PoolConfig> configs);
 
-    default NodePoolListResponseDto toListResponse(NodePoolProperties properties) {
-        List<PoolConfig> pools = properties.getPools() == null ? List.of() : properties.getPools();
-        return new NodePoolListResponseDto(toNodePoolDtoList(pools));
+    default NodePoolListResponseDto toListResponse(List<PoolConfig> pools) {
+        return new NodePoolListResponseDto(toNodePoolDtoList(pools == null ? List.of() : pools));
     }
 }

@@ -38,10 +38,9 @@ public class PoolPrimitivesConverter {
         return mapper.convertValue(source, targetType);
     }
 
-    @Nullable
     public <T> List<T> convertTolerations(@Nullable List<Toleration> source, Class<T> targetElementType) {
         if (CollectionUtils.isEmpty(source)) {
-            return null;
+            return List.of();
         }
         var listType = mapper.getTypeFactory().constructCollectionType(List.class, targetElementType);
         return mapper.convertValue(source, listType);

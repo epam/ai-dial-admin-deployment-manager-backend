@@ -56,6 +56,12 @@ public class DeploymentImporter {
                     // FR-021: imports run through the target environment's cascade. The export DTO does
                     // not carry nodePoolId, and updateDeployment is PUT-style without an internal cascade,
                     // so the importer applies the cascade explicitly before the update.
+                    //
+                    // The null guard is defensive: today DeploymentMapper.toCreateDeployment(Deployment)
+                    // does not pass nodePoolId through from the domain object, so in production this
+                    // branch is unreachable with a non-null id. If that mapper later starts passing the
+                    // field through, the guard ensures the imported id wins over the cascade — making
+                    // that change a deliberate decision rather than a silent regression of FR-021.
                     if (createRequest.getNodePoolId() == null) {
                         createRequest.setNodePoolId(nodePoolService.resolveForCreate(createRequest));
                     }

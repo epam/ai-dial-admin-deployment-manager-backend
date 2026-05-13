@@ -27,6 +27,7 @@ import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentLogsService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
@@ -103,7 +104,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @MockitoBean
     private EventStreamingService eventStreamingService;
     @MockitoBean
-    private com.epam.aidial.deployment.manager.configuration.NodePoolProperties nodePoolProperties;
+    private NodePoolService nodePoolService;
 
     @Captor
     private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;

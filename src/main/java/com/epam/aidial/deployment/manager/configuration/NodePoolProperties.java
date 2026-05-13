@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 @Getter
@@ -33,7 +34,7 @@ public class NodePoolProperties {
             return Optional.empty();
         }
         return pools.stream()
-                .filter(pool -> pool.getId().equals(id))
+                .filter(pool -> Objects.equals(pool.getId(), id))
                 .findFirst();
     }
 

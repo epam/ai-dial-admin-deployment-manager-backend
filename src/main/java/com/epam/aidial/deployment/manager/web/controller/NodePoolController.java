@@ -29,6 +29,6 @@ public class NodePoolController {
                     + "The `pools` array is always present and is empty when no pools are configured.")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
     public NodePoolListResponseDto getNodePools() {
-        return nodePoolDtoMapper.toListResponse(nodePoolService.getProperties());
+        return nodePoolDtoMapper.toListResponse(nodePoolService.getNodePools());
     }
 }

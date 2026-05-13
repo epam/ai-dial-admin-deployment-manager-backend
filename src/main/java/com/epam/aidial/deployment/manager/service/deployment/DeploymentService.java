@@ -29,6 +29,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.utils.EnvVarChangeDetector;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
@@ -69,7 +70,7 @@ public class DeploymentService {
     private final DisposableResourceManager disposableResourceManager;
     private final HistoryService historyService;
     private final NodePoolProperties nodePoolProperties;
-    private final com.epam.aidial.deployment.manager.service.nodepool.NodePoolService nodePoolService;
+    private final NodePoolService nodePoolService;
 
     @Value("${app.deployment.reserved-env-names}")
     private final List<String> reservedEnvNames;

@@ -6,7 +6,7 @@ import java.util.List;
 
 @Schema(description = "Listing of configured node pools")
 public record NodePoolListResponseDto(
-        @Schema(description = "Configured pool catalogue")
+        @Schema(description = "Configured pool catalogue", requiredMode = Schema.RequiredMode.REQUIRED)
         List<NodePoolDto> pools
 ) {
 }

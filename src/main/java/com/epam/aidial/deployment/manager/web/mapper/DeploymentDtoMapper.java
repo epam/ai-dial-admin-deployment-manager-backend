@@ -30,6 +30,7 @@ import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentStatusDto;
@@ -108,7 +109,7 @@ public abstract class DeploymentDtoMapper {
     @Autowired
     private McpEndpointPathResolver mcpEndpointPathResolver;
     @Autowired
-    private NodePoolProperties nodePoolProperties;
+    private NodePoolService nodePoolService;
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "source", ignore = true)
@@ -356,7 +357,7 @@ public abstract class DeploymentDtoMapper {
         if (nodePoolId == null) {
             return null;
         }
-        return nodePoolProperties.findById(nodePoolId)
+        return nodePoolService.findById(nodePoolId)
                 .map(NodePoolProperties.PoolConfig::getName)
                 .orElse(null);
     }

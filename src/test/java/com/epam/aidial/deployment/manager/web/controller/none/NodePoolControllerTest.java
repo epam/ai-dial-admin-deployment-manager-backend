@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.web.controller.none;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
@@ -39,12 +38,7 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
         cpuPool.setName("CPU pool");
         cpuPool.setDescription("CPU pool");
 
-        var properties = new NodePoolProperties();
-        properties.setPools(List.of(gpuPool, cpuPool));
-        properties.setDefaultPoolId("cpu-pool");
-        properties.setDefaultModelPoolId("gpu-pool");
-
-        doReturn(properties).when(nodePoolService).getProperties();
+        doReturn(List.of(gpuPool, cpuPool)).when(nodePoolService).getNodePools();
 
         var expectedJson = ResourceUtils.readResource("/nodepool/node_pools_response.json");
         mockMvc.perform(get("/api/v1/node-pools"))
@@ -54,10 +48,7 @@ class NodePoolControllerTest extends AbstractControllerNoneSecureTest {
 
     @Test
     void testGetNodePoolsEmpty() throws Exception {
-        var properties = new NodePoolProperties();
-        properties.setPools(List.of());
-
-        doReturn(properties).when(nodePoolService).getProperties();
+        doReturn(List.of()).when(nodePoolService).getNodePools();
 
         mockMvc.perform(get("/api/v1/node-pools"))
                 .andExpect(status().isOk())

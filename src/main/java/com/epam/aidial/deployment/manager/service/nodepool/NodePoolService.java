@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -28,8 +29,8 @@ public class NodePoolService {
         return List.copyOf(pools);
     }
 
-    public NodePoolProperties getProperties() {
-        return nodePoolProperties;
+    public Optional<PoolConfig> findById(String id) {
+        return nodePoolProperties.findById(id);
     }
 
     /**

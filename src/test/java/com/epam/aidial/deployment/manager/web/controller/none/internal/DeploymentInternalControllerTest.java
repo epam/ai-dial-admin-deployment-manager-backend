@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.internal.DeploymentInternalController;
 import com.epam.aidial.deployment.manager.web.controller.none.AbstractControllerNoneSecureTest;
@@ -54,7 +55,7 @@ class DeploymentInternalControllerTest extends AbstractControllerNoneSecureTest 
     private ImageDefinitionService imageDefinitionService;
 
     @MockitoBean
-    private com.epam.aidial.deployment.manager.configuration.NodePoolProperties nodePoolProperties;
+    private NodePoolService nodePoolService;
 
     @Test
     void testGetDeploymentById_found() throws Exception {
