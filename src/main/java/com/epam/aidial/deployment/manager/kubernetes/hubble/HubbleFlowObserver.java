@@ -95,7 +95,10 @@ public class HubbleFlowObserver {
                     continue; // ignore ERROR, AUDIT, etc.
                 }
 
-                onEntry.accept(new DomainEntry(domain, verdict, System.currentTimeMillis()));
+                long observedAt = flow.hasTime()
+                        ? flow.getTime().getSeconds() * 1000L + flow.getTime().getNanos() / 1_000_000L
+                        : System.currentTimeMillis();
+                onEntry.accept(new DomainEntry(domain, verdict, observedAt));
             }
         } catch (Exception e) {
             if (Thread.currentThread().isInterrupted()) {
