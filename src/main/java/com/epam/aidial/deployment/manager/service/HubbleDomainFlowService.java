@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.channels.ClosedByInterruptException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -162,6 +163,10 @@ public class HubbleDomainFlowService {
                 hubbleFlowObserver.observe(podNamespace, podLabelSelector, onEntry);
                 return; // stream ended normally
             } catch (Exception e) {
+                if (isInterruptionSignal(e)) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
                 if (Thread.currentThread().isInterrupted()) {
                     return;
                 }
@@ -182,5 +187,14 @@ public class HubbleDomainFlowService {
                 }
             }
         }
+    }
+
+    // A RuntimeException wrapping an InterruptedException will not set the thread interrupt flag,
+    // so checking the flag alone is insufficient — inspect the exception and its cause directly.
+    private static boolean isInterruptionSignal(Throwable t) {
+        return t instanceof InterruptedException
+                || t instanceof ClosedByInterruptException
+                || t.getCause() instanceof InterruptedException
+                || t.getCause() instanceof ClosedByInterruptException;
     }
 }
