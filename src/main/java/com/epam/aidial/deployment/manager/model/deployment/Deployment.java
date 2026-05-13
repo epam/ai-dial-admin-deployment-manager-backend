@@ -50,5 +50,5 @@ public abstract class Deployment {
     private String serviceName;
     private List<String> command;
     private List<String> args;
-    private String nodePool;
+    private String nodePoolId;
 }

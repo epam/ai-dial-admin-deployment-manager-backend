@@ -236,41 +236,57 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 
 #### [Preview] Node Pool Configuration
 
-Node pools define groups of Kubernetes nodes that deployments can be pinned to. When a deployment has a node pool selected, hard node affinity is applied at deploy time to constrain pods to nodes matching the pool's label selector.
+Node pools are scheduling presets. Each pool projects its scheduling primitives onto the workload's pod template at deploy time.
 
-| Property | Environment Variable | Default Value | Required | Description |
-|----------|---------------------|---------------|----------|-------------|
-| `app.node-pools.label-key` | `NODE_POOL_LABEL_KEY` [Preview] | _(empty)_ | Required when `app.node-pools.pools` is non-empty | Kubernetes node label key used to identify node pools. Each pool's `name` is used as the label value. The system constructs the selector as `{labelKey: poolName}`. Must be non-blank whenever any node pool is configured |
-| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | JSON array of node pool configurations. See format below |
+Each pool entry has the following fields:
 
-**JSON format for `NODE_POOLS`**:
+- `id` — **required, immutable** machine identifier. Deployments persist this value (column `deployment.node_pool`) and resolve their pool by id at deploy time. **Renaming an `id` breaks every deployment that referenced the old value.** Treat it as a primary key. Must be unique across pools.
+- `name` — **required** human-readable display label shown on the UI. **Safe to change at any time** — deployments are not affected because they reference the pool by id, not name. The current `name` is resolved from configuration at read time and exposed on deployment responses as `nodePoolName`. Recommended unique but not enforced.
+- `description` — optional free-form text shown alongside the pool in the UI. No functional meaning.
+- `nodeSelector` — optional map of label key/value pairs. Applied verbatim to the pod template's `nodeSelector`; an existing template value is overwritten.
+- `affinity` — optional full Kubernetes `Affinity` object (`nodeAffinity`, `podAffinity`, `podAntiAffinity`). Validated against the Kubernetes schema at startup. Applied verbatim to the pod template; an existing template value is overwritten.
+- `tolerations` — optional list of Kubernetes `Toleration` objects. Appended to the pod template's existing tolerations (not replaced).
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Unique pool identifier. Also used as the value for the node label selector |
-| `description` | string | No | Human-readable description shown in the UI |
-| `instance` | string | No | Cloud instance type (e.g., `a2-ultragpu-4g`) |
-| `minNodes` | int | No | Minimum number of nodes in this pool (must be >= 0, default 0) |
-| `maxNodes` | int | Yes | Maximum number of nodes in this pool (must be > 0, must be >= minNodes) |
-| `gpu` | object | No | GPU specification per node. Omit or set to `null` for CPU-only pools |
-| `gpu.name` | string | Yes (if gpu set) | GPU model name (e.g., `NVIDIA A100`) |
-| `gpu.vramBytes` | long | Yes (if gpu set) | VRAM capacity per GPU in bytes (must be > 0) |
-| `gpu.count` | int | Yes (if gpu set) | Number of GPUs per node (must be > 0) |
-| `cpu` | object | Yes | CPU specification per node |
-| `cpu.name` | string | No | Processor name (e.g., `AMD EPYC Milan`) |
-| `cpu.milliCpus` | long | Yes | CPU capacity per node in millicores (must be > 0) |
-| `memory` | object | Yes | Memory specification per node |
-| `memory.bytes` | long | Yes | Memory capacity per node in bytes (must be > 0) |
+| Property | Environment Variable | Default | Required | Description |
+|----------|---------------------|---------|----------|-------------|
+| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Per-entry field schema described above. |
+| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
+| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
-**Startup validation**: The application validates the JSON on startup and fails fast if the JSON is malformed, pool names are duplicated, any required field is missing/invalid, or `app.node-pools.label-key` is blank while node pools are configured.
+Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
+
+**Operator note — admin-edit asymmetry**: edits to a pool's `nodeSelector` / `affinity` / `tolerations` are picked up by every existing deployment that references the pool **automatically on the next redeploy** — pool primitives are re-tunable. In contrast, changes to `NODE_POOL_DEFAULT` or `NODE_POOL_DEFAULT_MODEL` apply only to deployments **created after the change**; existing deployments retain whichever pool id was stamped at their creation time. To migrate an existing deployment to a new pool, edit its `nodePoolId` field via the standard update endpoint — there is no batch migration. Pool identity (`id`) is immutable by design; pool contents are mutable. The legacy `NODE_POOL_LABEL_KEY` env variable is ignored if still set — it has no effect on scheduling.
 
 **Example**:
 
 ```bash
-NODE_POOL_LABEL_KEY=node-pool
-NODE_POOLS='[{"name":"gpu-a100-prod","description":"LLM inference & fine-tuning","instance":"a2-ultragpu-4g","maxNodes":10,"gpu":{"name":"NVIDIA A100","vramBytes":85899345920,"count":4},"cpu":{"name":"AMD EPYC Milan","milliCpus":48000},"memory":{"bytes":730144440320}},{"name":"cpu-highmem","description":"Data preprocessing","maxNodes":5,"cpu":{"milliCpus":64000},"memory":{"bytes":549755813888}}]'
+NODE_POOLS=$(cat <<'YAML'
+- id: cpu-pool
+  name: CPU pool
+  description: General-purpose CPU workloads
+  nodeSelector:
+    workload: cpu
+- id: gpu-pool
+  name: GPU pool
+  description: Inference and fine-tuning on A100/H100
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: accelerator-type
+            operator: In
+            values: [nvidia-a100, nvidia-h100]
+  tolerations:
+  - key: dedicated
+    operator: Equal
+    value: gpu
+    effect: NoSchedule
+YAML
+)
+NODE_POOL_DEFAULT=cpu-pool
+NODE_POOL_DEFAULT_MODEL=gpu-pool
 ```
-
 
 #### Cleanup and Maintenance Configuration
 
