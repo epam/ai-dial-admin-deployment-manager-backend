@@ -31,15 +31,6 @@ Run a single test class:
 
 This project uses speckit (`/speckit.*` slash commands) for feature development. The workflow is: specify → plan → tasks → implement. Feature specs in `specs/` and the constitution in `.specify/memory/constitution.md` are the authoritative references for how code should be structured.
 
-<<<<<<< 018-hubble-relay-domains
-## Active Technologies
-- Java 21, Spring Boot 3.5.10, Gradle 8.13 + Fabric8 Kubernetes Client 7.5.2 (provides `LocalPortForward`), NVIDIA NIM CRD (NIMService), gRPC 1.75.0 (`grpc-netty-shaded`, `grpc-stub`, `grpc-protobuf`), Protobuf 3.25.3 (`protobuf-java`), com.google.protobuf Gradle plugin 0.9.4, MapStruct 1.6.0, Lombok 8.10
-- H2 2.3.232 (dev/test), PostgreSQL 42.7.8, SQL Server 13.2.1 — Flyway migrations V1.59 and V1.60 across all three vendors (018-hubble-relay-domains)
-
-## Recent Changes
-- 013-nim-served-model-name
-- 018-hubble-relay-domains
-=======
 ### Spec maintenance is part of every code change
 
 When you change behaviour, contracts, or invariants documented in any `specs/<capability>/spec.md`, update that spec in the same change — it isn't optional polish. This applies to both speckit-driven work and ad-hoc edits.
@@ -79,4 +70,3 @@ Where `<slug>` is the directory name under `specs/` that the feature belongs to 
 1. Edit `specs/NNN-<short-name>/spec.md` to flip `**Status**:` from `Draft` to `Implemented` (or `Partially implemented — <reason>` if not all P1+ stories landed).
 2. Read the `**Capability**:` line; for each listed slug, open `specs/<slug>/spec.md` and update the affected Requirement(s)/Scenario(s) to match the shipped behaviour. Add a one-line `Implemented via NNN-<feature>` cross-reference near the changed Requirement, and remove or upgrade any `Pending: NNN-<feature>` note for this feature.
 3. If the field is `N/A — creates new capability <slug>`, scaffold `specs/<slug>/spec.md` from the house style (use `specs/api-conventions/spec.md` as a model) and add a row to `specs/README.md`.
->>>>>>> development
