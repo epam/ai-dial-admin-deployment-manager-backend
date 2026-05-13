@@ -79,11 +79,11 @@ When `api-key.enabled=true` and `api-key.startup-probe=true`, DM probes Core's u
 
 **Why this priority**: Improves operator experience but the runtime fallback (per-request 503) is acceptable if the probe is skipped.
 
-**Independent Test**: Set `API_KEY_CORE_USER_INFO_URL` to an unreachable host and start DM; observe boot failure.
+**Independent Test**: Set `API_KEY_CORE_URL` to an unreachable host and start DM; observe boot failure.
 
 **Acceptance Scenarios**:
 
-1. **Given** `api-key.enabled=true`, `startup-probe=true`, and `core-user-info-url` is unreachable, **When** DM starts, **Then** the application fails to start and logs the connection failure.
+1. **Given** `api-key.enabled=true`, `startup-probe=true`, and `core-url` is unreachable, **When** DM starts, **Then** the application fails to start and logs the connection failure.
 2. **Given** `api-key.enabled=true`, `startup-probe=true`, and the URL returns 401 to the probe (expected, since the probe sends a sentinel key), **When** DM starts, **Then** the application starts successfully (401 is treated as "reachable").
 3. **Given** `api-key.enabled=true`, `startup-probe=false`, **When** DM starts with an unreachable Core, **Then** DM starts; the first API-key request returns 503.
 
@@ -103,19 +103,20 @@ When `api-key.enabled=true` and `api-key.startup-probe=true`, DM probes Core's u
 ### Functional Requirements
 
 - **FR-001**: System MUST accept an `Api-Key` header as an alternative credential when `config.rest.security.mode=oidc` and `config.rest.security.api-key.enabled=true`.
-- **FR-002**: System MUST validate API keys by issuing `GET <core-user-info-url>` with header `Api-Key: <key>` and treating HTTP 200 as success.
+- **FR-002**: System MUST validate API keys by issuing `GET <core-url>/v1/user/info` with header `Api-Key: <key>` and treating HTTP 200 as success.
 - **FR-003**: System MUST parse Core's response shape `{"roles": [...], "project": "..."}` and use `project` as the Spring principal name.
 - **FR-004**: System MUST map Core's role names to DM application roles via `config.rest.security.api-key.roles-mapping` JSON (same shape as `providers.*.roles-mapping`), using `UserRolesResolver` directly. `config.rest.security.default.roles-mapping` is intentionally **not** merged into the api-key path — api-key callers have their own dedicated mapping.
 - **FR-005**: System MUST cache successful introspection results in-process, keyed by `sha256(apiKey)`, with configurable TTL (default 60 s) and max size (default 10 000).
 - **FR-006**: System MUST NOT cache non-2xx responses; revoked keys must propagate after one cache TTL at most.
 - **FR-007**: System MUST treat `Authorization: Bearer <token>` as taking precedence: when both headers are present, the existing JWT/opaque-token chain handles the request and the api-key is ignored.
-- **FR-008**: System MUST fail to start when `api-key.enabled=true` and `core-user-info-url` is blank, or `mode != oidc`.
-- **FR-009**: System SHOULD probe `core-user-info-url` at startup when `api-key.startup-probe=true` (default), aborting startup on connection failure.
+- **FR-008**: System MUST fail to start when `api-key.enabled=true` and `core-url` is blank, or `mode != oidc`.
+- **FR-009**: System SHOULD probe `<core-url>/v1/user/info` at startup when `api-key.startup-probe=true` (default), aborting startup on connection failure.
 - **FR-010**: System MUST NOT log raw API keys; masked / hashed values only.
+- **FR-011**: System MUST fail to start when `api-key.enabled=true` and `api-key.roles-mapping` is blank or parses to an empty object. Rationale: empty mapping authenticates every caller with zero authorities, producing 403 on every protected endpoint — i.e. the feature is enabled but unusable. Failing fast surfaces the misconfiguration at boot rather than at first request.
 
 ### Key Entities
 
-- **ApiKeyProperties**: Configuration block under `config.rest.security.api-key.*`. Includes `enabled`, `coreUserInfoUrl`, `cacheTtlSeconds`, `cacheMaxSize`, `requestTimeoutMs`, `rolesMapping` (JSON), `startupProbe`.
+- **ApiKeyProperties**: Configuration block under `config.rest.security.api-key.*`. Includes `enabled`, `coreUrl` (base URL of DIAL Core; `/v1/user/info` is appended in `CoreApiKeyIntrospector`), `cacheTtlSeconds`, `cacheMaxSize`, `requestTimeoutMs`, `rolesMapping` (JSON), `startupProbe`.
 - **IntrospectionResult**: Internal record `(String project, List<String> rawRoles)` produced by `CoreApiKeyIntrospector` from Core's response.
 - **ApiKeyAuthenticationToken**: A Spring `AbstractAuthenticationToken` carrying the project as principal and the mapped `FULL_ADMIN`/`READ_ONLY_ADMIN` authorities.
 

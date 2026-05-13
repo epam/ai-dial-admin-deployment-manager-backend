@@ -26,7 +26,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 class CoreApiKeyIntrospectorTest {
 
-    private static final String CORE_URL = "http://core/v1/user/info";
+    private static final String CORE_URL = "http://core";
+    private static final String USER_INFO_URL = "http://core/v1/user/info";
 
     private ApiKeyProperties properties;
     private CoreApiKeyIntrospector introspector;
@@ -36,10 +37,11 @@ class CoreApiKeyIntrospectorTest {
     void setUp() {
         properties = new ApiKeyProperties(new ObjectMapper());
         properties.setEnabled(true);
-        properties.setCoreUserInfoUrl(CORE_URL);
+        properties.setCoreUrl(CORE_URL);
         properties.setRequestTimeoutMs(1000);
         properties.setCacheTtlSeconds(60);
         properties.setCacheMaxSize(100);
+        properties.setRolesMapping("{\"admin\":[\"FULL_ADMIN\"]}");
         properties.setStartupProbe(false);
         properties.validate();
 
@@ -49,7 +51,7 @@ class CoreApiKeyIntrospectorTest {
 
     @Test
     void shouldReturnIntrospectionResultOnSuccess() {
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andExpect(method(GET))
                 .andExpect(header("Api-Key", "valid-key"))
                 .andRespond(withSuccess("{\"roles\":[\"admin\"],\"project\":\"acme\"}", MediaType.APPLICATION_JSON));
@@ -63,7 +65,7 @@ class CoreApiKeyIntrospectorTest {
 
     @Test
     void shouldThrowBadCredentialsOnHttp401() {
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andRespond(withStatus(UNAUTHORIZED));
 
         assertThatThrownBy(() -> introspector.introspect("bad-key"))
@@ -73,7 +75,7 @@ class CoreApiKeyIntrospectorTest {
 
     @Test
     void shouldThrowBadCredentialsOnMissingProjectField() {
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andRespond(withSuccess("{\"roles\":[\"admin\"]}", MediaType.APPLICATION_JSON));
 
         assertThatThrownBy(() -> introspector.introspect("key"))
@@ -82,7 +84,7 @@ class CoreApiKeyIntrospectorTest {
 
     @Test
     void shouldThrowAuthenticationServiceExceptionOnConnectionFailure() {
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andRespond(withException(new SocketTimeoutException("connect timeout")));
 
         assertThatThrownBy(() -> introspector.introspect("key"))
@@ -91,7 +93,7 @@ class CoreApiKeyIntrospectorTest {
 
     @Test
     void shouldTolerateMissingRolesField() {
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andRespond(withSuccess("{\"project\":\"acme\"}", MediaType.APPLICATION_JSON));
 
         IntrospectionResult result = introspector.introspect("key");
@@ -101,7 +103,7 @@ class CoreApiKeyIntrospectorTest {
 
     @Test
     void shouldParseJsonBodyServedAsOctetStream() {
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andExpect(method(GET))
                 .andExpect(header("Api-Key", "valid-key"))
                 .andExpect(header("Accept", MediaType.APPLICATION_JSON_VALUE))
@@ -117,7 +119,7 @@ class CoreApiKeyIntrospectorTest {
     @Test
     void probeShouldSucceedWhenCoreRespondsWith4xx() {
         properties.setStartupProbe(true);
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andExpect(header("Api-Key", "dm-startup-probe"))
                 .andRespond(withStatus(UNAUTHORIZED));
 
@@ -128,7 +130,7 @@ class CoreApiKeyIntrospectorTest {
     @Test
     void probeShouldFailWhenCoreUnreachable() {
         properties.setStartupProbe(true);
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andRespond(withException(new SocketTimeoutException("connect timeout")));
 
         assertThatThrownBy(introspector::probeCore)
@@ -139,7 +141,7 @@ class CoreApiKeyIntrospectorTest {
     @Test
     void probeShouldFailWhenCoreResponds5xx() {
         properties.setStartupProbe(true);
-        mockServer.expect(requestTo(CORE_URL))
+        mockServer.expect(requestTo(USER_INFO_URL))
                 .andRespond(withStatus(INTERNAL_SERVER_ERROR));
 
         assertThatThrownBy(introspector::probeCore)

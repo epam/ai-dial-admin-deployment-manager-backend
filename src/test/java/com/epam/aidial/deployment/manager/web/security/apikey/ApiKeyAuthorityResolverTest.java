@@ -41,7 +41,7 @@ class ApiKeyAuthorityResolverTest {
     private static ApiKeyAuthorityResolver resolverWith(String rolesMappingJson) {
         ApiKeyProperties properties = new ApiKeyProperties(new ObjectMapper());
         properties.setEnabled(true);
-        properties.setCoreUserInfoUrl("http://core/v1/user/info");
+        properties.setCoreUrl("http://core");
         properties.setRolesMapping(rolesMappingJson);
         properties.setStartupProbe(false);
         properties.validate();

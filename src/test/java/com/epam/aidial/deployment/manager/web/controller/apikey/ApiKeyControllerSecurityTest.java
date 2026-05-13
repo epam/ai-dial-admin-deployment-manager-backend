@@ -56,7 +56,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "providers.test.email-claims=email",
 
         "config.rest.security.api-key.enabled=true",
-        "config.rest.security.api-key.core-user-info-url=http://core/v1/user/info",
+        "config.rest.security.api-key.core-url=http://core",
         "config.rest.security.api-key.cache-ttl-seconds=60",
         "config.rest.security.api-key.cache-max-size=100",
         "config.rest.security.api-key.request-timeout-ms=1000",

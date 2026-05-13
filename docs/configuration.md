@@ -467,18 +467,18 @@ When enabled, DM accepts an `Api-Key` header as an alternative credential alongs
 | Property                                              | Environment Variable          | Default | Required               | Description                                                                                                            |
 | ----------------------------------------------------- | ----------------------------- | ------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `config.rest.security.api-key.enabled`                | `API_KEY_ENABLED`             | `false` | No                     | If `true` (and `mode=oidc`), the `Api-Key` header is accepted as an alternative credential.                            |
-| `config.rest.security.api-key.core-user-info-url`     | `API_KEY_CORE_USER_INFO_URL`  | -       | Yes, when `enabled=true` | Full URL to DIAL Core's `/v1/user/info` (e.g. `http://dial-core/v1/user/info`).                                      |
+| `config.rest.security.api-key.core-url`               | `API_KEY_CORE_URL`            | -       | Yes, when `enabled=true` | Base URL of DIAL Core (e.g. `http://dial-core`). DM appends `/v1/user/info` when validating API keys.                |
 | `config.rest.security.api-key.cache-ttl-seconds`      | `API_KEY_CACHE_TTL_SECONDS`   | `60`    | No                     | TTL for cached introspection results (in-process Caffeine cache). Mirrors Core's own user-info cache TTL.              |
 | `config.rest.security.api-key.cache-max-size`         | `API_KEY_CACHE_MAX_SIZE`      | `10000` | No                     | Maximum entries in the introspection cache.                                                                            |
 | `config.rest.security.api-key.request-timeout-ms`     | `API_KEY_REQUEST_TIMEOUT_MS`  | `3000`  | No                     | Per-call timeout (connect + read) for HTTP requests to Core's `/v1/user/info`.                                         |
-| `config.rest.security.api-key.roles-mapping`          | `API_KEY_ROLES_MAPPING`       | `{}`    | No                     | JSON mapping of Core role names to DM application roles. Same shape as `providers.*.roles-mapping`.                    |
-| `config.rest.security.api-key.startup-probe`          | `API_KEY_STARTUP_PROBE`       | `true`  | No                     | If `true`, DM probes `core-user-info-url` once at startup and aborts boot if the URL is unreachable.                   |
+| `config.rest.security.api-key.roles-mapping`          | `API_KEY_ROLES_MAPPING`       | -       | Yes, when `enabled=true` | JSON mapping of Core role names to DM application roles. Same shape as `providers.*.roles-mapping`. Must map at least one Core role to `FULL_ADMIN` or `READ_ONLY_ADMIN`; DM fails to start on a blank or empty (`{}`) mapping. |
+| `config.rest.security.api-key.startup-probe`          | `API_KEY_STARTUP_PROBE`       | `true`  | No                     | If `true`, DM probes `<core-url>/v1/user/info` once at startup and aborts boot if the URL is unreachable.              |
 
 **Example** — accept API keys for machine callers, mapping Core's `admin` role to `FULL_ADMIN`:
 
 ```
 API_KEY_ENABLED=true
-API_KEY_CORE_USER_INFO_URL=http://dial-core/v1/user/info
+API_KEY_CORE_URL=http://dial-core
 API_KEY_ROLES_MAPPING={"admin":["FULL_ADMIN"],"default":["READ_ONLY_ADMIN"]}
 ```
 

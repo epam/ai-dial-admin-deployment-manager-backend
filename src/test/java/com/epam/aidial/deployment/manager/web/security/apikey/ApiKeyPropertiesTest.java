@@ -21,18 +21,42 @@ class ApiKeyPropertiesTest {
     void shouldRejectMissingCoreUrlWhenEnabled() {
         ApiKeyProperties props = new ApiKeyProperties(new ObjectMapper());
         props.setEnabled(true);
-        props.setCoreUserInfoUrl("");
+        props.setCoreUrl("");
         assertThatThrownBy(props::validate)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("core-user-info-url");
+                .hasMessageContaining("core-url");
     }
 
     @Test
     void shouldRejectInvalidRolesMappingJson() {
         ApiKeyProperties props = new ApiKeyProperties(new ObjectMapper());
         props.setEnabled(true);
-        props.setCoreUserInfoUrl("http://core/v1/user/info");
+        props.setCoreUrl("http://core");
         props.setRolesMapping("not-json");
+        props.setStartupProbe(false);
+        assertThatThrownBy(props::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("roles-mapping");
+    }
+
+    @Test
+    void shouldRejectBlankRolesMappingWhenEnabled() {
+        ApiKeyProperties props = new ApiKeyProperties(new ObjectMapper());
+        props.setEnabled(true);
+        props.setCoreUrl("http://core");
+        props.setRolesMapping("");
+        props.setStartupProbe(false);
+        assertThatThrownBy(props::validate)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("roles-mapping");
+    }
+
+    @Test
+    void shouldRejectEmptyRolesMappingWhenEnabled() {
+        ApiKeyProperties props = new ApiKeyProperties(new ObjectMapper());
+        props.setEnabled(true);
+        props.setCoreUrl("http://core");
+        props.setRolesMapping("{}");
         props.setStartupProbe(false);
         assertThatThrownBy(props::validate)
                 .isInstanceOf(IllegalStateException.class)
@@ -43,7 +67,7 @@ class ApiKeyPropertiesTest {
     void shouldParseRolesMapping() {
         ApiKeyProperties props = new ApiKeyProperties(new ObjectMapper());
         props.setEnabled(true);
-        props.setCoreUserInfoUrl("http://core/v1/user/info");
+        props.setCoreUrl("http://core");
         props.setRolesMapping("{\"admin\":[\"FULL_ADMIN\"]}");
         props.setStartupProbe(false);
         props.validate();

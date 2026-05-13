@@ -31,14 +31,17 @@ import javax.annotation.PostConstruct;
 public class CoreApiKeyIntrospector {
 
     public static final String API_KEY_HEADER = "Api-Key";
+    private static final String USER_INFO_PATH = "/v1/user/info";
     private static final ParameterizedTypeReference<Map<String, Object>> STRING_OBJECT_MAP =
             new ParameterizedTypeReference<>() { };
 
     private final RestTemplate restTemplate;
     private final ApiKeyProperties properties;
+    private final String userInfoUrl;
 
     public CoreApiKeyIntrospector(RestTemplateBuilder builder, ApiKeyProperties properties) {
         this.properties = properties;
+        this.userInfoUrl = StringUtils.removeEnd(properties.getCoreUrl(), "/") + USER_INFO_PATH;
         Duration timeout = Duration.ofMillis(properties.getRequestTimeoutMs());
         this.restTemplate = builder
                 .connectTimeout(timeout)
@@ -64,26 +67,26 @@ public class CoreApiKeyIntrospector {
         HttpHeaders headers = new HttpHeaders();
         headers.set(API_KEY_HEADER, "dm-startup-probe");
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        RequestEntity<Void> request = RequestEntity.get(properties.getCoreUserInfoUrl())
+        RequestEntity<Void> request = RequestEntity.get(userInfoUrl)
                 .headers(headers)
                 .build();
         try {
             restTemplate.exchange(request, STRING_OBJECT_MAP);
-            log.info("DIAL Core /v1/user/info reachable at {}", properties.getCoreUserInfoUrl());
+            log.info("DIAL Core /v1/user/info reachable at {}", userInfoUrl);
         } catch (RestClientResponseException ex) {
             if (ex.getStatusCode().is4xxClientError()) {
                 log.info("DIAL Core /v1/user/info reachable at {} (responded {})",
-                        properties.getCoreUserInfoUrl(), ex.getStatusCode());
+                        userInfoUrl, ex.getStatusCode());
             } else {
                 throw new IllegalStateException(
                         "DIAL Core /v1/user/info responded with " + ex.getStatusCode() + " at "
-                                + properties.getCoreUserInfoUrl()
+                                + userInfoUrl
                                 + ". Disable startup probe via API_KEY_STARTUP_PROBE=false to skip this check.",
                         ex);
             }
         } catch (Exception ex) {
             throw new IllegalStateException(
-                    "DIAL Core /v1/user/info is unreachable at " + properties.getCoreUserInfoUrl()
+                    "DIAL Core /v1/user/info is unreachable at " + userInfoUrl
                             + ". Disable startup probe via API_KEY_STARTUP_PROBE=false to skip this check.",
                     ex);
         }
@@ -111,7 +114,7 @@ public class CoreApiKeyIntrospector {
         headers.set(API_KEY_HEADER, apiKey);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
-        RequestEntity<Void> request = RequestEntity.get(properties.getCoreUserInfoUrl())
+        RequestEntity<Void> request = RequestEntity.get(userInfoUrl)
                 .headers(headers)
                 .build();
 
@@ -122,7 +125,7 @@ public class CoreApiKeyIntrospector {
             log.debug("Core /v1/user/info rejected API key with status {}", ex.getStatusCode());
             throw new BadCredentialsException("Invalid API key");
         } catch (Exception ex) {
-            log.warn("Failed to reach Core /v1/user/info at {}", properties.getCoreUserInfoUrl(), ex);
+            log.warn("Failed to reach Core /v1/user/info at {}", userInfoUrl, ex);
             throw new AuthenticationServiceException("Failed to validate API key with DIAL Core", ex);
         }
         if (response.getStatusCode() != HttpStatus.OK || response.getBody() == null) {

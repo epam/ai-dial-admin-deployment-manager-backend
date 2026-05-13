@@ -30,7 +30,7 @@ public class ApiKeyProperties {
     private final ObjectMapper objectMapper;
 
     private boolean enabled;
-    private String coreUserInfoUrl;
+    private String coreUrl;
     private int cacheTtlSeconds;
     private int cacheMaxSize;
     private int requestTimeoutMs;
@@ -46,15 +46,22 @@ public class ApiKeyProperties {
             return;
         }
 
-        if (StringUtils.isBlank(coreUserInfoUrl)) {
+        if (StringUtils.isBlank(coreUrl)) {
             throw new IllegalStateException(
-                    "config.rest.security.api-key.enabled=true requires config.rest.security.api-key.core-user-info-url to be set");
+                    "config.rest.security.api-key.enabled=true requires config.rest.security.api-key.core-url to be set");
         }
 
         parsedRolesMapping = parseRolesMapping(rolesMapping);
+        if (parsedRolesMapping.isEmpty()) {
+            throw new IllegalStateException(
+                    "config.rest.security.api-key.enabled=true requires config.rest.security.api-key.roles-mapping "
+                            + "to map at least one Core role to a DM authority (FULL_ADMIN / READ_ONLY_ADMIN). "
+                            + "An empty mapping would authenticate every API-key caller with zero authorities "
+                            + "and reject every request with 403.");
+        }
 
-        log.info("API-key authentication is enabled. Core user-info URL: {}, cache TTL: {}s, mapped roles: {}",
-                coreUserInfoUrl, cacheTtlSeconds, parsedRolesMapping.keySet());
+        log.info("API-key authentication is enabled. Core URL: {}, cache TTL: {}s, mapped roles: {}",
+                coreUrl, cacheTtlSeconds, parsedRolesMapping.keySet());
     }
 
     private Map<String, Set<UserRole>> parseRolesMapping(String json) {

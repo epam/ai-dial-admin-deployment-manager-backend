@@ -183,8 +183,13 @@ Status: **Implemented** (feature 018-api-key-via-core-userinfo)
 - **AND** the cache key is `sha256(apiKey)` so raw key material is not retained
 
 #### Scenario: Startup probe fails
-- **WHEN** `api-key.enabled=true`, `api-key.startup-probe=true`, and `core-user-info-url` is unreachable at startup
+- **WHEN** `api-key.enabled=true`, `api-key.startup-probe=true`, and `core-url` is unreachable at startup
 - **THEN** DM fails to start with a clear error log
+
+#### Scenario: Empty roles-mapping rejected at startup
+- **WHEN** `api-key.enabled=true` and `api-key.roles-mapping` is blank or parses to an empty object
+- **THEN** DM fails to start with a clear error message naming `api-key.roles-mapping`
+- **AND** the rationale is that an empty mapping would 403 every API-key request, so the feature would be enabled but unusable
 
 ## Mutating endpoints protected by @FullAdminOnly
 
