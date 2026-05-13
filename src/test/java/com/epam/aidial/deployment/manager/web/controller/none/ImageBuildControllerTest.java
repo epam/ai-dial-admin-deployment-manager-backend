@@ -5,6 +5,8 @@ import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildNotInProgressException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildStopFailedException;
+import com.epam.aidial.deployment.manager.model.CiliumVerdict;
+import com.epam.aidial.deployment.manager.model.DomainEntry;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
@@ -31,6 +33,7 @@ import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -123,6 +126,33 @@ class ImageBuildControllerTest extends AbstractControllerNoneSecureTest {
                 .andExpect(status().isNotFound());
 
         verify(imageDefinitionService).getImageDefinition(id);
+    }
+
+    @Test
+    void getImageBuildDetailsById_withHubbleEnabled_includesDomains() throws Exception {
+        var modelJson = ResourceUtils.readResource("/mcp/image/image_with_logs_by_id.json");
+        var model = objectMapper.readValue(modelJson, McpImageDefinition.class);
+        var id = model.getId();
+
+        var domainEntries = List.of(
+                new DomainEntry("registry-1.docker.io", CiliumVerdict.ALLOWED, 1000L),
+                new DomainEntry("auth.docker.io", CiliumVerdict.BLOCKED, 2000L)
+        );
+
+        when(hubbleRelayProperties.isEnabled()).thenReturn(true);
+        when(imageDefinitionService.getImageDefinition(id)).thenReturn(Optional.of(model));
+        when(hubbleDomainFlowService.getDomainEntriesForBuild(id)).thenReturn(domainEntries);
+
+        mockMvc.perform(get("/api/v1/images/builds/{id}/details", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.domains").isArray())
+                .andExpect(jsonPath("$.domains.length()").value(2))
+                .andExpect(jsonPath("$.domains[0].domain").value("registry-1.docker.io"))
+                .andExpect(jsonPath("$.domains[0].verdict").value("allowed"))
+                .andExpect(jsonPath("$.domains[1].domain").value("auth.docker.io"))
+                .andExpect(jsonPath("$.domains[1].verdict").value("blocked"));
+
+        verify(hubbleDomainFlowService).getDomainEntriesForBuild(id);
     }
 
     @Test
