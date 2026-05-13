@@ -92,7 +92,10 @@ public class HubbleDomainFlowService {
                 entry -> imageBuildDomainEntryRepository.saveIgnoreDuplicate(
                         imageDefinitionId, entry.domain(), entry.verdict(), entry.observedAt()),
                 "build " + key));
-        activeBuildObservations.put(key, future);
+        var prev = activeBuildObservations.put(key, future);
+        if (prev != null) {
+            prev.cancel(true);
+        }
     }
 
     /**
@@ -122,7 +125,10 @@ public class HubbleDomainFlowService {
                 entry -> deploymentDomainEntryRepository.saveIgnoreDuplicate(
                         deploymentId, entry.domain(), entry.verdict(), entry.observedAt()),
                 "deployment " + deploymentId));
-        activeDeploymentObservations.put(deploymentId, future);
+        var prev = activeDeploymentObservations.put(deploymentId, future);
+        if (prev != null) {
+            prev.cancel(true);
+        }
     }
 
     /**
