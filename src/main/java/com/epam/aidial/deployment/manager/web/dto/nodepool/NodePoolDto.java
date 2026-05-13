@@ -8,13 +8,13 @@ import org.jetbrains.annotations.Nullable;
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record NodePoolDto(
         @Schema(description = "Immutable pool identifier (referenced by deployments)", example = "gpu-a100",
-                requiredMode = Schema.RequiredMode.REQUIRED, nullable = false)
+                requiredMode = Schema.RequiredMode.REQUIRED)
         String id,
         @Schema(description = "Human-readable display label (may be changed without breaking deployments)",
-                example = "GPU A100 Pool", requiredMode = Schema.RequiredMode.REQUIRED, nullable = false)
+                example = "GPU A100 Pool", requiredMode = Schema.RequiredMode.REQUIRED)
         String name,
         @Nullable
-        @Schema(description = "Human-readable description")
+        @Schema(description = "Human-readable description", nullable = true)
         String description
 ) {
 }
