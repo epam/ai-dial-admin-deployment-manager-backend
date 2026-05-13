@@ -93,6 +93,10 @@ Status: **Implemented**
 - **WHEN** build is triggered for an Adapter, Interceptor, or Application image definition with `DockerImageSource`
 - **THEN** `ImageCopyPipeline` is dispatched
 
+#### Scenario: Adapter, Interceptor, or Application image with Git Dockerfile source
+- **WHEN** build is triggered for an Adapter, Interceptor, or Application image definition with `GitDockerfileImageSource`
+- **THEN** `ImageBuildFromGitPipeline` is dispatched (BuildKit base image build, no wrapper step — wrapping is MCP-LOCAL-only)
+
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.ImageBuildController`
   - `POST   /api/v1/images/builds`              — start build (HTTP 201, no body)
@@ -107,7 +111,7 @@ Status: **Implemented**
 - Log/status SSE service: `com.epam.aidial.deployment.manager.service.ImageBuildLogsService`
 - Build log persistence: stored in the dedicated `image_build_logs` table (keyed by `image_definition_id`, `ON DELETE CASCADE`), separate from `image_definition`. This keeps log appends out of the audit trail — see `specs/014-auditing/research.md` Decision 6.
 - Pipelines (in `com.epam.aidial.deployment.manager.service.pipeline`):
-  - `ImageBuildFromGitPipeline`    — Git Dockerfile → BuildKit build → optional wrapper build (for LOCAL transport)
+  - `ImageBuildFromGitPipeline`    — Git Dockerfile → BuildKit build → optional wrapper build (only for MCP LOCAL transport)
   - `ImageWrapperBuildPipeline`    — existing Docker image → image analysis step → wrapper image build step
   - `ImageCopyPipeline`            — existing Docker image → Skopeo copy into managed registry
 - Image sources (in `com.epam.aidial.deployment.manager.model`):

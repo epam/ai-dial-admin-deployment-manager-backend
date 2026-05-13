@@ -17,6 +17,7 @@ import com.epam.aidial.deployment.manager.service.pipeline.ImageWrapperBuildPipe
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.NotImplementedException;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
@@ -53,18 +54,27 @@ public class ImageBuildRunner {
         } else if (imageDefinition instanceof AdapterImageDefinition
                 || imageDefinition instanceof InterceptorImageDefinition
                 || imageDefinition instanceof ApplicationImageDefinition) {
-            var imageSource = imageDefinition.getSource();
-            if (imageSource instanceof DockerImageSource) {
-                return startDockerImagePipeline(imageDefinition, imageCopyPipeline::run);
-            } else {
-                throw new NotImplementedException("Image build is not implemented for %s image definition and %s source yet"
-                        .formatted(imageDefinition.getClass().getSimpleName(), imageSource.getClass().getSimpleName()));
-            }
+            Consumer<UUID> pipeline = getPipeline(imageDefinition);
+            return startDockerImagePipeline(imageDefinition, pipeline);
 
         } else {
             throw new NotImplementedException("Image build is not implemented for %s image definition yet"
                     .formatted(imageDefinition.getClass().getSimpleName()));
         }
+    }
+
+    private @NonNull Consumer<UUID> getPipeline(ImageDefinition imageDefinition) {
+        var imageSource = imageDefinition.getSource();
+        Consumer<UUID> pipeline;
+        if (imageSource instanceof DockerImageSource) {
+            pipeline = imageCopyPipeline::run;
+        } else if (imageSource instanceof GitDockerfileImageSource) {
+            pipeline = imageBuildFromGitPipeline::run;
+        } else {
+            throw new NotImplementedException("Image build is not implemented for %s image definition and %s source yet"
+                    .formatted(imageDefinition.getClass().getSimpleName(), imageSource.getClass().getSimpleName()));
+        }
+        return pipeline;
     }
 
     private ImageDefinition buildMcpImage(McpImageDefinition imageDefinition) {
