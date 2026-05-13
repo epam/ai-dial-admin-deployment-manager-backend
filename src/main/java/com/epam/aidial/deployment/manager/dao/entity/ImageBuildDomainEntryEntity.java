@@ -16,10 +16,6 @@ import lombok.ToString;
 
 import java.util.UUID;
 
-/**
- * Persisted record of a unique external domain accessed by an image build pod.
- * Deduplication is enforced by the UNIQUE constraint on (image_definition_id, domain, verdict).
- */
 @Entity
 @Table(name = "image_build_domain_entries")
 @Getter
