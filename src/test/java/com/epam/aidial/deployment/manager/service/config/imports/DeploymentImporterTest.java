@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +39,8 @@ class DeploymentImporterTest {
     private DeploymentService deploymentService;
     @Mock
     private DeploymentMapper deploymentMapper;
+    @Mock
+    private NodePoolService nodePoolService;
 
     @InjectMocks
     private DeploymentImporter deploymentImporter;
@@ -125,6 +128,55 @@ class DeploymentImporterTest {
         verify(deploymentMapper).toCreateDeployment(imported);
         verify(deploymentService).updateDeployment(eq(DEPLOYMENT_ID), eq(createRequest));
         verify(deploymentService, never()).createDeployment(any());
+    }
+
+    @Test
+    void importDeployments_exists_overwrite_appliesNodePoolCascade() {
+        McpDeployment imported = McpDeployment.builder()
+                .id(DEPLOYMENT_ID)
+                .transport(McpTransport.HTTP_STREAMING)
+                .build();
+        ExportConfig config = new ExportConfig();
+        config.getMcpDeployments().put(DEPLOYMENT_ID, imported);
+
+        CreateMcpDeployment createRequest = CreateMcpDeployment.builder()
+                .id(DEPLOYMENT_ID)
+                .transport(McpTransport.HTTP_STREAMING)
+                .build();
+
+        when(deploymentService.getDeployment(DEPLOYMENT_ID, false)).thenReturn(Optional.of(imported));
+        when(deploymentMapper.toCreateDeployment(imported)).thenReturn(createRequest);
+        when(nodePoolService.resolveForCreate(createRequest)).thenReturn("target-default-pool");
+
+        deploymentImporter.importDeployments(config, ConflictResolutionPolicy.OVERWRITE);
+
+        verify(deploymentService).updateDeployment(eq(DEPLOYMENT_ID), eq(createRequest));
+        org.assertj.core.api.Assertions.assertThat(createRequest.getNodePoolId()).isEqualTo("target-default-pool");
+    }
+
+    @Test
+    void importDeployments_exists_overwrite_preservesExplicitNodePoolId() {
+        McpDeployment imported = McpDeployment.builder()
+                .id(DEPLOYMENT_ID)
+                .transport(McpTransport.HTTP_STREAMING)
+                .build();
+        ExportConfig config = new ExportConfig();
+        config.getMcpDeployments().put(DEPLOYMENT_ID, imported);
+
+        CreateMcpDeployment createRequest = CreateMcpDeployment.builder()
+                .id(DEPLOYMENT_ID)
+                .transport(McpTransport.HTTP_STREAMING)
+                .nodePoolId("explicit-pool")
+                .build();
+
+        when(deploymentService.getDeployment(DEPLOYMENT_ID, false)).thenReturn(Optional.of(imported));
+        when(deploymentMapper.toCreateDeployment(imported)).thenReturn(createRequest);
+
+        deploymentImporter.importDeployments(config, ConflictResolutionPolicy.OVERWRITE);
+
+        verify(deploymentService).updateDeployment(eq(DEPLOYMENT_ID), eq(createRequest));
+        verify(nodePoolService, never()).resolveForCreate(any());
+        org.assertj.core.api.Assertions.assertThat(createRequest.getNodePoolId()).isEqualTo("explicit-pool");
     }
 
     @Test

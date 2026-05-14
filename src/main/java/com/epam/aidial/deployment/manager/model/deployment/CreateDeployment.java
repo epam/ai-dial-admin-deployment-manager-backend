@@ -30,5 +30,5 @@ public abstract class CreateDeployment {
     private List<String> topics;
     private List<String> command;
     private List<String> args;
-    private String nodePool;
+    private String nodePoolId;
 }

@@ -2,7 +2,7 @@ package com.epam.aidial.deployment.manager.web.controller;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
-import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolDto;
+import com.epam.aidial.deployment.manager.web.dto.nodepool.NodePoolListResponseDto;
 import com.epam.aidial.deployment.manager.web.mapper.NodePoolDtoMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/node-pools")
@@ -26,9 +24,11 @@ public class NodePoolController {
 
     @GetMapping
     @Operation(summary = "List available node pools",
-            description = "Returns all configured node pools with their hardware specifications")
+            description = "Returns the configured pool catalogue (id, name, optional description). "
+                    + "Scheduling primitives are internal configuration and not exposed via this endpoint. "
+                    + "The `pools` array is always present and is empty when no pools are configured.")
     @ApiResponse(responseCode = "200", description = "Node pools retrieved successfully")
-    public List<NodePoolDto> getNodePools() {
-        return nodePoolDtoMapper.toNodePoolDtoList(nodePoolService.getNodePools());
+    public NodePoolListResponseDto getNodePools() {
+        return nodePoolDtoMapper.toListResponse(nodePoolService.getNodePools());
     }
 }

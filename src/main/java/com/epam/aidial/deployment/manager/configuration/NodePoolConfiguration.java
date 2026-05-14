@@ -1,8 +1,10 @@
 package com.epam.aidial.deployment.manager.configuration;
 
-import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.NodePoolConfig;
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
@@ -14,67 +16,118 @@ import org.springframework.context.annotation.Configuration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Configuration
 public class NodePoolConfiguration {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory())
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
 
     @Bean
     public NodePoolProperties nodePoolProperties(
-            @Value("${app.node-pools.label-key:}") String nodePoolLabelKey,
-            @Value("${app.node-pools.pools:}") String nodePoolsJson,
+            @Value("${app.node-pools.pools:}") String nodePoolsYaml,
+            @Value("${app.node-pools.default:}") String defaultPoolId,
+            @Value("${app.node-pools.default-model:}") String defaultModelPoolId,
             Validator validator) {
 
         var properties = new NodePoolProperties();
-        properties.setNodePoolLabelKey(nodePoolLabelKey);
+        properties.setPools(parsePools(nodePoolsYaml));
+        properties.setDefaultPoolId(StringUtils.trimToNull(defaultPoolId));
+        properties.setDefaultModelPoolId(StringUtils.trimToNull(defaultModelPoolId));
 
-        if (StringUtils.isBlank(nodePoolsJson)) {
-            properties.setNodePools(new ArrayList<>());
-        } else {
-            try {
-                List<NodePoolConfig> pools = MAPPER.readValue(nodePoolsJson, new TypeReference<>() {
-                });
-                validateNodePools(pools, validator);
-                properties.setNodePools(pools);
-                log.info("Successfully loaded {} node pool configurations", pools.size());
-            } catch (IllegalArgumentException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Invalid JSON format for node-pools: " + e.getMessage(), e);
-            }
-        }
+        validatePoolConstraints(properties, validator);
+        validateUniqueness(properties.getPools());
+        validateDefaults(properties);
 
-        if (!properties.getNodePools().isEmpty() && StringUtils.isBlank(nodePoolLabelKey)) {
-            throw new IllegalArgumentException(
-                    "Node pool label key (app.node-pools.label-key) must not be blank when node pools are configured");
-        }
+        log.info("Loaded {} node pool configurations (default={}, default-model={})",
+                properties.getPools().size(),
+                properties.getDefaultPoolId(),
+                properties.getDefaultModelPoolId());
 
         return properties;
     }
 
-    private void validateNodePools(List<NodePoolConfig> pools, Validator validator) {
+    private List<PoolConfig> parsePools(String nodePoolsYaml) {
+        if (StringUtils.isBlank(nodePoolsYaml)) {
+            return new ArrayList<>();
+        }
+        try {
+            List<PoolConfig> pools = YAML_MAPPER.readValue(nodePoolsYaml, new TypeReference<>() {
+            });
+            return pools != null ? pools : new ArrayList<>();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid NODE_POOLS configuration: " + e.getMessage(), e);
+        }
+    }
+
+    private void validatePoolConstraints(NodePoolProperties properties, Validator validator) {
+        Set<ConstraintViolation<NodePoolProperties>> violations = validator.validate(properties);
+        if (violations.isEmpty()) {
+            return;
+        }
+        var pools = properties.getPools();
+        var messages = violations.stream()
+                .map(v -> formatViolation(v, pools))
+                .collect(Collectors.joining("; "));
+        throw new IllegalArgumentException("Invalid NODE_POOLS configuration: " + messages);
+    }
+
+    private String formatViolation(ConstraintViolation<NodePoolProperties> violation, List<PoolConfig> pools) {
+        var poolLabel = resolvePoolLabel(violation, pools);
+        return poolLabel != null
+                ? "Node pool %s: %s".formatted(poolLabel, violation.getMessage())
+                : violation.getMessage();
+    }
+
+    private String resolvePoolLabel(ConstraintViolation<NodePoolProperties> violation, List<PoolConfig> pools) {
+        // Path looks like `pools[<index>].<field>` — extract the index.
+        var path = violation.getPropertyPath().toString();
+        var open = path.indexOf('[');
+        var close = path.indexOf(']');
+        if (open < 0 || close <= open) {
+            return null;
+        }
+        int index;
+        try {
+            index = Integer.parseInt(path.substring(open + 1, close));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        if (index < 0 || index >= pools.size()) {
+            return "[%d]".formatted(index);
+        }
+        var pool = pools.get(index);
+        return StringUtils.isNotBlank(pool.getId()) ? "'%s'".formatted(pool.getId()) : "[%d]".formatted(index);
+    }
+
+    private void validateUniqueness(List<PoolConfig> pools) {
+        var ids = new HashSet<String>();
         var names = new HashSet<String>();
-        for (int i = 0; i < pools.size(); i++) {
-            var pool = pools.get(i);
-            var violations = validator.validate(pool);
-            if (!violations.isEmpty()) {
-                var poolLabel = StringUtils.isNotBlank(pool.getName()) ? "'%s'".formatted(pool.getName()) : "[%d]".formatted(i);
-                var messages = violations.stream()
-                        .map(ConstraintViolation::getMessage)
-                        .collect(Collectors.joining("; "));
-                throw new IllegalArgumentException("Node pool %s: %s".formatted(poolLabel, messages));
-            }
-            if (pool.getMinNodes() > pool.getMaxNodes()) {
-                throw new IllegalArgumentException(
-                        "Node pool '%s': 'minNodes' (%d) must not exceed 'maxNodes' (%d)"
-                                .formatted(pool.getName(), pool.getMinNodes(), pool.getMaxNodes()));
+        for (var pool : pools) {
+            if (!ids.add(pool.getId())) {
+                throw new IllegalArgumentException("Duplicate node pool id: '%s'".formatted(pool.getId()));
             }
             if (!names.add(pool.getName())) {
                 throw new IllegalArgumentException("Duplicate node pool name: '%s'".formatted(pool.getName()));
             }
+        }
+    }
+
+    private void validateDefaults(NodePoolProperties properties) {
+        validateDefaultReference(properties, properties.getDefaultPoolId(), "NODE_POOL_DEFAULT");
+        validateDefaultReference(properties, properties.getDefaultModelPoolId(), "NODE_POOL_DEFAULT_MODEL");
+    }
+
+    private void validateDefaultReference(NodePoolProperties properties, String poolId, String envVarName) {
+        if (poolId == null) {
+            return;
+        }
+        if (properties.findById(poolId).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "%s references node pool id '%s' which is not present in NODE_POOLS.".formatted(envVarName, poolId));
         }
     }
 }

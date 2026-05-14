@@ -30,4 +30,9 @@ public abstract class DeploymentExportMixIn {
 
     @JsonIgnore
     abstract UUID getImageDefinitionId();
+
+    // FR-021: nodePoolId is environment-specific configuration; export must NOT include it, and
+    // import flows ignore any incoming value (silently dropped on read).
+    @JsonIgnore
+    abstract String getNodePoolId();
 }

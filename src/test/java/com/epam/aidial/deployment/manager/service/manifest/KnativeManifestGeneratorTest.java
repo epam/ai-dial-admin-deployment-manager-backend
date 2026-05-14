@@ -320,48 +320,52 @@ class KnativeManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withNodePoolLabels_setsNodeAffinity() {
-        // Given
+    void testServiceConfig_projectsPoolPrimitivesOntoRevisionSpec() {
         var deploymentName = "node-pool-app";
         var imageName = "my-registry/node-pool-image:v1";
-        var nodePoolLabels = Map.of("node-pool-key", "gpu-pool");
+        var affinity = new io.fabric8.kubernetes.api.model.AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("accelerator-type").withOperator("In").addToValues("nvidia-a100")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+        var toleration = new io.fabric8.kubernetes.api.model.TolerationBuilder()
+                .withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule")
+                .build();
+        var primitives = new PoolSchedulingPrimitives(Map.of("workload", "gpu"), affinity, java.util.List.of(toleration));
 
-        // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null, nodePoolLabels
+                null, new Resources(), null, null, null, null, primitives
         );
 
-        // Then
-        var affinity = generatedService.getSpec().getTemplate().getSpec().getAffinity();
-        assertThat(affinity).isNotNull();
-        assertThat(affinity.getNodeAffinity()).isNotNull();
-
-        var required = affinity.getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
-        assertThat(required).isNotNull();
-        assertThat(required.getNodeSelectorTerms()).hasSize(1);
-
-        var matchExpressions = required.getNodeSelectorTerms().getFirst().getMatchExpressions();
-        assertThat(matchExpressions).hasSize(1);
-        assertThat(matchExpressions.getFirst().getKey()).isEqualTo("node-pool-key");
-        assertThat(matchExpressions.getFirst().getOperator()).isEqualTo("In");
-        assertThat(matchExpressions.getFirst().getValues()).containsExactly("gpu-pool");
+        var revisionSpec = generatedService.getSpec().getTemplate().getSpec();
+        assertThat(revisionSpec.getNodeSelector()).containsEntry("workload", "gpu");
+        assertThat(revisionSpec.getAffinity()).isNotNull();
+        assertThat(revisionSpec.getAffinity().getNodeAffinity()).isNotNull();
+        assertThat(revisionSpec.getTolerations()).hasSize(1);
+        assertThat(revisionSpec.getTolerations().get(0).getKey()).isEqualTo("dedicated");
     }
 
     @Test
-    void testServiceConfig_withNullNodePoolLabels_doesNotSetAffinity() {
-        // Given
+    void testServiceConfig_withEmptyPrimitives_doesNotSetSchedulingFields() {
         var deploymentName = "no-pool-app";
         var imageName = "my-registry/no-pool-image:v1";
 
-        // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), imageName,
-                null, new Resources(), null, null, null, null, null
+                null, new Resources(), null, null, null, null, PoolSchedulingPrimitives.EMPTY
         );
 
-        // Then
-        assertThat(generatedService.getSpec().getTemplate().getSpec().getAffinity()).isNull();
+        var revisionSpec = generatedService.getSpec().getTemplate().getSpec();
+        assertThat(revisionSpec.getNodeSelector()).isNullOrEmpty();
+        assertThat(revisionSpec.getAffinity()).isNull();
+        assertThat(revisionSpec.getTolerations()).isNullOrEmpty();
     }
 
     private String serialize(Object obj) throws JsonProcessingException {
