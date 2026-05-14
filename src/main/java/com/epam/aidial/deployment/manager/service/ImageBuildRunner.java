@@ -47,19 +47,21 @@ public class ImageBuildRunner {
             throw new IllegalArgumentException("Image '%s' is already built or build process is running".formatted(imageDefinitionId));
         }
 
+        Consumer<UUID> pipeline;
         if (imageDefinition instanceof McpImageDefinition mcpImageDefinition) {
-            return buildMcpImage(mcpImageDefinition);
+            pipeline = getMcpPipeline(mcpImageDefinition);
 
         } else if (imageDefinition instanceof AdapterImageDefinition
                 || imageDefinition instanceof InterceptorImageDefinition
                 || imageDefinition instanceof ApplicationImageDefinition) {
-            Consumer<UUID> pipeline = getPipeline(imageDefinition);
-            return startDockerImagePipeline(imageDefinition, pipeline);
+            pipeline = getPipeline(imageDefinition);
 
         } else {
             throw new NotImplementedException("Image build is not implemented for %s image definition yet"
                     .formatted(imageDefinition.getClass().getSimpleName()));
         }
+
+        return startDockerImagePipeline(imageDefinition, pipeline);
     }
 
     private Consumer<UUID> getPipeline(ImageDefinition imageDefinition) {
@@ -76,7 +78,7 @@ public class ImageBuildRunner {
         return pipeline;
     }
 
-    private ImageDefinition buildMcpImage(McpImageDefinition imageDefinition) {
+    private Consumer<UUID> getMcpPipeline(McpImageDefinition imageDefinition) {
         var imageSource = imageDefinition.getSource();
         Consumer<UUID> pipeline;
         if (imageSource instanceof DockerImageSource
@@ -91,7 +93,7 @@ public class ImageBuildRunner {
             throw new NotImplementedException("Image build is not implemented for source %s and %s transport type yet"
                     .formatted(imageSource.getClass().getSimpleName(), imageDefinition.getTransportType()));
         }
-        return startDockerImagePipeline(imageDefinition, pipeline);
+        return pipeline;
     }
 
     private ImageDefinition startDockerImagePipeline(ImageDefinition imageDefinition, Consumer<UUID> pipeline) {
