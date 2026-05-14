@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.service.ImageBuildRunner;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.JobSpecification;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,7 +25,6 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.times;
@@ -74,24 +72,36 @@ public abstract class ImageBuildRunnerFunctionalTest {
         assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
     }
 
-    @Test
-    public void shouldFailBuildInterceptorImageWithGitSource() {
+    @ParameterizedTest
+    @MethodSource("getNonMcpImageDefinitions")
+    public void shouldSuccessfullyBuildNonMcpImageWithGitSource(ImageDefinition imageDefinition) {
         // Given
-        var imageDefToBeSaved = FunctionalTestHelper.createInterceptorImageDefinition();
-        imageDefToBeSaved.setName(imageDefToBeSaved.getName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
-        imageDefToBeSaved.setSource(FunctionalTestHelper.createGitImageSource());
+        imageDefinition.setName(imageDefinition.getName() + RandomStringUtils.secure().nextAlphabetic(6).toLowerCase());
+        imageDefinition.setSource(FunctionalTestHelper.createGitImageSource());
 
-        var imageDef = imageDefinitionService.createImageDefinition(imageDefToBeSaved);
+        var imageDef = imageDefinitionService.createImageDefinition(imageDefinition);
         var imageDefinitionId = imageDef.getId();
 
         when(jobRunner.run(any(JobSpecification.class), any(JobCallback.class), any(UUID.class), anyList(), anyList()))
-                .thenReturn(false);
+                .thenReturn(true);
 
-        // When & Then
-        String expectedMessage = "Image build is not implemented for InterceptorImageDefinition image definition and GitDockerfileImageSource source yet";
-        assertThatThrownBy(() -> imageBuildRunner.buildImage(imageDefinitionId))
-                .isInstanceOf(NotImplementedException.class)
-                .hasMessage(expectedMessage);
+        // When
+        imageBuildRunner.buildImage(imageDefinitionId);
+
+        // Then
+        ArgumentCaptor<String> imageNameCaptor = ArgumentCaptor.forClass(String.class);
+        verify(disposableResourceManager).saveContainerRegistryResource(imageNameCaptor.capture(), any(), any());
+
+        var tempDisposableResources = disposableResourceManager.getAllTemporaryByGroupId(imageDefinitionId.toString());
+        assertThat(tempDisposableResources.isEmpty()).isTrue();
+
+        var maybeRetrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId);
+        assertThat(maybeRetrievedImageDef.isPresent()).isTrue();
+
+        var retrievedImageDef = maybeRetrievedImageDef.get();
+        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILD_SUCCESSFUL);
+        assertThat(retrievedImageDef.getImageName()).isEqualTo(imageNameCaptor.getValue());
+        assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
     }
 
     @Test
@@ -265,7 +275,8 @@ public abstract class ImageBuildRunnerFunctionalTest {
     private static Stream<Arguments> getNonMcpImageDefinitions() {
         return Stream.of(
                 Arguments.of(FunctionalTestHelper.createInterceptorImageDefinition()),
-                Arguments.of(FunctionalTestHelper.createAdapterImageDefinition())
+                Arguments.of(FunctionalTestHelper.createAdapterImageDefinition()),
+                Arguments.of(FunctionalTestHelper.createApplicationImageDefinition())
         );
     }
 

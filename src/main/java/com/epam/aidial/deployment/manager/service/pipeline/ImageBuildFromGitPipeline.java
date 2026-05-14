@@ -62,16 +62,13 @@ public class ImageBuildFromGitPipeline {
         }
 
         String imageName;
-        var mcpImageDef = (McpImageDefinition) imageDefinition;
-
-        if (mcpImageDef.getTransportType() == McpTransportType.REMOTE) {
-            imageName = baseImageBuildStep.build(imageDefinition, imageSource, ResourceLifecycleState.STABLE);
-        } else if (mcpImageDef.getTransportType() == McpTransportType.LOCAL) {
+        if (imageDefinition instanceof McpImageDefinition mcpImageDef
+                && mcpImageDef.getTransportType() == McpTransportType.LOCAL) {
             var baseImageName = baseImageBuildStep.build(imageDefinition, imageSource, ResourceLifecycleState.TEMPORARY);
             var distroInfo = imageAnalysisStep.analyse(imageDefinition, baseImageName);
             imageName = wrapperImageBuildStep.build(imageDefinition, imageSource.getEntrypoint(), baseImageName, distroInfo);
         } else {
-            throw new IllegalArgumentException("Unexpected MCP Image transport type: " + mcpImageDef.getTransportType());
+            imageName = baseImageBuildStep.build(imageDefinition, imageSource, ResourceLifecycleState.STABLE);
         }
 
         imageDefinitionService.completeBuildSuccessfully(imageDefinition.getId(), imageName, System.currentTimeMillis());
