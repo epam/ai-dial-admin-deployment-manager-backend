@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.web.mapper;
 
+import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
@@ -29,6 +30,7 @@ import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
+import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentMetadataDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentStatusDto;
@@ -106,6 +108,8 @@ public abstract class DeploymentDtoMapper {
     private ExternalRegistryRefDtoMapper externalRegistryRefDtoMapper;
     @Autowired
     private McpEndpointPathResolver mcpEndpointPathResolver;
+    @Autowired
+    private NodePoolService nodePoolService;
 
     @Mapping(target = "id", source = "name")
     @Mapping(target = "source", ignore = true)
@@ -132,6 +136,7 @@ public abstract class DeploymentDtoMapper {
     @Mapping(target = "url", source = "model", qualifiedByName = "constructFullUrl")
     @Mapping(target = "metadata", source = "model", qualifiedByName = "toMetadata")
     @Mapping(target = "source", ignore = true)
+    @Mapping(target = "nodePoolName", source = "model", qualifiedByName = "resolveNodePoolName")
     @SubclassMapping(source = McpDeployment.class, target = McpDeploymentDto.class)
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentDto.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentDto.class)
@@ -344,6 +349,17 @@ public abstract class DeploymentDtoMapper {
         var limits = model.getLimits().isEmpty() ? null : model.getLimits();
         var requests = model.getRequests().isEmpty() ? null : model.getRequests();
         return new ResourcesDto(limits, requests);
+    }
+
+    @Named("resolveNodePoolName")
+    protected String resolveNodePoolName(Deployment deployment) {
+        var nodePoolId = deployment.getNodePoolId();
+        if (nodePoolId == null) {
+            return null;
+        }
+        return nodePoolService.findById(nodePoolId)
+                .map(NodePoolProperties.PoolConfig::getName)
+                .orElse(null);
     }
 
     @Named("constructFullUrl")

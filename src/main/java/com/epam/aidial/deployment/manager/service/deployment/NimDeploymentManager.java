@@ -99,7 +99,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
         var containerGrpcPort = deployment.getContainerGrpcPort();
         var storageSize = deployment.getStorageSize();
 
-        var nodePoolLabels = resolveNodePoolLabels(deployment.getNodePool());
+        var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
         return nimManifestGenerator.serviceConfig(
                 deployment.getId(),
@@ -116,7 +116,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 startupTimeoutSec,
                 deployment.getCommand(),
                 deployment.getArgs(),
-                nodePoolLabels);
+                poolPrimitives);
     }
 
     @Override

@@ -106,13 +106,15 @@ class ArchitectureTest {
             .that().areAnnotatedWith(Component.class)
             .and().haveSimpleNameNotEndingWith("MapperImpl")
             .and().haveSimpleNameNotEndingWith("Properties")
+            .and().haveSimpleNameNotEndingWith("Filter")
             .and().resideOutsideOfPackage("..configuration..")
             .and().resideOutsideOfPackage("..transaction.timestamp..")
             .and().resideOutsideOfPackage("..dao.audit.listener..")
             .and().areNotAnnotatedWith(Aspect.class)
             .should().beAnnotatedWith(LogExecution.class)
             .because("@LogExecution must be placed on every @Component class"
-                    + " (transaction timestamp components excluded: per-transaction logging would be excessively noisy)");
+                    + " (transaction timestamp components excluded: per-transaction logging would be excessively noisy;"
+                    + " servlet filters excluded: per-request AOP logging would be excessively noisy)");
 
     @ArchTest
     static final ArchRule repositoriesMustHaveLogExecution = classes()
