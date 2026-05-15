@@ -548,6 +548,7 @@ SECURITY_ROLES_MAPPING={"sso-admin":["FULL_ADMIN"],"sso-viewer":["READ_ONLY_ADMI
 
 ## Datasource Configuration
 
+**Warning:** H2 is the default vendor (`DATASOURCE_VENDOR=H2`) but is intended for **development and testing only**. Running H2 in production is **very strongly discouraged**: its file-based backup/restore procedures are unreliable (encrypted file copies can desynchronize from the in-memory page cache, and recovery from a partially-written file is not guaranteed), and we do not consider H2 a supported production datastore. For production deployments use `POSTGRES` or `MS_SQL_SERVER`, which provide vendor-supported online backups, point-in-time recovery, and high-availability options.
 
 | Setting                        | Environment Variable              | Default                                                                                                              | Required                                          | Applied when                                                   | Description                                                         |
 | ------------------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------- |
