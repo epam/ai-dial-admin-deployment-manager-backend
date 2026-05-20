@@ -150,7 +150,7 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.21') {
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.22') {
             because("previous versions have vulnerabilities")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
