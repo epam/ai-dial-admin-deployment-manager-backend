@@ -91,10 +91,6 @@ Status: **Implemented** (feature 008-read-only-role)
 - **WHEN** a user authenticates but none of their IdP roles are mapped to an application role
 - **THEN** all protected endpoints return 403 Forbidden
 
-#### Scenario: Backward compatibility with legacy allowedRoles
-- **WHEN** only legacy `allowedRoles` is configured (no `roles-mapping`)
-- **THEN** all allowed roles are mapped to `FULL_ADMIN`
-
 ### Requirement: Configurable role mapping
 Administrators SHALL configure the mapping from identity provider roles to application roles via `roles-mapping` configuration at both default and per-provider levels.
 
@@ -108,10 +104,8 @@ Administrators SHALL configure the mapping from identity provider roles to appli
 
 #### Resolution precedence (per provider):
 1. Provider `roles-mapping` merged with default `roles-mapping` (provider wins on overlap)
-2. Provider `allowed-roles` + default `allowedRoles` → all mapped to `FULL_ADMIN`
-3. Default `roles-mapping` alone
-4. Default `allowedRoles` → all mapped to `FULL_ADMIN`
-5. Empty → no roles → 403
+2. Default `roles-mapping` alone
+3. Empty → no roles → 403
 
 ### Requirement: Security info endpoint
 The system SHALL expose the authenticated user's mapped application roles via `GET /api/v1/security-info`.
@@ -242,7 +236,6 @@ Status: **Implemented** (feature 018-api-key-via-core-userinfo)
 - JWT decoder abstraction: `NimbusJwtDecoderResolver` interface (overridden in tests)
 - Config property: `config.rest.security.mode` (`none` | `basic` | `oidc`)
 - Roles mapping: `config.rest.security.default.roles-mapping` (JSON string), `providers.*.roles-mapping` (JSON string)
-- Legacy (deprecated): `config.rest.security.default.allowedRoles`, `providers.*.allowed-roles`
 - Basic auth credentials: `spring.security.user.name`, `spring.security.user.password`
 - Session policy: STATELESS (no server-side HTTP session)
 - Always-public paths: `/api/v1/health/**`, `/api/internal/**`

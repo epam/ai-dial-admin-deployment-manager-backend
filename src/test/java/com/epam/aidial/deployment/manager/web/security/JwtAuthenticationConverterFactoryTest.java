@@ -30,10 +30,13 @@ class JwtAuthenticationConverterFactoryTest {
     void setup() {
         RolesMappingResolver rolesMappingResolver = new RolesMappingResolver();
         IdentityProviderUtils identityProviderUtils = new IdentityProviderUtils(
-                rolesMappingResolver, OBJECT_MAPPER, Set.of("admin", "ConfigAdmin"), null, "unique_name", "oid", false
+                rolesMappingResolver, OBJECT_MAPPER, null, "unique_name", "oid", false
         );
         JwtAuthenticationConverterFactory factory = new JwtAuthenticationConverterFactory(
-                List.of(JwtProviderConfig.from("test", IdentityProviderTestHelper.createJwtProviderConfig(), Map.of())),
+                List.of(JwtProviderConfig.from(
+                        "test",
+                        IdentityProviderTestHelper.createJwtProviderConfig(),
+                        Map.of("USER", Set.of(UserRole.FULL_ADMIN)))),
                 identityProviderUtils
         );
         converter = factory.getConverter(TEST_ISSUER);
@@ -111,10 +114,13 @@ class JwtAuthenticationConverterFactoryTest {
     void whenEmailNotPresentAndRequired_thenThrow() {
         RolesMappingResolver rolesMappingResolver = new RolesMappingResolver();
         IdentityProviderUtils identityProviderUtils = new IdentityProviderUtils(
-                rolesMappingResolver, OBJECT_MAPPER, Set.of("admin", "ConfigAdmin"), null, "unique_name", "oid", true
+                rolesMappingResolver, OBJECT_MAPPER, null, "unique_name", "oid", true
         );
         var factoryWithRequiredEmail = new JwtAuthenticationConverterFactory(
-                List.of(JwtProviderConfig.from("test", IdentityProviderTestHelper.createJwtProviderConfig(), Map.of())),
+                List.of(JwtProviderConfig.from(
+                        "test",
+                        IdentityProviderTestHelper.createJwtProviderConfig(),
+                        Map.of("USER", Set.of(UserRole.FULL_ADMIN)))),
                 identityProviderUtils
         );
         var converterWithRequiredEmail = factoryWithRequiredEmail.getConverter(TEST_ISSUER);

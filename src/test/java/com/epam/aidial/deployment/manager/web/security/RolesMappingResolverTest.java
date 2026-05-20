@@ -18,30 +18,7 @@ class RolesMappingResolverTest {
     }
 
     @Test
-    void shouldMergeProviderAndDefaultAllowedRolesAndMapToFullAdmin() {
-        // given
-        Set<String> defaultAllowedRoles = Set.of("ROLE_A");
-        Set<String> providerAllowedRoles = Set.of("ROLE_B");
-
-        Map<String, Set<UserRole>> expected = Map.of(
-                "ROLE_A", Set.of(UserRole.FULL_ADMIN),
-                "ROLE_B", Set.of(UserRole.FULL_ADMIN)
-        );
-
-        // when
-        Map<String, Set<UserRole>> result = resolver.resolve(
-                defaultAllowedRoles,
-                null,
-                providerAllowedRoles,
-                null
-        );
-
-        assertThat(result).containsExactlyInAnyOrderEntriesOf(expected);
-    }
-
-    @Test
-    void shouldReturnProviderRolesMappingWhenProviderAllowedRolesIsEmpty() {
-        // given
+    void shouldMergeDefaultAndProviderRolesMapping() {
         Map<String, Set<UserRole>> defaultMapping = Map.of(
                 "ROLE_A", Set.of(UserRole.FULL_ADMIN)
         );
@@ -55,21 +32,13 @@ class RolesMappingResolverTest {
                 "ROLE_B", Set.of(UserRole.READ_ONLY_ADMIN)
         );
 
-        // when
-        Map<String, Set<UserRole>> result = resolver.resolve(
-                null,
-                defaultMapping,
-                Set.of(),
-                providerMapping
-        );
+        Map<String, Set<UserRole>> result = resolver.resolve(defaultMapping, providerMapping);
 
-        // then
         assertThat(result).containsExactlyInAnyOrderEntriesOf(expected);
     }
 
     @Test
     void shouldOverrideDefaultMappingWithProviderMapping() {
-        // given
         Map<String, Set<UserRole>> defaultMapping = Map.of(
                 "ROLE_A", Set.of(UserRole.READ_ONLY_ADMIN)
         );
@@ -82,71 +51,27 @@ class RolesMappingResolverTest {
                 "ROLE_A", Set.of(UserRole.FULL_ADMIN)
         );
 
-        // when
-        Map<String, Set<UserRole>> result = resolver.resolve(
-                null,
-                defaultMapping,
-                null,
-                providerMapping
-        );
+        Map<String, Set<UserRole>> result = resolver.resolve(defaultMapping, providerMapping);
 
-        // then
         assertThat(result).containsExactlyInAnyOrderEntriesOf(expected);
     }
 
     @Test
-    void shouldMapDefaultAllowedRolesToFullAdminWhenNoProviderDataExists() {
-        // given
-        Set<String> defaultAllowedRoles = Set.of("ROLE_A", "ROLE_B");
-
-        Map<String, Set<UserRole>> expected = Map.of(
-                "ROLE_A", Set.of(UserRole.FULL_ADMIN),
-                "ROLE_B", Set.of(UserRole.FULL_ADMIN)
-        );
-
-        // when
-        Map<String, Set<UserRole>> result = resolver.resolve(
-                defaultAllowedRoles,
-                null,
-                null,
-                null
-        );
-
-        // then
-        assertThat(result).containsExactlyInAnyOrderEntriesOf(expected);
-    }
-
-    @Test
-    void shouldReturnDefaultRolesMappingWhenNoOtherDataExists() {
-        // given
+    void shouldReturnDefaultRolesMappingWhenProviderMappingIsAbsent() {
         Map<String, Set<UserRole>> defaultMapping = Map.of(
                 "ROLE_A", Set.of(UserRole.FULL_ADMIN),
                 "ROLE_B", Set.of(UserRole.READ_ONLY_ADMIN)
         );
 
-        // when
-        Map<String, Set<UserRole>> result = resolver.resolve(
-                null,
-                defaultMapping,
-                null,
-                null
-        );
+        Map<String, Set<UserRole>> result = resolver.resolve(defaultMapping, null);
 
-        // then
         assertThat(result).isEqualTo(defaultMapping);
     }
 
     @Test
     void shouldReturnEmptyMapWhenAllInputsAreNullOrEmpty() {
-        // when
-        Map<String, Set<UserRole>> result = resolver.resolve(
-                null,
-                null,
-                null,
-                null
-        );
+        Map<String, Set<UserRole>> result = resolver.resolve(null, null);
 
-        // then
         assertThat(result).isEmpty();
     }
 }
