@@ -70,3 +70,10 @@ Where `<slug>` is the directory name under `specs/` that the feature belongs to 
 1. Edit `specs/NNN-<short-name>/spec.md` to flip `**Status**:` from `Draft` to `Implemented` (or `Partially implemented — <reason>` if not all P1+ stories landed).
 2. Read the `**Capability**:` line; for each listed slug, open `specs/<slug>/spec.md` and update the affected Requirement(s)/Scenario(s) to match the shipped behaviour. Add a one-line `Implemented via NNN-<feature>` cross-reference near the changed Requirement, and remove or upgrade any `Pending: NNN-<feature>` note for this feature.
 3. If the field is `N/A — creates new capability <slug>`, scaffold `specs/<slug>/spec.md` from the house style (use `specs/api-conventions/spec.md` as a model) and add a row to `specs/README.md`.
+
+## Active Technologies
+- Java 21 (constitution §Tech Stack) + Spring Boot 3.5.10, Lombok via `io.freefair.lombok` 8.10, MapStruct 1.6.0, Fabric8 Kubernetes Client 7.5.2 (KServe CRD generated), Flyway 11.14.0, Hibernate Envers, OkHttp (transitive — used by existing `HuggingFaceClient`), Jackson 2.21.1 (021-inference-task-transformer)
+- H2 / PostgreSQL / SQL Server (multi-vendor; existing `inference_deployment` table). New columns added via Flyway migration V1.59 (next free version). (021-inference-task-transformer)
+
+## Recent Changes
+- 021-inference-task-transformer: Added Java 21 (constitution §Tech Stack) + Spring Boot 3.5.10, Lombok via `io.freefair.lombok` 8.10, MapStruct 1.6.0, Fabric8 Kubernetes Client 7.5.2 (KServe CRD generated), Flyway 11.14.0, Hibernate Envers, OkHttp (transitive — used by existing `HuggingFaceClient`), Jackson 2.21.1

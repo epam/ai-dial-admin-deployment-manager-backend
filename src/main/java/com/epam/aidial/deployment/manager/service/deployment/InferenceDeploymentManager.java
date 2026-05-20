@@ -15,6 +15,8 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
+import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -43,6 +45,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
     private final K8sKserveClient k8sKserveClient;
+    private final InferenceTaskDetector inferenceTaskDetector;
     private final boolean useClusterInternalUrl;
     private final List<String> defaultAllowedDomains;
 
@@ -57,13 +60,15 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             DeploymentRepository deploymentRepository,
             K8sKserveClient k8sKserveClient,
             KserveDeployProperties kserveDeployProperties,
-            HuggingFaceProperties huggingFaceProperties
+            HuggingFaceProperties huggingFaceProperties,
+            InferenceTaskDetector inferenceTaskDetector
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
                 containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, kserveDeployProperties.getNamespace(),
                 kserveDeployProperties.getStartupTimeout(), DEFAULT_KSERVE_SERVICE_PORT);
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
+        this.inferenceTaskDetector = inferenceTaskDetector;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
         this.defaultAllowedDomains = huggingFaceProperties.getDefaultAllowedDomains();
     }
@@ -100,6 +105,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
+        InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
+
         return inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
@@ -114,7 +121,9 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 containerPort,
                 deployment.getProbeProperties(),
                 startupTimeoutSec,
-                poolPrimitives);
+                poolPrimitives,
+                detection.task(),
+                detection.id2Label());
     }
 
     @Override
@@ -199,13 +208,37 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             return DeploymentStatus.CRASHED;
         }
 
-        // Check for RUNNING state
+        // Check for RUNNING state — for chained deployments, require the transformer component to be reachable as well.
         if (States.ActiveModelState.LOADED.equals(activeModelState) && ModelStatus.TransitionStatus.UPTODATE.equals(transitionStatus)) {
+            if (isChainedDeployment(service) && !isTransformerReady(service)) {
+                log.debug("mapStatus. serviceName: '{}'. predictor RUNNING but transformer not yet ready", serviceName);
+                return DeploymentStatus.PENDING;
+            }
             return DeploymentStatus.RUNNING;
         }
 
         // All other cases are PENDING
         return DeploymentStatus.PENDING;
+    }
+
+    private boolean isChainedDeployment(InferenceService service) {
+        return service.getSpec() != null && service.getSpec().getTransformer() != null;
+    }
+
+    private boolean isTransformerReady(InferenceService service) {
+        var status = service.getStatus();
+        if (status == null || status.getComponents() == null) {
+            return false;
+        }
+        var transformer = status.getComponents().get("transformer");
+        if (transformer == null) {
+            return false;
+        }
+        if (transformer.getUrl() != null) {
+            return true;
+        }
+        var address = transformer.getAddress();
+        return address != null && address.getUrl() != null;
     }
 
     @Override
@@ -223,6 +256,15 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         if (components == null) {
             log.debug("resolveServiceUrl. serviceName: '{}'. components is undefined", serviceName);
             return null;
+        }
+
+        // Chained deployments expose the transformer as the public endpoint; predictor stays internal.
+        var transformer = components.get("transformer");
+        if (transformer != null) {
+            log.debug("resolveServiceUrl. serviceName: '{}'. Using transformer component URL", serviceName);
+            return useClusterInternalUrl
+                    ? getClusterInternalUrl(transformer, serviceName)
+                    : getStatusUrl(transformer, serviceName);
         }
 
         var predictor = components.get("predictor");

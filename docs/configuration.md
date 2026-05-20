@@ -234,6 +234,19 @@ Set `app.build.mcp-proxy.images.alpine` and `app.build.mcp-proxy.images.debian` 
 | `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
 
 
+#### Text-Classification Transformer Configuration
+
+Applies to chained text-classification inference deployments (auto-detected from HuggingFace metadata — see `specs/inference-deployments/spec.md`). The image property has no default and **must be set** before any chained deployment can be deployed; resource defaults are sized for SST-2-class transformer workloads (~200MB image, stateless).
+
+| Property                                                                | Environment Variable                                              | Default Value | Required                                          | Applied when                                | Description                                                                                                                  |
+|-------------------------------------------------------------------------|-------------------------------------------------------------------|---------------|---------------------------------------------------|---------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `app.inference.text-classification-transformer.image`                   | `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE`                 | -             | Yes for chained deployments                       | Deploying an inference whose `detectedTask = TEXT_CLASSIFICATION` | Container image for the chained text-classification transformer. Deploy fails fast with HTTP 5xx if unset for chained mode. |
+| `app.inference.text-classification-transformer.resources.cpu-request`   | `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_REQUEST`           | `100m`        | No                                                | Chained manifest generation                 | CPU request for the transformer container.                                                                                   |
+| `app.inference.text-classification-transformer.resources.cpu-limit`     | `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_LIMIT`             | `500m`        | No                                                | Chained manifest generation                 | CPU limit for the transformer container.                                                                                     |
+| `app.inference.text-classification-transformer.resources.memory-request`| `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_REQUEST`        | `256Mi`       | No                                                | Chained manifest generation                 | Memory request for the transformer container.                                                                                |
+| `app.inference.text-classification-transformer.resources.memory-limit`  | `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_LIMIT`          | `512Mi`       | No                                                | Chained manifest generation                 | Memory limit for the transformer container.                                                                                  |
+
+
 #### [Preview] Node Pool Configuration
 
 Node pools are scheduling presets. Each pool projects its scheduling primitives onto the workload's pod template at deploy time.

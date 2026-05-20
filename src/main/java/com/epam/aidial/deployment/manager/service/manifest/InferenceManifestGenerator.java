@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
+import com.epam.aidial.deployment.manager.configuration.TextClassificationTransformerProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -8,6 +9,7 @@ import com.epam.aidial.deployment.manager.model.Scaling;
 import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -36,19 +39,30 @@ import java.util.List;
 public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
     private static final String MODEL_NAME_ARGUMENT_NAME = "--model_name";
+    private static final String RETURN_RAW_LOGITS_ARG = "--return_raw_logits";
+    private static final String RETURN_PROBABILITIES_ARG = "--return_probabilities";
+    private static final String TASK_ARG = "--task";
+    private static final String SEQUENCE_CLASSIFICATION_TASK = "sequence_classification";
+    private static final String KSERVE_V2_PROTOCOL = "v2";
 
     private final KserveProbeConverter kserveProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
     private final PoolPrimitivesConverter poolPrimitivesConverter;
+    private final TextClassificationTransformerSection textClassificationTransformerSection;
+    private final TextClassificationTransformerProperties textClassificationTransformerProperties;
 
     public InferenceManifestGenerator(AppProperties appconfig,
                                      KserveProbeConverter kserveProbeConverter,
                                      ProgressDeadlineCalculator progressDeadlineCalculator,
-                                     PoolPrimitivesConverter poolPrimitivesConverter) {
+                                     PoolPrimitivesConverter poolPrimitivesConverter,
+                                     TextClassificationTransformerSection textClassificationTransformerSection,
+                                     TextClassificationTransformerProperties textClassificationTransformerProperties) {
         super(appconfig);
         this.kserveProbeConverter = kserveProbeConverter;
         this.progressDeadlineCalculator = progressDeadlineCalculator;
         this.poolPrimitivesConverter = poolPrimitivesConverter;
+        this.textClassificationTransformerSection = textClassificationTransformerSection;
+        this.textClassificationTransformerProperties = textClassificationTransformerProperties;
     }
 
     public InferenceService serviceConfig(
@@ -65,7 +79,9 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             @Nullable Integer containerPort,
             @Nullable ProbeProperties probeProperties,
             int startupTimeoutSec,
-            PoolSchedulingPrimitives poolPrimitives
+            PoolSchedulingPrimitives poolPrimitives,
+            @Nullable InferenceTask detectedTask,
+            @Nullable Map<Integer, String> detectedId2Label
     ) {
         var config = createBaseManifestChain(
                 appConfig::cloneInferenceServiceConfig,
@@ -122,7 +138,71 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
         applyPoolPrimitives(predictorChain, poolPrimitives);
 
+        if (detectedTask == InferenceTask.TEXT_CLASSIFICATION) {
+            applyChainedTransformer(name, detectedId2Label, modelChain, config.data());
+        }
+
         return config.data();
+    }
+
+    /**
+     * Configure the predictor and transformer halves of a chained text-classification deployment:
+     *
+     * <ul>
+     *   <li>Pin the predictor's {@code protocolVersion} to v2.</li>
+     *   <li>Reject operator-supplied predictor args that conflict with the chained contract
+     *       ({@code --return_probabilities}; {@code --task=<non-sequence_classification>}).</li>
+     *   <li>Inject {@code --return_raw_logits} and {@code --task=sequence_classification} into
+     *       the predictor args.</li>
+     *   <li>Build the transformer block via {@link TextClassificationTransformerSection}.</li>
+     * </ul>
+     */
+    private void applyChainedTransformer(String name,
+                                         @Nullable Map<Integer, String> id2Label,
+                                         MappingChain<io.kserve.serving.v1beta1.inferenceservicespec.predictor.Model> modelChain,
+                                         InferenceService service) {
+        if (MapUtils.isEmpty(id2Label)) {
+            throw new IllegalStateException("Cannot emit chained transformer for deployment '%s': id2Label is empty"
+                    .formatted(name));
+        }
+        modelChain.data().setProtocolVersion(KSERVE_V2_PROTOCOL);
+
+        var predictorArgs = modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data();
+        rejectConflictingChainedArgs(name, predictorArgs);
+        if (!isArgPresent(RETURN_RAW_LOGITS_ARG, predictorArgs)) {
+            predictorArgs.add(RETURN_RAW_LOGITS_ARG);
+        }
+        if (!isArgPresent(TASK_ARG, predictorArgs)) {
+            predictorArgs.add(TASK_ARG + "=" + SEQUENCE_CLASSIFICATION_TASK);
+        }
+
+        textClassificationTransformerSection.apply(service, name, id2Label, textClassificationTransformerProperties);
+    }
+
+    private void rejectConflictingChainedArgs(String name, List<String> predictorArgs) {
+        if (predictorArgs == null) {
+            return;
+        }
+        for (String arg : predictorArgs) {
+            if (arg == null) {
+                continue;
+            }
+            if (arg.equals(RETURN_PROBABILITIES_ARG) || arg.startsWith(RETURN_PROBABILITIES_ARG + "=")) {
+                throw new IllegalArgumentException(("Inference deployment '%s' is a text-classification model"
+                        + " and cannot use predictor arg '%s' — the chained transformer requires raw logits."
+                        + " Remove this arg.").formatted(name, RETURN_PROBABILITIES_ARG));
+            }
+            if (arg.equals(TASK_ARG) || arg.startsWith(TASK_ARG + "=")) {
+                int eq = arg.indexOf('=');
+                String value = (eq < 0) ? "" : arg.substring(eq + 1);
+                if (!SEQUENCE_CLASSIFICATION_TASK.equals(value)) {
+                    throw new IllegalArgumentException(("Inference deployment '%s' is a text-classification model"
+                            + " and cannot override '--task' to '%s' — the chained transformer requires"
+                            + " '--task=%s'. Remove this arg or set it to the required value.")
+                            .formatted(name, value, SEQUENCE_CLASSIFICATION_TASK));
+                }
+            }
+        }
     }
 
     private void applyPoolPrimitives(MappingChain<Predictor> predictorChain, PoolSchedulingPrimitives primitives) {

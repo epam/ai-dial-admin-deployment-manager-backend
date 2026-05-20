@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.huggingface.client;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.huggingface.model.FileRequest;
 import com.epam.aidial.deployment.manager.huggingface.model.Model;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelConfig;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelsPageResponse;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelsRequest;
 import com.epam.aidial.deployment.manager.huggingface.model.TagsInfo;
@@ -29,6 +30,8 @@ public class HuggingFaceClient {
 
     private static final String MODELS_ENDPOINT = "/api/models";
     private static final String TAGS_BY_TYPE_ENDPOINT = "/api/models-tags-by-type";
+    private static final String CONFIG_JSON_PATH = "config.json";
+    private static final String MAIN_REVISION = "main";
     private static final Pattern LINK_PATTERN = Pattern.compile("<([^>]+)>;\\s*rel=\"([^\"]+)\"");
 
     private final OkHttpClient httpClient;
@@ -73,6 +76,69 @@ public class HuggingFaceClient {
         log.debug("huggingface models were retrieved. Models count: {}. Request: {}. Page URL: {}. Base URL: {}.",
                 pageResponse.models().size(), request, pageUrl, properties.getBaseUrl());
         return result;
+    }
+
+    /**
+     * Get a single model's metadata by repository identifier.
+     *
+     * @param modelName HuggingFace repository identifier (e.g. {@code "distilbert/...sst-2-english"})
+     * @return populated {@link Model} record
+     * @throws HuggingFaceClientException on any non-2xx response or transport error
+     */
+    public Model getModel(String modelName) {
+        log.debug("Retrieving huggingface model. Model: {}. Base URL: {}", modelName, properties.getBaseUrl());
+        var url = HttpUrl.parse(properties.getBaseUrl() + MODELS_ENDPOINT + "/" + modelName);
+        var requestBuilder = new Request.Builder().url(url).get();
+        if (StringUtils.isNotBlank(properties.getApiToken())) {
+            requestBuilder.header("Authorization", "Bearer " + properties.getApiToken());
+        }
+        var request = requestBuilder.build();
+
+        try (var response = httpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new HuggingFaceClientException("Unexpected response code: " + response.code(), response.code());
+            }
+            var body = response.body();
+            if (body == null) {
+                throw new HuggingFaceClientException("Response body is null", HttpStatus.INTERNAL_SERVER_ERROR.value());
+            }
+            var result = jsonMapper.readValue(body.string(), Model.class);
+            log.debug("huggingface model retrieved. Model: {}. Base URL: {}", modelName, properties.getBaseUrl());
+            return result;
+        } catch (HuggingFaceClientException e) {
+            throw e;
+        } catch (Exception e) {
+            var errorMessage = "Error fetching model from Hugging Face API";
+            log.warn(errorMessage, e);
+            throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
+        }
+    }
+
+    /**
+     * Fetch and parse the model's {@code config.json} from the {@code main} revision.
+     *
+     * @param modelName HuggingFace repository identifier
+     * @return parsed {@link ModelConfig} with the fields relevant to inference-task detection
+     * @throws HuggingFaceClientException on any non-2xx response or transport error
+     */
+    public ModelConfig fetchModelConfig(String modelName) {
+        log.debug("Retrieving huggingface model config.json. Model: {}. Base URL: {}", modelName, properties.getBaseUrl());
+        var fileRequest = FileRequest.builder()
+                .modelName(modelName)
+                .revision(MAIN_REVISION)
+                .filePath(CONFIG_JSON_PATH)
+                .build();
+        try (var body = downloadFile(fileRequest)) {
+            var result = jsonMapper.readValue(body.string(), ModelConfig.class);
+            log.debug("huggingface model config.json retrieved. Model: {}", modelName);
+            return result;
+        } catch (HuggingFaceClientException e) {
+            throw e;
+        } catch (Exception e) {
+            var errorMessage = "Error parsing config.json from Hugging Face for model '" + modelName + "'";
+            log.warn(errorMessage, e);
+            throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
+        }
     }
 
     public TagsInfo getTagsByType() {
