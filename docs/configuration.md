@@ -417,7 +417,6 @@ Used by:
 | Property                                                     | Environment Variable            | Default Value       | Required                                          | Applied when                   | Description                                                                                       |
 | ------------------------------------------------------------ | ------------------------------- | ------------------- | ------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
 | `config.rest.security.mode`                                  | `CONFIG_REST_SECURITY_MODE`     | `none`              | No (recommended to adjust for target environment) | -                              | Security mode (oidc, basic or none)                                                               |
-| `config.rest.security.default.allowedRoles` **(deprecated)** | -                               | `ConfigAdmin,admin` | No (recommended to adjust for target environment) | config.rest.security.mode=oidc | Comma-separated list of roles with access permissions                                             |
 | `config.rest.security.default.roles-mapping`                 | `SECURITY_ROLES_MAPPING`        | `{}`                | No                                                | config.rest.security.mode=oidc | JSON object with mapping of provider roles to application roles                                   |
 | `config.rest.security.default.email-claim`                   | `CLAIMS_EMAIL_KEY`              | `unique_name`       | No                                                | config.rest.security.mode=oidc | Default JWT claim name (field in /userinfo response for opaque tokens) used to extract user email |
 | `config.rest.security.default.principal-claim`               | `SECURITY_USER_CLAIM`           | `oid`               | No (recommended to adjust for target environment) | config.rest.security.mode=oidc | Default JWT claim name (field in /userinfo response for opaque tokens) for user identification    |
@@ -448,13 +447,10 @@ The configuration is defined in environment variables
 | `providers.*.aliases`                        | `providers.azure.aliases`            | Yes                                  | `config.rest.security.mode=oidc` | Aliases for accepted JWT token issuers for the provider(only for Azure provider)                                                |
 | `providers.*.audiences`                      | `providers.azure.audiences`          | Yes                                  | `config.rest.security.mode=oidc` | List of accepted JWT token audiences. Specifies the intended recipients of the authorization token as defined in its aud claim. |
 | `providers.*.role-claims`                    | `providers.azure.role-claims`        | No                                   | `config.rest.security.mode=oidc` | Comma-separated list of JWT claim paths used to extract user roles for the provider.                                            |
-| `providers.*.allowed-roles` **(deprecated)** | `providers.azure.allowed-roles`      | No                                   | `config.rest.security.mode=oidc` | Comma-separated list of roles with access permissions for the provider                                                          |
 | `providers.*.roles-mapping`                  | `providers.azure.roles-mapping`      | No                                   | `config.rest.security.mode=oidc` | JSON object with mapping of provider roles to application roles                                                                 |
 | `providers.*.email-claims`                   | `providers.azure.email-claims`       | Yes, if provider is GCP              | `config.rest.security.mode=oidc` | Comma-separated list of JWT claim paths used to extract user email                                                              |
 | `providers.*.principal-claim`                | `providers.azure.principal-claim`    | No                                   | `config.rest.security.mode=oidc` | Specific claim that uniquely identifies the user or service (the "principal") for whom the token was issued.                    |
 
-
-**Warning**: `config.rest.security.default.allowedRoles` and `providers.*.allowed-roles` are **deprecated and will be removed in a future version**. Use `config.rest.security.default.roles-mapping` and `providers.*.roles-mapping` instead.
 
 **Available application roles:** `FULL_ADMIN`, `READ_ONLY_ADMIN`
 
@@ -466,10 +462,8 @@ The configuration is defined in environment variables
 **Role mapping precedence:**
 
 1. If `providers.*.roles-mapping` is specified — merged with `config.rest.security.default.roles-mapping` (provider takes precedence on overlap)
-2. Else if `providers.*.allowed-roles` is specified — all those roles plus `config.rest.security.default.allowedRoles` are mapped to `FULL_ADMIN`
-3. Else if `config.rest.security.default.roles-mapping` is specified — used as-is
-4. Else if `config.rest.security.default.allowedRoles` is specified — all mapped to `FULL_ADMIN`
-5. Else — empty mapping, all requests return 403 Forbidden
+2. Else `config.rest.security.default.roles-mapping` is used as-is
+3. If neither is specified — empty mapping, all requests return 403 Forbidden
 
 **Note:** The configuration for identity providers in the deployment manager utilizes the existing configuration from DIAL admin providers, including settings for clients and roles. 
 For detailed instructions on setting up Azure and Keycloak providers, please refer to the DIAL admin providers documentation available at [DIAL Admin Providers Documentation](https://github.com/epam/ai-dial-admin-backend/tree/development/docs).

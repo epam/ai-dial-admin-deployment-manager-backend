@@ -45,14 +45,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "config.rest.security.mode=oidc",
         "config.rest.security.default.email-claim=email",
         "config.rest.security.default.principal-claim=oid",
-        "config.rest.security.default.allowedRoles=ConfigAdmin,admin",
         "config.rest.security.default.roles-mapping={\"sso-admin\":[\"FULL_ADMIN\"],\"sso-viewer\":[\"READ_ONLY_ADMIN\"]}",
 
         "providers.test.issuer=https://sts.windows.net/issuer_test/",
         "providers.test.jwk-set-uri=https://test/keys",
         "providers.test.audiences=audience_test",
         "providers.test.role-claims=roles, resource_access.roles",
-        "providers.test.allowed-roles=testRole",
+        "providers.test.roles-mapping={\"testRole\":[\"FULL_ADMIN\"]}",
         "providers.test.email-claims=email",
 
         "config.rest.security.api-key.enabled=true",

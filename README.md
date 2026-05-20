@@ -172,7 +172,6 @@ The system supports two authentication methods:
    # Optional properties
    providers.azure.aliases=your_aliases  # Azure-specific
    providers.azure.role-claims=your_role_claims
-   providers.azure.allowed-roles=ConfigAdmin,admin
    ```
 - Enable with:
   ```properties
