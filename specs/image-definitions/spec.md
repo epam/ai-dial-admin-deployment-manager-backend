@@ -161,6 +161,23 @@ Status: **Implemented**
 - **WHEN** `GET /api/v1/images/definitions/{name}/versions?type=MCP` is called
 - **THEN** only versions matching that subtype are returned
 
+### Requirement: Revision rollback
+The system SHALL expose `POST /api/v1/images/definitions/{id}/revision/{revision}/rollback` to restore an image definition's stored configuration to its snapshot at the supplied audit revision. Rollback is permitted only when current `buildStatus` is `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED` — `BUILDING` and `BUILD_SUCCESSFUL` reject with HTTP 400 because a built image definition may already be referenced by deployments; operators must instead create a new version and re-point deployments via `change-image`. The rollback always persists via the regular update path, which resets `buildStatus` to `NOT_BUILT`. Build artifacts (`imageName`, `builtAt`, build logs) are NOT separately cleared by rollback — they cannot be non-null in rollback-eligible states under normal flow (`ImageBuildRunner` rejects rebuilds of `BUILD_SUCCESSFUL`, so `failBuild` can never run against a built image), so no clearing step is necessary. The rolled-back state must satisfy current validation rules and `(name, version)` uniqueness. The service does NOT pre-check identical state; rolling back to a revision whose snapshot already equals the current state may record a fresh audit revision. Cascade to dependent deployments is NOT performed — their stored configuration is untouched.
+
+Status: **Implemented** (Implemented via 020-revision-rollback)
+
+#### Scenario: Rollback restores configuration from rollback-eligible state
+- **WHEN** `POST /api/v1/images/definitions/{id}/revision/{revision}/rollback` is called on an image definition in `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED` with a valid revision
+- **THEN** the stored configuration matches that revision's snapshot, `buildStatus` is reset to `NOT_BUILT`, and HTTP 200 is returned
+
+#### Scenario: Rollback rejected when built or building
+- **WHEN** the rollback endpoint is called on an image definition with `buildStatus = BUILDING` or `BUILD_SUCCESSFUL`
+- **THEN** the system responds with HTTP 400 and the image definition is unchanged; the message instructs the operator to create a new version instead
+
+#### Scenario: Rollback rejected on name+version collision
+- **WHEN** the rolled-back name+version pair matches another existing image definition
+- **THEN** the system responds with HTTP 400 and the image definition is unchanged
+
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.ImageDefinitionController`
 - Endpoints:

@@ -109,7 +109,7 @@ Status: **Implemented** (Implemented via 014-auditing)
 - **THEN** the system returns HTTP 404
 
 ### Requirement: Per-controller entity snapshot endpoints
-Each audited entity controller SHALL expose `GET /{id}/revision/{revision}` returning the entity DTO at the specified revision, and `GET /revision/{revision}` returning all entities of that type at the specified revision. Snapshot DTOs are the same shape as the current-state DTOs (no separate `EntityRevisionDto` wrapper — rollback is out of scope).
+Each audited entity controller SHALL expose `GET /{id}/revision/{revision}` returning the entity DTO at the specified revision, and `GET /revision/{revision}` returning all entities of that type at the specified revision. Snapshot DTOs are the same shape as the current-state DTOs (no separate `EntityRevisionDto` wrapper).
 
 Status: **Implemented** (Implemented via 014-auditing)
 
@@ -129,6 +129,27 @@ Status: **Implemented** (Implemented via 014-auditing)
 Audit schema changes SHALL be managed through versioned Flyway migrations compatible with H2, PostgreSQL, and SQL Server.
 
 Status: **Implemented** (Implemented via 014-auditing)
+
+### Requirement: Revision-based rollback per resource
+Each audited entity controller SHALL expose `POST /{id}/revision/{revision}/rollback` (or, for singleton resources, the equivalent revision-scoped path) that restores the resource's persisted configuration to its audit snapshot at the supplied revision. Rollback is permitted only when the resource is in a state where regular updates are permitted (deployment in `NOT_DEPLOYED` / `STOPPED`; image definition in `NOT_BUILT` / `BUILD_FAILED` / `BUILD_STOPPED`); active states reject with HTTP 400. The rolled-back state must satisfy current validation rules and existing cross-resource references. Identical-state suppression is performed only by the global image-build domain whitelist (whose `allowedDomains` snapshot is multiset-compared against the current list); deployments and image definitions may persist the rollback and record a fresh `Update` revision even when no restorable field actually differs. Each persisted rollback produces exactly one new revision attributed to the calling administrator.
+
+Status: **Implemented** (Implemented via 020-revision-rollback)
+
+#### Scenario: Deployment rollback restores configuration
+- **WHEN** an administrator rolls a `NOT_DEPLOYED` deployment back to a past revision
+- **THEN** the deployment's stored configuration matches that revision's snapshot for all user-editable fields
+
+#### Scenario: Image-definition rollback resets build status
+- **WHEN** an administrator rolls a `NOT_BUILT` / `BUILD_FAILED` / `BUILD_STOPPED` image definition back to a past revision and at least one field changes
+- **THEN** `buildStatus` is reset to `NOT_BUILT` (and any stale `imageName` / `builtAt` / build logs that a future flow might introduce would be cleared by the regular update path)
+
+#### Scenario: Active-state rollback rejected
+- **WHEN** an administrator attempts to rollback a deployment in `PENDING` / `RUNNING` / `CRASHED` / `STOPPING`
+- **THEN** the system returns HTTP 400 instructing the operator to undeploy first
+
+#### Scenario: Identical-state whitelist rollback is a no-op
+- **WHEN** an administrator rolls the global image-build whitelist back to a revision whose `allowedDomains` snapshot multiset-equals the current list
+- **THEN** the system returns the current state with HTTP 200 and does NOT record a new revision
 
 ## Implementation Notes
 - ORM-level audit: Hibernate Envers via `@Audited` on entities; `_AUD` tables managed by Flyway migrations under `src/main/resources/db/migration/{H2,POSTGRES,MS_SQL_SERVER}/`.

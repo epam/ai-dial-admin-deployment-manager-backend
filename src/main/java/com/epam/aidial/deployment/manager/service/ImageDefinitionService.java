@@ -141,6 +141,33 @@ public class ImageDefinitionService {
     }
 
     @Transactional
+    public ImageDefinition rollback(UUID id, Integer revision) {
+        historyService.getRevisionById(revision);
+
+        var existing = imageDefinitionRepository.getImageDefinitionById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+
+        if (existing.getBuildStatus() == ImageStatus.BUILDING || existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) {
+            throw new IllegalArgumentException(
+                    "Cannot roll back image definition '%s' while build status is %s. Create a new version instead and re-point deployments."
+                            .formatted(id, existing.getBuildStatus()));
+        }
+
+        var snapshot = getImageDefinitionSnapshot(id, revision);
+
+        var snapshotType = ImageType.of(snapshot);
+        imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(snapshotType, snapshot.getName(), snapshot.getVersion())
+                .filter(other -> !other.getId().equals(id))
+                .ifPresent(other -> {
+                    throw new IllegalArgumentException(
+                            "Cannot roll back image definition '%s': name='%s' and version='%s' would collide with existing image definition '%s'."
+                                    .formatted(id, snapshot.getName(), snapshot.getVersion(), other.getId()));
+                });
+
+        return imageDefinitionRepository.updateImageDefinition(id, snapshot);
+    }
+
+    @Transactional
     public void addBuildLog(UUID id, String log) {
         addBuildLogs(id, List.of(log));
     }

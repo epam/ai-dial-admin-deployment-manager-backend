@@ -59,6 +59,23 @@ When the global domain whitelist is imported via `POST /api/v1/configs/import` w
 
 Status: **Implemented**
 
+### Requirement: Revision rollback
+The system SHALL expose `POST /api/v1/global-whitelist/image-build/revision/{revision}/rollback` to restore the global image-build whitelist to its snapshot at the supplied audit revision. Rollback is a full replacement (not a merge), matching the direct-replace semantics of the regular write endpoint. The supplied revision must exist (validated against `historyService.getRevisionById`) and must contain a whitelist snapshot; missing revisions reject with HTTP 404. Identical-state rollbacks are no-ops that do not produce a new revision.
+
+Status: **Implemented** (Implemented via 020-revision-rollback)
+
+#### Scenario: Rollback to a past revision
+- **WHEN** `POST /api/v1/global-whitelist/image-build/revision/{revision}/rollback` is called with a valid revision
+- **THEN** the current whitelist entries are replaced by a full copy of the snapshot at that revision, a new audit revision is recorded, and HTTP 200 is returned with the resulting `List<String>` of domains
+
+#### Scenario: Rollback no-op when state matches
+- **WHEN** the current whitelist already equals the snapshot at the supplied revision (multiset comparison)
+- **THEN** the system returns HTTP 200 with the current entries and does NOT record a new revision
+
+#### Scenario: Rollback to unknown revision
+- **WHEN** the supplied revision does not exist
+- **THEN** the system responds with HTTP 404 and the whitelist is unchanged
+
 #### Scenario: Import merge
 - **WHEN** `POST /api/v1/configs/import` is called with a ZIP containing a domain whitelist and `conflictResolutionPolicy=OVERWRITE`
 - **THEN** the resulting whitelist is the union of the existing and incoming lists (existing entries first, new incoming entries appended, duplicates removed)

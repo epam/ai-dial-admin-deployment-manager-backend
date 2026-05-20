@@ -376,6 +376,27 @@ Status: **Implemented**
 - **WHEN** the application starts
 - **THEN** deployments with `RUNNING` or `PENDING` status are reconciled against actual Kubernetes state using stored service names; status is corrected if needed
 
+### Requirement: Revision rollback
+The system SHALL expose `POST /api/v1/deployments/{id}/revision/{revision}/rollback` to restore a deployment's stored configuration to its snapshot at the supplied audit revision. Rollback is permitted only when the deployment is in an inactive lifecycle state (`NOT_DEPLOYED`, `STOPPED`) — active states (`PENDING`, `RUNNING`, `CRASHED`, `STOPPING`) reject with HTTP 400 and the operator must `undeploy` first. The only reference-existence check enforced on rollback is the snapshot's `imageDefinitionId` (when the source is `internal_image`); a missing image definition rejects with HTTP 400 identifying the reference. Immutable / system-managed fields (`id`, `name`, `serviceName`, `status`, `url`, `createdAt`, `updatedAt`) are preserved from the current entity; all other user-editable fields come from the snapshot. The service does NOT pre-check identical state; rolling back to a revision whose snapshot already equals the current state may record a fresh audit revision. The deployment's K8s envs secret is unconditionally reprovisioned on rollback to match the snapshot's env-var structure (names + mount types + simple values from the snapshot; sensitive values reset to null, since audit history never stored them). The operator must re-supply the sensitive values via the regular update endpoint before deploying. No live workload resources (Service, KService / Deployment, CiliumNetworkPolicy, pods) are modified.
+
+Status: **Implemented** (Implemented via 020-revision-rollback)
+
+#### Scenario: Rollback restores configuration when inactive
+- **WHEN** `POST /api/v1/deployments/{id}/revision/{revision}/rollback` is called on a `NOT_DEPLOYED` or `STOPPED` deployment with a valid revision
+- **THEN** the stored configuration matches that revision's snapshot for all user-editable fields, a new audit revision is recorded as an `Update` activity, and HTTP 200 is returned with the resulting `DeploymentDto`
+
+#### Scenario: Rollback rejected in active state
+- **WHEN** the rollback endpoint is called on a `PENDING` / `RUNNING` / `CRASHED` / `STOPPING` deployment
+- **THEN** the system responds with HTTP 400 and the deployment is unchanged
+
+#### Scenario: Rollback rejected for missing image definition
+- **WHEN** the rollback target snapshot's `InternalImageSource` references an `imageDefinitionId` that no longer exists
+- **THEN** the system responds with HTTP 400 and the response identifies the missing image definition
+
+#### Scenario: Stale nodePoolId / reserved env name / source mismatch in snapshot does NOT block rollback
+- **WHEN** the rollback target snapshot carries a `nodePoolId` no longer in `NODE_POOLS`, an env-var name that is now reserved, or a source type that today's validators would reject for the deployment type
+- **THEN** the rollback persists the snapshot verbatim and HTTP 200 is returned; the same stale value will cause the next `deploy` (pool resolution / manifest generation) or `update` (re-validation through the regular write path) to fail
+
 ## Entity vs DTO Hierarchy
 
 The entity and DTO layers use different inheritance structures:
