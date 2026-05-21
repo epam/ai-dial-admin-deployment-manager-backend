@@ -140,6 +140,10 @@ public class HuggingFaceClient {
             return result;
         } catch (HuggingFaceClientException e) {
             throw e;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            var errorMessage = "Malformed config.json from Hugging Face for model '%s'".formatted(modelName);
+            log.warn(errorMessage, e);
+            throw new HuggingFaceMalformedResponseException(errorMessage, e);
         } catch (Exception e) {
             var errorMessage = "Error parsing config.json from Hugging Face for model '%s'".formatted(modelName);
             log.warn(errorMessage, e);

@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.service.deployment;
+package com.epam.aidial.deployment.manager.service.manifest;
 
 /**
  * Raised when a text-classification inference deployment is about to be chained but the

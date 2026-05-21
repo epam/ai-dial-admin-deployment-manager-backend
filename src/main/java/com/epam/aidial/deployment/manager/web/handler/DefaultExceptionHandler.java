@@ -12,9 +12,9 @@ import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
-import com.epam.aidial.deployment.manager.service.deployment.MissingTransformerImageException;
 import com.epam.aidial.deployment.manager.service.detection.HuggingFaceUpstreamException;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionException;
+import com.epam.aidial.deployment.manager.service.manifest.MissingTransformerImageException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -159,6 +159,9 @@ public class DefaultExceptionHandler {
         return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    // Catch-all for the detection hierarchy → 400. Subclasses with their own @ExceptionHandler
+    // (e.g. HuggingFaceUpstreamException → 502) take precedence because Spring resolves by
+    // inheritance depth.
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(InferenceTaskDetectionException.class)
     public ErrorView handleInferenceTaskDetectionError(HttpServletRequest req, InferenceTaskDetectionException ex) {

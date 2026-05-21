@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.detection;
 
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClientException;
+import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceMalformedResponseException;
 import com.epam.aidial.deployment.manager.huggingface.model.Model;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelConfig;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
@@ -186,6 +187,31 @@ class InferenceTaskDetectorTest {
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
                 .isInstanceOf(HuggingFaceUpstreamException.class);
+    }
+
+    @Test
+    void shouldRaiseModelMetadataUnusable_whenConfigParseFails() {
+        var model = Model.builder().pipelineTag("text-classification").build();
+        when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any()))
+                .thenThrow(new HuggingFaceMalformedResponseException("malformed", new RuntimeException("bad json")));
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(ModelMetadataUnusableException.class)
+                .hasMessageContaining("could not be parsed")
+                .hasMessageContaining(MODEL_NAME);
+    }
+
+    @Test
+    void shouldFailDetect_whenId2LabelHasDuplicateKeyAfterNormalization() {
+        var model = Model.builder().pipelineTag("text-classification").build();
+        when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
+                ModelConfig.builder().id2Label(orderedMap("0", "NEGATIVE", "00", "POSITIVE")).build());
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(ModelMetadataUnusableException.class)
+                .hasMessageContaining("duplicate key");
     }
 
     private static Map<String, String> orderedMap(String... kvs) {

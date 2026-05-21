@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service.detection;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClientException;
+import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceMalformedResponseException;
 import com.epam.aidial.deployment.manager.huggingface.model.Model;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelConfig;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
@@ -55,24 +56,17 @@ public class InferenceTaskDetector {
         Model model = fetchModel(modelName);
         // Pin config.json to the same revision the model API returned so the two calls
         // can't observe different snapshots if the model is updated between them.
-        String revision = model.getSha();
-        boolean isTextClassification = TEXT_CLASSIFICATION_PIPELINE_TAG.equalsIgnoreCase(model.getPipelineTag());
+        ModelConfig config = fetchConfig(modelName, model.getSha());
+
+        boolean isTextClassification =
+                TEXT_CLASSIFICATION_PIPELINE_TAG.equalsIgnoreCase(model.getPipelineTag())
+                        || hasSequenceClassificationArchitecture(config);
 
         if (!isTextClassification) {
-            // Fall back to architecture-based signal.
-            ModelConfig config = fetchConfig(modelName, revision);
-            isTextClassification = hasSequenceClassificationArchitecture(config);
-            if (!isTextClassification) {
-                log.debug("Model '{}' detected as NONE (pipeline_tag='{}', architectures={})",
-                        modelName, model.getPipelineTag(), config.getArchitectures());
-                return InferenceTaskDetectionResult.none();
-            }
-            // Detected via architecture; reuse the already-fetched config for id2label parsing.
-            return InferenceTaskDetectionResult.textClassification(extractAndValidateId2Label(modelName, config));
+            log.debug("Model '{}' detected as NONE (pipeline_tag='{}', architectures={})",
+                    modelName, model.getPipelineTag(), config.getArchitectures());
+            return InferenceTaskDetectionResult.none();
         }
-
-        // pipeline_tag matched — fetch config.json for id2label.
-        ModelConfig config = fetchConfig(modelName, revision);
         return InferenceTaskDetectionResult.textClassification(extractAndValidateId2Label(modelName, config));
     }
 
@@ -93,6 +87,11 @@ public class InferenceTaskDetector {
     }
 
     private InferenceTaskDetectionException translateHuggingFaceFailure(String modelName, HuggingFaceClientException e) {
+        if (e instanceof HuggingFaceMalformedResponseException) {
+            return new ModelMetadataUnusableException(modelName,
+                    ("HuggingFace model '%s' returned a config.json that could not be parsed."
+                            + " Required: a valid JSON document with the expected fields.").formatted(modelName), e);
+        }
         int status = e.getStatusCode();
         if (status == 404) {
             return new ModelNotFoundException(modelName,
@@ -150,6 +149,12 @@ public class InferenceTaskDetector {
                         ("HuggingFace model '%s' has an unusable id2label (reason: 'empty value for key %s')."
                                 + " Required: dense non-negative integer keys with non-stub string values.")
                                 .formatted(modelName, key));
+            }
+            if (parsed.containsKey(parsedKey)) {
+                throw new ModelMetadataUnusableException(modelName,
+                        ("HuggingFace model '%s' has an unusable id2label (reason: 'duplicate key %d"
+                                + " after normalization'). Required: dense non-negative integer keys with"
+                                + " non-stub string values.").formatted(modelName, parsedKey));
             }
             parsed.put(parsedKey, value);
         }

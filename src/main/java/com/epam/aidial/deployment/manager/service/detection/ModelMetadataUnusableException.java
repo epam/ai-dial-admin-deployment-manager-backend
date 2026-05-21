@@ -10,4 +10,8 @@ public class ModelMetadataUnusableException extends InferenceTaskDetectionExcept
     public ModelMetadataUnusableException(String modelName, String message) {
         super(modelName, message);
     }
+
+    public ModelMetadataUnusableException(String modelName, String message, Throwable cause) {
+        super(modelName, message, cause);
+    }
 }

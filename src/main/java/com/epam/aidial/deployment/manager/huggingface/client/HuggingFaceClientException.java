@@ -15,4 +15,9 @@ public class HuggingFaceClientException extends RuntimeException {
         this.statusCode = statusCode;
     }
 
+    public HuggingFaceClientException(String message, int statusCode, Throwable cause) {
+        super(message, cause);
+        this.statusCode = statusCode;
+    }
+
 }
