@@ -66,7 +66,7 @@ Complete list of configuration properties can be found in the [Configuration Doc
 
 - **Kubernetes Connection**: Configure via config file (`K8S_CONNECT_TYPE=CONFIG_FILE`) or token-based authentication (`K8S_CONNECT_TYPE=TOKEN`)
 - **Docker Registry**: Configure registry URL, protocol, and authentication (`DOCKER_REGISTRY`, `DOCKER_REGISTRY_AUTH`)
-- **Database**: Support for H2, PostgreSQL, and SQL Server via `DATASOURCE_VENDOR` environment variable
+- **Database**: Support for H2, PostgreSQL, and SQL Server via `DATASOURCE_VENDOR` environment variable. H2 is the default but is intended for **development and testing only** — its backup/restore procedures are unreliable, so running it in production is very strongly discouraged; use PostgreSQL or SQL Server instead. See [Datasource Configuration](docs/configuration.md#datasource-configuration).
 - **Security/Authentication**: Configure via `CONFIG_REST_SECURITY_MODE` (none, basic, oidc)
 - **Knative Deployment**: Configure namespaces, timeouts, and scaling parameters
 - **Build Pipeline**: Configure build namespaces, images, and resource limits
@@ -172,7 +172,6 @@ The system supports two authentication methods:
    # Optional properties
    providers.azure.aliases=your_aliases  # Azure-specific
    providers.azure.role-claims=your_role_claims
-   providers.azure.allowed-roles=ConfigAdmin,admin
    ```
 - Enable with:
   ```properties

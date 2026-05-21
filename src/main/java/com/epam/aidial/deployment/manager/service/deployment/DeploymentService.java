@@ -21,12 +21,15 @@ import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.ImageType;
 import com.epam.aidial.deployment.manager.model.PodInfo;
+import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
+import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
@@ -157,6 +160,65 @@ public class DeploymentService {
         var savedDeployment = deploymentRepository.save(deployment);
         savedDeployment.setEnvs(envs); // we do not save secret values into DB
         return savedDeployment;
+    }
+
+    @Transactional
+    public Deployment rollback(String id, Integer revision) {
+        // 404 precheck: throws if the revision id is unknown
+        historyService.getRevisionById(revision);
+
+        var existing = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+        if (existing.getStatus().isActive()) {
+            throw new IllegalArgumentException(
+                    "Cannot roll back deployment '%s' while it is in active state '%s'. Undeploy it first."
+                            .formatted(existing.getId(), existing.getStatus()));
+        }
+
+        var snapshot = getDeploymentSnapshot(id, revision);
+        snapshot.setServiceName(existing.getServiceName());
+        snapshot.setUrl(existing.getUrl());
+        snapshot.setStatus(existing.getStatus());
+
+        resolveImageDefinitionReference(snapshot);
+        reconcileEnvSecrets(id, existing, snapshot);
+
+        return deploymentRepository.update(id, snapshot);
+    }
+
+    /**
+     * Audit history never stores sensitive env values, so rollback cannot restore them. Always
+     * cleanup the live K8s envs secret and reprovision one matching the snapshot's structure:
+     * simple env values come from the snapshot, sensitive env values are reset to null. The
+     * operator must re-supply sensitive values via {@code updateDeployment} before deploying.
+     * This is intentionally symmetric with {@code updateDeployment} but without the change-detection
+     * gate — silently retaining live sensitive values across a rollback would misrepresent the
+     * snapshot the operator asked to restore.
+     */
+    private void reconcileEnvSecrets(String id, Deployment existing, Deployment snapshot) {
+        var deploymentManager = deploymentManagerProvider.provide(id);
+        // We deliberately skip resolveSecrets on `existing` here — cleanupSecrets keys off the
+        // persisted k8sSecretName only, and that field is populated from the DB row, so the
+        // resolved secret values are not needed (and asking for them would re-hit the K8s API
+        // unnecessarily).
+        deploymentManager.cleanupSecrets(id, existing.getEnvs());
+        snapshot.setEnvs(saveEnvVars(deploymentManager, id, partitionFromSnapshot(snapshot.getEnvs())));
+    }
+
+    private EnvPartition partitionFromSnapshot(List<EnvVar> snapshotEnvs) {
+        Map<String, EnvVarValue> sensitive = new HashMap<>();
+        Map<String, EnvVarValue> nonSensitive = new HashMap<>();
+        Map<String, EnvVarValue> sensitiveFile = new HashMap<>();
+
+        for (EnvVar env : ListUtils.emptyIfNull(snapshotEnvs)) {
+            if (env instanceof SensitiveFileEnvVar) {
+                sensitiveFile.put(env.getName(), null);
+            } else if (env instanceof SensitiveEnvVar) {
+                sensitive.put(env.getName(), null);
+            } else if (env instanceof SimpleEnvVar) {
+                nonSensitive.put(env.getName(), env.getValue());
+            }
+        }
+        return new EnvPartition(sensitive, nonSensitive, sensitiveFile);
     }
 
     @Transactional
@@ -343,26 +405,52 @@ public class DeploymentService {
     }
 
     private Optional<ImageDefinition> resolveImageDefinition(CreateDeployment request) {
-        if (!(request.getSource() instanceof InternalImageSource(UUID id, ImageType type, String name, String version))) {
+        Optional<ImageDefinition> definition = lookupImageDefinitionBySource(
+                request.getSource(),
+                id -> new EntityNotFoundException("ImageDefinition not found: '%s'".formatted(id)),
+                src -> new EntityNotFoundException("ImageDefinition not found. Type='%s'. Name='%s'. Version='%s'"
+                        .formatted(src.imageDefinitionType(), src.imageDefinitionName(), src.imageDefinitionVersion())));
+        definition.ifPresent(d -> DeploymentSourceValidator.validateImageTypeMatchesDeployment(request, ImageType.of(d)));
+        return definition;
+    }
+
+    private void resolveImageDefinitionReference(Deployment deployment) {
+        lookupImageDefinitionBySource(
+                deployment.getSource(),
+                id -> new IllegalArgumentException(
+                        "Image definition with id '%s' not found (referenced by deployment '%s')"
+                                .formatted(id, deployment.getId())),
+                src -> new IllegalArgumentException(
+                        "Image definition with type='%s', name='%s', version='%s' not found (referenced by deployment '%s')"
+                                .formatted(src.imageDefinitionType(), src.imageDefinitionName(), src.imageDefinitionVersion(), deployment.getId())))
+                .ifPresent(referenced -> setDeploymentImageDefinitionRef(deployment, referenced));
+    }
+
+    /**
+     * Resolve the {@link ImageDefinition} referenced by an {@link InternalImageSource}. Callers
+     * supply exception factories so the create/update path (EntityNotFoundException) and the
+     * rollback path (IllegalArgumentException with deployment-id context) can each meet their
+     * respective contract messages.
+     */
+    private Optional<ImageDefinition> lookupImageDefinitionBySource(
+            Source source,
+            Function<UUID, RuntimeException> notFoundById,
+            Function<InternalImageSource, RuntimeException> notFoundByTriple) {
+        if (!(source instanceof InternalImageSource src)) {
             return Optional.empty();
         }
-
-        ImageDefinition definition = null;
-        if (id != null) {
-            definition = imageDefinitionService.getImageDefinition(id)
-                    .orElseThrow(notFound("ImageDefinition", id));
-        } else if (type != null
-                && StringUtils.isNotBlank(name)
-                && StringUtils.isNotBlank(version)) {
-            definition = imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(type, name, version)
-                    .orElseThrow(
-                        () -> new EntityNotFoundException("ImageDefinition not found. Type='%s'. Name='%s'. Version='%s'".formatted(type, name, version)));
+        if (src.imageDefinitionId() != null) {
+            return Optional.of(imageDefinitionService.getImageDefinition(src.imageDefinitionId())
+                    .orElseThrow(() -> notFoundById.apply(src.imageDefinitionId())));
         }
-
-        if (definition != null) {
-            DeploymentSourceValidator.validateImageTypeMatchesDeployment(request, ImageType.of(definition));
+        if (src.imageDefinitionType() != null
+                && StringUtils.isNotBlank(src.imageDefinitionName())
+                && StringUtils.isNotBlank(src.imageDefinitionVersion())) {
+            return Optional.of(imageDefinitionService.getImageDefinitionByTypeAndNameAndVersion(
+                    src.imageDefinitionType(), src.imageDefinitionName(), src.imageDefinitionVersion())
+                    .orElseThrow(() -> notFoundByTriple.apply(src)));
         }
-        return Optional.ofNullable(definition);
+        return Optional.empty();
     }
 
     private void resolveAndSetImageDefinitionRef(CreateDeployment request, Deployment deployment) {

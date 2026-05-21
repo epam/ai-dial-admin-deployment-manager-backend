@@ -5,10 +5,13 @@ import com.epam.aidial.deployment.manager.functional.tests.AuditFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigExportImportFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigImportValidationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.DeploymentRollbackFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowWithMockedK8sClientFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.GlobalWhitelistRollbackFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageBuildRunnerFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionRollbackFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import org.junit.jupiter.api.Nested;
@@ -73,5 +76,17 @@ public class H2FunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class StopImageBuildTests extends StopImageBuildFunctionalTest {
+    }
+
+    @Nested
+    class DeploymentRollbackTests extends DeploymentRollbackFunctionalTest {
+    }
+
+    @Nested
+    class ImageDefinitionRollbackTests extends ImageDefinitionRollbackFunctionalTest {
+    }
+
+    @Nested
+    class GlobalWhitelistRollbackTests extends GlobalWhitelistRollbackFunctionalTest {
     }
 }

@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,5 +43,18 @@ public class GlobalDomainWhitelistService {
                 .map(DomainWhitelistEntity::getAllowedDomains)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Unable to find domain whitelist at revision " + revision));
+    }
+
+    @Transactional
+    public List<String> rollback(Integer revision) {
+        // 404 precheck: throws if the revision id is unknown
+        historyService.getRevisionById(revision);
+        var snapshot = getDomainWhitelistSnapshot(revision);
+        var current = repository.findAllowedDomains().orElseGet(List::of);
+        if (CollectionUtils.isEqualCollection(current, snapshot)) {
+            return current;
+        }
+        repository.setAllowedDomainsOrCreate(snapshot);
+        return snapshot;
     }
 }

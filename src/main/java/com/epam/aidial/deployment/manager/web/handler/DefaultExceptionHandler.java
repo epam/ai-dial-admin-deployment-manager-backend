@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.exception.DatabaseException;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildNotInProgressException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildStopFailedException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
@@ -60,7 +61,7 @@ public class DefaultExceptionHandler {
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    @ExceptionHandler({EntityNotFoundException.class, NoResourceFoundException.class})
+    @ExceptionHandler({EntityNotFoundException.class, NoResourceFoundException.class, GlobalDomainWhitelistNotFoundException.class})
     public ErrorView handleEntityNotFoundError(HttpServletRequest req, Exception ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.NOT_FOUND, ex.getMessage());

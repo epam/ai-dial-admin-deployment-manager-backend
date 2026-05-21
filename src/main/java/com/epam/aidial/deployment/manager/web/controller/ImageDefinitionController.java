@@ -14,6 +14,8 @@ import com.epam.aidial.deployment.manager.web.dto.ImageTypeDto;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMapper;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -91,6 +93,22 @@ public class ImageDefinitionController {
         return imageDefinitionService.getAllImageDefinitionsAtRevision(revision).stream()
                 .map(dtoMapper::toImageDefinitionDto)
                 .collect(Collectors.toList());
+    }
+
+    @FullAdminOnly
+    @PostMapping(path = "/{id}/revision/{revision}/rollback",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Roll back an image definition to a past revision",
+            description = "Restores the image definition's stored configuration to its snapshot at the given audit revision. "
+                    + "Allowed only when current build status is NOT_BUILT, BUILD_FAILED, or BUILD_STOPPED.")
+    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+    @ApiResponse(responseCode = "400", description = "Built/building state, validation, or uniqueness rejection")
+    @ApiResponse(responseCode = "403", description = "Read-only role")
+    @ApiResponse(responseCode = "404", description = "Image definition or revision not found")
+    public ImageDefinitionDto rollbackImageDefinition(@PathVariable UUID id, @PathVariable Integer revision) {
+        var rolledBack = imageDefinitionService.rollback(id, revision);
+        return dtoMapper.toImageDefinitionDto(rolledBack);
     }
 
     @GetMapping(path = "/{name}/versions",

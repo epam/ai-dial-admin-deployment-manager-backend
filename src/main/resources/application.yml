@@ -405,8 +405,7 @@ config:
       require-email: ${SECURITY_REQUIRE_EMAIL:false}
       disable-swagger-authorization: ${DISABLE_SWAGGER_AUTHORIZATION:false}
       default:
-        allowedRoles: ConfigAdmin,admin
-        roles-mapping: "${SECURITY_ROLES_MAPPING:{}}"
+        roles-mapping: "${SECURITY_ROLES_MAPPING:{\"ConfigAdmin\":[\"FULL_ADMIN\"],\"admin\":[\"FULL_ADMIN\"]}}"
         email-claim: ${CLAIMS_EMAIL_KEY:unique_name}
         principal-claim: ${SECURITY_USER_CLAIM:oid}
       api-key:

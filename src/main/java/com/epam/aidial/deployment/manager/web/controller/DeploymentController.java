@@ -100,6 +100,23 @@ public class DeploymentController {
     }
 
     @FullAdminOnly
+    @PostMapping(path = "/{id}/revision/{revision}/rollback",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Roll back a deployment to a past revision",
+            description = "Restores the deployment's stored configuration to its snapshot at the given audit revision. "
+                    + "Allowed only when the deployment is in NOT_DEPLOYED or STOPPED. "
+                    + "Does not modify live Kubernetes state — the operator must trigger deploy afterwards to apply.")
+    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+    @ApiResponse(responseCode = "400", description = "Active-state, validation, or missing-reference rejection")
+    @ApiResponse(responseCode = "403", description = "Read-only role")
+    @ApiResponse(responseCode = "404", description = "Deployment or revision not found")
+    public DeploymentDto rollbackDeployment(@PathVariable String id, @PathVariable Integer revision) {
+        var rolledBack = deploymentService.rollback(id, revision);
+        return dtoMapper.toDeploymentDto(rolledBack);
+    }
+
+    @FullAdminOnly
     @PostMapping(consumes = MimeTypeUtils.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public DeploymentDto createDeployment(@RequestBody @Valid CreateDeploymentRequestDto requestDto) {
