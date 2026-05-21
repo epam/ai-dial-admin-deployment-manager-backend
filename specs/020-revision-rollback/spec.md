@@ -1,0 +1,136 @@
+# Feature Specification: Revision Rollback for Deployments, Image Definitions, and Global Whitelist
+
+**Feature Branch**: `020-revision-rollback`
+**Created**: 2026-05-18
+**Status**: Implemented
+**Capability**: auditing, deployments, image-definitions, domain-whitelist
+**Input**: User description: "Currently, there is no ability to rollback image definitions, deployments and global whitelist to a specific state from the past (revision). This functionality needs to be implemented."
+
+## Clarifications
+
+### Session 2026-05-18
+
+- Q: When a deployment is rolled back and its source references an image definition that has since been deleted, what should the system do? → A: Reject the rollback with HTTP 400; the response identifies the missing image-definition reference (mirrors the existing "unknown nodePoolId rejected" behaviour on create/update).
+- Q: Which deployment lifecycle states permit rollback? → A: Only inactive states (`NOT_DEPLOYED`, `STOPPED`). Active states (`PENDING`, `RUNNING`, `CRASHED`, `STOPPING`) reject rollback with HTTP 400; the operator must `undeploy` first, rollback, then `deploy`.
+
+### Session 2026-05-19
+
+- Q: Which image-definition build states permit rollback? → A: Only `NOT_BUILT`, `BUILD_FAILED`, and `BUILD_STOPPED`. `BUILDING` and `BUILD_SUCCESSFUL` reject rollback with HTTP 400, because a built image-definition may already be referenced by deployments and silently shifting its source/version would break that contract. Operators who need to "undo" a built image-definition change must instead create a new version and re-point deployments via the existing `change-image` flow.
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - Restore a misconfigured deployment to a known-good revision (Priority: P1)
+
+A platform administrator notices that a recent configuration change to a deployment (e.g., a wrong environment variable value, a too-low replica count, or an unintended scaling strategy switch) has degraded the workload. Today they must open the audit history, read the previous snapshot field-by-field, and manually re-enter every value through the regular update form — a slow, error-prone process. This story lets the administrator pick a past revision of that deployment from the audit history and rollback the deployment's stored configuration to exactly that state in one action. Rollback is permitted only when the deployment is inactive (`NOT_DEPLOYED` or `STOPPED`); the operational flow for a live deployment is therefore: `undeploy` → `rollback` → `deploy`.
+
+**Why this priority**: Deployments are the resources administrators touch most frequently. Misconfiguration of a live deployment has the largest blast radius (it directly affects workloads serving traffic). A one-click rollback removes the largest source of operator toil and reduces the time-to-recover from a bad change. Shipping this alone delivers most of the value of the feature.
+
+**Independent Test**: Create a deployment, modify it through several updates (each creating a new revision), call rollback against a chosen earlier revision, and verify the deployment record now matches that revision's snapshot. Verifiable end-to-end through the deployment audit-history and read endpoints without depending on image-definition or whitelist work.
+
+**Acceptance Scenarios**:
+
+1. **Given** a deployment whose configuration was changed across revisions `R1`, `R2`, and `R3`, **When** the administrator rolls the deployment back to revision `R1`, **Then** the deployment's stored configuration matches its `R1` snapshot for all user-editable fields and a new revision `R4` is recorded with the rollback as an update activity.
+2. **Given** a deployment in any active lifecycle state (`PENDING`, `RUNNING`, `CRASHED`, or `STOPPING`), **When** the administrator attempts a rollback, **Then** the system rejects the request with HTTP 400 and the deployment is unchanged; the response message instructs the operator to `undeploy` first.
+3. **Given** a target revision that is older than the deployment's creation revision, **When** the administrator attempts to roll back to it, **Then** the system rejects the request with HTTP 404 and the deployment is unchanged.
+4. **Given** a target revision identifier that does not exist, **When** the administrator attempts to roll back to it, **Then** the system rejects the request with HTTP 404 and the deployment is unchanged.
+5. **Given** a deployment whose rolled-back `source` references an `imageDefinitionId` that no longer exists, **When** the administrator attempts the rollback, **Then** the system rejects the request with HTTP 400, the deployment is unchanged, and the response identifies the missing image definition. Other historical values (env-var names that are now reserved, a `nodePoolId` that has since been removed from `NODE_POOLS`, a source-type/deployment-type mismatch from a tightened rule) are **not** re-validated at rollback time — they round-trip into the rolled-back record as-is and surface on the next `deploy` (where the live-state validators already enforce them) or on the next `update` (where the regular write path re-runs full validation).
+6. **Given** a deployment whose current state already matches the target revision's snapshot, **When** the administrator rolls back to that revision, **Then** the system returns success and the deployment's resulting state matches the snapshot (the rollback always persists, so an audit revision is recorded; the system does not attempt to suppress a redundant revision).
+7. **Given** an administrator without write permission (read-only role), **When** they attempt to roll back any deployment, **Then** the system rejects the request with HTTP 403.
+
+---
+
+### User Story 2 - Restore an image definition to a previous revision (Priority: P2)
+
+A platform administrator changes an image definition's source, version, or build-affecting metadata (allowed domains, builder selection), triggers a build that fails (or stops the build before it completes), and wants to revert the image definition to its previous revision without manually re-typing fields from the audit snapshot. Rollback is permitted only when the image definition has not yet produced a usable build (`buildStatus` is `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED`) — once an image is `BUILDING` or `BUILD_SUCCESSFUL`, deployments may already reference it and silently shifting its source/version is unsafe.
+
+**Why this priority**: Image definitions are edited less often than deployments, but recovering from a bad image-definition change today requires careful manual re-entry of the source, version, metadata, and allowed-domains — the manual cost is high relative to how often it happens. P2 because the workflow is similar to deployment rollback but the blast radius is narrower (the image definition itself, not running workloads), and rollback for deployments delivers more value first.
+
+**Independent Test**: Create an image definition, update it across several revisions while leaving it in a `NOT_BUILT` / `BUILD_FAILED` / `BUILD_STOPPED` state, roll back to an earlier revision, and verify the stored fields match the snapshot. Separately, confirm that an image definition in `BUILDING` or `BUILD_SUCCESSFUL` rejects rollback. Verifiable without touching deployments or whitelist code.
+
+**Acceptance Scenarios**:
+
+1. **Given** an image definition currently in `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED` whose source, allowed-domains, and metadata were changed across revisions `R1` through `R3`, **When** the administrator rolls it back to revision `R1`, **Then** the image definition's stored configuration matches its `R1` snapshot for all user-editable fields, `buildStatus` is reset to `NOT_BUILT` (and `imageName`, `builtAt`, and build logs are cleared) if any build-affecting field changed, and a new revision is recorded as an update activity.
+2. **Given** an image definition currently in `buildStatus = BUILDING` or `BUILD_SUCCESSFUL`, **When** the administrator attempts to roll it back, **Then** the system rejects the request with HTTP 400 and the image definition is unchanged; the response message instructs the operator that built or in-flight image definitions cannot be rolled back and points them at the version-based `change-image` flow.
+3. **Given** an image definition rollback whose target name+version pair would collide with another existing image definition, **When** the administrator attempts the rollback, **Then** the system rejects the request with HTTP 400 and the image definition is unchanged.
+4. **Given** an image definition is rolled back to an earlier source, **When** the rollback completes, **Then** deployments that reference this image definition are not modified — their stored configuration (including any explicit `source` they carry) is untouched.
+
+---
+
+### User Story 3 - Restore the global domain whitelist to a previous revision (Priority: P3)
+
+A platform administrator notices that a recent change to the global image-build domain whitelist removed entries that build pipelines depend on (or added entries that should not be there). They want to revert the whitelist to a known-good past revision without manually retyping the list.
+
+**Why this priority**: The global whitelist is a single, low-frequency resource. The whitelist's full-replacement update semantics make manual recovery less painful than for deployments, but a one-click rollback still removes operator toil. P3 because frequency and blast radius are both lower than the other two stories.
+
+**Independent Test**: Modify the global whitelist across several revisions, roll back to an earlier revision, and verify the current whitelist entries match the historical snapshot. Verifiable without touching deployments or image-definitions code.
+
+**Acceptance Scenarios**:
+
+1. **Given** the global image-build whitelist was modified across revisions `R1` through `R3`, **When** the administrator rolls it back to revision `R1`, **Then** the current whitelist entries are a full replacement matching the `R1` snapshot and a new revision is recorded as an update activity.
+2. **Given** a target revision identifier that does not exist or precedes the whitelist's first recorded revision, **When** the administrator attempts to roll back to it, **Then** the system rejects the request with HTTP 404 and the whitelist is unchanged.
+3. **Given** the global whitelist's current state already matches the target revision's snapshot, **When** the administrator rolls back to that revision, **Then** the system returns success with no spurious revision created.
+
+---
+
+### Edge Cases
+
+- **Identical-state rollback**: For the global image-build domain whitelist, if the current `allowedDomains` set already matches the target revision's snapshot as a multiset, the system completes the call successfully without persisting a new revision (no audit noise). For deployments and image definitions, the system does not attempt to detect identical-state rollback — the call always persists and my record an audit revision for the operator's intent, even when no restorable field actually differs.
+- **Target revision precedes resource creation**: HTTP 404 — the resource did not exist at that revision and therefore has no state to restore.
+- **Target revision is after resource deletion**: Not reachable in practice — a currently-deleted resource has no `{id}` to address; restoring deleted resources is out of scope for this feature (see Assumptions).
+- **Target revision shows the resource in a deleted state**: HTTP 404, same as FR-002(c). Hibernate Envers's per-id lookup does not distinguish "deleted by revision R" from "created after revision R" — both return no snapshot — so the rollback path treats them identically. (The "show entities at revision R" list endpoint can include deleted entities; the per-id rollback endpoint cannot reach them.)
+- **System-managed and immutable fields**: Rollback never changes `id`, `createdAt`, the deployment `name`, the deployment `serviceName`, or computed/lifecycle fields (`status`, `url`, `updatedAt`). For image definitions in a rollback-eligible state (`NOT_BUILT`, `BUILD_FAILED`, `BUILD_STOPPED`), any field change during rollback resets `buildStatus` to `NOT_BUILT`. `imageName`, `builtAt`, and build logs are not actively cleared by rollback because no rollback-eligible state can carry stale build artifacts under the current build pipeline (see FR-008).
+- **Deployment must be inactive**: Rollback is rejected with HTTP 400 if the deployment is in any active lifecycle state (`PENDING`, `RUNNING`, `CRASHED`, `STOPPING`). To rollback a live deployment, the operator must `undeploy` first (reaching `STOPPED`), then call rollback, then `deploy` to apply the rolled-back configuration to Kubernetes. This makes the live-traffic change a deliberate, multi-step action and protects against accidental config-only rollbacks that diverge from running pods.
+- **Image definition must not be built or building**: Rollback is rejected with HTTP 400 if the image definition is in `BUILDING` or `BUILD_SUCCESSFUL`. A `BUILD_SUCCESSFUL` image definition may already be referenced by deployments, and silently shifting its source/version under their feet would change the meaning of an existing image-definition row in a way the deployment owners did not consent to. Operators who need to "undo" a built image-definition change must instead create a new version of the image definition and re-point dependent deployments via the existing `change-image` flow.
+- **Cross-resource references**: Rolling back a deployment does not roll back the image definition it references; rolling back an image definition does not modify deployments that reference it. Each rollback is scoped to the addressed resource only.
+- **Dangling resource references in the snapshot**: For **deployments**, a missing `imageDefinitionId` (referenced by an `InternalImageSource`) is rejected with HTTP 400 — the response identifies the missing image definition. This is the only reference-existence pre-check performed on rollback.
+- **Snapshot is applied verbatim**: For all three resource types, the rollback path applies the snapshot as it stood at the target revision and enforces the structural guards documented in FR-003 (uniqueness, state guards, dangling image-def reference).
+- **Concurrent edits**: If another administrator modifies the resource between the snapshot read and the rollback write, standard optimistic-locking and audit semantics apply (the rollback completes and the subsequent revision reflects the final state).
+- **Authorization**: Rollback is a write operation; it follows the same authorization rules as other write endpoints on the resource (full-admin only; read-only role rejected with HTTP 403).
+- **Bulk rollback**: Out of scope for this feature — each rollback addresses a single resource. A future feature may add a `rollback all to revision R` operation if demand emerges.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: The system MUST expose a per-resource rollback operation for deployments, image definitions, and the global image-build domain whitelist that takes a target audit revision identifier and restores the resource's persisted configuration to its state at that revision.
+- **FR-002**: The system MUST reject the rollback with HTTP 404 when (a) the resource does not currently exist under the supplied identifier, (b) the supplied revision identifier does not exist, or (c) the resource did not exist at the supplied revision.
+- **FR-003**: The system MUST reject the rollback with HTTP 400 when (a) applying the rolled-back state would violate a current uniqueness constraint (e.g., image definition `name + version`), (b) the resource is in a state in which rollback is disallowed — image definition with `buildStatus = BUILDING` or `BUILD_SUCCESSFUL`, or deployment in any active lifecycle state (`PENDING`, `RUNNING`, `CRASHED`, `STOPPING`), or (c) the rolled-back state contains a reference to an image definition that no longer exists — the response MUST identify the missing reference; this check applies to **deployments** and is the only reference-existence check enforced at deployment rollback time.
+- **FR-004**: The system MUST reject the rollback with HTTP 403 when the caller does not have write permission for the resource type (read-only role).
+- **FR-005**: The system MUST scope each rollback to a single addressed resource — it MUST NOT cascade configuration changes to other resources that reference it or are referenced by it.
+- **FR-006**: For deployments, the system MUST NOT change the deployment's lifecycle status as a side effect of rollback and MUST NOT touch live workload Kubernetes resources (Service, KService / Deployment, CiliumNetworkPolicy, pods). The only live-cluster mutation the rollback path performs is reprovisioning the deployment's envs secret to match the snapshot's structure with sensitive values reset to null — see the sensitive-env-var assumption below for the exact behaviour. Rollback is permitted only when the deployment is in an inactive lifecycle state (`NOT_DEPLOYED` or `STOPPED`); see FR-003(c) for active-state rejection.
+- **FR-007**: For deployments, the system MUST NOT change immutable or system-managed fields on rollback: `id`, `createdAt`, `name`, `serviceName`, `status`, `url`, and `updatedAt` retain their current values; all other user-editable fields are restored from the target revision's snapshot.
+- **FR-008**: For image definitions, rollback is accepted only when current `buildStatus` is `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED` (see FR-003(c) for the rejection rule covering `BUILDING` and `BUILD_SUCCESSFUL`). When rollback is accepted and at least one field changes, the system MUST reset `buildStatus` to `NOT_BUILT` — consistent with the regular update path from these states. Build artifacts (`imageName`, `builtAt`, build logs) are not reachable on a rollback-eligible image definition under normal flow (`ImageBuildRunner` rejects rebuilds of `BUILD_SUCCESSFUL`, so `failBuild` cannot run against a built image), so they are not separately cleared by the rollback path. If those fields ever did carry stale values in a future flow that allows `BUILD_SUCCESSFUL → BUILD_FAILED`, that transition would need its own dedicated clearing — out of scope here.
+- **FR-009**: For the global image-build domain whitelist, the system MUST replace the current set of whitelist entries with a full copy of the entries from the target revision's snapshot — matching the existing direct-replace semantics of the whitelist write endpoint, not the merge semantics of the import endpoint.
+- **FR-010**: For the global image-build domain whitelist only, the system MUST treat a rollback whose target snapshot already matches the current `allowedDomains` set (compared as a multiset) as a successful no-op and MUST NOT persist a redundant revision. For deployments and image definitions, rollback always persists; the system does not attempt to detect identical-state rollback, and a fresh audit revision is recorded whenever the rollback path issues an update.
+- **FR-011**: When the rollback does change at least one field, the system MUST persist the change atomically — either every changed field is updated and a single new revision is recorded, or no field is updated.
+- **FR-012**: The system MUST record each successful rollback that changes state as an update activity in the audit feed, attributed to the calling administrator with the same author-capture rules used for regular updates.
+- **FR-013**: The rollback endpoint MUST be accessible to administrators through the same authentication mechanism used by other write endpoints on the same resource — both `Authorization: Bearer …` (OIDC / basic modes) and `Api-Key …` (oidc mode) — by inheriting the existing security filter chain. Coverage is **structural**: the rollback methods carry `@FullAdminOnly` (same authority gate as the resource's `POST` / `PUT` / `DELETE`) and live under the same `@RequestMapping` root, so they are matched by the same Spring Security filter rules. The repo's functional-test pattern is service-level (no HTTP/MockMvc layer), so no per-endpoint HTTP authentication tests are introduced for rollback; the auth-filter behaviour is covered by the existing security-mode test suites that apply to all controllers.
+- **FR-014**: The system MUST return the rolled-back resource's current representation (the same shape returned by the resource's `GET` endpoint) in the rollback response, so the caller can confirm the resulting state without a second request.
+
+### Key Entities *(include if feature involves data)*
+
+- **Revision**: An identifier of a single past audit point (already defined in the auditing capability). The rollback operation accepts a revision identifier and treats it as the target state.
+- **Audit Snapshot**: The persisted historical copy of a resource's full state at a given revision (already exposed by the per-controller snapshot endpoints). Rollback reads this snapshot and writes the restorable subset of fields back to the resource.
+- **Rollback Activity**: A new update activity recorded in the existing activity feed when a rollback changes the resource's state. No new entity type is introduced — rollback reuses the existing audit model.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: Administrators can restore a deployment, image definition, or global whitelist to any past revision in under 30 seconds end-to-end (locate revision in audit history → confirm → rollback completes), compared with the current manual-replay workflow that requires copying every field by hand.
+- **SC-002**: At least 95% of rollback attempts against a valid existing revision of an unchanged resource type result in either (a) the resource state matching the chosen snapshot, or (b) a 400 rejection for one of the explicitly checked conditions (image-def `(name, version)` uniqueness collision, image-def build-status guard, deployment active-state guard, deployment dangling image-definition reference) — no silent partial updates.
+- **SC-003**: Every successful rollback that changes state produces exactly one new revision and one activity entry attributed to the calling administrator, so the audit trail remains complete and a rollback can itself be rolled back.
+- **SC-004**: Operator support tickets related to "recover from a bad configuration change" are eliminated for the three resource types in scope — administrators can self-serve recovery without engineering intervention.
+- **SC-005**: A rollback never causes an unintended change to live workloads — deployment rollback is only accepted while the deployment is inactive (`NOT_DEPLOYED` or `STOPPED`), so no running pods can be silently mutated. The envs secret is reprovisioned to match the rolled-back env-var structure with sensitive values reset to null (see the sensitive-env-var assumption); this only affects the next `deploy`, never a running workload.
+
+## Assumptions
+
+- **No automatic re-deploy on deployment rollback.** Rolling back a deployment updates only the stored desired-state record. Administrators must explicitly trigger `deploy` to push the rolled-back configuration to Kubernetes. This mirrors the existing semantics of `PUT /api/v1/deployments/{id}`, which states "the Kubernetes state is not immediately changed", and avoids surprising live-traffic changes from a rollback action.
+- **Sensitive env-var values are reset on rollback.** A deployment's stored env vars include K8s-secret references (`k8sSecretName` / `k8sSecretKey`) that point to secrets in the cluster. Sensitive values are never persisted to the audit table (they live only in K8s), so the audit snapshot can only restore the env-var *structure* (names + mount types + simple values), not the sensitive values. The rollback path therefore unconditionally marks the live K8s envs secret for cleanup and provisions a fresh one matching the snapshot's structure: simple env values come from the snapshot, sensitive env values are reset to **null**. The operator must re-supply the sensitive values via the regular update endpoint before issuing `deploy`. This is intentionally symmetric with `updateDeployment` but without the change-detection gate — silently retaining the live sensitive values across a rollback would misrepresent the snapshot the operator asked to restore (the live values are precisely what the operator is rolling back away from).
+- **Restoring deleted resources is out of scope.** Rollback addresses a currently-existing resource by its identifier. Recreating a resource that has been deleted is a separate operation (potentially "restore from history") and is deferred to a future feature. Snapshot read endpoints already let administrators view historical state of deleted resources for forensic purposes.
+- **Bulk / "rollback everything to revision R" is out of scope.** Each rollback call targets a single resource. A future feature may add a system-wide rollback if demand emerges.
+- **Rollback applies the snapshot verbatim.** Rollback applies the snapshot as it stood at the target revision and enforces the structural guards documented in FR-003 (uniqueness, state guards, dangling image-def reference).
+- **Cascade is not introduced.** Rolling back an image definition does not cascade to dependent deployments, and vice versa. The existing `POST /api/v1/deployments/change-image` flow remains the mechanism to re-point deployments at a different image definition version.
+- **Audit infrastructure is already in place.** The auditing capability (014-auditing) already exposes per-entity snapshot endpoints, revision listing, and a writable revision/activity model. Rollback builds directly on those primitives — no new audit storage is introduced.
+- **The "rollback is out of scope" note in the existing `auditing` capability spec will be removed when this feature ships.** That note reflected the prior decision; this feature supersedes it.
+- **Read-only role exclusion follows existing patterns.** No new authorization concept is introduced — rollback follows the same write-endpoint authorization (`@FullAdminOnly`) used by the resource's update and delete endpoints today.

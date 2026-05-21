@@ -4,6 +4,8 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import com.epam.aidial.deployment.manager.web.validation.ValidDomainList;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -49,5 +51,23 @@ public class GlobalDomainWhitelistController {
         var updatedAllowedDomains = globalDomainWhitelistService.updateDomainWhitelist(allowedDomains);
         log.info("Successfully updated global domain whitelist for image build.");
         return updatedAllowedDomains;
+    }
+
+    @FullAdminOnly
+    @PostMapping(path = "/image-build/revision/{revision}/rollback",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Roll back the global image-build whitelist to a past revision",
+            description = "Replaces the current image-build whitelist entries with the set that existed at the given revision. "
+                    + "Full replacement — does NOT merge with current entries.")
+    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+    @ApiResponse(responseCode = "400", description = "Snapshot entries fail current validation")
+    @ApiResponse(responseCode = "403", description = "Read-only role")
+    @ApiResponse(responseCode = "404", description = "Revision not found or predates whitelist")
+    public List<String> rollbackDomainWhitelistForImageBuild(@PathVariable Integer revision) {
+        log.info("Rolling back global domain whitelist for image build to revision {}", revision);
+        var rolledBack = globalDomainWhitelistService.rollback(revision);
+        log.info("Successfully rolled back global domain whitelist for image build to revision {}", revision);
+        return rolledBack;
     }
 }

@@ -109,6 +109,39 @@
                             }
                           },
                           "response": []
+                        },
+                        {
+                          "name": "rollback whitelist",
+                          "protocolProfileBehavior": {
+                            "followRedirects": true,
+                            "disableUrlEncoding": false,
+                            "disableCookies": false
+                          },
+                          "request": {
+                            "method": "POST",
+                            "header": [
+                              {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                              }
+                            ],
+                            "url": {
+                              "raw": "{{HOST}}/api/v1/global-whitelist/image-build/revision/1/rollback",
+                              "host": [
+                                "{{HOST}}"
+                              ],
+                              "path": [
+                                "api",
+                                "v1",
+                                "global-whitelist",
+                                "image-build",
+                                "revision",
+                                "1",
+                                "rollback"
+                              ]
+                            }
+                          },
+                          "response": []
                         }
                       ]
                     },
@@ -324,6 +357,35 @@
                             "definitions",
                             "revision",
                             "1"
+                          ]
+                        }
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "rollback image",
+                      "protocolProfileBehavior": {
+                        "followRedirects": true,
+                        "disableUrlEncoding": false,
+                        "disableCookies": false
+                      },
+                      "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                          "raw": "{{HOST}}/api/v1/images/definitions/{{IMAGE_DEFINITION_ID}}/revision/1/rollback",
+                          "host": [
+                            "{{HOST}}"
+                          ],
+                          "path": [
+                            "api",
+                            "v1",
+                            "images",
+                            "definitions",
+                            "{{IMAGE_DEFINITION_ID}}",
+                            "revision",
+                            "1",
+                            "rollback"
                           ]
                         }
                       },
@@ -817,6 +879,39 @@
                         "{{DEPLOYMENT_NAME}}",
                         "revision",
                         "1"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "rollback deployment",
+                  "protocolProfileBehavior": {
+                    "followRedirects": true,
+                    "disableUrlEncoding": false,
+                    "disableCookies": false
+                  },
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{HOST}}/api/v1/deployments/{{DEPLOYMENT_NAME}}/revision/1/rollback",
+                      "host": [
+                        "{{HOST}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "deployments",
+                        "{{DEPLOYMENT_NAME}}",
+                        "revision",
+                        "1",
+                        "rollback"
                       ]
                     }
                   },
