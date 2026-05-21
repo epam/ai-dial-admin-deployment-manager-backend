@@ -115,20 +115,6 @@ app:
       startup-timeout: ${K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
       informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
       use-cluster-internal-url: ${K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
-  inference:
-    text-classification-transformer:
-      name: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_NAME:kserve-container}
-      image: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE:}
-      image-pull-policy: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE_PULL_POLICY:IfNotPresent}
-      resources:
-        requests:
-          cpu: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_REQUEST:100m}
-          memory: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_REQUEST:256Mi}
-          ephemeral-storage: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_EPHEMERAL_STORAGE_REQUEST:500M}
-        limits:
-          cpu: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_LIMIT:500m}
-          memory: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_LIMIT:512Mi}
-          ephemeral-storage: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_EPHEMERAL_STORAGE_LIMIT:1G}
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
   image-build-timeout-sec: 300
@@ -217,6 +203,16 @@ app:
       predictor:
         minReplicas: ${KSERVE_SERVICE_DEFAULT_MIN_REPLICAS:1}
         maxReplicas: ${KSERVE_SERVICE_DEFAULT_MAX_REPLICAS:1}
+  text-classification-transformer-container-config:
+    name: kserve-container
+    image: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE:}
+    resources:
+      requests:
+        cpu: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_REQUEST:100m}
+        memory: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_REQUEST:256Mi}
+      limits:
+        cpu: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_LIMIT:500m}
+        memory: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_LIMIT:512Mi}
   nim-service-config:
     apiVersion: apps.nvidia.com/v1alpha1
     kind: NIMService

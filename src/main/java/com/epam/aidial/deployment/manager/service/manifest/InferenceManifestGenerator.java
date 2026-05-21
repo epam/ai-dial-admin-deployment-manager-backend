@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
-import com.epam.aidial.deployment.manager.configuration.TextClassificationTransformerProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.knative.KnativeAnnotations;
 import com.epam.aidial.deployment.manager.model.Resources;
@@ -49,20 +48,17 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
     private final PoolPrimitivesConverter poolPrimitivesConverter;
     private final TextClassificationTransformerSection textClassificationTransformerSection;
-    private final TextClassificationTransformerProperties textClassificationTransformerProperties;
 
     public InferenceManifestGenerator(AppProperties appconfig,
                                      KserveProbeConverter kserveProbeConverter,
                                      ProgressDeadlineCalculator progressDeadlineCalculator,
                                      PoolPrimitivesConverter poolPrimitivesConverter,
-                                     TextClassificationTransformerSection textClassificationTransformerSection,
-                                     TextClassificationTransformerProperties textClassificationTransformerProperties) {
+                                     TextClassificationTransformerSection textClassificationTransformerSection) {
         super(appconfig);
         this.kserveProbeConverter = kserveProbeConverter;
         this.progressDeadlineCalculator = progressDeadlineCalculator;
         this.poolPrimitivesConverter = poolPrimitivesConverter;
         this.textClassificationTransformerSection = textClassificationTransformerSection;
-        this.textClassificationTransformerProperties = textClassificationTransformerProperties;
     }
 
     public InferenceService serviceConfig(
@@ -176,7 +172,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             predictorArgs.add(TASK_ARG + "=" + SEQUENCE_CLASSIFICATION_TASK);
         }
 
-        textClassificationTransformerSection.apply(service, name, id2Label, textClassificationTransformerProperties);
+        textClassificationTransformerSection.apply(service, name, id2Label);
     }
 
     private void rejectConflictingChainedArgs(String name, List<String> predictorArgs) {
