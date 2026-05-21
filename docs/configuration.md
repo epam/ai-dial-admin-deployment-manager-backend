@@ -176,18 +176,13 @@ For KNative deployments (MCP servers, interceptors, adapters, applications), whe
 #### MCP Proxy Configuration
 
 
-| Property                            | Environment Variable                | Default Value | Required | Applied when | Description                                                                                          |
-| ----------------------------------- | ----------------------------------- | ------------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
-| `app.build.mcp-proxy.images.alpine` | `MCP_PROXY_EXECUTABLE_IMAGE_ALPINE` | -             | Yes      | -            | Docker image reference for the Alpine-based MCP proxy executable used to wrap stdio MCP containers.  |
-| `app.build.mcp-proxy.images.debian` | `MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN` | -             | Yes      | -            | Docker image reference for the Debian-based MCP proxy executable used to wrap stdio MCP containers.  |
+| Property                            | Environment Variable                | Default Value                                                       | Required | Applied when | Description                                                                                          |
+| ----------------------------------- | ----------------------------------- | ------------------------------------------------------------------- | -------- | ------------ | ---------------------------------------------------------------------------------------------------- |
+| `app.build.mcp-proxy.images.alpine` | `MCP_PROXY_EXECUTABLE_IMAGE_ALPINE` | `ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-alpine`    | No       | -            | Docker image reference for the Alpine-based MCP proxy executable used to wrap stdio MCP containers.  |
+| `app.build.mcp-proxy.images.debian` | `MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN` | `ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-debian`    | No       | -            | Docker image reference for the Debian-based MCP proxy executable used to wrap stdio MCP containers.  |
 
 
-The MCP proxy is maintained in the [ai-dial-deployment-manager-mcp-proxy](https://github.com/epam/ai-dial-deployment-manager-mcp-proxy) repository, which publishes pre-built Alpine and Debian images. Reference them directly — pin to the latest tag:
-
-```yaml
-MCP_PROXY_EXECUTABLE_IMAGE_ALPINE: "ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-alpine"
-MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN: "ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-debian"
-```
+The MCP proxy is maintained in the [ai-dial-deployment-manager-mcp-proxy](https://github.com/epam/ai-dial-deployment-manager-mcp-proxy) repository, which publishes pre-built Alpine and Debian images. The defaults above pin a tested release.
 
 To customize the proxy (e.g. add tooling, change the base image), fork the upstream repository, build your own images, push them to a registry you control, and point `MCP_PROXY_EXECUTABLE_IMAGE_ALPINE` / `MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN` at those references.
 
