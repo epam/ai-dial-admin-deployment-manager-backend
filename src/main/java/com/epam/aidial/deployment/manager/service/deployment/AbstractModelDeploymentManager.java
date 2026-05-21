@@ -2,9 +2,11 @@ package com.epam.aidial.deployment.manager.service.deployment;
 
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.fabric8.kubernetes.api.model.Container;
@@ -26,11 +28,14 @@ public abstract class AbstractModelDeploymentManager<D extends Deployment, S ext
                                              ContainerPortResolver containerPortResolver,
                                              CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
                                              NodePoolProperties nodePoolProperties,
+                                             HubbleDomainFlowService hubbleDomainFlowService,
+                                             DeploymentDomainEntryRepository deploymentDomainEntryRepository,
                                              String namespace,
                                              int startupTimeoutSec,
                                              Integer defaultContainerPort) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository, containerPortResolver,
-                ciliumNetworkPolicyCreator, nodePoolProperties, namespace, startupTimeoutSec, defaultContainerPort);
+                ciliumNetworkPolicyCreator, nodePoolProperties, hubbleDomainFlowService, deploymentDomainEntryRepository,
+                namespace, startupTimeoutSec, defaultContainerPort);
     }
 
     @Override

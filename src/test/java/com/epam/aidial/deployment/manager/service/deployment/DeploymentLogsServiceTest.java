@@ -1,11 +1,14 @@
 package com.epam.aidial.deployment.manager.service.deployment;
 
+import com.epam.aidial.deployment.manager.configuration.HubbleRelayProperties;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReader;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderFactory;
 import com.epam.aidial.deployment.manager.service.SafeAutoCloseable;
 import com.epam.aidial.deployment.manager.service.SseEmitterFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.fabric8.kubernetes.client.dsl.ContainerResource;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -64,11 +66,16 @@ class DeploymentLogsServiceTest {
     private SseEmitter sseEmitter;
     @Mock
     private Future<?> mockFuture;
+    @Mock
+    private DeploymentDomainEntryRepository deploymentDomainEntryRepository;
+    @Mock
+    private HubbleRelayProperties hubbleRelayProperties;
+    @Mock
+    private ObjectMapper objectMapper;
 
     @Spy
     private final ExecutorService executorService = MoreExecutors.newDirectExecutorService();
 
-    @InjectMocks
     private DeploymentLogsService deploymentLogsService;
 
     @Captor
@@ -82,6 +89,17 @@ class DeploymentLogsServiceTest {
                 .maxLogCount(100)
                 .maxLogSize(1000)
                 .build();
+
+        deploymentLogsService = new DeploymentLogsService(
+                podLogReaderFactory,
+                executorService,
+                sseEmitterFactory,
+                deploymentManagerProvider,
+                deploymentDomainEntryRepository,
+                hubbleRelayProperties,
+                objectMapper,
+                1000L
+        );
 
         when(deploymentManagerProvider.provide(DEPLOYMENT_ID)).thenReturn(deploymentManager);
         when(deploymentManager.getContainerResourceForLogs(DEPLOYMENT_ID, POD_NAME, false)).thenReturn(containerResource);

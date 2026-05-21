@@ -28,7 +28,7 @@ import java.util.function.Predicate;
 public class JobRunner {
 
     static final String IMAGE_DEFINITION_ID_LABEL = "image-definition-id";
-    private static final String JOB_NAME_LABEL = "job-name";
+    public static final String JOB_NAME_LABEL = "job-name";
 
     private final GlobalDomainWhitelistService globalDomainWhitelistService;
     private final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;

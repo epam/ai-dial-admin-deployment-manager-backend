@@ -395,6 +395,26 @@ NODE_POOL_DEFAULT_MODEL=gpu-pool
 | `app.config.export.zip-name`  | `CONFIG_EXPORT_ZIP_NAME`  | `deployment-manager-config.zip` | No       | -            | Name of ZIP archive containing exported files |
 
 
+### Hubble Relay Configuration
+
+Enables real-time domain access streaming via Cilium Hubble Relay. When enabled, the system captures DNS flows observed during image builds and deployment pod startups and surfaces them as `event: domain` SSE events.
+
+**Prerequisite**: `CILIUM_NETWORK_POLICIES_ENABLED=true`. Hubble Relay captures DNS flows enforced by Cilium network policies. If Cilium policies are disabled, no DNS flows will be generated and domain streaming will produce no events. The Deployment Manager logs a warning and skips domain streaming in this case.
+
+
+| Property | Environment Variable | Default Value | Required | Applied when | Description |
+| -------- | -------------------- | ------------- | -------- | ------------ | ----------- |
+| `hubble-relay.enabled` | `HUBBLE_RELAY_ENABLED` | `false` | No | `HUBBLE_RELAY_ENABLED=true` | Master switch. Set to `true` to enable Hubble Relay integration. Requires `CILIUM_NETWORK_POLICIES_ENABLED=true`. |
+| `hubble-relay.host` | `HUBBLE_RELAY_HOST` | `hubble-relay.cilium.svc.cluster.local` | No | `HUBBLE_RELAY_ENABLED=true` | Hubble Relay gRPC host. Used by the direct-connect path (NodePort/LoadBalancer). Not used with the default port-forward approach, which connects to `localhost:localPort`. |
+| `hubble-relay.namespace` | `HUBBLE_RELAY_NAMESPACE` | `cilium` | No | `HUBBLE_RELAY_ENABLED=true` | Kubernetes namespace where the `hubble-relay` pod runs. Used to locate the relay pod for port-forwarding. |
+| `hubble-relay.pod-label-selector` | `HUBBLE_RELAY_POD_LABEL_SELECTOR` | `k8s-app=hubble-relay` | No | `HUBBLE_RELAY_ENABLED=true` | Label selector used to find the `hubble-relay` pod for port-forwarding. |
+| `hubble-relay.port` | `HUBBLE_RELAY_PORT` | `80` | No | `HUBBLE_RELAY_ENABLED=true` | gRPC port on the Hubble Relay pod. |
+| `hubble-relay.connect-retry-count` | `HUBBLE_RELAY_CONNECT_RETRY_COUNT` | `3` | No | `HUBBLE_RELAY_ENABLED=true` | Number of connection attempts before degrading gracefully. |
+| `hubble-relay.connect-retry-interval-ms` | `HUBBLE_RELAY_CONNECT_RETRY_INTERVAL_MS` | `2000` | No | `HUBBLE_RELAY_ENABLED=true` | Milliseconds between connection retry attempts. |
+| `hubble-relay.tls-enabled` | `HUBBLE_RELAY_TLS_ENABLED` | `false` | No | `HUBBLE_RELAY_ENABLED=true` | Enable gRPC-level TLS. Must be `false` when using the default port-forward approach (transport security is provided by the Kubernetes API TLS layer). Enable only when using NodePort or LoadBalancer connectivity. |
+| `hubble-relay.ca-cert-path` | `HUBBLE_RELAY_CA_CERT_PATH` | _(empty)_ | No | `HUBBLE_RELAY_TLS_ENABLED=true` | Path to the CA certificate file used to validate the Hubble Relay server certificate. Required when `HUBBLE_RELAY_TLS_ENABLED=true`. |
+
+
 ### HTTP Client Configuration
 
 Used by:

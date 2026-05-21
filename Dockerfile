@@ -7,6 +7,9 @@ COPY settings.gradle .
 COPY gradle.properties .
 COPY src/ src/
 
+# gcompat provides glibc compatibility shims needed by the protoc binary embedded in
+# protobuf-gradle-plugin — Alpine uses musl libc; without gcompat protoc crashes at code-gen time.
+RUN apk add --no-cache gcompat
 RUN gradle --no-daemon clean bootJar
 
 # Runtime stage

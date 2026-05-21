@@ -1,8 +1,11 @@
 package com.epam.aidial.deployment.manager.service;
 
+import com.epam.aidial.deployment.manager.configuration.HubbleRelayProperties;
+import com.epam.aidial.deployment.manager.dao.repository.ImageBuildDomainEntryRepository;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
 import com.epam.aidial.deployment.manager.model.McpImageDefinition;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +53,11 @@ class ImageBuildLogsServiceTest {
     private SseEmitterFactory sseEmitterFactory;
     @Mock
     private SseEmitter sseEmitter;
+    @Mock
+    private ImageBuildDomainEntryRepository imageBuildDomainEntryRepository;
+    @Mock
+    private HubbleRelayProperties hubbleRelayProperties;
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private ImageBuildLogsService imageBuildLogsService;
 
     @Captor
@@ -65,6 +73,9 @@ class ImageBuildLogsServiceTest {
                 imageDefinitionService,
                 sseEmitterFactory,
                 executorService,
+                imageBuildDomainEntryRepository,
+                hubbleRelayProperties,
+                objectMapper,
                 10L,  // Small poll interval for faster tests
                 10L // Small min streaming interval for faster tests
         );

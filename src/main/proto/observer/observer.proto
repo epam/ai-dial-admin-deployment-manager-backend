@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package observer;
+
+option java_package = "io.cilium.api.observer";
+option java_outer_classname = "ObserverOuterClass";
+option java_multiple_files = true;
+
+import "flow/flow.proto";
+import "flow/types.proto";
+
+// Hubble Relay Observer service — subset of the full Cilium API.
+// Field numbers and enum values are wire-compatible with the Hubble Relay server.
+service Observer {
+    rpc GetFlows(GetFlowsRequest) returns (stream GetFlowsResponse) {}
+}
+
+// Request message for GetFlows. Set follow=true for a live stream.
+message GetFlowsRequest {
+    // Maximum number of flows to return (0 = unlimited when follow=true).
+    uint64 number = 1;
+    // Keep the stream open and push new flows as they arrive.
+    bool follow = 3;
+    // Flows matching any whitelist filter are included.
+    repeated FlowFilter whitelist = 5;
+    // Flows matching any blacklist filter are excluded (applied after whitelist).
+    repeated FlowFilter blacklist = 6;
+}
+
+// Server-streamed response — each message contains one flow or a status event.
+message GetFlowsResponse {
+    oneof response_types {
+        flow.Flow flow = 1;
+        NodeStatusEvent node_status = 2;
+    }
+    // Name of the Hubble node that produced this response.
+    string node_name = 1000;
+}
+
+// Used in GetFlowsResponse.node_status — not used by HubbleFlowObserver but
+// declared so the oneof field number is reserved.
+message NodeStatusEvent {
+    repeated string node_names = 1;
+    string message = 2;
+}
+
+// Scopes a GetFlows request to specific pods/namespaces/verdicts.
+// Field numbers match the Hubble Relay FlowFilter wire format.
+message FlowFilter {
+    repeated string source_ip = 1;
+    repeated string destination_ip = 2;
+    repeated string source_pod = 3;
+    repeated string destination_pod = 4;
+    // field 5 reserved in upstream proto
+    repeated string destination_fqdn = 6;
+    // Filter by flow type (e.g. L7 for DNS proxy flows).
+    repeated flow.FlowType type = 7;
+    repeated flow.Verdict verdict = 8;
+    repeated EventTypeFilter event_type = 9;
+    // Source pod label selector (e.g. "job-name=dm-abc123").
+    repeated string source_label = 10;
+    repeated string destination_label = 11;
+    // Source pod namespace.
+    repeated string source_namespace = 12;
+    repeated string destination_namespace = 13;
+}
+
+message EventTypeFilter {
+    int32 type = 1;
+    bool match_sub_type = 2;
+    int32 sub_type = 3;
+}

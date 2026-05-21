@@ -6,6 +6,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -21,6 +22,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.PoolSchedulingPrimitives;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -73,6 +75,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected final DisposableResourceManager disposableResourceManager;
     protected final CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator;
     protected final NodePoolProperties nodePoolProperties;
+    protected final HubbleDomainFlowService hubbleDomainFlowService;
+    protected final DeploymentDomainEntryRepository deploymentDomainEntryRepository;
 
     protected final String namespace;
     protected final int startupTimeoutSec;
@@ -85,6 +89,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                         ContainerPortResolver containerPortResolver,
                                         CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
                                         NodePoolProperties nodePoolProperties,
+                                        HubbleDomainFlowService hubbleDomainFlowService,
+                                        DeploymentDomainEntryRepository deploymentDomainEntryRepository,
                                         String namespace,
                                         int startupTimeoutSec,
                                         int defaultContainerPort) {
@@ -95,6 +101,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         this.disposableResourceManager = disposableResourceManager;
         this.ciliumNetworkPolicyCreator = ciliumNetworkPolicyCreator;
         this.nodePoolProperties = nodePoolProperties;
+        this.hubbleDomainFlowService = hubbleDomainFlowService;
+        this.deploymentDomainEntryRepository = deploymentDomainEntryRepository;
         this.namespace = namespace;
         this.startupTimeoutSec = startupTimeoutSec;
         this.defaultContainerPort = defaultContainerPort;
@@ -128,6 +136,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             }
 
             var serviceSpec = prepareServiceSpec(deployment);
+            var podLabelSelector = getServiceNameLabel() + "=" + deployment.getServiceName();
 
             saveDisposableResource(id, deployment.getServiceName(), namespace);
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
@@ -135,11 +144,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    deploymentDomainEntryRepository.deleteAllByDeploymentId(id);
+                    hubbleDomainFlowService.startDeploymentObservation(id, namespace, podLabelSelector);
                     try {
                         createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
                                 getCiliumIngressPorts(deployment), deployment.getServiceName());
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
+                        hubbleDomainFlowService.stopDeploymentObservation(id);
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
                         log.warn(errorMessage, e);
                         markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
@@ -182,6 +194,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    hubbleDomainFlowService.stopDeploymentObservation(id);
                     try {
                         deleteService(namespace, serviceName);
                         deleteCiliumNetworkPolicy(cnpName);

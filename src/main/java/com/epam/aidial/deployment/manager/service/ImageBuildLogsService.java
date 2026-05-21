@@ -1,7 +1,11 @@
 package com.epam.aidial.deployment.manager.service;
 
+import com.epam.aidial.deployment.manager.configuration.HubbleRelayProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.ImageBuildDomainEntryRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.web.dto.DomainEntryDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -26,7 +30,10 @@ public class ImageBuildLogsService {
     private final SseEmitterFactory sseEmitterFactory;
     @Qualifier("sse-streamer")
     private final ExecutorService executorService;
-    
+    private final ImageBuildDomainEntryRepository imageBuildDomainEntryRepository;
+    private final HubbleRelayProperties hubbleRelayProperties;
+    private final ObjectMapper objectMapper;
+
     @Value("${app.sse.poll-interval-ms:1000}")
     private final long pollIntervalMs;
     @Value("${app.sse.min-streaming-interval-ms:2000}")
@@ -50,6 +57,7 @@ public class ImageBuildLogsService {
 
     private SafeAutoCloseable startLogStreaming(UUID imageDefinitionId, SseEmitter emitter) {
         var logIndex = new AtomicInteger();
+        var domainIndex = new AtomicInteger();
         var lastStatus = new AtomicInteger();
         var startTime = Instant.now();
 
@@ -69,6 +77,24 @@ public class ImageBuildLogsService {
                                         .data(logs.get(logIndex.getAndIncrement())));
                             } catch (IOException e) {
                                 log.error("Failed to send log line for image definition {}", imageDefinitionId, e);
+                                emitter.completeWithError(e);
+                                return;
+                            }
+                        }
+                    }
+
+                    // domain entries (only when Hubble Relay is enabled)
+                    if (hubbleRelayProperties.isEnabled()) {
+                        var domainEntries = imageBuildDomainEntryRepository.findAllByImageDefinitionId(imageDefinitionId);
+                        while (domainIndex.get() < domainEntries.size()) {
+                            var entry = domainEntries.get(domainIndex.getAndIncrement());
+                            try {
+                                emitter.send(SseEmitter.event()
+                                        .name("domain")
+                                        .data(objectMapper.writeValueAsString(
+                                                new DomainEntryDto(entry.getDomain(), entry.getVerdict()))));
+                            } catch (IOException e) {
+                                log.error("Failed to send domain entry for image definition {}", imageDefinitionId, e);
                                 emitter.completeWithError(e);
                                 return;
                             }

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -35,6 +36,8 @@ class ImageBuildRunnerTest {
     private ImageWrapperBuildPipeline imageWrapperBuildPipeline;
     @Mock
     private ImageCopyPipeline imageCopyPipeline;
+    @Mock
+    private HubbleDomainFlowService hubbleDomainFlowService;
 
     @Test
     void buildImage_startsBuildInSingleCallBeforeDispatchingPipeline() {
@@ -61,7 +64,9 @@ class ImageBuildRunnerTest {
                 executorService,
                 imageBuildFromGitPipeline,
                 imageWrapperBuildPipeline,
-                imageCopyPipeline
+                imageCopyPipeline,
+                hubbleDomainFlowService,
+                "default"
         );
 
         runner.buildImage(imageDefinitionId);

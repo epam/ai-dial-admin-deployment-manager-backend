@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceMan
 import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.configuration.KserveDeployProperties;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -20,6 +21,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -111,6 +113,10 @@ class InferenceDeploymentManagerTest {
     private ContainerResource containerResource;
     @Mock
     private CiliumNetworkPolicy ciliumNetworkPolicy;
+    @Mock
+    private HubbleDomainFlowService hubbleDomainFlowService;
+    @Mock
+    private DeploymentDomainEntryRepository deploymentDomainEntryRepository;
 
     private InferenceDeploymentManager inferenceDeploymentManager;
 
@@ -131,6 +137,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 nodePoolProperties,
                 deploymentRepository,
+                hubbleDomainFlowService,
+                deploymentDomainEntryRepository,
                 k8sKserveClient,
                 kserveDeployProperties,
                 huggingFaceProperties
@@ -552,6 +560,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 nodePoolProperties,
                 deploymentRepository,
+                hubbleDomainFlowService,
+                deploymentDomainEntryRepository,
                 k8sKserveClient,
                 kserveDeployProperties, huggingFaceProperties
         );
@@ -833,6 +843,8 @@ class InferenceDeploymentManagerTest {
                 ciliumNetworkPolicyCreator,
                 nodePoolProperties,
                 deploymentRepository,
+                hubbleDomainFlowService,
+                deploymentDomainEntryRepository,
                 k8sKserveClient,
                 kserveDeployProperties,
                 huggingFaceProperties

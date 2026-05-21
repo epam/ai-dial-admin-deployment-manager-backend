@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResou
 import com.epam.aidial.deployment.manager.configuration.KnativeDeployProperties;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.dao.repository.DeploymentDomainEntryRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.KubernetesConditionConstants;
@@ -21,6 +22,7 @@ import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
+import com.epam.aidial.deployment.manager.service.HubbleDomainFlowService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
@@ -68,13 +70,16 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
             DisposableResourceManager disposableResourceManager,
             CiliumNetworkPolicyCreator ciliumNetworkPolicyCreator,
             NodePoolProperties nodePoolProperties,
+            HubbleDomainFlowService hubbleDomainFlowService,
+            DeploymentDomainEntryRepository deploymentDomainEntryRepository,
             HealthCheckProvider healthCheckProvider,
             K8sKnativeClient k8sKnativeClient,
             KnativeDeployProperties knativeDeployProperties,
             @Value("${app.knative-service-container-config.name}") String serviceContainer
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
-                containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, knativeDeployProperties.getNamespace(),
+                containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, hubbleDomainFlowService,
+                deploymentDomainEntryRepository, knativeDeployProperties.getNamespace(),
                 knativeDeployProperties.getStartupTimeout(), DEFAULT_KNATIVE_SERVICE_PORT);
         this.knativeManifestGenerator = knativeManifestGenerator;
         this.imageDefinitionService = imageDefinitionService;

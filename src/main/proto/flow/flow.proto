@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package flow;
+
+option java_package = "io.cilium.api.flow";
+option java_outer_classname = "FlowOuterClass";
+option java_multiple_files = true;
+
+import "flow/types.proto";
+
+// Cilium verdict for a network flow. Wire-compatible with Hubble Relay API.
+enum Verdict {
+    VERDICT_UNKNOWN = 0;
+    FORWARDED = 1;
+    DROPPED = 2;
+    ERROR = 3;
+    AUDIT = 4;
+    REDIRECTED = 5;
+    TRACED = 6;
+    TRANSLATED = 7;
+}
+
+enum L7FlowType {
+    UNKNOWN_L7_TYPE = 0;
+    REQUEST = 1;
+    RESPONSE = 2;
+    SAMPLE = 3;
+}
+
+// Minimal Flow message — only fields used by HubbleFlowObserver are declared.
+// Field numbers match the Hubble Relay wire format so unknown fields from the
+// server (time, source, destination, etc.) are silently ignored.
+message Flow {
+    // field 3: flow type (L3_L4, L7, SOCK)
+    FlowType type = 3;
+    // field 5: Cilium policy verdict (FORWARDED / DROPPED / ...)
+    Verdict verdict = 5;
+    // field 9: L7 layer details (DNS, HTTP, Kafka)
+    Layer7 l7 = 9;
+}
+
+message Layer7 {
+    L7FlowType type = 1;
+    uint64 latency_ns = 2;
+    oneof record {
+        HttpType http = 3;
+        KafkaType kafka = 4;
+        DNS dns = 5;
+    }
+}
+
+message HttpType {
+    uint32 code = 1;
+    string method = 2;
+    string url = 3;
+    string protocol = 4;
+}
+
+message KafkaType {
+    int32 error_code = 1;
+    int32 api_version = 2;
+    string api_key = 3;
+    int32 correlation_id = 4;
+    string topic = 5;
+    int32 num_responses = 6;
+}
+
+// DNS flow details captured by Cilium's L7 DNS proxy.
+message DNS {
+    // The DNS query name (e.g. "auth.docker.io." — trailing dot included).
+    string query = 1;
+    repeated string ips = 2;
+    uint32 ttl = 3;
+    repeated string cnames = 4;
+    uint32 observation_source = 5;
+    uint32 rcode = 6;
+    repeated string qtypes = 7;
+    repeated string rrtypes = 8;
+}

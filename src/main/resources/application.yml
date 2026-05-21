@@ -388,6 +388,17 @@ app:
   trace-log-advisor:
     expression: "@annotation(com.epam.aidial.deployment.manager.configuration.logging.LogExecution) || @within(com.epam.aidial.deployment.manager.configuration.logging.LogExecution)"
 
+hubble-relay:
+  enabled: ${HUBBLE_RELAY_ENABLED:false}
+  host: ${HUBBLE_RELAY_HOST:hubble-relay.cilium.svc.cluster.local}
+  namespace: ${HUBBLE_RELAY_NAMESPACE:cilium}
+  pod-label-selector: ${HUBBLE_RELAY_POD_LABEL_SELECTOR:k8s-app=hubble-relay}
+  port: ${HUBBLE_RELAY_PORT:80}
+  connect-retry-count: ${HUBBLE_RELAY_CONNECT_RETRY_COUNT:3}
+  connect-retry-interval-ms: ${HUBBLE_RELAY_CONNECT_RETRY_INTERVAL_MS:2000}
+  tls-enabled: ${HUBBLE_RELAY_TLS_ENABLED:false}
+  ca-cert-path: ${HUBBLE_RELAY_CA_CERT_PATH:}
+
 config:
   rest:
     security:
