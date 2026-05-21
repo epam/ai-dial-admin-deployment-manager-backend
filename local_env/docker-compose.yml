@@ -29,8 +29,8 @@ services:
       K8S_KNATIVE_ENABLED: ${K8S_KNATIVE_ENABLED:-true}
       K8S_KSERVE_ENABLED: ${K8S_KSERVE_ENABLED:-false}
       K8S_NIM_ENABLED: ${K8S_NIM_ENABLED:-false}
-      MCP_PROXY_EXECUTABLE_IMAGE_ALPINE: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE:-mcp-proxy-exec:alpine}
-      MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN:-mcp-proxy-exec:debian}}
+      MCP_PROXY_EXECUTABLE_IMAGE_ALPINE: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE:-ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-alpine}
+      MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN:-ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-debian}
 
 
   keycloak:
