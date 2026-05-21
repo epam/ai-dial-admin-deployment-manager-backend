@@ -60,7 +60,7 @@ When the global domain whitelist is imported via `POST /api/v1/configs/import` w
 Status: **Implemented**
 
 ### Requirement: Revision rollback
-The system SHALL expose `POST /api/v1/global-whitelist/image-build/revision/{revision}/rollback` to restore the global image-build whitelist to its snapshot at the supplied audit revision. Rollback is a full replacement (not a merge), matching the direct-replace semantics of the regular write endpoint. The supplied revision must exist (validated against `historyService.getRevisionById`) and must contain a whitelist snapshot; missing revisions reject with HTTP 404. Identical-state rollbacks are no-ops that do not produce a new revision.
+The system SHALL expose `POST /api/v1/global-whitelist/image-build/revision/{revision}/rollback` to restore the global image-build whitelist to its snapshot at the supplied audit revision. Rollback is a full replacement (not a merge), matching the direct-replace semantics of the regular write endpoint. The supplied revision must exist (validated against `historyService.getRevisionById`) and must contain a whitelist snapshot; missing revisions reject with HTTP 404. If the whitelist singleton row does not currently exist (fresh DB, removed singleton, etc.) the rollback recreates it from the snapshot rather than rejecting with 404 — the snapshot itself is the source of truth for the restored state. Identical-state rollbacks are no-ops that do not produce a new revision.
 
 Status: **Implemented** (Implemented via 020-revision-rollback)
 

@@ -131,7 +131,10 @@ public abstract class DeploymentRollbackFunctionalTest {
         Deployment created = deploymentService.createDeployment(request);
         Integer createRevision = createRevisionFor(created.getId());
 
-        // Simulate an active state by directly mutating status through the repository.
+        // Deliberate test backdoor: production flows reach RUNNING via the deployment manager,
+        // not via repository.update. We bypass that here to exercise the service-level active-state
+        // guard directly. If the repository ever gains a status-transition guard, this test will
+        // need to switch to a manager-driven setup instead of failing for the wrong reason.
         Deployment loaded = deploymentRepository.getById(created.getId()).orElseThrow();
         loaded.setStatus(DeploymentStatus.RUNNING);
         deploymentRepository.update(created.getId(), loaded);
@@ -181,8 +184,12 @@ public abstract class DeploymentRollbackFunctionalTest {
         CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-5");
         deploymentService.createDeployment(request);
 
+        // Discriminator vs R4 (unknown revision): the predates-creation path goes through
+        // entitySnapshotAtRevision and includes "at revision" in its message, whereas the
+        // unknown-revision path stops at getRevisionById and reports "revision with id".
         assertThatThrownBy(() -> deploymentService.rollback("rollback-test-5", earlierRevision))
-                .isInstanceOf(EntityNotFoundException.class);
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("at revision");
     }
 
     @Test
@@ -397,10 +404,6 @@ public abstract class DeploymentRollbackFunctionalTest {
     }
 
     private Integer createRevisionFor(String resourceId) {
-        return createRevisionForString(resourceId);
-    }
-
-    private Integer createRevisionForString(String resourceId) {
         return createRevisionByPredicate(a -> a.getActivityType() == ActivityType.Create
                 && resourceId.equals(a.getResourceId()));
     }

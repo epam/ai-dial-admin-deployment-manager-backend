@@ -164,6 +164,7 @@ public class DeploymentService {
 
     @Transactional
     public Deployment rollback(String id, Integer revision) {
+        // 404 precheck: throws if the revision id is unknown
         historyService.getRevisionById(revision);
 
         var existing = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
@@ -195,6 +196,10 @@ public class DeploymentService {
      */
     private void reconcileEnvSecrets(String id, Deployment existing, Deployment snapshot) {
         var deploymentManager = deploymentManagerProvider.provide(id);
+        // We deliberately skip resolveSecrets on `existing` here — cleanupSecrets keys off the
+        // persisted k8sSecretName only, and that field is populated from the DB row, so the
+        // resolved secret values are not needed (and asking for them would re-hit the K8s API
+        // unnecessarily).
         deploymentManager.cleanupSecrets(id, existing.getEnvs());
         snapshot.setEnvs(saveEnvVars(deploymentManager, id, partitionFromSnapshot(snapshot.getEnvs())));
     }
