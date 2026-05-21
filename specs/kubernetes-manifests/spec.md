@@ -77,6 +77,31 @@ Status: **Implemented**
 - **WHEN** an inference deployment has `probeProperties.enabled = true`
 - **THEN** `KserveProbeConverter` converts the probe to a KServe `StartupProbe` and sets it on the predictor model spec
 
+### Requirement: Chained predictor + transformer for text-classification inference
+When the deploy-time `InferenceTaskDetector` classifies a HuggingFace inference deployment as `TEXT_CLASSIFICATION`, the generated `InferenceService` SHALL contain both a `predictor` and a `transformer` block. When detection returns `NONE`, only the predictor block is emitted — identical to the pre-feature manifest shape. The transformer container template is sourced from `app.text-classification-transformer-container-config` (image required; resource defaults `100m`/`500m`/`256Mi`/`512Mi`, all four env-var-overridable).
+
+For chained deployments:
+- The predictor `protocolVersion` is pinned to `v2`.
+- The predictor args have `--return_raw_logits` and `--task=sequence_classification` auto-injected (always).
+- The transformer container is named `kserve-container`, receives `--model_name=<deploymentName>` and `--predictor_protocol=v2` args, and an `ID2LABEL` env var carrying the detected map serialized as a JSON object with stringified-integer keys.
+- The deployment's resolved public URL is the transformer component's URL; status is `RUNNING` only when both components are healthy.
+
+Operator-supplied predictor args containing `--return_probabilities` or `--task=<non-sequence_classification>` are rejected at manifest generation with HTTP 400 before any cluster mutation. If the transformer image is unset, the deploy is rejected with HTTP 500 before any cluster mutation.
+
+Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
+
+#### Scenario: Chained manifest for a detected text-classification model
+- **WHEN** detection returns `TEXT_CLASSIFICATION` with a valid `id2Label`
+- **THEN** the manifest contains both `predictor` (with `protocolVersion: v2`, `--return_raw_logits`, `--task=sequence_classification`) and `transformer` (with the configured image, `ID2LABEL` env, `--model_name=<name>`, `--predictor_protocol=v2`)
+
+#### Scenario: Predictor-only manifest for non-classification models
+- **WHEN** detection returns `NONE`
+- **THEN** the manifest is predictor-only, unchanged from the pre-feature shape
+
+#### Scenario: Missing transformer image
+- **WHEN** detection returns `TEXT_CLASSIFICATION` and the transformer image property is unset
+- **THEN** the deploy is rejected with HTTP 500 (`MissingTransformerImageException`) before any cluster mutation
+
 ### Requirement: NIM-specific resources generated for NIM deployments
 When NIM is enabled, the system SHALL generate NIM-specific Kubernetes resources for NIM deployments. The manifest includes:
 
@@ -173,6 +198,8 @@ Status: **Implemented**
 - `ManifestGenerator` interface: `com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator`
 - KNative manifest generator: `com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator`
 - KServe manifest generator: `com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator`
+- Chained transformer section: `com.epam.aidial.deployment.manager.service.manifest.TextClassificationTransformerSection`
+- Transformer container template (env-var-backed): `app.text-classification-transformer-container-config` in `application.yml`; cloned via `AppProperties.cloneTextClassificationTransformerContainerConfig()`
 - NIM manifest generator: `com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator`
 - Base probe converter: `com.epam.aidial.deployment.manager.service.manifest.ProbeConverter` — translates `ProbeProperties` to Fabric8 `io.fabric8.kubernetes.api.model.Probe`
 - KServe probe converter: `com.epam.aidial.deployment.manager.service.manifest.KserveProbeConverter` — converts Fabric8 `Probe` or `ProbeProperties` to `io.kserve.serving.v1beta1...StartupProbe`

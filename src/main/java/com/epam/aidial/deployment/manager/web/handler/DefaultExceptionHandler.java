@@ -11,6 +11,9 @@ import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
+import com.epam.aidial.deployment.manager.service.deployment.MissingTransformerImageException;
+import com.epam.aidial.deployment.manager.service.detection.HuggingFaceUpstreamException;
+import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -153,6 +156,27 @@ public class DefaultExceptionHandler {
     public ErrorView handleIllegalArgumentError(HttpServletRequest req, Exception ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(InferenceTaskDetectionException.class)
+    public ErrorView handleInferenceTaskDetectionError(HttpServletRequest req, InferenceTaskDetectionException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    @ExceptionHandler(HuggingFaceUpstreamException.class)
+    public ErrorView handleHuggingFaceUpstreamError(HttpServletRequest req, HuggingFaceUpstreamException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(MissingTransformerImageException.class)
+    public ErrorView handleMissingTransformerImage(HttpServletRequest req, MissingTransformerImageException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)

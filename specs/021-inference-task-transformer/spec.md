@@ -2,7 +2,7 @@
 
 **Feature Branch**: `021-inference-task-transformer`
 **Created**: 2026-05-20
-**Status**: Draft
+**Status**: Implemented
 **Capability**: inference-deployments, kubernetes-manifests
 **Input**: User description: "I need to add flag to HF model deployment, should be something like `task: text_classification` - tho use the best logic for naming. When task is set and equal to `text_classification` `id2label` mapping is required too. Under the hood, application need to create InferenceService with transformer. Not only predictor. Transformer image should be set using env var. As example look to C:\Users\Oleksii_Donets\IdeaProjects\kserve-text-classification-transformer"
 

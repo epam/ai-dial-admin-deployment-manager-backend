@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.detection;
 
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
+import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClientException;
 import com.epam.aidial.deployment.manager.huggingface.model.Model;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelConfig;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
@@ -82,7 +83,7 @@ class InferenceTaskDetectorTest {
         when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(ModelConfig.builder().build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
-                .isInstanceOf(InferenceTaskDetectionException.class)
+                .isInstanceOf(ModelMetadataMissingException.class)
                 .hasMessageContaining("does not contain a usable id2label");
     }
 
@@ -94,7 +95,7 @@ class InferenceTaskDetectorTest {
                 ModelConfig.builder().id2Label(orderedMap("0", "A", "2", "C")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
-                .isInstanceOf(InferenceTaskDetectionException.class)
+                .isInstanceOf(ModelMetadataUnusableException.class)
                 .hasMessageContaining("non-dense");
     }
 
@@ -106,7 +107,7 @@ class InferenceTaskDetectorTest {
                 ModelConfig.builder().id2Label(orderedMap("first", "A")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
-                .isInstanceOf(InferenceTaskDetectionException.class)
+                .isInstanceOf(ModelMetadataUnusableException.class)
                 .hasMessageContaining("non-integer key");
     }
 
@@ -118,7 +119,7 @@ class InferenceTaskDetectorTest {
                 ModelConfig.builder().id2Label(orderedMap("0", "LABEL_0", "1", "LABEL_1")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
-                .isInstanceOf(InferenceTaskDetectionException.class)
+                .isInstanceOf(ModelMetadataUnusableException.class)
                 .hasMessageContaining("auto-generated stubs");
     }
 
@@ -130,8 +131,61 @@ class InferenceTaskDetectorTest {
                 ModelConfig.builder().id2Label(orderedMap("0", "NEGATIVE", "1", "")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
-                .isInstanceOf(InferenceTaskDetectionException.class)
+                .isInstanceOf(ModelMetadataUnusableException.class)
                 .hasMessageContaining("empty value");
+    }
+
+    @Test
+    void shouldRaiseModelNotFound_whenHfReturns404() {
+        when(huggingFaceClient.getModel(MODEL_NAME))
+                .thenThrow(new HuggingFaceClientException("not found", 404));
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(ModelNotFoundException.class)
+                .hasMessageContaining("not found")
+                .hasMessageContaining(MODEL_NAME);
+    }
+
+    @Test
+    void shouldRaiseModelNotFound_whenHfReturns401() {
+        when(huggingFaceClient.getModel(MODEL_NAME))
+                .thenThrow(new HuggingFaceClientException("unauthorized", 401));
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(ModelNotFoundException.class)
+                .hasMessageContaining("Access to HuggingFace model")
+                .hasMessageContaining("HUGGINGFACE_API_TOKEN");
+    }
+
+    @Test
+    void shouldRaiseModelNotFound_whenHfReturns403() {
+        when(huggingFaceClient.getModel(MODEL_NAME))
+                .thenThrow(new HuggingFaceClientException("forbidden", 403));
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(ModelNotFoundException.class);
+    }
+
+    @Test
+    void shouldRaiseHuggingFaceUpstream_whenHfReturns5xx() {
+        when(huggingFaceClient.getModel(MODEL_NAME))
+                .thenThrow(new HuggingFaceClientException("upstream", 503));
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(HuggingFaceUpstreamException.class)
+                .hasMessageContaining("HuggingFace Hub is currently unreachable")
+                .hasMessageContaining("retry");
+    }
+
+    @Test
+    void shouldRaiseHuggingFaceUpstream_whenConfigFetchFails() {
+        var model = Model.builder().pipelineTag("text-classification").build();
+        when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any()))
+                .thenThrow(new HuggingFaceClientException("upstream", 500));
+
+        assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
+                .isInstanceOf(HuggingFaceUpstreamException.class);
     }
 
     private static Map<String, String> orderedMap(String... kvs) {

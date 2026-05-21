@@ -19,6 +19,9 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentReq
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapper;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -147,6 +150,16 @@ public class DeploymentController {
     }
 
     @FullAdminOnly
+    @Operation(summary = "Deploy a deployment by id")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Deployment scheduled for deploy"),
+        @ApiResponse(responseCode = "400", description = "HuggingFace model not found, unauthorized, has"
+                + " unusable metadata, or supplied predictor arg conflicts with the chained transformer contract."),
+        @ApiResponse(responseCode = "500", description = "Required transformer-image configuration is not set;"
+                + " deploy aborted before cluster mutation."),
+        @ApiResponse(responseCode = "502", description = "HuggingFace Hub unreachable; deploy not started,"
+                + " safe to retry.")
+    })
     @PostMapping(path = "{id}/deploy",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public DeploymentDto deploy(@PathVariable("id") String id) {

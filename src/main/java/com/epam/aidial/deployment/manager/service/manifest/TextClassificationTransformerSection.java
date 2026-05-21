@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.service.deployment.MissingTransformerImageException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.Container;
@@ -52,13 +53,11 @@ public class TextClassificationTransformerSection {
      */
     public void apply(InferenceService service, String deploymentName, Map<Integer, String> id2Label) {
         Container template = appProperties.cloneTextClassificationTransformerContainerConfig();
-        if (template == null) {
-            throw new IllegalStateException("Text-classification transformer container config is not configured."
-                    + " Set app.text-classification-transformer-container-config in application.yml.");
-        }
-        if (StringUtils.isBlank(template.getImage())) {
-            throw new IllegalStateException("Text-classification transformer image is not configured."
-                    + " Set INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE before deploying chained inference deployments.");
+        if (template == null || StringUtils.isBlank(template.getImage())) {
+            throw new MissingTransformerImageException(
+                    "Cannot deploy a text-classification inference deployment: required configuration property"
+                            + " 'app.text-classification-transformer-container-config.image'"
+                            + " (env INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE) is not set.");
         }
 
         log.debug("Building transformer block for deployment '{}'. Image: {}", deploymentName, template.getImage());
