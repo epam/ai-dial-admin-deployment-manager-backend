@@ -89,7 +89,7 @@ public class TextClassificationTransformerSection {
             return jsonMapper.writeValueAsString(ordered);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(
-                    "Failed to serialize id2Label for deployment '" + deploymentName + "'", e);
+                    "Failed to serialize id2Label for deployment '%s'".formatted(deploymentName), e);
         }
     }
 
@@ -99,7 +99,7 @@ public class TextClassificationTransformerSection {
             return jsonMapper.readValue(json, Containers.class);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(
-                    "Failed to convert transformer container template for deployment '" + deploymentName + "'", e);
+                    "Failed to convert transformer container template for deployment '%s'".formatted(deploymentName), e);
         }
     }
 }

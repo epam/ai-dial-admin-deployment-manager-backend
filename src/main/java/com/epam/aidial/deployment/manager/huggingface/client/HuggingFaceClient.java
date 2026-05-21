@@ -141,7 +141,7 @@ public class HuggingFaceClient {
         } catch (HuggingFaceClientException e) {
             throw e;
         } catch (Exception e) {
-            var errorMessage = "Error parsing config.json from Hugging Face for model '" + modelName + "'";
+            var errorMessage = "Error parsing config.json from Hugging Face for model '%s'".formatted(modelName);
             log.warn(errorMessage, e);
             throw new HuggingFaceClientException(errorMessage, HttpStatus.INTERNAL_SERVER_ERROR.value());
         }

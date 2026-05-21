@@ -86,9 +86,9 @@ public class InferenceTaskDetector {
         Map<String, String> raw = config.getId2Label();
         if (MapUtils.isEmpty(raw)) {
             throw new InferenceTaskDetectionException(modelName,
-                    "HuggingFace model '" + modelName + "' is a sequence-classification model but its config.json"
+                    ("HuggingFace model '%s' is a sequence-classification model but its config.json"
                             + " does not contain a usable id2label. Provide a model whose config.json includes a"
-                            + " complete label mapping, or fork the model and add one.");
+                            + " complete label mapping, or fork the model and add one.").formatted(modelName));
         }
 
         Map<Integer, String> parsed = new LinkedHashMap<>();
@@ -97,18 +97,18 @@ public class InferenceTaskDetector {
             String value = entry.getValue();
             if (StringUtils.isBlank(key)) {
                 throw new InferenceTaskDetectionException(modelName,
-                        "Model '" + modelName + "' has an unusable id2label (empty key).");
+                        "Model '%s' has an unusable id2label (empty key).".formatted(modelName));
             }
             int parsedKey;
             try {
                 parsedKey = Integer.parseUnsignedInt(key.trim());
             } catch (NumberFormatException e) {
                 throw new InferenceTaskDetectionException(modelName,
-                        "Model '" + modelName + "' has an unusable id2label (non-integer key '" + key + "').");
+                        "Model '%s' has an unusable id2label (non-integer key '%s').".formatted(modelName, key));
             }
             if (StringUtils.isBlank(value)) {
                 throw new InferenceTaskDetectionException(modelName,
-                        "Model '" + modelName + "' has an unusable id2label (empty value for key '" + key + "').");
+                        "Model '%s' has an unusable id2label (empty value for key '%s').".formatted(modelName, key));
             }
             parsed.put(parsedKey, value);
         }
@@ -118,8 +118,8 @@ public class InferenceTaskDetector {
         for (int i = 0; i < n; i++) {
             if (!parsed.containsKey(i)) {
                 throw new InferenceTaskDetectionException(modelName,
-                        "Model '" + modelName + "' has an unusable id2label (non-dense keys; expected 0.." + (n - 1)
-                                + " but missing key " + i + ").");
+                        "Model '%s' has an unusable id2label (non-dense keys; expected 0..%d but missing key %d)."
+                                .formatted(modelName, n - 1, i));
             }
         }
 
@@ -127,8 +127,8 @@ public class InferenceTaskDetector {
         boolean allStubs = parsed.values().stream().allMatch(v -> AUTO_STUB_LABEL.matcher(v).matches());
         if (allStubs) {
             throw new InferenceTaskDetectionException(modelName,
-                    "Model '" + modelName + "' has an unusable id2label (all values are HF auto-generated stubs"
-                            + " like LABEL_0/LABEL_1; the model owner has not customized labels).");
+                    ("Model '%s' has an unusable id2label (all values are HF auto-generated stubs"
+                            + " like LABEL_0/LABEL_1; the model owner has not customized labels).").formatted(modelName));
         }
 
         // Re-order into ascending-key LinkedHashMap to make serialization deterministic.
