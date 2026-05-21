@@ -3,7 +3,6 @@ package com.epam.aidial.deployment.manager.utils;
 import com.epam.aidial.deployment.manager.web.security.IdentityProvidersProperties;
 
 import java.util.List;
-import java.util.Set;
 
 public class IdentityProviderTestHelper {
 
@@ -13,7 +12,6 @@ public class IdentityProviderTestHelper {
         config.setJwkSetUri("https://test/keys");
         config.setAudiences(List.of("audience_test"));
         config.setRoleClaims(List.of("roles", "resource_access.roles"));
-        config.setAllowedRoles(Set.of("testRole", "USER"));
         config.setEmailClaims(List.of("email"));
         return config;
     }

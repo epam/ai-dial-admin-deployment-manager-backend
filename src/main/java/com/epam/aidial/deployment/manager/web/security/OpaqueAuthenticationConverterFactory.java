@@ -22,7 +22,7 @@ public class OpaqueAuthenticationConverterFactory {
 
     private OpaqueAuthenticationConverter create(OpaqueTokenProviderConfig config) {
         var grantedAuthoritiesTransformer = new UserRolesResolver(
-                identityProviderUtils.getRolesMapping(config.getAllowedRoles(), config.getRolesMapping())
+                identityProviderUtils.getRolesMapping(config.getRolesMapping())
         );
 
         return new OpaqueAuthenticationConverter(
