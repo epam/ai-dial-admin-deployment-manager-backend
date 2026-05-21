@@ -155,7 +155,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
      */
     private void applyChainedTransformer(String name,
                                          @Nullable Map<Integer, String> id2Label,
-                                         MappingChain<io.kserve.serving.v1beta1.inferenceservicespec.predictor.Model> modelChain,
+                                         MappingChain<Model> modelChain,
                                          InferenceService service) {
         if (MapUtils.isEmpty(id2Label)) {
             throw new IllegalStateException("Cannot emit chained transformer for deployment '%s': id2Label is empty"
