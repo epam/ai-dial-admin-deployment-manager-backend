@@ -17,6 +17,8 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +36,7 @@ class InferenceTaskDetectorTest {
     void shouldDetectTextClassificationFromPipelineTag() {
         var model = Model.builder().pipelineTag("text-classification").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder().id2Label(orderedMap("0", "NEGATIVE", "1", "POSITIVE")).build());
 
         var result = detector.detect(new HuggingFaceSource(MODEL_NAME));
@@ -48,7 +50,7 @@ class InferenceTaskDetectorTest {
     void shouldDetectTextClassificationFromArchitectureFallback() {
         var model = Model.builder().pipelineTag("feature-extraction").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder()
                         .architectures(List.of("DistilBertForSequenceClassification"))
                         .id2Label(orderedMap("0", "NEGATIVE", "1", "POSITIVE"))
@@ -64,7 +66,7 @@ class InferenceTaskDetectorTest {
     void shouldDetectNoneWhenNeitherSignalMatches() {
         var model = Model.builder().pipelineTag("translation").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder().architectures(List.of("MarianMTModel")).build());
 
         var result = detector.detect(new HuggingFaceSource(MODEL_NAME));
@@ -77,7 +79,7 @@ class InferenceTaskDetectorTest {
     void shouldFailDetect_whenId2LabelMissing() {
         var model = Model.builder().pipelineTag("text-classification").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(ModelConfig.builder().build());
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(ModelConfig.builder().build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
                 .isInstanceOf(InferenceTaskDetectionException.class)
@@ -88,7 +90,7 @@ class InferenceTaskDetectorTest {
     void shouldFailDetect_whenId2LabelHasSparseKeys() {
         var model = Model.builder().pipelineTag("text-classification").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder().id2Label(orderedMap("0", "A", "2", "C")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
@@ -100,7 +102,7 @@ class InferenceTaskDetectorTest {
     void shouldFailDetect_whenId2LabelKeyNotInteger() {
         var model = Model.builder().pipelineTag("text-classification").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder().id2Label(orderedMap("first", "A")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
@@ -112,7 +114,7 @@ class InferenceTaskDetectorTest {
     void shouldFailDetect_whenId2LabelValuesAreAllStubs() {
         var model = Model.builder().pipelineTag("text-classification").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder().id2Label(orderedMap("0", "LABEL_0", "1", "LABEL_1")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))
@@ -124,7 +126,7 @@ class InferenceTaskDetectorTest {
     void shouldFailDetect_whenId2LabelValueEmpty() {
         var model = Model.builder().pipelineTag("text-classification").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
-        when(huggingFaceClient.fetchModelConfig(MODEL_NAME)).thenReturn(
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
                 ModelConfig.builder().id2Label(orderedMap("0", "NEGATIVE", "1", "")).build());
 
         assertThatThrownBy(() -> detector.detect(new HuggingFaceSource(MODEL_NAME)))

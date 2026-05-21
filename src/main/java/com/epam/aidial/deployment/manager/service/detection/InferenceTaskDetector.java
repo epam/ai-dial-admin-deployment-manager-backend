@@ -50,11 +50,14 @@ public class InferenceTaskDetector {
         log.debug("Detecting inference task for HF model '{}'", modelName);
 
         Model model = huggingFaceClient.getModel(modelName);
+        // Pin config.json to the same revision the model API returned so the two calls
+        // can't observe different snapshots if the model is updated between them.
+        String revision = model.getSha();
         boolean isTextClassification = TEXT_CLASSIFICATION_PIPELINE_TAG.equalsIgnoreCase(model.getPipelineTag());
 
         if (!isTextClassification) {
             // Fall back to architecture-based signal.
-            ModelConfig config = huggingFaceClient.fetchModelConfig(modelName);
+            ModelConfig config = huggingFaceClient.fetchModelConfig(modelName, revision);
             isTextClassification = hasSequenceClassificationArchitecture(config);
             if (!isTextClassification) {
                 log.debug("Model '{}' detected as NONE (pipeline_tag='{}', architectures={})",
@@ -66,7 +69,7 @@ public class InferenceTaskDetector {
         }
 
         // pipeline_tag matched — fetch config.json for id2label.
-        ModelConfig config = huggingFaceClient.fetchModelConfig(modelName);
+        ModelConfig config = huggingFaceClient.fetchModelConfig(modelName, revision);
         return InferenceTaskDetectionResult.textClassification(extractAndValidateId2Label(modelName, config));
     }
 

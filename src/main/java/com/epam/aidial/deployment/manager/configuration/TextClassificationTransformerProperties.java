@@ -4,6 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Map;
+
 /**
  * Operator-tuned configuration for the chained text-classification transformer container.
  *
@@ -11,11 +13,17 @@ import org.springframework.context.annotation.Configuration;
  * {@code 021-inference-task-transformer/spec.md} FR-015..FR-017). Defaults live in
  * {@code application.yml}; Java fields are intentionally uninitialized per constitution
  * § "Configuration property defaults".
+ *
+ * <p>Shape mirrors a Kubernetes container spec — {@code name}, {@code image},
+ * {@code imagePullPolicy}, and {@code resources.{requests,limits}} as free-form
+ * resource maps so cpu, memory, and ephemeral-storage can be tuned uniformly.
  */
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "app.inference.text-classification-transformer")
 public class TextClassificationTransformerProperties {
+
+    private String name;
 
     /**
      * Container image reference for the text-classification transformer. No default — must be
@@ -24,13 +32,13 @@ public class TextClassificationTransformerProperties {
      */
     private String image;
 
+    private String imagePullPolicy;
+
     private Resources resources;
 
     @Data
     public static class Resources {
-        private String cpuRequest;
-        private String cpuLimit;
-        private String memoryRequest;
-        private String memoryLimit;
+        private Map<String, String> requests;
+        private Map<String, String> limits;
     }
 }

@@ -115,22 +115,28 @@ public class HuggingFaceClient {
     }
 
     /**
-     * Fetch and parse the model's {@code config.json} from the {@code main} revision.
+     * Fetch and parse the model's {@code config.json} at the given revision. Pass the
+     * {@code sha} returned by {@link #getModel(String)} to pin the config to the same
+     * snapshot — otherwise it can drift if the model is updated between calls. Falls back
+     * to {@code main} when the revision is blank.
      *
      * @param modelName HuggingFace repository identifier
+     * @param revision  commit sha or branch name; if blank, {@code main} is used
      * @return parsed {@link ModelConfig} with the fields relevant to inference-task detection
      * @throws HuggingFaceClientException on any non-2xx response or transport error
      */
-    public ModelConfig fetchModelConfig(String modelName) {
-        log.debug("Retrieving huggingface model config.json. Model: {}. Base URL: {}", modelName, properties.getBaseUrl());
+    public ModelConfig fetchModelConfig(String modelName, @Nullable String revision) {
+        var resolvedRevision = StringUtils.defaultIfBlank(revision, MAIN_REVISION);
+        log.debug("Retrieving huggingface model config.json. Model: {}. Revision: {}. Base URL: {}",
+                modelName, resolvedRevision, properties.getBaseUrl());
         var fileRequest = FileRequest.builder()
                 .modelName(modelName)
-                .revision(MAIN_REVISION)
+                .revision(resolvedRevision)
                 .filePath(CONFIG_JSON_PATH)
                 .build();
         try (var body = downloadFile(fileRequest)) {
             var result = jsonMapper.readValue(body.string(), ModelConfig.class);
-            log.debug("huggingface model config.json retrieved. Model: {}", modelName);
+            log.debug("huggingface model config.json retrieved. Model: {}. Revision: {}", modelName, resolvedRevision);
             return result;
         } catch (HuggingFaceClientException e) {
             throw e;

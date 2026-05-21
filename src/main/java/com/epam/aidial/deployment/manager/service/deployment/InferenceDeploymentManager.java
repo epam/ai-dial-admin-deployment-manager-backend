@@ -208,7 +208,10 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             return DeploymentStatus.CRASHED;
         }
 
-        // Check for RUNNING state — for chained deployments, require the transformer component to be reachable as well.
+        // RUNNING requires both: ActiveModelState=LOADED means a pod is serving, but during a
+        // rolling update the OLD pod can still be LOADED while the new spec hasn't propagated.
+        // TransitionStatus=UPTODATE confirms the operator's latest spec is the one actually live.
+        // For chained deployments the transformer component must also be reachable.
         if (States.ActiveModelState.LOADED.equals(activeModelState) && ModelStatus.TransitionStatus.UPTODATE.equals(transitionStatus)) {
             if (isChainedDeployment(service) && !isTransformerReady(service)) {
                 log.debug("mapStatus. serviceName: '{}'. predictor RUNNING but transformer not yet ready", serviceName);

@@ -33,7 +33,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TextClassificationTransformerSection {
 
-    private static final String CONTAINER_NAME = "kserve-container";
+    private static final String DEFAULT_CONTAINER_NAME = "kserve-container";
     private static final String ID2LABEL_ENV_VAR = "ID2LABEL";
     private static final String MODEL_NAME_ARG = "--model_name";
     private static final String PREDICTOR_PROTOCOL_ARG = "--predictor_protocol";
@@ -61,8 +61,11 @@ public class TextClassificationTransformerSection {
         log.debug("Building transformer block for deployment '{}'. Image: {}", deploymentName, properties.getImage());
 
         var container = new Containers();
-        container.setName(CONTAINER_NAME);
+        container.setName(StringUtils.defaultIfBlank(properties.getName(), DEFAULT_CONTAINER_NAME));
         container.setImage(properties.getImage());
+        if (StringUtils.isNotBlank(properties.getImagePullPolicy())) {
+            container.setImagePullPolicy(properties.getImagePullPolicy());
+        }
         container.setArgs(List.of(
                 MODEL_NAME_ARG + "=" + deploymentName,
                 PREDICTOR_PROTOCOL_ARG + "=" + KSERVE_V2_PROTOCOL));
@@ -98,20 +101,8 @@ public class TextClassificationTransformerSection {
         if (props == null) {
             return resources;
         }
-        Map<String, IntOrString> requests = new LinkedHashMap<>();
-        Map<String, IntOrString> limits = new LinkedHashMap<>();
-        if (StringUtils.isNotBlank(props.getCpuRequest())) {
-            requests.put("cpu", new IntOrString(props.getCpuRequest()));
-        }
-        if (StringUtils.isNotBlank(props.getMemoryRequest())) {
-            requests.put("memory", new IntOrString(props.getMemoryRequest()));
-        }
-        if (StringUtils.isNotBlank(props.getCpuLimit())) {
-            limits.put("cpu", new IntOrString(props.getCpuLimit()));
-        }
-        if (StringUtils.isNotBlank(props.getMemoryLimit())) {
-            limits.put("memory", new IntOrString(props.getMemoryLimit()));
-        }
+        var requests = toIntOrStringMap(props.getRequests());
+        var limits = toIntOrStringMap(props.getLimits());
         if (!requests.isEmpty()) {
             resources.setRequests(requests);
         }
@@ -119,5 +110,18 @@ public class TextClassificationTransformerSection {
             resources.setLimits(limits);
         }
         return resources;
+    }
+
+    private Map<String, IntOrString> toIntOrStringMap(Map<String, String> source) {
+        if (source == null || source.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, IntOrString> result = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            if (StringUtils.isNotBlank(value)) {
+                result.put(key, new IntOrString(value));
+            }
+        });
+        return result;
     }
 }
