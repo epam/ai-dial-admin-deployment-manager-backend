@@ -19,6 +19,8 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentReq
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapper;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +96,23 @@ public class DeploymentController {
         return deploymentService.getAllDeploymentsAtRevision(revision).stream()
                 .map(dtoMapper::toDeploymentDto)
                 .collect(Collectors.toList());
+    }
+
+    @FullAdminOnly
+    @PostMapping(path = "/{id}/revision/{revision}/rollback",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    @Operation(summary = "Roll back a deployment to a past revision",
+            description = "Restores the deployment's stored configuration to its snapshot at the given audit revision. "
+                    + "Allowed only when the deployment is in NOT_DEPLOYED or STOPPED. "
+                    + "Does not modify live Kubernetes state — the operator must trigger deploy afterwards to apply.")
+    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+    @ApiResponse(responseCode = "400", description = "Active-state, validation, or missing-reference rejection")
+    @ApiResponse(responseCode = "403", description = "Read-only role")
+    @ApiResponse(responseCode = "404", description = "Deployment or revision not found")
+    public DeploymentDto rollbackDeployment(@PathVariable String id, @PathVariable Integer revision) {
+        var rolledBack = deploymentService.rollback(id, revision);
+        return dtoMapper.toDeploymentDto(rolledBack);
     }
 
     @FullAdminOnly
