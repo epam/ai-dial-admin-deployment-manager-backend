@@ -118,7 +118,7 @@ app:
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
   image-build-timeout-sec: 300
-  image-build-stop-timeout-sec: 30
+  image-build-stop-timeout-sec: 45
   image-build-logs-size-limit: 1000
   heartbeat-period-sec: 30
   max-error-log-lines: 20
@@ -254,7 +254,10 @@ app:
     name: builder-container
     image: ${app.builder-root-image}
     command:
-      - buildctl-daemonless.sh
+      - /bin/sh
+      - -c
+      - 'buildctl-daemonless.sh "$@"; CODE=$?; [ "$CODE" -ne 0 ] && touch /image-build/build-failed; exit $CODE'
+      - "--"
     args:
       - build
       - --frontend
@@ -272,7 +275,10 @@ app:
     name: builder-container
     image: ${app.builder-rootless-image}
     command:
-      - buildctl-daemonless.sh
+      - /bin/sh
+      - -c
+      - 'buildctl-daemonless.sh "$@"; CODE=$?; [ "$CODE" -ne 0 ] && touch /image-build/build-failed; exit $CODE'
+      - "--"
     env:
       - name: BUILDKITD_FLAGS
         value: "--oci-worker-no-process-sandbox"
@@ -311,6 +317,10 @@ app:
       RETRY=0
       echo "[push-container] Waiting for image tarball to be created and stable..."
       while [ $RETRY -lt $MAX_RETRIES ]; do
+        if [ -f "/image-build/build-failed" ]; then
+          echo "[push-container] ERROR: Builder reported failure. Exiting."
+          exit 1
+        fi
         if [ -f "$TAR_PATH" ]; then
           SIZE1=$(stat -c%s "$TAR_PATH")
           sleep ${SLEEP_INTERVAL_IN_SECONDS}

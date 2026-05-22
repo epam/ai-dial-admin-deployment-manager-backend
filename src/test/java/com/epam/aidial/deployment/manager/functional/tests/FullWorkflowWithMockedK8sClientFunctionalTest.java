@@ -423,7 +423,12 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
                 "dockerfile=/templates"
         ));
 
-        buildContainer.setCommand(Collections.singletonList("buildctl-daemonless.sh"));
+        buildContainer.setCommand(List.of(
+                "/bin/sh",
+                "-c",
+                "buildctl-daemonless.sh \"$@\"; CODE=$?; [ \"$CODE\" -ne 0 ] && touch /image-build/build-failed; exit $CODE",
+                "--"
+        ));
         buildContainer.setEnv(List.of(
                 new EnvVarBuilder()
                         .withName("BUILDKITD_FLAGS")
@@ -455,6 +460,10 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
             RETRY=0
             echo "[push-container] Waiting for image tarball to be created and stable..."
             while [ $RETRY -lt $MAX_RETRIES ]; do
+              if [ -f "/image-build/build-failed" ]; then
+                echo "[push-container] ERROR: Builder reported failure. Exiting."
+                exit 1
+              fi
               if [ -f "$TAR_PATH" ]; then
                 SIZE1=$(stat -c%s "$TAR_PATH")
                 sleep ${SLEEP_INTERVAL_IN_SECONDS}
