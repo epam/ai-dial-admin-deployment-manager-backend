@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.service.detection;
+package com.epam.aidial.deployment.manager.exception;
 
 /**
  * Raised when a HuggingFace model is detected as a sequence-classification model but its

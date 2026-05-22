@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.service.detection;
+package com.epam.aidial.deployment.manager.exception;
 
 /**
  * Raised when the HuggingFace Hub responds 404 (model not found) or 401/403 (private model

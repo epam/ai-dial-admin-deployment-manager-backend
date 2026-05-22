@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.service.detection;
+package com.epam.aidial.deployment.manager.exception;
 
 /**
  * Raised when the HuggingFace Hub call fails with a 5xx, times out, or otherwise produces

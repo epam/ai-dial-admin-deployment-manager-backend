@@ -228,6 +228,16 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return service.getSpec() != null && service.getSpec().getTransformer() != null;
     }
 
+    /**
+     * Best-effort transformer readiness check based on URL presence.
+     *
+     * <p>KServe does not surface a per-component equivalent of the predictor's
+     * {@code ActiveModelState=LOADED && TransitionStatus=UPTODATE} pair for the transformer; URL
+     * presence is the closest signal available in {@code InferenceServiceStatus.components}. As a
+     * consequence, a transformer that previously had its URL set but then crashed will still
+     * be reported as ready until KServe reconciles. If KServe later adds richer per-component
+     * status fields, gate on those instead.
+     */
     private boolean isTransformerReady(InferenceService service) {
         var status = service.getStatus();
         if (status == null || status.getComponents() == null) {

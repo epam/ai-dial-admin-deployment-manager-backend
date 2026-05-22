@@ -1,5 +1,9 @@
 package com.epam.aidial.deployment.manager.service.detection;
 
+import com.epam.aidial.deployment.manager.exception.HuggingFaceUpstreamException;
+import com.epam.aidial.deployment.manager.exception.ModelMetadataMissingException;
+import com.epam.aidial.deployment.manager.exception.ModelMetadataUnusableException;
+import com.epam.aidial.deployment.manager.exception.ModelNotFoundException;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClientException;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceMalformedResponseException;

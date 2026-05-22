@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.MissingTransformerImageException;
 import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,13 +43,13 @@ public class TextClassificationTransformerSection {
     private final JsonMapper jsonMapper;
 
     /**
-     * Apply the transformer block to the given {@link InferenceService}.
+     * Verify that the transformer-image config is set. Call this before mutating the predictor
+     * half of a chained spec so a missing image throws cleanly rather than leaving the spec
+     * half-built.
      *
-     * @param service        the service spec being built (mutated in place)
-     * @param deploymentName the deployment name; passed to {@code --model_name}
-     * @param id2Label       the label map; serialized as JSON for the {@code ID2LABEL} env var
+     * @throws MissingTransformerImageException if the configured image is missing or blank
      */
-    public void apply(InferenceService service, String deploymentName, Map<Integer, String> id2Label) {
+    public void ensureConfigured() {
         Container template = appProperties.cloneTextClassificationTransformerContainerConfig();
         if (template == null || StringUtils.isBlank(template.getImage())) {
             throw new MissingTransformerImageException(
@@ -56,6 +57,18 @@ public class TextClassificationTransformerSection {
                             + " 'app.text-classification-transformer-container-config.image'"
                             + " (env INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE) is not set.");
         }
+    }
+
+    /**
+     * Apply the transformer block to the given {@link InferenceService}.
+     *
+     * @param service        the service spec being built (mutated in place)
+     * @param deploymentName the deployment name; passed to {@code --model_name}
+     * @param id2Label       the label map; serialized as JSON for the {@code ID2LABEL} env var
+     */
+    public void apply(InferenceService service, String deploymentName, Map<Integer, String> id2Label) {
+        ensureConfigured();
+        Container template = appProperties.cloneTextClassificationTransformerContainerConfig();
 
         log.debug("Building transformer block for deployment '{}'. Image: {}", deploymentName, template.getImage());
 
@@ -96,6 +109,17 @@ public class TextClassificationTransformerSection {
         }
     }
 
+    /**
+     * Convert a Fabric8 {@link Container} to the KServe-generated {@link Containers} via JSON.
+     *
+     * <p>The two types are structurally identical (Fabric8 models the upstream
+     * {@code k8s.io/api/core/v1.Container}; the KServe CRD's transformer container field is a
+     * thin subset of the same shape), so a JSON round-trip is sound today. The trade-off is
+     * silent coupling: if a future KServe CRD bump renames or drops a field, Jackson's default
+     * {@code ignoreUnknown} behaviour will drop it without surfacing an error, and operator
+     * YAML tuning that field will be silently lost. If that becomes a concern, build the
+     * {@code Containers} via Fabric8 builders instead of going through JSON.
+     */
     private Containers toKserveContainer(String deploymentName, Container source) {
         try {
             var json = jsonMapper.writeValueAsString(source);

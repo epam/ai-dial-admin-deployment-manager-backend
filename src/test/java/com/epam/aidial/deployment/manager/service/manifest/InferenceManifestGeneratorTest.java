@@ -551,6 +551,41 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
+    void testServiceConfig_chained_rejectsReturnRawLogitsFalseOverride() {
+        var deploymentName = "chained-rejects-raw-logits-false-app";
+        var args = List.of("--return_raw_logits=false");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--return_raw_logits")
+                .hasMessageContaining("false");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
+    void testServiceConfig_chained_acceptsReturnRawLogitsTrueOverride() {
+        var deploymentName = "chained-accepts-raw-logits-true-app";
+        var args = List.of("--return_raw_logits=true");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        var finalArgs = generated.getSpec().getPredictor().getModel().getArgs();
+        assertThat(finalArgs.stream().filter(a -> a.startsWith("--return_raw_logits")).toList()).hasSize(1);
+        assertThat(finalArgs).contains("--return_raw_logits=true");
+    }
+
+    @Test
     void testServiceConfig_chained_passesThroughCompatibleArgs() {
         var deploymentName = "chained-passthrough-app";
         var args = List.of("--dtype=float16");

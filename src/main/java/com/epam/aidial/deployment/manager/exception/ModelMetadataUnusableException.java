@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.service.detection;
+package com.epam.aidial.deployment.manager.exception;
 
 /**
  * Raised when a HuggingFace model's {@code id2label} fails the structural contract:

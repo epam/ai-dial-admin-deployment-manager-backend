@@ -1,4 +1,4 @@
-package com.epam.aidial.deployment.manager.service.manifest;
+package com.epam.aidial.deployment.manager.exception;
 
 /**
  * Raised when a text-classification inference deployment is about to be chained but the

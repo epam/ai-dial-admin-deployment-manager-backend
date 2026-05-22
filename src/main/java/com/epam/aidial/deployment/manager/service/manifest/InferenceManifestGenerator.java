@@ -43,6 +43,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
     private static final String TASK_ARG = "--task";
     private static final String SEQUENCE_CLASSIFICATION_TASK = "sequence_classification";
     private static final String KSERVE_V2_PROTOCOL = "v2";
+    private static final String TRUE_VALUE = "true";
 
     private final KserveProbeConverter kserveProbeConverter;
     private final ProgressDeadlineCalculator progressDeadlineCalculator;
@@ -154,13 +155,13 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
      * </ul>
      */
     private void applyChainedTransformer(String name,
-                                         @Nullable Map<Integer, String> id2Label,
+                                         Map<Integer, String> id2Label,
                                          MappingChain<Model> modelChain,
                                          InferenceService service) {
-        if (MapUtils.isEmpty(id2Label)) {
-            throw new IllegalStateException("Cannot emit chained transformer for deployment '%s': id2Label is empty"
-                    .formatted(name));
-        }
+        // Validate transformer-image config before touching the predictor so a config error
+        // throws cleanly without leaving a half-mutated InferenceService for the caller.
+        textClassificationTransformerSection.ensureConfigured();
+
         modelChain.data().setProtocolVersion(KSERVE_V2_PROTOCOL);
 
         var predictorArgs = modelChain.get(InferenceMappers.MODEL_ARGS_FIELD).data();
@@ -188,6 +189,18 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
                 throw new IllegalArgumentException(("Inference deployment '%s' is a text-classification model"
                         + " and cannot use predictor arg '%s' — the chained transformer requires raw logits."
                         + " Remove this arg.").formatted(name, RETURN_PROBABILITIES_ARG));
+            }
+            // The auto-injection below treats `--return_raw_logits=<anything>` as "already set" and
+            // skips its append step. Reject any non-true operator override so `--return_raw_logits=false`
+            // can't silently flip the predictor to probabilities mode and break the transformer contract.
+            if (arg.startsWith(RETURN_RAW_LOGITS_ARG + "=")) {
+                String value = arg.substring(RETURN_RAW_LOGITS_ARG.length() + 1);
+                if (!TRUE_VALUE.equalsIgnoreCase(value)) {
+                    throw new IllegalArgumentException(("Inference deployment '%s' is a text-classification model"
+                            + " and cannot override '%s' to '%s' — the chained transformer requires raw logits."
+                            + " Remove this arg or set it to '%s=true'.")
+                            .formatted(name, RETURN_RAW_LOGITS_ARG, value, RETURN_RAW_LOGITS_ARG));
+                }
             }
             if (arg.equals(TASK_ARG)) {
                 // Split form: ["--task", "<value>"] — peek at the next token.

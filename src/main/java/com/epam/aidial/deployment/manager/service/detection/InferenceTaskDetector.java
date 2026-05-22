@@ -1,6 +1,11 @@
 package com.epam.aidial.deployment.manager.service.detection;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.exception.HuggingFaceUpstreamException;
+import com.epam.aidial.deployment.manager.exception.InferenceTaskDetectionException;
+import com.epam.aidial.deployment.manager.exception.ModelMetadataMissingException;
+import com.epam.aidial.deployment.manager.exception.ModelMetadataUnusableException;
+import com.epam.aidial.deployment.manager.exception.ModelNotFoundException;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClientException;
 import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceMalformedResponseException;
@@ -56,6 +61,9 @@ public class InferenceTaskDetector {
         Model model = fetchModel(modelName);
         // Pin config.json to the same revision the model API returned so the two calls
         // can't observe different snapshots if the model is updated between them.
+        // Trade-off: config.json is also fetched for non-classification models that already
+        // self-report via pipeline_tag, doubling HF Hub load for those. The linear-pass
+        // simplification is deliberate — split into two paths if HF Hub QPS becomes a concern.
         ModelConfig config = fetchConfig(modelName, model.getSha());
 
         boolean isTextClassification =
