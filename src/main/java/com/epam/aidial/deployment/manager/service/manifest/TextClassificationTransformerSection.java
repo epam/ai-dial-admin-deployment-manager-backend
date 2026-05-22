@@ -2,21 +2,19 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
+import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.EnvVar;
 import io.kserve.serving.v1beta1.InferenceService;
-import io.kserve.serving.v1beta1.inferenceservicespec.Transformer;
 import io.kserve.serving.v1beta1.inferenceservicespec.transformer.Containers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -61,22 +59,29 @@ public class TextClassificationTransformerSection {
 
         log.debug("Building transformer block for deployment '{}'. Image: {}", deploymentName, template.getImage());
 
-        var args = new ArrayList<>(template.getArgs() == null ? List.of() : template.getArgs());
+        // Convert the operator-supplied Fabric8 Container template to the KServe-generated Containers type.
+        // The two are structurally identical (same JSON shape) but unrelated Java classes — round-trip via JSON.
+        var containerSkeleton = toKserveContainer(deploymentName, template);
+
+        var containers = new MappingChain<>(service)
+                .get(InferenceMappers.SERVICE_SPEC_FIELD)
+                .get(InferenceMappers.SERVICE_SPEC_TRANSFORMER_FIELD)
+                .get(InferenceMappers.TRANSFORMER_CONTAINERS_FIELD)
+                .data();
+        containers.clear();
+        containers.add(containerSkeleton);
+
+        var containerChain = new MappingChain<>(containerSkeleton);
+
+        var args = containerChain.get(InferenceMappers.TRANSFORMER_CONTAINER_ARGS_FIELD).data();
         args.add(MODEL_NAME_ARG + "=" + deploymentName);
         args.add(PREDICTOR_PROTOCOL_ARG + "=" + KSERVE_V2_PROTOCOL);
-        template.setArgs(args);
 
-        var env = new ArrayList<>(template.getEnv() == null ? List.of() : template.getEnv());
-        var id2LabelEnv = new EnvVar();
-        id2LabelEnv.setName(ID2LABEL_ENV_VAR);
-        id2LabelEnv.setValue(serializeId2Label(deploymentName, id2Label));
-        env.add(id2LabelEnv);
-        template.setEnv(env);
-
-        var transformer = new Transformer();
-        transformer.setContainers(List.of(toKserveContainer(deploymentName, template)));
-
-        service.getSpec().setTransformer(transformer);
+        containerChain
+                .getList(InferenceMappers.TRANSFORMER_CONTAINER_ENV_FIELD, InferenceMappers.TRANSFORMER_ENV_VAR_NAME)
+                .get(ID2LABEL_ENV_VAR)
+                .data()
+                .setValue(serializeId2Label(deploymentName, id2Label));
     }
 
     private String serializeId2Label(String deploymentName, Map<Integer, String> id2Label) {

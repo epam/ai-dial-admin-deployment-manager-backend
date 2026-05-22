@@ -179,7 +179,8 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         if (predictorArgs == null) {
             return;
         }
-        for (String arg : predictorArgs) {
+        for (int i = 0; i < predictorArgs.size(); i++) {
+            String arg = predictorArgs.get(i);
             if (arg == null) {
                 continue;
             }
@@ -188,16 +189,25 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
                         + " and cannot use predictor arg '%s' — the chained transformer requires raw logits."
                         + " Remove this arg.").formatted(name, RETURN_PROBABILITIES_ARG));
             }
-            if (arg.equals(TASK_ARG) || arg.startsWith(TASK_ARG + "=")) {
-                int eq = arg.indexOf('=');
-                String value = (eq < 0) ? "" : arg.substring(eq + 1);
-                if (!SEQUENCE_CLASSIFICATION_TASK.equals(value)) {
-                    throw new IllegalArgumentException(("Inference deployment '%s' is a text-classification model"
-                            + " and cannot override '--task' to '%s' — the chained transformer requires"
-                            + " '--task=%s'. Remove this arg or set it to the required value.")
-                            .formatted(name, value, SEQUENCE_CLASSIFICATION_TASK));
-                }
+            if (arg.equals(TASK_ARG)) {
+                // Split form: ["--task", "<value>"] — peek at the next token.
+                String value = (i + 1 < predictorArgs.size() && predictorArgs.get(i + 1) != null)
+                        ? predictorArgs.get(i + 1)
+                        : "";
+                rejectIfNonSequenceClassificationTask(name, value);
+            } else if (arg.startsWith(TASK_ARG + "=")) {
+                // Fused form: "--task=<value>".
+                rejectIfNonSequenceClassificationTask(name, arg.substring(TASK_ARG.length() + 1));
             }
+        }
+    }
+
+    private void rejectIfNonSequenceClassificationTask(String name, String value) {
+        if (!SEQUENCE_CLASSIFICATION_TASK.equals(value)) {
+            throw new IllegalArgumentException(("Inference deployment '%s' is a text-classification model"
+                    + " and cannot override '--task' to '%s' — the chained transformer requires"
+                    + " '--task=%s'. Remove this arg or set it to the required value.")
+                    .formatted(name, value, SEQUENCE_CLASSIFICATION_TASK));
         }
     }
 

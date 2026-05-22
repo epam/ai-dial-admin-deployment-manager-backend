@@ -515,6 +515,42 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
+    void testServiceConfig_chained_acceptsTaskSplitFormSequenceClassification() {
+        var deploymentName = "chained-accepts-task-split-app";
+        var args = List.of("--task", "sequence_classification");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        var finalArgs = generated.getSpec().getPredictor().getModel().getArgs();
+        // No duplicate --task injected; the split form is preserved.
+        assertThat(finalArgs.stream().filter(a -> a.equals("--task") || a.startsWith("--task=")).toList()).hasSize(1);
+        assertThat(finalArgs).containsSequence("--task", "sequence_classification");
+    }
+
+    @Test
+    void testServiceConfig_chained_rejectsTaskSplitFormConflictingValue() {
+        var deploymentName = "chained-rejects-task-split-app";
+        var args = List.of("--task", "summarization");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("summarization")
+                .hasMessageContaining("sequence_classification");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
     void testServiceConfig_chained_passesThroughCompatibleArgs() {
         var deploymentName = "chained-passthrough-app";
         var args = List.of("--dtype=float16");
