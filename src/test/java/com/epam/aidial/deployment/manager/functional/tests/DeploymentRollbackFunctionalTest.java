@@ -163,12 +163,27 @@ public abstract class DeploymentRollbackFunctionalTest {
     }
 
     @Test
-    void shouldFailRollback_whenRevisionDoesNotExist() {
-        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-4");
-        deploymentService.createDeployment(request);
+    void shouldRollbackSuccessfully_whenTargetRevisionHasGap() {
+        // Revision belongs to a different entity → the subject deployment was not modified at that
+        // revision. Rollback must resolve to the latest applicable revision (≤ target) for THIS
+        // deployment, matching the snapshot endpoint's lenient semantics.
+        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-gap");
+        Deployment created = deploymentService.createDeployment(request);
+        String originalDisplayName = created.getDisplayName();
 
-        assertThatThrownBy(() -> deploymentService.rollback("rollback-test-4", 999_999))
-                .isInstanceOf(EntityNotFoundException.class);
+        ImageDefinition unrelated = FunctionalTestHelper.createInterceptorImageDefinition();
+        unrelated.setName("gap-unrelated-image");
+        ImageDefinition unrelatedCreated = imageDefinitionService.createImageDefinition(unrelated);
+        Integer gapRevision = createRevisionForUuid(unrelatedCreated.getId());
+
+        CreateDeployment mutated = createInterceptorDeploymentWithoutSecrets("rollback-test-gap");
+        mutated.setDisplayName("changed-display-name");
+        deploymentService.updateDeployment(created.getId(), mutated);
+
+        Deployment rolledBack = deploymentService.rollback(created.getId(), gapRevision);
+
+        assertThat(rolledBack.getId()).isEqualTo(created.getId());
+        assertThat(rolledBack.getDisplayName()).isEqualTo(originalDisplayName);
     }
 
     @Test
@@ -184,9 +199,6 @@ public abstract class DeploymentRollbackFunctionalTest {
         CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-5");
         deploymentService.createDeployment(request);
 
-        // Discriminator vs R4 (unknown revision): the predates-creation path goes through
-        // entitySnapshotAtRevision and includes "at revision" in its message, whereas the
-        // unknown-revision path stops at getRevisionById and reports "revision with id".
         assertThatThrownBy(() -> deploymentService.rollback("rollback-test-5", earlierRevision))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("at revision");

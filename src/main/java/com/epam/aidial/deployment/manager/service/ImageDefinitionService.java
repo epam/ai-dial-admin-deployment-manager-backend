@@ -142,9 +142,6 @@ public class ImageDefinitionService {
 
     @Transactional
     public ImageDefinition rollback(UUID id, Integer revision) {
-        // 404 precheck: throws if the revision id is unknown
-        historyService.getRevisionById(revision);
-
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
 

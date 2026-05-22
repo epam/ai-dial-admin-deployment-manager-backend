@@ -134,12 +134,28 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
     }
 
     @Test
-    void shouldFailRollback_whenRevisionDoesNotExist() {
-        ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
-        ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
+    void shouldRollbackSuccessfully_whenTargetRevisionHasGap() {
+        // Revision belongs to a different entity → the subject was not modified at that revision.
+        // Rollback must resolve to the latest applicable revision (≤ target) for THIS entity,
+        // matching the snapshot endpoint's lenient semantics.
+        ImageDefinition subjectDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        subjectDef.setName("gap-subject");
+        ImageDefinition subjectCreated = imageDefinitionService.createImageDefinition(subjectDef);
+        String originalDescription = subjectCreated.getDescription();
 
-        assertThatThrownBy(() -> imageDefinitionService.rollback(created.getId(), 999_999))
-                .isInstanceOf(EntityNotFoundException.class);
+        ImageDefinition unrelatedDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        unrelatedDef.setName("gap-unrelated");
+        ImageDefinition unrelatedCreated = imageDefinitionService.createImageDefinition(unrelatedDef);
+        Integer gapRevision = createRevisionFor(unrelatedCreated.getId());
+
+        ImageDefinition mutated = imageDefinitionService.getImageDefinition(subjectCreated.getId()).orElseThrow();
+        mutated.setDescription("after-change");
+        imageDefinitionService.updateImageDefinition(subjectCreated.getId(), mutated);
+
+        ImageDefinition rolledBack = imageDefinitionService.rollback(subjectCreated.getId(), gapRevision);
+
+        assertThat(rolledBack.getId()).isEqualTo(subjectCreated.getId());
+        assertThat(rolledBack.getDescription()).isEqualTo(originalDescription);
     }
 
     @Test

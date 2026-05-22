@@ -47,8 +47,6 @@ public class GlobalDomainWhitelistService {
 
     @Transactional
     public List<String> rollback(Integer revision) {
-        // 404 precheck: throws if the revision id is unknown
-        historyService.getRevisionById(revision);
         var snapshot = getDomainWhitelistSnapshot(revision);
         var current = repository.findAllowedDomains().orElseGet(List::of);
         if (CollectionUtils.isEqualCollection(current, snapshot)) {

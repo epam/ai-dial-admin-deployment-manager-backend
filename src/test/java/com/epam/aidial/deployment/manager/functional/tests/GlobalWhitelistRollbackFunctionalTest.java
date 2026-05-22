@@ -1,6 +1,5 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
-import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -22,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 public abstract class GlobalWhitelistRollbackFunctionalTest {
@@ -71,11 +69,23 @@ public abstract class GlobalWhitelistRollbackFunctionalTest {
     }
 
     @Test
-    void shouldFailRollback_whenRevisionDoesNotExist() {
-        whitelistService.updateDomainWhitelist(List.of("example.com"));
+    void shouldRollbackSuccessfully_whenTargetRevisionHasGap() {
+        // Revision belongs to a different entity (an image def) → the whitelist was not modified at
+        // that revision. Rollback must resolve to the latest applicable whitelist revision (≤ target),
+        // matching the snapshot endpoint's lenient semantics.
+        whitelistService.updateDomainWhitelist(List.of("example.com", "ghcr.io"));
 
-        assertThatThrownBy(() -> whitelistService.rollback(999_999))
-                .isInstanceOf(EntityNotFoundException.class);
+        ImageDefinition unrelated = FunctionalTestHelper.createInterceptorImageDefinition();
+        unrelated.setName("gap-unrelated-image");
+        imageDefinitionService.createImageDefinition(unrelated);
+        Integer gapRevision = latestRevisionId();
+
+        whitelistService.updateDomainWhitelist(List.of("changed.example"));
+
+        var rolledBack = whitelistService.rollback(gapRevision);
+
+        assertThat(rolledBack).containsExactlyInAnyOrder("example.com", "ghcr.io");
+        assertThat(whitelistService.getDomainWhitelist()).containsExactlyInAnyOrder("example.com", "ghcr.io");
     }
 
     @Test

@@ -164,9 +164,6 @@ public class DeploymentService {
 
     @Transactional
     public Deployment rollback(String id, Integer revision) {
-        // 404 precheck: throws if the revision id is unknown
-        historyService.getRevisionById(revision);
-
         var existing = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
         if (existing.getStatus().isActive()) {
             throw new IllegalArgumentException(
