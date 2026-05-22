@@ -81,8 +81,8 @@ app:
         root-home-dir: /root
     mcp-proxy:
       images:
-        alpine: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE}
-        debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN}
+        alpine: ${MCP_PROXY_EXECUTABLE_IMAGE_ALPINE:ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-alpine}
+        debian: ${MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN:ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-debian}
   build-namespace: ${K8S_BUILD_NAMESPACE:default}
   git-clone-image: ${GIT_CLONE_IMAGE:alpine/git:2.52.0}
   builder-root-image: moby/buildkit:v0.27.1
