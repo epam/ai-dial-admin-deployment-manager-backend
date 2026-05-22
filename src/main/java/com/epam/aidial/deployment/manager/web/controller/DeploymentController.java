@@ -166,6 +166,7 @@ public class DeploymentController {
     }
 
     @FullAdminOnly
+    @Operation(summary = "Deploy a deployment by id")
     @PostMapping(path = "{id}/deploy",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public DeploymentDto deploy(@PathVariable("id") String id) {

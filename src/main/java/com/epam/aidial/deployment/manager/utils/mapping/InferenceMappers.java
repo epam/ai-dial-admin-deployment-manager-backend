@@ -5,10 +5,12 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.InferenceServiceSpec;
 import io.kserve.serving.v1beta1.inferenceservicespec.Predictor;
+import io.kserve.serving.v1beta1.inferenceservicespec.Transformer;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Model;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Env;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.ModelFormat;
 import io.kserve.serving.v1beta1.inferenceservicespec.predictor.model.Resources;
+import io.kserve.serving.v1beta1.inferenceservicespec.transformer.Containers;
 import lombok.experimental.UtilityClass;
 
 import java.util.ArrayList;
@@ -83,5 +85,32 @@ public class InferenceMappers {
             HashMap::new,
             Resources::getRequests,
             Resources::setRequests);
+
+    public static final FieldMapper<InferenceServiceSpec, Transformer> SERVICE_SPEC_TRANSFORMER_FIELD = new FieldMapper<>(
+            Transformer::new,
+            InferenceServiceSpec::getTransformer,
+            InferenceServiceSpec::setTransformer);
+
+    public static final FieldMapper<Transformer, List<Containers>> TRANSFORMER_CONTAINERS_FIELD = new FieldMapper<>(
+            ArrayList::new,
+            Transformer::getContainers,
+            Transformer::setContainers);
+
+    public static final FieldMapper<Containers, List<String>> TRANSFORMER_CONTAINER_ARGS_FIELD = new FieldMapper<>(
+            ArrayList::new,
+            Containers::getArgs,
+            Containers::setArgs);
+
+    public static final FieldMapper<Containers, List<io.kserve.serving.v1beta1.inferenceservicespec.transformer.containers.Env>>
+            TRANSFORMER_CONTAINER_ENV_FIELD = new FieldMapper<>(
+                    ArrayList::new,
+                    Containers::getEnv,
+                    Containers::setEnv);
+
+    public static final NamedItemMapper<io.kserve.serving.v1beta1.inferenceservicespec.transformer.containers.Env>
+            TRANSFORMER_ENV_VAR_NAME = new NamedItemMapper<>(
+                    io.kserve.serving.v1beta1.inferenceservicespec.transformer.containers.Env::new,
+                    io.kserve.serving.v1beta1.inferenceservicespec.transformer.containers.Env::getName,
+                    io.kserve.serving.v1beta1.inferenceservicespec.transformer.containers.Env::setName);
 
 }
