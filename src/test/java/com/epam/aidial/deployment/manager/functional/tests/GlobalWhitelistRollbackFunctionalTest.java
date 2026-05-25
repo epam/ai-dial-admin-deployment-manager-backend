@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
+import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
@@ -12,15 +13,21 @@ import com.epam.aidial.deployment.manager.model.page.SortDirection;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.AuditActivityService;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 public abstract class GlobalWhitelistRollbackFunctionalTest {
@@ -34,7 +41,13 @@ public abstract class GlobalWhitelistRollbackFunctionalTest {
     @Autowired
     private AuditActivityService auditActivityService;
     @Autowired
+    private HistoryService historyService;
+    @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -89,6 +102,47 @@ public abstract class GlobalWhitelistRollbackFunctionalTest {
     }
 
     @Test
+    void shouldRollbackSuccessfully_whenTargetRevisionIsSequenceAllocatorGap() {
+        // Hibernate's pooled sequence allocator burns a block of revinfo ids on every JVM restart,
+        // so revinfo legitimately has gap ids that no transaction ever wrote a row for. Simulate
+        // the allocator jump by advancing H2's revinfo IDENTITY counter forward by 100, then roll
+        // back to an id that falls in the synthesised gap.
+        whitelistService.updateDomainWhitelist(List.of("example.com", "ghcr.io"));
+        int createMaxRevision = historyService.maxRevisionId();
+
+        int postJumpRevision = createMaxRevision + 100;
+        int gapRevision = createMaxRevision + 50;
+        advanceRevinfoSequenceTo(postJumpRevision);
+
+        whitelistService.updateDomainWhitelist(List.of("changed.example"));
+
+        assertThat(historyService.maxRevisionId()).isGreaterThanOrEqualTo(postJumpRevision);
+        assertThat(gapRevision).isGreaterThan(createMaxRevision);
+
+        var rolledBack = whitelistService.rollback(gapRevision);
+
+        assertThat(rolledBack).containsExactlyInAnyOrder("example.com", "ghcr.io");
+        assertThat(whitelistService.getDomainWhitelist()).containsExactlyInAnyOrder("example.com", "ghcr.io");
+    }
+
+    @Test
+    void shouldFailRollback_whenRevisionIsOutOfRange_andLeaveWhitelistIntact() {
+        // The isEqualCollection short-circuit would absorb an out-of-range rollback today, but the
+        // maxRevisionId() guard rejects it explicitly so the failure mode is symmetric with the
+        // deployment/image-definition rollback paths.
+        whitelistService.updateDomainWhitelist(List.of("example.com", "ghcr.io"));
+        Integer revisionsBefore = latestRevisionId();
+
+        assertThatThrownBy(() -> whitelistService.rollback(Integer.MAX_VALUE))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("revision");
+
+        assertThat(whitelistService.getDomainWhitelist()).containsExactlyInAnyOrder("example.com", "ghcr.io");
+        // No new revision should have been produced for a rejected rollback.
+        assertThat(latestRevisionId()).isEqualTo(revisionsBefore);
+    }
+
+    @Test
     void shouldRollbackEmptyWhitelistApplyAsEmptyReplace() {
         // First set non-empty so the next write to empty actually changes the state and
         // produces an audit activity we can address by revision.
@@ -134,6 +188,17 @@ public abstract class GlobalWhitelistRollbackFunctionalTest {
         Deployment deploymentAfter = deploymentService.getDeployment(deployment.getId()).orElseThrow();
         assertThat(imageAfter.getAllowedDomains()).containsExactly("imagedef-domain.com");
         assertThat(deploymentAfter.getAllowedDomains()).containsExactly("deployment-domain.com");
+    }
+
+    /**
+     * Advances H2's revinfo IDENTITY counter so the next auto-generated revision id is at least
+     * {@code nextId}, emulating the jump Hibernate's pooled sequence allocator makes after a JVM
+     * restart and leaving an unwritten range below {@code nextId} for gap-id rollback tests.
+     */
+    private void advanceRevinfoSequenceTo(int nextId) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                entityManager.createNativeQuery(
+                        "ALTER TABLE revinfo ALTER COLUMN id RESTART WITH " + nextId).executeUpdate());
     }
 
     private Integer latestRevisionId() {

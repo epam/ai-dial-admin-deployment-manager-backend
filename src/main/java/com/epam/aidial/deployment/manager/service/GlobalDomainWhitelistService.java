@@ -47,6 +47,15 @@ public class GlobalDomainWhitelistService {
 
     @Transactional
     public List<String> rollback(Integer revision) {
+        // Reject ids past the highest assigned revision for symmetry with the deployment and
+        // image-definition rollback paths. The isEqualCollection short-circuit below would
+        // absorb the case anyway, but rejecting up front keeps the failure mode consistent
+        // across the three rollback endpoints. In-range gap ids (e.g. left by Hibernate's
+        // pooled sequence allocator after a JVM restart) still resolve leniently downstream.
+        if (revision == null || revision <= 0 || revision > historyService.maxRevisionId()) {
+            throw new EntityNotFoundException("Unable to find revision with id " + revision);
+        }
+
         var snapshot = getDomainWhitelistSnapshot(revision);
         var current = repository.findAllowedDomains().orElseGet(List::of);
         if (CollectionUtils.isEqualCollection(current, snapshot)) {

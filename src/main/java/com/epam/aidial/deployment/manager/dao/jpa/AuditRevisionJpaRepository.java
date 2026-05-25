@@ -12,4 +12,6 @@ public interface AuditRevisionJpaRepository extends CrudRepository<AuditRevision
         JpaSpecificationExecutor<AuditRevisionEntity> {
 
     Optional<AuditRevisionEntity> findFirstByTimestampLessThanEqualOrderByTimestampDescIdDesc(Long timestamp);
+
+    Optional<AuditRevisionEntity> findTopByOrderByIdDesc();
 }

@@ -15,11 +15,16 @@ import com.epam.aidial.deployment.manager.model.page.Sort;
 import com.epam.aidial.deployment.manager.model.page.SortDirection;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.AuditActivityService;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,7 +42,13 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
     @Autowired
     private AuditActivityService auditActivityService;
     @Autowired
+    private HistoryService historyService;
+    @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @BeforeEach
     void setUp() {
@@ -159,6 +170,61 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
     }
 
     @Test
+    void shouldRollbackSuccessfully_whenTargetRevisionIsSequenceAllocatorGap() {
+        // Hibernate's pooled sequence allocator burns a block of revinfo ids on every JVM restart,
+        // so revinfo legitimately has gap ids that no transaction ever wrote a row for. Simulate
+        // the allocator jump by advancing H2's revinfo IDENTITY counter forward by 100, then roll
+        // back to an id that falls in the synthesised gap.
+        ImageDefinition subjectDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        subjectDef.setName("allocator-gap-subject");
+        ImageDefinition subjectCreated = imageDefinitionService.createImageDefinition(subjectDef);
+        String originalDescription = subjectCreated.getDescription();
+        int createMaxRevision = historyService.maxRevisionId();
+
+        int postJumpRevision = createMaxRevision + 100;
+        int gapRevision = createMaxRevision + 50;
+        advanceRevinfoSequenceTo(postJumpRevision);
+
+        ImageDefinition mutated = imageDefinitionService.getImageDefinition(subjectCreated.getId()).orElseThrow();
+        mutated.setDescription("after-change");
+        imageDefinitionService.updateImageDefinition(subjectCreated.getId(), mutated);
+
+        assertThat(historyService.maxRevisionId()).isGreaterThanOrEqualTo(postJumpRevision);
+        assertThat(gapRevision).isGreaterThan(createMaxRevision);
+
+        ImageDefinition rolledBack = imageDefinitionService.rollback(subjectCreated.getId(), gapRevision);
+
+        assertThat(rolledBack.getId()).isEqualTo(subjectCreated.getId());
+        assertThat(rolledBack.getDescription()).isEqualTo(originalDescription);
+    }
+
+    @Test
+    void shouldFailRollback_whenRevisionIsOutOfRange_andLeaveBuildStatusIntact() {
+        // Pre-guard regression: rolling back to an out-of-range revision id used to resolve to the
+        // image definition's current state via Envers's lenient lookup and then re-write through
+        // updateImageDefinition, spuriously resetting buildStatus to NOT_BUILT. The maxRevisionId()
+        // guard must reject the request up front, before the rewrite path runs.
+        ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        imageDef.setName("out-of-range-subject");
+        ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
+        // Move it out of NOT_BUILT so that a spurious NOT_BUILT reset would be observable.
+        imageDefinitionService.startBuild(created.getId());
+        imageDefinitionService.failBuild(created.getId(), "test failure");
+        ImageDefinition beforeRollback = imageDefinitionService.getImageDefinition(created.getId()).orElseThrow();
+        assertThat(beforeRollback.getBuildStatus()).isEqualTo(ImageStatus.BUILD_FAILED);
+
+        assertThatThrownBy(() -> imageDefinitionService.rollback(created.getId(), Integer.MAX_VALUE))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("revision");
+
+        ImageDefinition afterFailedRollback = imageDefinitionService.getImageDefinition(created.getId()).orElseThrow();
+        assertThat(afterFailedRollback.getBuildStatus())
+                .as("out-of-range rollback must not reset buildStatus")
+                .isEqualTo(ImageStatus.BUILD_FAILED);
+        assertThat(afterFailedRollback.getDescription()).isEqualTo(beforeRollback.getDescription());
+    }
+
+    @Test
     void shouldFailRollback_whenRevisionPredatesImageDefinitionCreation() {
         // Create an unrelated image def to anchor a known earlier revision.
         ImageDefinition firstImageDef = FunctionalTestHelper.createInterceptorImageDefinition();
@@ -236,6 +302,17 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
         assertThat(deploymentAfter.getSource()).isEqualTo(deploymentBefore.getSource());
         assertThat(deploymentAfter.getDisplayName()).isEqualTo(deploymentBefore.getDisplayName());
         assertThat(deploymentAfter.getDescription()).isEqualTo(deploymentBefore.getDescription());
+    }
+
+    /**
+     * Advances H2's revinfo IDENTITY counter so the next auto-generated revision id is at least
+     * {@code nextId}, emulating the jump Hibernate's pooled sequence allocator makes after a JVM
+     * restart and leaving an unwritten range below {@code nextId} for gap-id rollback tests.
+     */
+    private void advanceRevinfoSequenceTo(int nextId) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                entityManager.createNativeQuery(
+                        "ALTER TABLE revinfo ALTER COLUMN id RESTART WITH " + nextId).executeUpdate());
     }
 
     private Integer createRevisionFor(UUID resourceId) {
