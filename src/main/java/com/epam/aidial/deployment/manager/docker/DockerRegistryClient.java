@@ -29,8 +29,6 @@ import org.springframework.stereotype.Service;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
-import java.util.Objects;
-import java.util.Set;
 
 @Slf4j
 @Service
@@ -39,12 +37,6 @@ import java.util.Set;
 public class DockerRegistryClient {
 
     private static final String MANIFEST_API_URL_TEMPLATE = "%s://%s/v2/%s/manifests/%s";
-
-    // jib-core canonicalizes any Docker Hub reference to "registry-1.docker.io"; treat all three
-    // aliases as equivalent so a user-configured "docker.io" trusted entry matches a parsed
-    // ImageReference whose registry is "registry-1.docker.io".
-    private static final Set<String> DOCKER_HUB_HOSTS = Set.of(
-            "docker.io", "index.docker.io", "registry-1.docker.io");
 
     private final RegistryProperties registryProperties;
     private final ObjectMapper objectMapper;
@@ -132,7 +124,7 @@ public class DockerRegistryClient {
 
         // Fall back to main registry auth
         if (registryProperties.getAuth() == DockerAuthScheme.BASIC
-                && isSameRegistry(registryProperties.getUrl(), imageReference.getRegistry())) {
+                && DockerHubAliases.sameRegistry(registryProperties.getUrl(), imageReference.getRegistry())) {
             var credential = Credential.from(registryProperties.getUser(), registryProperties.getPassword());
             registryClientFactory.setCredential(credential);
             var registryClient = registryClientFactory.newRegistryClient();
@@ -145,7 +137,7 @@ public class DockerRegistryClient {
         // Check if registry is in trusted registries
         var trustedRegistries = registryProperties.getTrustedPrivateRegistries();
         for (var trustedRegistry : trustedRegistries) {
-            if (isSameRegistry(trustedRegistry.getRegistry(), imageReference.getRegistry())
+            if (DockerHubAliases.sameRegistry(trustedRegistry.getRegistry(), imageReference.getRegistry())
                     && "BASIC".equals(trustedRegistry.getAuthScheme())
                     && trustedRegistry.getUser() != null
                     && trustedRegistry.getPassword() != null) {
@@ -231,13 +223,6 @@ public class DockerRegistryClient {
         }
 
         return connection;
-    }
-
-    static boolean isSameRegistry(String configured, String fromImageReference) {
-        if (Objects.equals(configured, fromImageReference)) {
-            return true;
-        }
-        return DOCKER_HUB_HOSTS.contains(configured) && DOCKER_HUB_HOSTS.contains(fromImageReference);
     }
 
     private Level toSlf4jLogLevel(LogEvent.Level level) {

@@ -223,31 +223,6 @@ class DockerRegistryClientTest {
     }
 
     @Test
-    void isSameRegistry_shouldTreatDockerHubAliasesAsSame() {
-        // jib-core canonicalizes Docker Hub image references to "registry-1.docker.io".
-        // A user-configured trusted entry naming "docker.io" must match that canonical form.
-        assertThat(DockerRegistryClient.isSameRegistry("docker.io", "registry-1.docker.io")).isTrue();
-        assertThat(DockerRegistryClient.isSameRegistry("registry-1.docker.io", "docker.io")).isTrue();
-        assertThat(DockerRegistryClient.isSameRegistry("index.docker.io", "registry-1.docker.io")).isTrue();
-        assertThat(DockerRegistryClient.isSameRegistry("docker.io", "index.docker.io")).isTrue();
-    }
-
-    @Test
-    void isSameRegistry_shouldFallBackToEqualityForNonHubRegistries() {
-        assertThat(DockerRegistryClient.isSameRegistry("registry.example.com", "registry.example.com")).isTrue();
-        assertThat(DockerRegistryClient.isSameRegistry("my.private.registry:5000", "my.private.registry:5000")).isTrue();
-    }
-
-    @Test
-    void isSameRegistry_shouldReturnFalseForUnrelatedRegistries() {
-        // Non-Hub regression guard: unrelated registries must never collapse.
-        assertThat(DockerRegistryClient.isSameRegistry("a.example.com", "b.example.com")).isFalse();
-        // One side a Hub alias, the other a private host — still distinct.
-        assertThat(DockerRegistryClient.isSameRegistry("docker.io", "registry.example.com")).isFalse();
-        assertThat(DockerRegistryClient.isSameRegistry("registry.example.com", "registry-1.docker.io")).isFalse();
-    }
-
-    @Test
     void deleteImage_shouldDeleteManifestWhenImageExists() throws Exception {
         // Given
         String imageName = "registry.example.com/repo/image:tag";

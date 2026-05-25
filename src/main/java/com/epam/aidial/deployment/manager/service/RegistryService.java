@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service;
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.configuration.RegistryProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.docker.DockerHubAliases;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import javax.annotation.PostConstruct;
 
 @Slf4j
@@ -23,14 +23,6 @@ import javax.annotation.PostConstruct;
 public class RegistryService {
 
     private static final String API_URL_TEMPLATE = "%s://%s/v2";
-
-    // BuildKit's auth lookup hardcodes this legacy key for Docker Hub (docker/cli's
-    // getAuthConfigKey maps docker.io / index.docker.io -> "https://index.docker.io/v1/").
-    // A /v2-shaped key for docker.io is silently ignored there, so we emit the legacy key
-    // for every Docker Hub alias. Skopeo's containers/image normalizes both forms.
-    private static final String DOCKER_HUB_AUTH_KEY = "https://index.docker.io/v1/";
-    private static final Set<String> DOCKER_HUB_HOSTS = Set.of(
-            "docker.io", "index.docker.io", "registry-1.docker.io");
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -89,7 +81,13 @@ public class RegistryService {
                     String regProtocol = StringUtils.isNotBlank(trustedRegistry.getProtocol())
                             ? trustedRegistry.getProtocol()
                             : "https";
-                    auths.put(authKey(regProtocol, trustedRegistry.getRegistry()), authConfig);
+                    String key = authKey(regProtocol, trustedRegistry.getRegistry());
+                    if (auths.containsKey(key)) {
+                        log.warn("Multiple trusted-private-registry entries collapse to the same auth key '{}' "
+                                + "(e.g. Docker Hub aliases docker.io / index.docker.io / registry-1.docker.io). "
+                                + "Later entry overwrites the earlier one — verify only one set of credentials is intended.", key);
+                    }
+                    auths.put(key, authConfig);
                 }
             }
             // Add support for TOKEN auth scheme if needed
@@ -108,8 +106,8 @@ public class RegistryService {
     }
 
     private static String authKey(String protocol, String registry) {
-        return DOCKER_HUB_HOSTS.contains(registry)
-                ? DOCKER_HUB_AUTH_KEY
+        return DockerHubAliases.contains(registry)
+                ? DockerHubAliases.LEGACY_AUTH_KEY
                 : API_URL_TEMPLATE.formatted(protocol, registry);
     }
 
