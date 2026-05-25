@@ -18,6 +18,7 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -191,14 +192,22 @@ public abstract class GlobalWhitelistRollbackFunctionalTest {
     }
 
     /**
-     * Advances H2's revinfo IDENTITY counter so the next auto-generated revision id is at least
+     * Advances the revinfo IDENTITY counter so the next auto-generated revision id is at least
      * {@code nextId}, emulating the jump Hibernate's pooled sequence allocator makes after a JVM
-     * restart and leaving an unwritten range below {@code nextId} for gap-id rollback tests.
+     * restart. SQL Server uses {@code DBCC CHECKIDENT(..., RESEED, ...)}; H2 and PostgreSQL share
+     * the standard {@code ALTER TABLE ... ALTER COLUMN ... RESTART WITH} syntax.
      */
     private void advanceRevinfoSequenceTo(int nextId) {
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
-                entityManager.createNativeQuery(
-                        "ALTER TABLE revinfo ALTER COLUMN id RESTART WITH " + nextId).executeUpdate());
+                entityManager.unwrap(Session.class).doWork(connection -> {
+                    String product = connection.getMetaData().getDatabaseProductName();
+                    String sql = product.toLowerCase().contains("microsoft sql server")
+                            ? "DBCC CHECKIDENT('revinfo', RESEED, " + (nextId - 1) + ")"
+                            : "ALTER TABLE revinfo ALTER COLUMN id RESTART WITH " + nextId;
+                    try (var stmt = connection.createStatement()) {
+                        stmt.execute(sql);
+                    }
+                }));
     }
 
     private Integer latestRevisionId() {
