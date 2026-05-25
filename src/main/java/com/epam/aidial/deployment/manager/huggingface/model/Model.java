@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.huggingface.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,4 +26,11 @@ public class Model {
     @Nullable
     private Safetensors safetensors;
     private List<String> tags;
+
+    /**
+     * HuggingFace pipeline tag (e.g., {@code "text-classification"}). Drives task detection.
+     */
+    @JsonProperty("pipeline_tag")
+    @Nullable
+    private String pipelineTag;
 }

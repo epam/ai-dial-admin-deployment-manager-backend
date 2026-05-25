@@ -9,6 +9,7 @@ import com.epam.aidial.deployment.manager.model.ScalingStrategyType;
 import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
@@ -32,7 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +52,8 @@ class InferenceManifestGeneratorTest {
     private KserveProbeConverter kserveProbeConverter;
     @Mock
     private ProgressDeadlineCalculator progressDeadlineCalculator;
+    @Mock
+    private TextClassificationTransformerSection textClassificationTransformerSection;
 
     private final PoolPrimitivesConverter poolPrimitivesConverter =
             new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
@@ -65,7 +71,7 @@ class InferenceManifestGeneratorTest {
         lenient().when(progressDeadlineCalculator.compute(any(), anyInt())).thenReturn("3630s");
 
         manifestGenerator = new InferenceManifestGenerator(appconfig, kserveProbeConverter,
-                progressDeadlineCalculator, poolPrimitivesConverter);
+                progressDeadlineCalculator, poolPrimitivesConverter, textClassificationTransformerSection);
     }
 
     @Test
@@ -81,7 +87,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, simpleEnvs, sensitiveEnvs, resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -103,7 +109,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -125,7 +131,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -146,7 +152,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -167,7 +173,7 @@ class InferenceManifestGeneratorTest {
         // When/Then
         assertThatThrownBy(() -> manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                scaling, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Scaling strategy 'HARDWARE_USAGE' is not supported. Supported strategies: [ACTIVE_REQUESTS]");
@@ -185,7 +191,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC, null
+                null, null, null, containerPort, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -206,7 +212,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -225,7 +231,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -245,7 +251,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -265,7 +271,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC, null
+                null, command, Collections.emptyList(), null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -279,7 +285,7 @@ class InferenceManifestGeneratorTest {
         // Given
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()),
-                realCalculator, poolPrimitivesConverter);
+                realCalculator, poolPrimitivesConverter, textClassificationTransformerSection);
         var deploymentName = "deadline-inference-app";
         var storageUri = "s3://my-bucket/deadline-model";
         // deadline = 5 + ((2-1) * 10) + 3 + 30 = 48
@@ -289,7 +295,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then
@@ -302,14 +308,14 @@ class InferenceManifestGeneratorTest {
         // Given
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealCalculator = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()),
-                realCalculator, poolPrimitivesConverter);
+                realCalculator, poolPrimitivesConverter, textClassificationTransformerSection);
         var deploymentName = "fallback-deadline-inference-app";
         var storageUri = "s3://my-bucket/fallback-deadline-model";
 
         // When
         var generatedService = generatorWithRealCalculator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then: fallback deadline = 3600 + 30 = 3630s
@@ -322,7 +328,7 @@ class InferenceManifestGeneratorTest {
         // Given: generator with real KserveProbeConverter so probe is built from properties
         var realCalculator = new ProgressDeadlineCalculator(0, 10, 3, 30);
         var generatorWithRealConverter = new InferenceManifestGenerator(appconfig, new KserveProbeConverter(new ProbeConverter()),
-                realCalculator, poolPrimitivesConverter);
+                realCalculator, poolPrimitivesConverter, textClassificationTransformerSection);
         var deploymentName = "probe-inference-app";
         var storageUri = "s3://my-bucket/probe-model";
         var httpGet = new HttpGetProbe("/health", 8080);
@@ -331,7 +337,7 @@ class InferenceManifestGeneratorTest {
         // When
         var generatedService = generatorWithRealConverter.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), new Resources(),
-                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null
+                null, null, null, null, probeProperties, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
         // Then: predictor model has startup probe with expected path, port and timing
@@ -370,7 +376,7 @@ class InferenceManifestGeneratorTest {
 
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, primitives
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, primitives, null, null
         );
 
         var predictor = generatedService.getSpec().getPredictor();
@@ -388,13 +394,227 @@ class InferenceManifestGeneratorTest {
 
         var generatedService = manifestGenerator.serviceConfig(
                 deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
-                null, null, null, null, null, STARTUP_TIMEOUT_SEC, PoolSchedulingPrimitives.EMPTY
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, PoolSchedulingPrimitives.EMPTY, null, null
         );
 
         var predictor = generatedService.getSpec().getPredictor();
         assertThat(predictor.getNodeSelector()).isNullOrEmpty();
         assertThat(predictor.getAffinity()).isNull();
         assertThat(predictor.getTolerations()).isNullOrEmpty();
+    }
+
+    @Test
+    void testServiceConfig_chained_autoInjectsReturnRawLogitsAndTaskArgs() {
+        var deploymentName = "chained-auto-inject-app";
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "NEGATIVE", 1, "POSITIVE")
+        );
+
+        var args = generated.getSpec().getPredictor().getModel().getArgs();
+        assertThat(args).contains("--return_raw_logits", "--task=sequence_classification");
+    }
+
+    @Test
+    void testServiceConfig_chained_pinsPredictorProtocolToV2() {
+        var deploymentName = "chained-protocol-app";
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        assertThat(generated.getSpec().getPredictor().getModel().getProtocolVersion()).isEqualTo("v2");
+    }
+
+    @Test
+    void testServiceConfig_chained_invokesTransformerSection() {
+        var deploymentName = "chained-invokes-section-app";
+        var labels = Map.of(0, "NEGATIVE", 1, "POSITIVE");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, labels
+        );
+
+        verify(textClassificationTransformerSection).apply(eq(generated), eq(deploymentName), eq(labels));
+    }
+
+    @Test
+    void testServiceConfig_chained_rejectsReturnProbabilitiesArg() {
+        var deploymentName = "chained-rejects-probs-app";
+        var args = List.of("--return_probabilities");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--return_probabilities");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
+    void testServiceConfig_chained_rejectsReturnProbabilitiesEqualsForm() {
+        var deploymentName = "chained-rejects-probs-equals-app";
+        var args = List.of("--return_probabilities=true");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--return_probabilities");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
+    void testServiceConfig_chained_rejectsConflictingTaskOverride() {
+        var deploymentName = "chained-rejects-task-override-app";
+        var args = List.of("--task=summarization");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("summarization")
+                .hasMessageContaining("sequence_classification");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
+    void testServiceConfig_chained_acceptsTaskEqualsSequenceClassification() {
+        var deploymentName = "chained-accepts-task-app";
+        var args = List.of("--task=sequence_classification");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        var finalArgs = generated.getSpec().getPredictor().getModel().getArgs();
+        assertThat(finalArgs.stream().filter(a -> a.startsWith("--task")).toList()).hasSize(1);
+        assertThat(finalArgs).contains("--task=sequence_classification");
+    }
+
+    @Test
+    void testServiceConfig_chained_acceptsTaskSplitFormSequenceClassification() {
+        var deploymentName = "chained-accepts-task-split-app";
+        var args = List.of("--task", "sequence_classification");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        var finalArgs = generated.getSpec().getPredictor().getModel().getArgs();
+        // No duplicate --task injected; the split form is preserved.
+        assertThat(finalArgs.stream().filter(a -> a.equals("--task") || a.startsWith("--task=")).toList()).hasSize(1);
+        assertThat(finalArgs).containsSequence("--task", "sequence_classification");
+    }
+
+    @Test
+    void testServiceConfig_chained_rejectsTaskSplitFormConflictingValue() {
+        var deploymentName = "chained-rejects-task-split-app";
+        var args = List.of("--task", "summarization");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("summarization")
+                .hasMessageContaining("sequence_classification");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
+    void testServiceConfig_chained_rejectsReturnRawLogitsFalseOverride() {
+        var deploymentName = "chained-rejects-raw-logits-false-app";
+        var args = List.of("--return_raw_logits=false");
+
+        assertThatThrownBy(() -> manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--return_raw_logits")
+                .hasMessageContaining("false");
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+    }
+
+    @Test
+    void testServiceConfig_chained_acceptsReturnRawLogitsTrueOverride() {
+        var deploymentName = "chained-accepts-raw-logits-true-app";
+        var args = List.of("--return_raw_logits=true");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        var finalArgs = generated.getSpec().getPredictor().getModel().getArgs();
+        assertThat(finalArgs.stream().filter(a -> a.startsWith("--return_raw_logits")).toList()).hasSize(1);
+        assertThat(finalArgs).contains("--return_raw_logits=true");
+    }
+
+    @Test
+    void testServiceConfig_chained_passesThroughCompatibleArgs() {
+        var deploymentName = "chained-passthrough-app";
+        var args = List.of("--dtype=float16");
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, args, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "A")
+        );
+
+        var finalArgs = generated.getSpec().getPredictor().getModel().getArgs();
+        assertThat(finalArgs).contains("--dtype=float16", "--return_raw_logits", "--task=sequence_classification");
+    }
+
+    @Test
+    void testServiceConfig_predictorOnly_doesNotInvokeTransformerSection() {
+        var deploymentName = "predictor-only-app";
+
+        var generated = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://bucket/model",
+                Collections.emptyList(), Collections.emptyList(), new Resources(),
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, null,
+                InferenceTask.NONE, null
+        );
+
+        verify(textClassificationTransformerSection, never()).apply(any(), any(), any());
+        var args = generated.getSpec().getPredictor().getModel().getArgs();
+        assertThat(args).doesNotContain("--return_raw_logits");
     }
 
     private String serialize(Object obj) throws JsonProcessingException {

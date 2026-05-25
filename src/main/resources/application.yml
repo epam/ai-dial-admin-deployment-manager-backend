@@ -203,6 +203,16 @@ app:
       predictor:
         minReplicas: ${KSERVE_SERVICE_DEFAULT_MIN_REPLICAS:1}
         maxReplicas: ${KSERVE_SERVICE_DEFAULT_MAX_REPLICAS:1}
+  text-classification-transformer-container-config:
+    name: kserve-container
+    image: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE:}
+    resources:
+      requests:
+        cpu: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_REQUEST:100m}
+        memory: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_REQUEST:256Mi}
+      limits:
+        cpu: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_LIMIT:500m}
+        memory: ${INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_LIMIT:512Mi}
   nim-service-config:
     apiVersion: apps.nvidia.com/v1alpha1
     kind: NIMService

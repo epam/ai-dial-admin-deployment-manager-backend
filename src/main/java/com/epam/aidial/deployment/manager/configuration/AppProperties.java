@@ -47,6 +47,8 @@ public class AppProperties {
     private InferenceService inferenceServiceConfig;
     private Container inferenceServiceContainerConfig;
 
+    private Container textClassificationTransformerContainerConfig;
+
     private String gitCloneImage;
 
     public Container getKnativeServiceContainerConfig() {
@@ -122,6 +124,10 @@ public class AppProperties {
 
     public Container cloneKnativeServiceContainer() {
         return new ContainerBuilder(getKnativeServiceContainerConfig()).build();
+    }
+
+    public Container cloneTextClassificationTransformerContainerConfig() {
+        return new ContainerBuilder(textClassificationTransformerContainerConfig).build();
     }
 
 }

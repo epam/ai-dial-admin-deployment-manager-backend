@@ -6,11 +6,14 @@ import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.GlobalDomainWhitelistNotFoundException;
+import com.epam.aidial.deployment.manager.exception.HuggingFaceUpstreamException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildNotInProgressException;
 import com.epam.aidial.deployment.manager.exception.ImageBuildStopFailedException;
 import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.exception.ImportValidationException;
+import com.epam.aidial.deployment.manager.exception.InferenceTaskDetectionException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
+import com.epam.aidial.deployment.manager.exception.MissingTransformerImageException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -154,6 +157,30 @@ public class DefaultExceptionHandler {
     public ErrorView handleIllegalArgumentError(HttpServletRequest req, Exception ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    // Catch-all for the detection hierarchy → 400. Subclasses with their own @ExceptionHandler
+    // (e.g. HuggingFaceUpstreamException → 502) take precedence because Spring resolves by
+    // inheritance depth.
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(InferenceTaskDetectionException.class)
+    public ErrorView handleInferenceTaskDetectionError(HttpServletRequest req, InferenceTaskDetectionException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    @ExceptionHandler(HuggingFaceUpstreamException.class)
+    public ErrorView handleHuggingFaceUpstreamError(HttpServletRequest req, HuggingFaceUpstreamException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ExceptionHandler(MissingTransformerImageException.class)
+    public ErrorView handleMissingTransformerImage(HttpServletRequest req, MissingTransformerImageException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
     @ResponseStatus(HttpStatus.CONFLICT)
