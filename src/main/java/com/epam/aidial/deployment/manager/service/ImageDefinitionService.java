@@ -142,8 +142,13 @@ public class ImageDefinitionService {
 
     @Transactional
     public ImageDefinition rollback(UUID id, Integer revision) {
-        // 404 precheck: throws if the revision id is unknown
-        historyService.getRevisionById(revision);
+        // Reject ids past the highest assigned revision so that typos can't slip through to
+        // updateImageDefinition, which would spuriously reset buildStatus to NOT_BUILT.
+        // In-range gap ids (e.g. left by Hibernate's pooled sequence allocator after a JVM
+        // restart) are still resolved leniently by Envers downstream.
+        if (revision == null || revision <= 0 || revision > historyService.maxRevisionId()) {
+            throw new EntityNotFoundException("Unable to find revision with id " + revision);
+        }
 
         var existing = imageDefinitionRepository.getImageDefinitionById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));

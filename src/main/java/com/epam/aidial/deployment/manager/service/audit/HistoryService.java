@@ -76,6 +76,13 @@ public class HistoryService {
     }
 
     @Transactional(readOnly = true)
+    public int maxRevisionId() {
+        return auditRevisionJpaRepository.findTopByOrderByIdDesc()
+                .map(AuditRevisionEntity::getId)
+                .orElse(0);
+    }
+
+    @Transactional(readOnly = true)
     public <T> T entitySnapshotAtRevision(Integer revision, Object id, Class<T> entityClass) {
         var auditReader = AuditReaderFactory.get(entityManager);
         return Optional.ofNullable(auditReader.find(entityClass, id, revision))

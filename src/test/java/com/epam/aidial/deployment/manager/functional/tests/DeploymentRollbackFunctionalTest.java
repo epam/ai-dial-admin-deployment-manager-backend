@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.model.page.Sort;
 import com.epam.aidial.deployment.manager.model.page.SortDirection;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.AuditActivityService;
+import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -30,14 +31,20 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -55,9 +62,15 @@ public abstract class DeploymentRollbackFunctionalTest {
     @Autowired
     private AuditActivityService auditActivityService;
     @Autowired
+    private HistoryService historyService;
+    @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
     private KubernetesClient kubernetesClient;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private UUID imageDefinitionId;
 
@@ -163,12 +176,84 @@ public abstract class DeploymentRollbackFunctionalTest {
     }
 
     @Test
-    void shouldFailRollback_whenRevisionDoesNotExist() {
-        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-4");
-        deploymentService.createDeployment(request);
+    void shouldRollbackSuccessfully_whenTargetRevisionHasGap() {
+        // Revision belongs to a different entity → the subject deployment was not modified at that
+        // revision. Rollback must resolve to the latest applicable revision (≤ target) for THIS
+        // deployment, matching the snapshot endpoint's lenient semantics.
+        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-gap");
+        Deployment created = deploymentService.createDeployment(request);
+        String originalDisplayName = created.getDisplayName();
 
-        assertThatThrownBy(() -> deploymentService.rollback("rollback-test-4", 999_999))
-                .isInstanceOf(EntityNotFoundException.class);
+        ImageDefinition unrelated = FunctionalTestHelper.createInterceptorImageDefinition();
+        unrelated.setName("gap-unrelated-image");
+        ImageDefinition unrelatedCreated = imageDefinitionService.createImageDefinition(unrelated);
+        Integer gapRevision = createRevisionForUuid(unrelatedCreated.getId());
+
+        CreateDeployment mutated = createInterceptorDeploymentWithoutSecrets("rollback-test-gap");
+        mutated.setDisplayName("changed-display-name");
+        deploymentService.updateDeployment(created.getId(), mutated);
+
+        Deployment rolledBack = deploymentService.rollback(created.getId(), gapRevision);
+
+        assertThat(rolledBack.getId()).isEqualTo(created.getId());
+        assertThat(rolledBack.getDisplayName()).isEqualTo(originalDisplayName);
+    }
+
+    @Test
+    void shouldRollbackSuccessfully_whenTargetRevisionIsSequenceAllocatorGap() {
+        // Hibernate's pooled sequence allocator burns a block of revinfo ids on every JVM restart,
+        // so revinfo legitimately has gap ids that no transaction ever wrote a row for. The audit
+        // UI's "rollback to snapshotRevision - 1" pattern routinely targets such a gap id. We
+        // simulate the allocator jump by advancing H2's revinfo IDENTITY counter forward by 100,
+        // then roll back to an id that falls in the synthesised gap.
+        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-allocator-gap");
+        Deployment created = deploymentService.createDeployment(request);
+        String originalDisplayName = created.getDisplayName();
+        int createMaxRevision = historyService.maxRevisionId();
+
+        int postJumpRevision = createMaxRevision + 100;
+        int gapRevision = createMaxRevision + 50;
+        advanceRevinfoSequenceTo(postJumpRevision);
+
+        CreateDeployment mutated = createInterceptorDeploymentWithoutSecrets("rollback-test-allocator-gap");
+        mutated.setDisplayName("changed-display-name");
+        deploymentService.updateDeployment(created.getId(), mutated);
+
+        // Sanity: the gap id is past the create revision but ≤ the post-jump update revision —
+        // so it falls strictly inside the synthesised allocator gap.
+        assertThat(historyService.maxRevisionId()).isGreaterThanOrEqualTo(postJumpRevision);
+        assertThat(gapRevision).isGreaterThan(createMaxRevision);
+
+        Deployment rolledBack = deploymentService.rollback(created.getId(), gapRevision);
+
+        // Envers resolves the gap id to the latest snapshot ≤ gapRevision for this deployment,
+        // which is the create at createMaxRevision — so we get the original displayName back.
+        assertThat(rolledBack.getId()).isEqualTo(created.getId());
+        assertThat(rolledBack.getDisplayName()).isEqualTo(originalDisplayName);
+    }
+
+    @Test
+    void shouldFailRollback_whenRevisionIsOutOfRange_andLeaveSecretsIntact() {
+        // Pre-guard regression: rolling back to an out-of-range revision id used to resolve to
+        // the deployment's current state via Envers's lenient lookup and then unconditionally wipe
+        // sensitive env values in reconcileEnvSecrets. The maxRevisionId() guard must reject the
+        // request up front, before any K8s secret cleanup runs.
+        CreateDeployment request = createDeploymentWithEnvs("rollback-test-out-of-range", List.of(
+                envSimple("simple-a", "v1"),
+                envSensitive("secret-a", "vA")));
+        Deployment created = deploymentService.createDeployment(request);
+        String liveSecretName = sensitiveSecretName(created, "secret-a");
+        assertThat(liveSecretName).isNotBlank();
+
+        assertThatThrownBy(() -> deploymentService.rollback(created.getId(), Integer.MAX_VALUE))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("revision");
+
+        Deployment unchanged = deploymentService.getDeployment(created.getId()).orElseThrow();
+        assertThat(unchanged.getDisplayName()).isEqualTo(created.getDisplayName());
+        assertThat(sensitiveSecretName(unchanged, "secret-a"))
+                .as("out-of-range rollback must not reprovision the K8s envs secret")
+                .isEqualTo(liveSecretName);
     }
 
     @Test
@@ -184,9 +269,6 @@ public abstract class DeploymentRollbackFunctionalTest {
         CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-5");
         deploymentService.createDeployment(request);
 
-        // Discriminator vs R4 (unknown revision): the predates-creation path goes through
-        // entitySnapshotAtRevision and includes "at revision" in its message, whereas the
-        // unknown-revision path stops at getRevisionById and reports "revision with id".
         assertThatThrownBy(() -> deploymentService.rollback("rollback-test-5", earlierRevision))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("at revision");
@@ -413,7 +495,26 @@ public abstract class DeploymentRollbackFunctionalTest {
                 && resourceId.toString().equals(a.getResourceId()));
     }
 
-    private Integer createRevisionByPredicate(java.util.function.Predicate<AuditActivity> predicate) {
+    /**
+     * Advances the revinfo IDENTITY counter so the next auto-generated revision id is at least
+     * {@code nextId}, emulating the jump Hibernate's pooled sequence allocator makes after a JVM
+     * restart. SQL Server uses {@code DBCC CHECKIDENT(..., RESEED, ...)}; H2 and PostgreSQL share
+     * the standard {@code ALTER TABLE ... ALTER COLUMN ... RESTART WITH} syntax.
+     */
+    private void advanceRevinfoSequenceTo(int nextId) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                entityManager.unwrap(Session.class).doWork(connection -> {
+                    String product = connection.getMetaData().getDatabaseProductName();
+                    String sql = product.toLowerCase().contains("microsoft sql server")
+                            ? "DBCC CHECKIDENT('revinfo', RESEED, " + (nextId - 1) + ")"
+                            : "ALTER TABLE revinfo ALTER COLUMN id RESTART WITH " + nextId;
+                    try (var stmt = connection.createStatement()) {
+                        stmt.execute(sql);
+                    }
+                }));
+    }
+
+    private Integer createRevisionByPredicate(Predicate<AuditActivity> predicate) {
         PageRequestModel request = new PageRequestModel();
         request.setPageNumber(0);
         request.setPageSize(100);

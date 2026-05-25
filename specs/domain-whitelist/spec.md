@@ -60,7 +60,7 @@ When the global domain whitelist is imported via `POST /api/v1/configs/import` w
 Status: **Implemented**
 
 ### Requirement: Revision rollback
-The system SHALL expose `POST /api/v1/global-whitelist/image-build/revision/{revision}/rollback` to restore the global image-build whitelist to its snapshot at the supplied audit revision. Rollback is a full replacement (not a merge), matching the direct-replace semantics of the regular write endpoint. The supplied revision must exist (validated against `historyService.getRevisionById`) and must contain a whitelist snapshot; missing revisions reject with HTTP 404. If the whitelist singleton row does not currently exist (fresh DB, removed singleton, etc.) the rollback recreates it from the snapshot rather than rejecting with 404 — the snapshot itself is the source of truth for the restored state. Identical-state rollbacks are no-ops that do not produce a new revision.
+The system SHALL expose `POST /api/v1/global-whitelist/image-build/revision/{revision}/rollback` to restore the global image-build whitelist to its snapshot at the supplied audit revision. Rollback is a full replacement (not a merge), matching the direct-replace semantics of the regular write endpoint. The target revision is resolved through Envers's point-in-time semantics — the snapshot is the whitelist's state as of the latest applicable revision ≤ the target — so a revision id that has no `revinfo` row (e.g., one of the gap ids Hibernate's pooled sequence allocator leaves on every JVM restart) is honoured as long as it is within the highest assigned revision range. Rollback rejects with HTTP 404 when the supplied revision id is missing, non-positive, or greater than the highest assigned revision id, or when no whitelist snapshot exists at-or-before the supplied revision (e.g., the revision predates the whitelist's first recorded entry). The upper-bound check exists for symmetry with the deployment and image-definition rollback paths even though the `isEqualCollection` short-circuit below would absorb the case for the whitelist specifically. If the whitelist singleton row does not currently exist (fresh DB, removed singleton, etc.) the rollback recreates it from the snapshot rather than rejecting with 404 — the snapshot itself is the source of truth for the restored state. Identical-state rollbacks are no-ops that do not produce a new revision.
 
 Status: **Implemented** (Implemented via 020-revision-rollback)
 
@@ -72,8 +72,8 @@ Status: **Implemented** (Implemented via 020-revision-rollback)
 - **WHEN** the current whitelist already equals the snapshot at the supplied revision (multiset comparison)
 - **THEN** the system returns HTTP 200 with the current entries and does NOT record a new revision
 
-#### Scenario: Rollback to unknown revision
-- **WHEN** the supplied revision does not exist
+#### Scenario: Rollback to revision predating whitelist
+- **WHEN** the supplied revision precedes the whitelist's first recorded entry (no snapshot exists at-or-before that revision)
 - **THEN** the system responds with HTTP 404 and the whitelist is unchanged
 
 #### Scenario: Import merge

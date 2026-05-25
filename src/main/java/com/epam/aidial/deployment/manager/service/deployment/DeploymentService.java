@@ -164,8 +164,13 @@ public class DeploymentService {
 
     @Transactional
     public Deployment rollback(String id, Integer revision) {
-        // 404 precheck: throws if the revision id is unknown
-        historyService.getRevisionById(revision);
+        // Reject ids past the highest assigned revision so that typos can't slip through to
+        // reconcileEnvSecrets, which would silently wipe live sensitive env values. In-range
+        // gap ids (e.g. left by Hibernate's pooled sequence allocator after a JVM restart)
+        // are still resolved leniently by Envers downstream.
+        if (revision == null || revision <= 0 || revision > historyService.maxRevisionId()) {
+            throw new EntityNotFoundException("Unable to find revision with id " + revision);
+        }
 
         var existing = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
         if (existing.getStatus().isActive()) {
