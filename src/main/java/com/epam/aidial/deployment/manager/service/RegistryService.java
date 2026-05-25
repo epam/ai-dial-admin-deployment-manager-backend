@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.PostConstruct;
 
 @Slf4j
@@ -22,6 +23,15 @@ import javax.annotation.PostConstruct;
 public class RegistryService {
 
     private static final String API_URL_TEMPLATE = "%s://%s/v2";
+
+    // BuildKit's auth lookup hardcodes this legacy key for Docker Hub (docker/cli's
+    // getAuthConfigKey maps docker.io / index.docker.io -> "https://index.docker.io/v1/").
+    // A /v2-shaped key for docker.io is silently ignored there, so we emit the legacy key
+    // for every Docker Hub alias. Skopeo's containers/image normalizes both forms.
+    private static final String DOCKER_HUB_AUTH_KEY = "https://index.docker.io/v1/";
+    private static final Set<String> DOCKER_HUB_HOSTS = Set.of(
+            "docker.io", "index.docker.io", "registry-1.docker.io");
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RegistryProperties registryProperties;
@@ -59,8 +69,7 @@ public class RegistryService {
             Map<String, String> authConfig = new HashMap<>();
             authConfig.put("auth", auth);
 
-            auths.put(API_URL_TEMPLATE.formatted(
-                    registryProperties.getProtocol(), registryProperties.getUrl()), authConfig);
+            auths.put(authKey(registryProperties.getProtocol().toString(), registryProperties.getUrl()), authConfig);
         }
 
         // Add trusted private registries if configured
@@ -80,7 +89,7 @@ public class RegistryService {
                     String regProtocol = StringUtils.isNotBlank(trustedRegistry.getProtocol())
                             ? trustedRegistry.getProtocol()
                             : "https";
-                    auths.put(API_URL_TEMPLATE.formatted(regProtocol, trustedRegistry.getRegistry()), authConfig);
+                    auths.put(authKey(regProtocol, trustedRegistry.getRegistry()), authConfig);
                 }
             }
             // Add support for TOKEN auth scheme if needed
@@ -96,6 +105,12 @@ public class RegistryService {
 
     private String imageName(String name) {
         return imageFormat.formatted(name);
+    }
+
+    private static String authKey(String protocol, String registry) {
+        return DOCKER_HUB_HOSTS.contains(registry)
+                ? DOCKER_HUB_AUTH_KEY
+                : API_URL_TEMPLATE.formatted(protocol, registry);
     }
 
 }

@@ -37,7 +37,9 @@ public class ImageCopyPipeline {
             log.info("Image copy pipeline interrupted by external Job deletion for image definition '{}'. "
                     + "Leaving status change and cleanup to the stop action.", imageDefinitionId);
         } catch (Exception e) {
-            imageDefinitionService.failBuild(imageDefinitionId, "Image copying has failed: %s".formatted(e.getMessage()));
+            log.error("Image copy pipeline failed for image definition {}", imageDefinitionId, e);
+            String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            imageDefinitionService.failBuild(imageDefinitionId, "Image copying has failed: %s".formatted(detail));
         } finally {
             if (!externallyInterrupted) {
                 disposableResourceCleaner.cleanTemporaryByGroupId(imageDefinitionId);

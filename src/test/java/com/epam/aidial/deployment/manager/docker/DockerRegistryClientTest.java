@@ -179,6 +179,75 @@ class DockerRegistryClientTest {
     }
 
     @Test
+    void getRegistryClient_shouldUseBearerAuthAndCredentialsForDockerHubTrustedRegistry() throws Exception {
+        // Reproduces the failing scenario: trusted entry says "docker.io", image reference resolves
+        // (via jib) to "registry-1.docker.io". Must match -> set credentials -> use bearer flow (not
+        // configureBasicAuth, which Docker Hub rejects with 401).
+        RegistryProperties registryProperties = new RegistryProperties();
+        registryProperties.setAuth(DockerAuthScheme.NONE);
+        registryProperties.setUrl("registry.example.com");
+        registryProperties.setProtocol(URI.create("https"));
+
+        RegistryProperties.TrustedPrivateRegistry hubEntry = new RegistryProperties.TrustedPrivateRegistry();
+        hubEntry.setRegistry("docker.io");
+        hubEntry.setAuthScheme("BASIC");
+        hubEntry.setUser("hubuser");
+        hubEntry.setPassword("hubtoken");
+        registryProperties.setTrustedPrivateRegistries(List.of(hubEntry));
+
+        DockerRegistryClient client = new DockerRegistryClient(registryProperties, objectMapper, httpConnectionFactory);
+
+        try (MockedStatic<ImageReference> imageReferenceMockedStatic = mockStatic(ImageReference.class);
+                MockedStatic<RegistryClient> registryClientMockedStatic = mockStatic(RegistryClient.class)) {
+
+            var imageReference = mock(ImageReference.class);
+            imageReferenceMockedStatic.when(() -> ImageReference.parse("d0nets/private-simple-mcp"))
+                    .thenReturn(imageReference);
+            when(imageReference.getRegistry()).thenReturn("registry-1.docker.io");
+            when(imageReference.getRepository()).thenReturn("d0nets/private-simple-mcp");
+
+            registryClientMockedStatic.when(() -> RegistryClient.factory(any(EventHandlers.class), anyString(), anyString(), any(FailoverHttpClient.class)))
+                    .thenReturn(registryClientFactory);
+            when(registryClientFactory.newRegistryClient()).thenReturn(registryClient);
+
+            ReflectionTestUtils.invokeMethod(client, "getRegistryClient", "d0nets/private-simple-mcp");
+
+            var credentialCaptor = ArgumentCaptor.forClass(com.google.cloud.tools.jib.api.Credential.class);
+            verify(registryClientFactory).setCredential(credentialCaptor.capture());
+            assertThat(credentialCaptor.getValue().getUsername()).isEqualTo("hubuser");
+            assertThat(credentialCaptor.getValue().getPassword()).isEqualTo("hubtoken");
+
+            // Critical: bearer flow (Docker Hub rejects plain Basic on the registry API).
+            verify(registryClient).doPullBearerAuth();
+        }
+    }
+
+    @Test
+    void isSameRegistry_shouldTreatDockerHubAliasesAsSame() {
+        // jib-core canonicalizes Docker Hub image references to "registry-1.docker.io".
+        // A user-configured trusted entry naming "docker.io" must match that canonical form.
+        assertThat(DockerRegistryClient.isSameRegistry("docker.io", "registry-1.docker.io")).isTrue();
+        assertThat(DockerRegistryClient.isSameRegistry("registry-1.docker.io", "docker.io")).isTrue();
+        assertThat(DockerRegistryClient.isSameRegistry("index.docker.io", "registry-1.docker.io")).isTrue();
+        assertThat(DockerRegistryClient.isSameRegistry("docker.io", "index.docker.io")).isTrue();
+    }
+
+    @Test
+    void isSameRegistry_shouldFallBackToEqualityForNonHubRegistries() {
+        assertThat(DockerRegistryClient.isSameRegistry("registry.example.com", "registry.example.com")).isTrue();
+        assertThat(DockerRegistryClient.isSameRegistry("my.private.registry:5000", "my.private.registry:5000")).isTrue();
+    }
+
+    @Test
+    void isSameRegistry_shouldReturnFalseForUnrelatedRegistries() {
+        // Non-Hub regression guard: unrelated registries must never collapse.
+        assertThat(DockerRegistryClient.isSameRegistry("a.example.com", "b.example.com")).isFalse();
+        // One side a Hub alias, the other a private host — still distinct.
+        assertThat(DockerRegistryClient.isSameRegistry("docker.io", "registry.example.com")).isFalse();
+        assertThat(DockerRegistryClient.isSameRegistry("registry.example.com", "registry-1.docker.io")).isFalse();
+    }
+
+    @Test
     void deleteImage_shouldDeleteManifestWhenImageExists() throws Exception {
         // Given
         String imageName = "registry.example.com/repo/image:tag";

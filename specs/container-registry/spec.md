@@ -83,5 +83,9 @@ Status: **Implemented**
   - `app.registry.user` / `app.registry.password` — primary registry credentials
   - `app.registry.trusted-private-registries` — JSON array of additional registries with optional BASIC credentials
 - Image copy tool: Skopeo (external process, invoked from build pipeline steps)
+- Pull-secret `config.json` keys (`RegistryService.dockerConfig()`): `https://<host>/v2` for every registry, **except** Docker Hub aliases (`docker.io`, `index.docker.io`, `registry-1.docker.io`) which use the legacy key `https://index.docker.io/v1/`. Skopeo/containers-image normalizes both forms transparently, but `docker/cli` (and therefore BuildKit's authprovider, used by MCP LOCAL transport) hardcodes the legacy key for the Official Docker Hub index — a `/v2`-shaped key for `docker.io` is silently ignored there.
+- `DockerRegistryClient.getRegistryClient()` (jib-core path, used for in-manager-process image inspection like inheriting a source image's entrypoint during wrapper builds):
+  - Treats `docker.io`, `index.docker.io`, and `registry-1.docker.io` as the same registry when matching against `app.registry.url` and `app.registry.trusted-private-registries` entries. jib-core canonicalizes any Docker Hub reference to `registry-1.docker.io`, so a user-configured `docker.io` trusted entry must alias-match — otherwise jib falls through to anonymous bearer auth and fails 401 on private repos.
+  - Once credentials are matched, uses jib's `doPullBearerAuth()` (not `configureBasicAuth()`) for the actual auth handshake. Modern registries (Docker Hub, ACR, GHCR, GAR, ECR, …) return a `WWW-Authenticate: Bearer …` challenge and reject a hardcoded `Authorization: Basic …` header on the registry API; `doPullBearerAuth()` performs the token-endpoint round-trip with the credentials and falls back to Basic when a registry advertises `WWW-Authenticate: Basic`.
 - `jib-core` version: 0.27.3
 - Related specs: `image-builds`, `buildkit`, `kubernetes-cleanup`
