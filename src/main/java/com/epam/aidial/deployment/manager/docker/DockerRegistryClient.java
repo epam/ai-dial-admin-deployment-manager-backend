@@ -29,7 +29,6 @@ import org.springframework.stereotype.Service;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
-import java.util.Objects;
 
 @Slf4j
 @Service
@@ -125,25 +124,25 @@ public class DockerRegistryClient {
 
         // Fall back to main registry auth
         if (registryProperties.getAuth() == DockerAuthScheme.BASIC
-                && Objects.equals(registryProperties.getUrl(), imageReference.getRegistry())) {
+                && DockerHubAliases.sameRegistry(registryProperties.getUrl(), imageReference.getRegistry())) {
             var credential = Credential.from(registryProperties.getUser(), registryProperties.getPassword());
             registryClientFactory.setCredential(credential);
             var registryClient = registryClientFactory.newRegistryClient();
-            registryClient.configureBasicAuth();
+            authenticate(registryClient);
             return registryClient;
         }
 
         // Check if registry is in trusted registries
         var trustedRegistries = registryProperties.getTrustedPrivateRegistries();
         for (var trustedRegistry : trustedRegistries) {
-            if (Objects.equals(trustedRegistry.getRegistry(), imageReference.getRegistry())
+            if (DockerHubAliases.sameRegistry(trustedRegistry.getRegistry(), imageReference.getRegistry())
                     && "BASIC".equals(trustedRegistry.getAuthScheme())
                     && trustedRegistry.getUser() != null
                     && trustedRegistry.getPassword() != null) {
                 var credential = Credential.from(trustedRegistry.getUser(), trustedRegistry.getPassword());
                 registryClientFactory.setCredential(credential);
                 var registryClient = registryClientFactory.newRegistryClient();
-                registryClient.configureBasicAuth();
+                authenticate(registryClient);
                 return registryClient;
             }
         }
@@ -152,6 +151,16 @@ public class DockerRegistryClient {
         registryClient.doPullBearerAuth();
         return registryClient;
 
+    }
+
+    // Bearer first (Docker Hub, ACR, GHCR, GAR, ECR — they reject preemptive Basic on the
+    // registry API). jib-core's doPullBearerAuth returns false and leaves Authorization unset
+    // when the server advertises WWW-Authenticate: Basic (self-hosted Distribution v2 + htpasswd,
+    // Harbor basic mode, Artifactory without bearer, ...) — fall back to Basic explicitly.
+    private static void authenticate(RegistryClient registryClient) throws Exception {
+        if (!registryClient.doPullBearerAuth()) {
+            registryClient.configureBasicAuth();
+        }
     }
 
     public void deleteImage(String imageName) throws Exception {

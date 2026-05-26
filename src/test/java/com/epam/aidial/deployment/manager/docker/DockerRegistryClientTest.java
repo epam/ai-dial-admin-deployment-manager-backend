@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -175,6 +176,102 @@ class DockerRegistryClientTest {
             // Then - credentials should NOT be set, should use bearer auth
             verify(registryClientFactory, times(0)).setCredential(any());
             verify(registryClient).doPullBearerAuth();
+        }
+    }
+
+    @Test
+    void getRegistryClient_shouldUseBearerAuthAndCredentialsForDockerHubTrustedRegistry() throws Exception {
+        // Reproduces the failing scenario: trusted entry says "docker.io", image reference resolves
+        // (via jib) to "registry-1.docker.io". Must match -> set credentials -> use bearer flow (not
+        // configureBasicAuth, which Docker Hub rejects with 401).
+        RegistryProperties registryProperties = new RegistryProperties();
+        registryProperties.setAuth(DockerAuthScheme.NONE);
+        registryProperties.setUrl("registry.example.com");
+        registryProperties.setProtocol(URI.create("https"));
+
+        RegistryProperties.TrustedPrivateRegistry hubEntry = new RegistryProperties.TrustedPrivateRegistry();
+        hubEntry.setRegistry("docker.io");
+        hubEntry.setAuthScheme("BASIC");
+        hubEntry.setUser("hubuser");
+        hubEntry.setPassword("hubtoken");
+        registryProperties.setTrustedPrivateRegistries(List.of(hubEntry));
+
+        DockerRegistryClient client = new DockerRegistryClient(registryProperties, objectMapper, httpConnectionFactory);
+
+        try (MockedStatic<ImageReference> imageReferenceMockedStatic = mockStatic(ImageReference.class);
+                MockedStatic<RegistryClient> registryClientMockedStatic = mockStatic(RegistryClient.class)) {
+
+            var imageReference = mock(ImageReference.class);
+            imageReferenceMockedStatic.when(() -> ImageReference.parse("d0nets/private-simple-mcp"))
+                    .thenReturn(imageReference);
+            when(imageReference.getRegistry()).thenReturn("registry-1.docker.io");
+            when(imageReference.getRepository()).thenReturn("d0nets/private-simple-mcp");
+
+            registryClientMockedStatic.when(() -> RegistryClient.factory(any(EventHandlers.class), anyString(), anyString(), any(FailoverHttpClient.class)))
+                    .thenReturn(registryClientFactory);
+            when(registryClientFactory.newRegistryClient()).thenReturn(registryClient);
+            when(registryClient.doPullBearerAuth()).thenReturn(true);
+
+            ReflectionTestUtils.invokeMethod(client, "getRegistryClient", "d0nets/private-simple-mcp");
+
+            var credentialCaptor = ArgumentCaptor.forClass(com.google.cloud.tools.jib.api.Credential.class);
+            verify(registryClientFactory).setCredential(credentialCaptor.capture());
+            assertThat(credentialCaptor.getValue().getUsername()).isEqualTo("hubuser");
+            assertThat(credentialCaptor.getValue().getPassword()).isEqualTo("hubtoken");
+
+            // Critical: bearer flow (Docker Hub rejects plain Basic on the registry API).
+            verify(registryClient).doPullBearerAuth();
+            // Locks in the regression intent (issue #78): when the bearer handshake succeeds,
+            // configureBasicAuth must NOT be invoked — Docker Hub rejects preemptive Basic.
+            verify(registryClient, never()).configureBasicAuth();
+        }
+    }
+
+    @Test
+    void getRegistryClient_shouldFallBackToBasicAuthWhenRegistryAdvertisesBasicChallenge() throws Exception {
+        // Self-hosted Distribution v2 with htpasswd, Harbor basic mode, Artifactory without bearer, ...
+        // advertise WWW-Authenticate: Basic. jib-core's doPullBearerAuth() returns false there and
+        // leaves the Authorization header unset — we must configure Basic explicitly so credentials
+        // are actually sent on the subsequent manifest/blob pulls.
+        RegistryProperties registryProperties = new RegistryProperties();
+        registryProperties.setAuth(DockerAuthScheme.NONE);
+        registryProperties.setUrl("main.example.com");
+        registryProperties.setProtocol(URI.create("https"));
+
+        RegistryProperties.TrustedPrivateRegistry basicOnlyEntry = new RegistryProperties.TrustedPrivateRegistry();
+        basicOnlyEntry.setRegistry("harbor.internal");
+        basicOnlyEntry.setAuthScheme("BASIC");
+        basicOnlyEntry.setUser("basicuser");
+        basicOnlyEntry.setPassword("basicpass");
+        registryProperties.setTrustedPrivateRegistries(List.of(basicOnlyEntry));
+
+        DockerRegistryClient client = new DockerRegistryClient(registryProperties, objectMapper, httpConnectionFactory);
+
+        try (MockedStatic<ImageReference> imageReferenceMockedStatic = mockStatic(ImageReference.class);
+                MockedStatic<RegistryClient> registryClientMockedStatic = mockStatic(RegistryClient.class)) {
+
+            var imageReference = mock(ImageReference.class);
+            imageReferenceMockedStatic.when(() -> ImageReference.parse("harbor.internal/team/app:1.0"))
+                    .thenReturn(imageReference);
+            when(imageReference.getRegistry()).thenReturn("harbor.internal");
+            when(imageReference.getRepository()).thenReturn("team/app");
+
+            registryClientMockedStatic.when(() -> RegistryClient.factory(any(EventHandlers.class), anyString(), anyString(), any(FailoverHttpClient.class)))
+                    .thenReturn(registryClientFactory);
+            when(registryClientFactory.newRegistryClient()).thenReturn(registryClient);
+            when(registryClient.doPullBearerAuth()).thenReturn(false);
+
+            ReflectionTestUtils.invokeMethod(client, "getRegistryClient", "harbor.internal/team/app:1.0");
+
+            var credentialCaptor = ArgumentCaptor.forClass(com.google.cloud.tools.jib.api.Credential.class);
+            verify(registryClientFactory).setCredential(credentialCaptor.capture());
+            assertThat(credentialCaptor.getValue().getUsername()).isEqualTo("basicuser");
+            assertThat(credentialCaptor.getValue().getPassword()).isEqualTo("basicpass");
+
+            verify(registryClient).doPullBearerAuth();
+            // Critical: bearer handshake failed (server advertised WWW-Authenticate: Basic), so the
+            // caller must fall back to configureBasicAuth — otherwise credentials are silently dropped.
+            verify(registryClient).configureBasicAuth();
         }
     }
 

@@ -145,6 +145,50 @@ class RegistryServiceTest {
     }
 
     @Test
+    void dockerConfig_shouldUseDockerHubLegacyKey_forDockerHubAliases() throws Exception {
+        // BuildKit's auth lookup hardcodes "https://index.docker.io/v1/" for the Docker Hub
+        // Official index (see docker/cli's getAuthConfigKey). A "/v2"-shaped key for docker.io
+        // is silently ignored there. Skopeo normalizes both forms.
+        String trusted = """
+                [
+                  {"registry":"docker.io","authScheme":"BASIC","user":"u1","password":"p1"},
+                  {"registry":"index.docker.io","authScheme":"BASIC","user":"u2","password":"p2"},
+                  {"registry":"registry-1.docker.io","authScheme":"BASIC","user":"u3","password":"p3","protocol":"http"}
+                ]
+                """;
+
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.BASIC, "main", "mPass", trusted);
+
+        String json = service.dockerConfig();
+
+        Map<String, Object> root = MAPPER.readValue(json, new TypeReference<>() {
+        });
+        Map<String, Object> auths = (Map<String, Object>) root.get("auths");
+
+        // All three Docker Hub aliases collapse to the single legacy key
+        assertThat(auths).containsKey("https://index.docker.io/v1/");
+
+        // Map-key collision: only one of the three entries' credentials survives. Assert the value
+        // belongs to *some* configured entry rather than e.g. silently picking up the main-registry
+        // credential — the actual winner is HashMap-order-dependent and not contractual.
+        Map<String, String> hubAuth = (Map<String, String>) auths.get("https://index.docker.io/v1/");
+        assertThat(hubAuth.get("auth")).isIn(
+                expectedBase64("u1", "p1"),
+                expectedBase64("u2", "p2"),
+                expectedBase64("u3", "p3"));
+
+        // /v2-shaped keys for Docker Hub must NOT be emitted, regardless of the entry's protocol field
+        assertThat(auths).doesNotContainKey("https://docker.io/v2");
+        assertThat(auths).doesNotContainKey("https://index.docker.io/v2");
+        assertThat(auths).doesNotContainKey("https://registry-1.docker.io/v2");
+        assertThat(auths).doesNotContainKey("http://registry-1.docker.io/v2");
+
+        // Non-Hub registries keep the /v2 format
+        assertThat(auths).containsKey("https://main.registry/v2");
+    }
+
+    @Test
     void dockerConfig_shouldThrowOnInvalidJson_whenTrustedRegistriesInvalid() {
         String mainRegistry = "main.registry";
         URI protocol = URI.create("https");

@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.service;
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.configuration.RegistryProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import com.epam.aidial.deployment.manager.docker.DockerHubAliases;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import javax.annotation.PostConstruct;
 public class RegistryService {
 
     private static final String API_URL_TEMPLATE = "%s://%s/v2";
+
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RegistryProperties registryProperties;
@@ -59,8 +61,7 @@ public class RegistryService {
             Map<String, String> authConfig = new HashMap<>();
             authConfig.put("auth", auth);
 
-            auths.put(API_URL_TEMPLATE.formatted(
-                    registryProperties.getProtocol(), registryProperties.getUrl()), authConfig);
+            auths.put(authKey(registryProperties.getProtocol().toString(), registryProperties.getUrl()), authConfig);
         }
 
         // Add trusted private registries if configured
@@ -80,7 +81,14 @@ public class RegistryService {
                     String regProtocol = StringUtils.isNotBlank(trustedRegistry.getProtocol())
                             ? trustedRegistry.getProtocol()
                             : "https";
-                    auths.put(API_URL_TEMPLATE.formatted(regProtocol, trustedRegistry.getRegistry()), authConfig);
+                    String key = authKey(regProtocol, trustedRegistry.getRegistry());
+                    if (auths.containsKey(key)) {
+                        log.warn("Multiple registry entries (main or trusted-private) collapse to the same auth key '{}' "
+                                + "(e.g. Docker Hub aliases docker.io / index.docker.io / registry-1.docker.io, "
+                                + "or equivalent host strings for any registry). "
+                                + "Later entry overwrites the earlier one — verify only one set of credentials is intended.", key);
+                    }
+                    auths.put(key, authConfig);
                 }
             }
             // Add support for TOKEN auth scheme if needed
@@ -96,6 +104,12 @@ public class RegistryService {
 
     private String imageName(String name) {
         return imageFormat.formatted(name);
+    }
+
+    private static String authKey(String protocol, String registry) {
+        return DockerHubAliases.contains(registry)
+                ? DockerHubAliases.LEGACY_AUTH_KEY
+                : API_URL_TEMPLATE.formatted(protocol, registry);
     }
 
 }
