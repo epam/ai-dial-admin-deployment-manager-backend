@@ -83,8 +83,9 @@ public class RegistryService {
                             : "https";
                     String key = authKey(regProtocol, trustedRegistry.getRegistry());
                     if (auths.containsKey(key)) {
-                        log.warn("Multiple trusted-private-registry entries collapse to the same auth key '{}' "
-                                + "(e.g. Docker Hub aliases docker.io / index.docker.io / registry-1.docker.io). "
+                        log.warn("Multiple registry entries (main or trusted-private) collapse to the same auth key '{}' "
+                                + "(e.g. Docker Hub aliases docker.io / index.docker.io / registry-1.docker.io, "
+                                + "or equivalent host strings for any registry). "
                                 + "Later entry overwrites the earlier one — verify only one set of credentials is intended.", key);
                     }
                     auths.put(key, authConfig);

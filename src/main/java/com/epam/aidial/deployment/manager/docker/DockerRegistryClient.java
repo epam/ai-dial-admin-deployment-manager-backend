@@ -128,9 +128,7 @@ public class DockerRegistryClient {
             var credential = Credential.from(registryProperties.getUser(), registryProperties.getPassword());
             registryClientFactory.setCredential(credential);
             var registryClient = registryClientFactory.newRegistryClient();
-            // doPullBearerAuth handles the WWW-Authenticate challenge: bearer (Docker Hub, ACR, GHCR, GAR, ECR, …)
-            // negotiates a token using the credentials; basic-only registries fall back to Basic.
-            registryClient.doPullBearerAuth();
+            authenticate(registryClient);
             return registryClient;
         }
 
@@ -144,7 +142,7 @@ public class DockerRegistryClient {
                 var credential = Credential.from(trustedRegistry.getUser(), trustedRegistry.getPassword());
                 registryClientFactory.setCredential(credential);
                 var registryClient = registryClientFactory.newRegistryClient();
-                registryClient.doPullBearerAuth();
+                authenticate(registryClient);
                 return registryClient;
             }
         }
@@ -153,6 +151,16 @@ public class DockerRegistryClient {
         registryClient.doPullBearerAuth();
         return registryClient;
 
+    }
+
+    // Bearer first (Docker Hub, ACR, GHCR, GAR, ECR — they reject preemptive Basic on the
+    // registry API). jib-core's doPullBearerAuth returns false and leaves Authorization unset
+    // when the server advertises WWW-Authenticate: Basic (self-hosted Distribution v2 + htpasswd,
+    // Harbor basic mode, Artifactory without bearer, ...) — fall back to Basic explicitly.
+    private static void authenticate(RegistryClient registryClient) throws Exception {
+        if (!registryClient.doPullBearerAuth()) {
+            registryClient.configureBasicAuth();
+        }
     }
 
     public void deleteImage(String imageName) throws Exception {
