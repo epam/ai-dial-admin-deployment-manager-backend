@@ -5,13 +5,14 @@
 ### Added
 
 #### Security & RBAC
-- `API_KEY_ENABLED` — accepts the `Api-Key` header as an alternative credential alongside JWT/OIDC (default: `false`). **Note:** If enabled, roles for build jobs must be updated with the `deletecollection` permission for `jobs`.
+- `API_KEY_ENABLED` — accepts the `Api-Key` header as an alternative credential alongside JWT/OIDC (default: `false`)
 - `API_KEY_CORE_URL` — base URL of DIAL Core for validating API keys
 - `API_KEY_CACHE_TTL_SECONDS` — TTL for cached introspection results (default: `60`)
 - `API_KEY_CACHE_MAX_SIZE` — maximum entries in the introspection cache (default: `10000`)
 - `API_KEY_REQUEST_TIMEOUT_MS` — per-call timeout for HTTP requests to Core's `/v1/user/info` (default: `3000`)
 - `API_KEY_ROLES_MAPPING` — JSON mapping of Core project-key role names to DM application roles
 - `API_KEY_STARTUP_PROBE` — probes Core's user-info endpoint at startup and aborts if unreachable (default: `true`)
+- It is now possible to stop build jobs, so the `deletecollection` permission for `jobs` must be added to build roles.
 
 #### Deployment & Scaling
 - Node Pool Configuration is now generally available (removed `[Preview]` tag). To use this feature for Knative deployments, `pod-annotations`, `pod-affinity`, and `nodeselector` keys MUST be added to the Knative ConfigMap.
