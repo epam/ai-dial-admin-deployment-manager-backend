@@ -793,7 +793,13 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var deployment = getDeployment(id);
 
         try {
-            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment), getCiliumIngressPorts(deployment));
+            // Re-run prepareServiceSpec solely to derive the chained-transformer signal so the
+            // regenerated policy preserves chained-mode augmentation across allowedDomains edits
+            // (spec 022 FR-007). The built service spec is intentionally discarded — only the
+            // boolean is needed; the InferenceService K8s resource itself is not re-applied here.
+            var chainedTransformer = prepareServiceSpec(deployment).chainedTransformer();
+            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+                    getCiliumIngressPorts(deployment), chainedTransformer);
         } catch (Exception e) {
             var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
             log.warn(errorMessage, e);
@@ -801,8 +807,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
     }
 
-    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
-        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
+    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, boolean chainedTransformer) {
+        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, chainedTransformer={}",
+                groupId, allowedDomains, ports, chainedTransformer);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
             return;
@@ -810,10 +817,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var serviceNameLabel = getServiceNameLabel();
         var serviceName = getServiceName(groupId);
         var cnpName = resolveCiliumNetworkPolicyName(groupId, serviceName);
-        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}', cnpName='{}'",
-                serviceNameLabel, serviceName, cnpName);
+        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}', cnpName='{}', chainedTransformer={}",
+                serviceNameLabel, serviceName, cnpName, chainedTransformer);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
+        var ciliumNetworkPolicy = chainedTransformer
+                ? ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports, true)
+                : ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
         ciliumNetworkPolicy.getMetadata().setName(cnpName);
 
         k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
