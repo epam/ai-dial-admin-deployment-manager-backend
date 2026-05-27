@@ -1,5 +1,42 @@
 # Infra Changelog
 
+## 0.17.0
+
+### Added
+
+#### Security & RBAC
+- `API_KEY_ENABLED` — accepts the `Api-Key` header as an alternative credential alongside JWT/OIDC (default: `false`)
+- `API_KEY_CORE_URL` — base URL of DIAL Core for validating API keys
+- `API_KEY_CACHE_TTL_SECONDS` — TTL for cached introspection results (default: `60`)
+- `API_KEY_CACHE_MAX_SIZE` — maximum entries in the introspection cache (default: `10000`)
+- `API_KEY_REQUEST_TIMEOUT_MS` — per-call timeout for HTTP requests to Core's `/v1/user/info` (default: `3000`)
+- `API_KEY_ROLES_MAPPING` — JSON mapping of Core project-key role names to DM application roles
+- `API_KEY_STARTUP_PROBE` — probes Core's user-info endpoint at startup and aborts if unreachable (default: `true`)
+- It is now possible to stop build jobs, so the `deletecollection` permission for `jobs` must be added to build roles.
+
+#### Deployment & Scaling
+- Node Pool Configuration is now generally available (removed `[Preview]` tag). To use this feature for Knative deployments, `pod-annotations`, `pod-affinity`, and `nodeselector` keys MUST be added to the Knative ConfigMap.
+- `NODE_POOLS` — YAML list of node pool entries
+- `NODE_POOL_DEFAULT` — Catch-all default pool ID stamped onto deployments created without an explicit `nodePoolId`
+- `NODE_POOL_DEFAULT_MODEL` — Model-workload default pool ID for NIM and KServe-Inference deployments (takes precedence over `NODE_POOL_DEFAULT`)
+
+---
+
+### Changed
+
+#### Providers
+- `MCP_PROXY_EXECUTABLE_IMAGE_ALPINE` — default changed to `ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-alpine` and is no longer required
+- `MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN` — default changed to `ghcr.io/epam/ai-dial-deployment-manager-mcp-proxy:0.1.0-debian` and is no longer required
+
+---
+
+### Removed
+
+#### Security & RBAC
+- `config.rest.security.default.allowedRoles` and `providers.*.allowed-roles` — removed in favor of `roles-mapping`
+
+---
+
 ## 0.16.0
 
 ### Added
