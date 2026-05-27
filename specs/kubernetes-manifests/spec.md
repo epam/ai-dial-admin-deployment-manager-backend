@@ -85,10 +85,11 @@ For chained deployments:
 - The predictor args have `--return_raw_logits` and `--task=sequence_classification` auto-injected (always).
 - The transformer container is named `kserve-container`, receives `--model_name=<deploymentName>` and `--predictor_protocol=v2` args, and an `ID2LABEL` env var carrying the detected map serialized as a JSON object with stringified-integer keys.
 - The deployment's resolved public URL is the transformer component's URL; status is `RUNNING` only when both components are healthy.
+- The per-deployment `CiliumNetworkPolicy` carries three additions over the predictor-only baseline: an intra-cluster egress block to same-`InferenceService` pods plus `istio-system` and `knative-serving` namespaces (no port constraint); a same-`InferenceService` entry appended to the existing ingress `fromEndpoints`; and `8080/TCP` deduplicated into the ingress `toPorts`. Non-chained deployments produce byte-identical policies to the pre-feature shape. *(Implemented via 022-transformer-cilium-policies — see that spec for FR-level detail and the chained-mode signal threading via `PreparedServiceSpec`.)*
 
 Operator-supplied predictor args containing `--return_probabilities` or `--task=<non-sequence_classification>` are rejected at manifest generation with HTTP 400 before any cluster mutation. If the transformer image is unset, the deploy is rejected with HTTP 500 before any cluster mutation.
 
-Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
+Status: **Implemented** *(Implemented via 021-inference-task-transformer; chained-mode Cilium policy augmentation via 022-transformer-cilium-policies)*
 
 #### Scenario: Chained manifest for a detected text-classification model
 - **WHEN** detection returns `TEXT_CLASSIFICATION` with a valid `id2Label`
@@ -101,6 +102,10 @@ Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
 #### Scenario: Missing transformer image
 - **WHEN** detection returns `TEXT_CLASSIFICATION` and the transformer image property is unset
 - **THEN** the deploy is rejected with HTTP 500 (`MissingTransformerImageException`) before any cluster mutation
+
+#### Scenario: Chained-mode Cilium policy augmentation
+- **WHEN** manifest generation produces a chained `InferenceService` (predictor + transformer) and `app.cilium-network-policies-enabled=true`
+- **THEN** the generated `CiliumNetworkPolicy` contains the intra-cluster egress block, the same-`InferenceService` ingress `fromEndpoint`, and `8080/TCP` deduplicated into the ingress `toPorts`. When manifest generation produces predictor-only, the policy is byte-identical to the pre-feature shape. *(Implemented via 022-transformer-cilium-policies)*
 
 ### Requirement: NIM-specific resources generated for NIM deployments
 When NIM is enabled, the system SHALL generate NIM-specific Kubernetes resources for NIM deployments. The manifest includes:

@@ -2,7 +2,7 @@
 
 **Feature Branch**: `022-transformer-cilium-policies`
 **Created**: 2026-05-27
-**Status**: Draft
+**Status**: Implemented
 **Capability**: inference-deployments, kubernetes-manifests
 **Input**: User description: "We have added text classification logic in previous spec. Now to need to modify cilium policy when the transformer is being created. Here is example how should it look like [...] CiliumNetworkPolicy yaml with intra-InferenceService egress, an extra ingress fromEndpoint matching the same InferenceService, and ingress port 8080."
 

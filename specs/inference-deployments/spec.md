@@ -136,6 +136,8 @@ Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
   - Exception hierarchy: `InferenceTaskDetectionException` (base), `ModelMetadataMissingException` / `ModelMetadataUnusableException` / `ModelNotFoundException` → HTTP 400; `HuggingFaceUpstreamException` → HTTP 502
 - Missing-image gate: `com.epam.aidial.deployment.manager.service.deployment.MissingTransformerImageException` → HTTP 500
 - Transformer manifest section: `com.epam.aidial.deployment.manager.service.manifest.TextClassificationTransformerSection` (emits the `transformer` block when detection returns `TEXT_CLASSIFICATION`)
+- Chained-mode `CiliumNetworkPolicy` augmentation: the per-deployment policy carries an intra-cluster egress block (same-`InferenceService` + `istio-system` + `knative-serving`), a same-`InferenceService` entry in the ingress `fromEndpoints`, and `8080/TCP` on ingress `toPorts` — emitted for any chained deployment; baseline shape preserved for predictor-only. See `specs/kubernetes-manifests/spec.md` § "Chained predictor + transformer". *(Implemented via 022-transformer-cilium-policies)*
+- Chained-mode signal threading: `com.epam.aidial.deployment.manager.service.deployment.PreparedServiceSpec` carries the chained boolean from `InferenceDeploymentManager.prepareServiceSpec` to `AbstractDeploymentManager.deploy` / `updateCiliumNetworkPolicy` without persistence or partial-manifest re-parsing.
 - Kubernetes backend: KServe `InferenceService` resources via `K8sKserveClient` (conditioned on `app.kserve.enabled=true`)
 - K8s package: `com.epam.aidial.deployment.manager.kubernetes.kserve.*`
 - Related specs: `deployments` (base + lifecycle), `kubernetes-manifests`, `huggingface`

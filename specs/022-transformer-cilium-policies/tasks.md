@@ -104,13 +104,13 @@ No tasks — single Gradle project already exists; no new dependencies, no new p
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T018 [P] Run `./gradlew checkstyleMain checkstyleTest` and fix any 180-char overruns / star-import / `var` violations introduced by the changes.
-- [ ] T019 [P] Run `./gradlew test` (full suite incl. testcontainers) and confirm green. The functional tests for inference deployments should pick up the chained-mode cilium shape automatically when they exercise text-classification deploys — no new functional tests needed.
-- [ ] T020 [P] Update `specs/inference-deployments/spec.md`: in the section describing chained predictor + transformer (already cross-linked to spec 021), add a one-line note that the per-deployment Cilium policy is augmented for chained deployments, with `Implemented via 022-transformer-cilium-policies`. Do not duplicate the FR text — point to this spec.
-- [ ] T021 [P] Update `specs/kubernetes-manifests/spec.md`: in the chained predictor + transformer requirement (already `Implemented via 021-inference-task-transformer`), add a sub-bullet about the Cilium policy augmentation with `Implemented via 022-transformer-cilium-policies`.
-- [ ] T022 Flip `**Status**:` in `specs/022-transformer-cilium-policies/spec.md` from `Draft` to `Implemented`.
-- [ ] T023 Add a row for `022-transformer-cilium-policies` to the in-flight features table in `specs/README.md` with status `Implemented` and a one-line brief.
-- [ ] T024 Delete `specs/022-transformer-cilium-policies/checklists/` before committing the PR (per constitution §spec-kit Workflow Rules — per-feature checklists are workflow-internal).
+- [X] T018 [P] `./gradlew checkstyleMain checkstyleTest` clean.
+- [X] T019 [P] `./gradlew test` (full suite incl. Postgres / SQL Server testcontainers) green — BUILD SUCCESSFUL in 7m 7s, no inference-deployment functional regressions.
+- [X] T020 [P] Update `specs/inference-deployments/spec.md`: added cilium augmentation note + cross-link to `022-transformer-cilium-policies` in Implementation Notes, plus a `PreparedServiceSpec` signal-threading note.
+- [X] T021 [P] Update `specs/kubernetes-manifests/spec.md`: added a chained-mode cilium policy sub-bullet to the existing "Chained predictor + transformer" requirement, a new "Chained-mode Cilium policy augmentation" scenario, and extended the Status line to reference both `021-inference-task-transformer` and `022-transformer-cilium-policies`.
+- [X] T022 Flipped `**Status**:` in `specs/022-transformer-cilium-policies/spec.md` from `Draft` to `Implemented`.
+- [X] T023 Added a row for `022-transformer-cilium-policies` to the in-flight features table in `specs/README.md`.
+- [X] T024 Deleted `specs/022-transformer-cilium-policies/checklists/`.
 
 ---
 
