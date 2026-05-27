@@ -86,7 +86,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected NIMService prepareServiceSpec(NimDeployment deployment) {
+    protected PreparedServiceSpec<NIMService> prepareServiceSpec(NimDeployment deployment) {
         if (!(deployment.getSource() instanceof NgcRegistrySource(String imageRef))) {
             throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: '%s'"
                     .formatted(deployment.getId()));
@@ -101,7 +101,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
         var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
-        return nimManifestGenerator.serviceConfig(
+        var service = nimManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 userDefinedSimpleEnvs,
@@ -117,6 +117,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 deployment.getCommand(),
                 deployment.getArgs(),
                 poolPrimitives);
+        return PreparedServiceSpec.unchained(service);
     }
 
     @Override

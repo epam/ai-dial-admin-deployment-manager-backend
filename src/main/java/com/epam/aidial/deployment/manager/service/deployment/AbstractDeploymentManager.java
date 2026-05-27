@@ -127,7 +127,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 deploymentRepository.updateServiceName(id, serviceName);
             }
 
-            var serviceSpec = prepareServiceSpec(deployment);
+            var serviceSpec = prepareServiceSpec(deployment).spec();
 
             saveDisposableResource(id, deployment.getServiceName(), namespace);
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
@@ -215,7 +215,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
 
         try {
-            var serviceSpec = prepareServiceSpec(deployment);
+            var serviceSpec = prepareServiceSpec(deployment).spec();
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -662,7 +662,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return getDeploymentOptional(id).orElseThrow(notFound("Deployment", id));
     }
 
-    protected abstract S prepareServiceSpec(D deployment);
+    protected abstract PreparedServiceSpec<S> prepareServiceSpec(D deployment);
 
     protected abstract void createService(String namespace, S service);
 

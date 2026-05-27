@@ -105,7 +105,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected Service prepareServiceSpec(Deployment deployment) {
+    protected PreparedServiceSpec<Service> prepareServiceSpec(Deployment deployment) {
         var imageName = resolveImageName(deployment);
 
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
@@ -116,7 +116,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
-        return knativeManifestGenerator.serviceConfig(
+        var service = knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 userDefinedSimpleEnvs,
@@ -130,6 +130,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 deployment.getCommand(),
                 deployment.getArgs(),
                 poolPrimitives);
+        return PreparedServiceSpec.unchained(service);
     }
 
     private String resolveImageName(Deployment deployment) {

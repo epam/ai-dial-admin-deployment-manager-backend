@@ -55,6 +55,15 @@ public class CiliumNetworkPolicyCreator {
                                       @NotNull String matchLabelValue,
                                       @NotNull List<String> allowedDomains,
                                       @Nullable Set<Integer> ports) {
+        return create(namespace, matchLabelName, matchLabelValue, allowedDomains, ports, false);
+    }
+
+    public CiliumNetworkPolicy create(@NotNull String namespace,
+                                      @NotNull String matchLabelName,
+                                      @NotNull String matchLabelValue,
+                                      @NotNull List<String> allowedDomains,
+                                      @Nullable Set<Integer> ports,
+                                      boolean chainedTransformer) {
         // Metadata
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(matchLabelValue); // policy name re-uses service name

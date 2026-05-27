@@ -92,7 +92,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected InferenceService prepareServiceSpec(InferenceDeployment deployment) {
+    protected PreparedServiceSpec<InferenceService> prepareServiceSpec(InferenceDeployment deployment) {
         if (!(deployment.getSource() instanceof HuggingFaceSource huggingFaceSource)) {
             throw new IllegalArgumentException("Inference deployment source should be HuggingFace. Deployment: '%s'"
                     .formatted(deployment.getId()));
@@ -107,7 +107,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
 
-        return inferenceManifestGenerator.serviceConfig(
+        var service = inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 deployment.getModelFormat(),
@@ -124,6 +124,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 poolPrimitives,
                 detection.task(),
                 detection.id2Label());
+        // Phase 2 stays behavior-preserving — chained-mode flip lands in spec 022 T008.
+        return PreparedServiceSpec.unchained(service);
     }
 
     @Override
