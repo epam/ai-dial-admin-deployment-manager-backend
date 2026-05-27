@@ -127,7 +127,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 deploymentRepository.updateServiceName(id, serviceName);
             }
 
-            var serviceSpec = prepareServiceSpec(deployment).spec();
+            var prepared = prepareServiceSpec(deployment);
+            var serviceSpec = prepared.spec();
+            var chainedTransformer = prepared.chainedTransformer();
 
             saveDisposableResource(id, deployment.getServiceName(), namespace);
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
@@ -137,7 +139,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 public void afterCommit() {
                     try {
                         createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
-                                getCiliumIngressPorts(deployment), deployment.getServiceName());
+                                getCiliumIngressPorts(deployment), deployment.getServiceName(), chainedTransformer);
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
@@ -757,16 +759,20 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return false;
     }
 
-    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, String name) {
-        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, name={}", groupId, allowedDomains, ports, name);
+    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, String name, boolean chainedTransformer) {
+        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, name={}, chainedTransformer={}",
+                groupId, allowedDomains, ports, name, chainedTransformer);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
             return;
         }
         var serviceNameLabel = getServiceNameLabel();
-        log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, name);
+        log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}', chainedTransformer={}",
+                serviceNameLabel, name, chainedTransformer);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, name, allowedDomains, ports);
+        var ciliumNetworkPolicy = chainedTransformer
+                ? ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, name, allowedDomains, ports, true)
+                : ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, name, allowedDomains, ports);
 
         disposableResourceManager.saveK8sResources(List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
         log.trace("createCiliumNetworkPolicy. Saved Cilium Network Policy as disposable resource for groupId='{}' in namespace='{}'", groupId, namespace);

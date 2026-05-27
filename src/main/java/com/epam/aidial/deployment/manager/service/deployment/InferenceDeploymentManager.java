@@ -15,6 +15,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
@@ -124,8 +125,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 poolPrimitives,
                 detection.task(),
                 detection.id2Label());
-        // Phase 2 stays behavior-preserving — chained-mode flip lands in spec 022 T008.
-        return PreparedServiceSpec.unchained(service);
+        // Chained-mode signal flows directly from the detection result already computed above —
+        // task-agnostic per spec 022 clarification Q1 (any non-NONE task today triggers a transformer block).
+        return detection.task() == InferenceTask.NONE
+                ? PreparedServiceSpec.unchained(service)
+                : PreparedServiceSpec.chained(service);
     }
 
     @Override

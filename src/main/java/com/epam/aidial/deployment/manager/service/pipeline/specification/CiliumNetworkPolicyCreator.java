@@ -39,11 +39,14 @@ public class CiliumNetworkPolicyCreator {
     private static final String UDP_PORT = "53";
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
+    private static final String CHAINED_INGRESS_PORT_8080 = "8080";
     private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
     private static final String KUBE_DNS_NAMESPACE_LABEL_VALUE = "kube-system";
+    private static final String NAMESPACE_ISTIO_SYSTEM = "istio-system";
+    private static final String NAMESPACE_KNATIVE_SERVING = "knative-serving";
     private static final String ALLOW_ALL_KEY = "*";
     private static final String APP = "app";
 
@@ -76,10 +79,19 @@ public class CiliumNetworkPolicyCreator {
         // CiliumNetworkPolicySpec
         CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
         spec.setEndpointSelector(endpointSelector);
+        List<Egress> egressList = new ArrayList<>();
         if (CollectionUtils.isNotEmpty(allowedDomains)) {
-            spec.setEgress(toEgressList(allowedDomains));
+            egressList.addAll(toEgressList(allowedDomains));
         }
-        spec.setIngress(createIngress(ports));
+        if (chainedTransformer) {
+            // Intra-cluster reachability for chained predictor + transformer (spec 022 FR-001).
+            // Independent of allowedDomains: emitted even when external egress is locked down.
+            egressList.add(createChainedIntraClusterEgress(matchLabelName, matchLabelValue));
+        }
+        if (!egressList.isEmpty()) {
+            spec.setEgress(egressList);
+        }
+        spec.setIngress(createIngress(ports, chainedTransformer, matchLabelName, matchLabelValue));
 
         // CiliumNetworkPolicy
         CiliumNetworkPolicy policy = new CiliumNetworkPolicy();
@@ -172,21 +184,54 @@ public class CiliumNetworkPolicyCreator {
                 .toList();
     }
 
-    private List<Ingress> createIngress(@Nullable Set<Integer> ports) {
+    private Egress createChainedIntraClusterEgress(String matchLabelName, String matchLabelValue) {
+        // Same-InferenceService pods (predictor ↔ transformer hop)
+        ToEndpoints sameInferenceService = new ToEndpoints();
+        sameInferenceService.setMatchLabels(Map.of(matchLabelName, matchLabelValue));
+
+        // Istio sidecar / control plane
+        ToEndpoints istioSystem = new ToEndpoints();
+        istioSystem.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_ISTIO_SYSTEM));
+
+        // Knative serving (activator, autoscaler, queue-proxy)
+        ToEndpoints knativeServing = new ToEndpoints();
+        knativeServing.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_KNATIVE_SERVING));
+
+        Egress egress = new Egress();
+        egress.setToEndpoints(List.of(sameInferenceService, istioSystem, knativeServing));
+        // No toPorts — intra-cluster control-plane traffic is unrestricted on the port axis (spec 022 R-004).
+        return egress;
+    }
+
+    private List<Ingress> createIngress(@Nullable Set<Integer> ports,
+                                        boolean chainedTransformer,
+                                        String matchLabelName,
+                                        String matchLabelValue) {
         FromEndpoints fromEndpoints = new FromEndpoints();
         fromEndpoints.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, "istio-system", APP, "istio-ingressgateway"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_ISTIO_SYSTEM, APP, "istio-ingressgateway"
         ));
 
         FromEndpoints fromEndpointsActivator = new FromEndpoints();
         fromEndpointsActivator.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, "knative-serving", APP, "activator"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_KNATIVE_SERVING, APP, "activator"
         ));
 
         FromEndpoints fromEndpointsAutoscaler = new FromEndpoints();
         fromEndpointsAutoscaler.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, "knative-serving", APP, "autoscaler"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_KNATIVE_SERVING, APP, "autoscaler"
         ));
+
+        List<FromEndpoints> fromEndpointsList = new ArrayList<>();
+        fromEndpointsList.add(fromEndpoints);
+        fromEndpointsList.add(fromEndpointsActivator);
+        fromEndpointsList.add(fromEndpointsAutoscaler);
+        if (chainedTransformer) {
+            // Same-InferenceService ingress lets the chained pair accept traffic across components (spec 022 FR-001).
+            FromEndpoints sameInferenceService = new FromEndpoints();
+            sameInferenceService.setMatchLabels(Map.of(matchLabelName, matchLabelValue));
+            fromEndpointsList.add(sameInferenceService);
+        }
 
         // Specifying full path to avoid conflicts with similar classes in 'egress' package
         io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports port8012 =
@@ -216,12 +261,26 @@ public class CiliumNetworkPolicyCreator {
                     .forEach(ingressPorts::add);
         }
 
+        if (chainedTransformer) {
+            // Dedup against any pre-existing 8080/TCP entry (e.g. when container-port resolution already produced 8080).
+            boolean has8080Tcp = ingressPorts.stream().anyMatch(p ->
+                    CHAINED_INGRESS_PORT_8080.equals(p.getPort())
+                            && p.getProtocol() == io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
+            if (!has8080Tcp) {
+                io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports port8080 =
+                        new io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports();
+                port8080.setPort(CHAINED_INGRESS_PORT_8080);
+                port8080.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
+                ingressPorts.add(port8080);
+            }
+        }
+
         io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts ingressToPorts =
                 new io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts();
         ingressToPorts.setPorts(ingressPorts);
 
         Ingress fromEndpointsIngressRule = new Ingress();
-        fromEndpointsIngressRule.setFromEndpoints(List.of(fromEndpoints, fromEndpointsActivator, fromEndpointsAutoscaler));
+        fromEndpointsIngressRule.setFromEndpoints(fromEndpointsList);
 
         Ingress toPortsIngressRule = new Ingress();
         toPortsIngressRule.setToPorts(List.of(ingressToPorts));

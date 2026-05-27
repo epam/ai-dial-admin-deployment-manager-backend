@@ -469,6 +469,76 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
+    void deploy_shouldPassChainedFlagToCiliumPolicyCreator_whenTransformerEmitted() {
+        // Given: detection returns TEXT_CLASSIFICATION → manifest will be chained
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(null);
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(inferenceTaskDetector.detect(any()))
+                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "NEGATIVE", 1, "POSITIVE")));
+
+        // When
+        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: chained-mode creator overload called with chainedTransformer=true
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                eq(SERVICE_NAME),
+                anyList(),
+                any(),
+                eq(true)
+        );
+    }
+
+    @Test
+    void deploy_shouldPassUnchainedFlag_whenPredictorOnly() {
+        // Given: detection returns NONE (default lenient stub in setUp) → predictor-only manifest
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(null);
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any()))
+                .thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+
+        // When
+        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: legacy 5-arg overload still called (chainedTransformer=false path preserves baseline call shape)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                eq(SERVICE_NAME),
+                anyList(),
+                any()
+        );
+        // …and the 6-arg overload was NOT invoked
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), eq(true));
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), eq(false));
+    }
+
+    @Test
     void deploy_shouldMergeDefaultAllowedDomainsWithDeploymentDomainsForHuggingFaceSource() {
         // Given: HuggingFace source with deployment-specific domains and config default domains
         var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
