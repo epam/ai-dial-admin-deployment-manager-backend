@@ -9,6 +9,7 @@ public record PodInfoDto(
         @NotNull Instant createdAt,
         int restartCount,
         String lastTerminationReason,
+        String lastTerminationMessage,
         Integer lastExitCode,
         Integer lastSignal,
         Instant lastFinishedAt
