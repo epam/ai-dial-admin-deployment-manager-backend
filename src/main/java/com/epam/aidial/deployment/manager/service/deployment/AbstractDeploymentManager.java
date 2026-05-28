@@ -234,7 +234,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         // Skipped when serviceName is unset (a deployment in RUNNING without a
                         // serviceName is an inconsistent state — there is no CNP to refresh).
                         if (StringUtils.isNotBlank(deployment.getServiceName())) {
-                            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+                            updateCiliumNetworkPolicy(id, deployment.getServiceName(),
+                                    getEffectiveDeploymentAllowedDomains(deployment),
                                     getCiliumIngressPorts(deployment), chainedTransformer);
                         }
                         updateService(namespace, serviceSpec);
@@ -810,18 +811,17 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         updateCiliumNetworkPolicyImpl(id, deployment -> false);
     }
 
-    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, boolean chainedTransformer) {
-        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, chainedTransformer={}",
-                groupId, allowedDomains, ports, chainedTransformer);
+    private void updateCiliumNetworkPolicy(String groupId, String serviceName, List<String> allowedDomains, Set<Integer> ports,
+                                           boolean chainedTransformer) {
+        log.trace("updateCiliumNetworkPolicy. groupId='{}', serviceName='{}', allowedDomains={}, ports={}, chainedTransformer={}",
+                groupId, serviceName, allowedDomains, ports, chainedTransformer);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
             return;
         }
         var serviceNameLabel = getServiceNameLabel();
-        var serviceName = getServiceName(groupId);
         var cnpName = resolveCiliumNetworkPolicyName(groupId, serviceName);
-        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}', cnpName='{}', chainedTransformer={}",
-                serviceNameLabel, serviceName, cnpName, chainedTransformer);
+        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', cnpName='{}'", serviceNameLabel, cnpName);
 
         var ciliumNetworkPolicy = chainedTransformer
                 ? ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports, true)
@@ -846,7 +846,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             // The deriver is called inside the try/catch so its failures (e.g. cluster read miss)
             // are wrapped uniformly as DeploymentException.
             boolean chainedTransformer = chainedFlagDeriver.test(deployment);
-            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+            updateCiliumNetworkPolicy(id, deployment.getServiceName(),
+                    getEffectiveDeploymentAllowedDomains(deployment),
                     getCiliumIngressPorts(deployment), chainedTransformer);
         } catch (Exception e) {
             var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
