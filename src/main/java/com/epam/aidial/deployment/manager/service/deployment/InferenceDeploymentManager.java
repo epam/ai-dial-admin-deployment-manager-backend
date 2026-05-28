@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -236,8 +235,12 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    @Transactional
     public void updateCiliumNetworkPolicy(String id) {
+        // No @Transactional: the chained-signal derivation makes a synchronous K8s API call
+        // (k8sKserveClient.getService), and a wrapping txn would hold a DB connection across
+        // that call. DeploymentService.updateDeployment now invokes this from afterCommit, so
+        // there is no outer txn to inherit either.
+        //
         // On the allowedDomains-edit path the chained signal is derived from the live KServe
         // InferenceService — keeps the augmentation in sync with current topology without a
         // second HuggingFace Hub fetch. Topology flips reach the CNP via rollingUpdate, which

@@ -802,12 +802,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
-    @Transactional
     public void updateCiliumNetworkPolicy(String id) {
-        // Default path: non-chained. Subclasses that need to inspect live cluster state to derive
-        // policy customization (currently only InferenceDeploymentManager, for chained predictor +
-        // transformer reachability) override updateCiliumNetworkPolicy(String) and delegate here
-        // via updateCiliumNetworkPolicyImpl with their own derivation function.
+        // No @Transactional: this path only does two short DB reads (each behind its own
+        // repository-level transactional boundary) and one K8s write — holding a connection
+        // across the K8s call risks starving the pool under slow kube-apiserver.
+        // Subclasses that need to inspect live cluster state to derive policy customization
+        // (currently only InferenceDeploymentManager, for chained predictor + transformer
+        // reachability) override updateCiliumNetworkPolicy(String) and delegate here via
+        // updateCiliumNetworkPolicyImpl with their own derivation function.
         updateCiliumNetworkPolicyImpl(id, deployment -> false);
     }
 

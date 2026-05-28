@@ -45,6 +45,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -273,7 +275,16 @@ public class DeploymentService {
 
         boolean isApplicableForCiliumNetworkPolicyUpdate = isApplicableForCiliumNetworkPolicyUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment);
         if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForCiliumNetworkPolicyUpdate) {
-            deploymentManager.updateCiliumNetworkPolicy(id);
+            // Defer the CNP refresh to afterCommit so the synchronous K8s API calls
+            // (cluster read for the chained signal + CNP write) don't run while this
+            // @Transactional method holds a pooled DB connection. Same pattern as
+            // deploy() / rollingUpdate() in AbstractDeploymentManager.
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deploymentManager.updateCiliumNetworkPolicy(id);
+                }
+            });
         }
 
         boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
