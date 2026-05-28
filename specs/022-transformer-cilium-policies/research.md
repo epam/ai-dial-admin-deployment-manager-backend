@@ -6,20 +6,20 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 
 ---
 
-## R-001 — Signal threading: return-type wrapper vs. abstract hook vs. manifest re-parsing
+## R-001 — Signal threading: subclass-owned policy hook (chosen) vs. return-type wrapper vs. detection re-run
 
-**Decision**: Wrap the `prepareServiceSpec` return value in a small record `DeployContext<S>(S spec, boolean chainedTransformer)` (renamed from `PreparedServiceSpec` post-merge — see commit `0fa96409`). The chained flag is set inside `InferenceDeploymentManager.prepareServiceSpec(...)` — where the spec-021 detection result is already computed — and read in `AbstractDeploymentManager.deploy(...)` immediately before `createCiliumNetworkPolicy(...)`.
+**Decision**: Expose a protected hook `buildCiliumNetworkPolicy(D deployment, S serviceSpec, String serviceName, List<String> allowedDomains, Set<Integer> ports)` on `AbstractDeploymentManager`. The default implementation returns the baseline (non-augmented) policy via the existing 5-arg creator overload. `InferenceDeploymentManager` overrides it: when `serviceSpec` is non-null (deploy / rollingUpdate path), it reads chained-ness off `serviceSpec.getSpec().getTransformer()`; when `serviceSpec` is null (the `updateCiliumNetworkPolicy(id)` path, which has no in-flight manifest), it reads the live `InferenceService` from the cluster — see R-005.
 
 **Rationale**:
-- Satisfies spec FR-005 on the **deploy** and **rollingUpdate** paths: explicit input from the caller, never by re-parsing the partial manifest, never from a persisted column. On the **`updateCiliumNetworkPolicy(id)`** path the chained flag is sourced from the live KServe `InferenceService` (a Kubernetes API read) instead — see R-005 below.
-- Compile-time-safe: every override of `prepareServiceSpec` must return the new type, so it is impossible to forget to wire the flag in a new deployment manager (forgetting defaults to `unchained(...)` via the static factory, which is the safe default).
-- Zero allocations on the hot path that matter: one record per deploy operation, garbage-collected immediately.
-- Keeps the signal task-agnostic — `chainedTransformer` is a boolean, not "is text-classification". Any future chained inference task flips the same flag (per [clarification Q1](./spec.md#clarifications)).
+- The chained-transformer concept is meaningful only to KServe `InferenceService` topology. Confining the logic to `InferenceDeploymentManager` keeps the abstract base, Knative, and NIM free of any inference-specific concept. Verified by `grep` over `AbstractDeploymentManager.java` for `chained`, `transformer`, `InferenceService`, `DeployContext` — should return zero hits.
+- Satisfies spec FR-005: the deploy / rollingUpdate paths derive the signal from the strongly-typed in-memory `InferenceService` the subclass just built (a single object-graph check, not a manifest re-parse). The update path goes to the cluster (R-005). No persisted column, no second HF Hub fetch.
+- Keeps the signal task-agnostic — the override reads `spec.getTransformer() != null`, not "is text-classification". Any future chained inference task that emits a transformer block triggers the augmentation without further spec changes.
 
-**Alternatives considered**:
-- **Abstract hook `boolean isChainedManifest(D deployment, S serviceSpec)`**: would require inference to either re-derive the answer (running detection twice) or inspect the partial `InferenceService` for a `transformer` block. Re-derivation is wasteful; manifest inspection is forbidden by FR-005.
-- **Transient field on the domain model (`InferenceDeployment.isChained()`)**: pollutes the domain model with deployment-time state and risks accidental persistence if the field is ever mistakenly mapped. Rejected.
-- **Pass the detection result all the way down through `createCiliumNetworkPolicy`'s parameter list as `InferenceTaskDetectionResult`**: leaks an inference-specific type into the abstract base class. The boolean is the minimal sufficient signal.
+**Alternatives considered (and rejected)**:
+- **Wrap the `prepareServiceSpec` return in a `DeployContext<S>(S spec, boolean chainedTransformer)` record and thread the boolean through `createCiliumNetworkPolicy`** — the initial implementation chosen for this spec. Forces Knative and NIM to wrap their specs in ceremonial `DeployContext.unchained(...)` calls, leaks a KServe-only concept into the abstract base's signature, and adds a `Predicate<D>` template seam on the update path. The hook approach gives the same behavior without the leakage. Reverted in commit `<TBD-this-PR>`.
+- **Re-run `prepareServiceSpec(...)` on the update path** to recompute the chained bit: re-runs `inferenceTaskDetector.detect(...)`, which calls the HuggingFace Hub. Rejected — see R-005.
+- **Persist the chained bit on the domain model (`InferenceDeployment.isChained()`)**: pollutes the domain model with deployment-time state, risks accidental persistence if ever mapped, and adds a backfill problem for pre-feature deployments. Rejected.
+- **Inspect the partial `InferenceService` for `transformer != null`**: this was forbidden under an over-broad reading of FR-005 in the initial implementation. The clarified FR-005 (post-rework) explicitly permits inspecting the in-memory typed object — what was forbidden was *re-running upstream detection* and *parsing a serialized manifest blob*, not reading a field on the object the caller just built. The hook approach is the materialization of this clarification.
 
 ---
 
@@ -28,9 +28,9 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 **Decision**: Add a new 6-arg overload `create(namespace, matchLabelName, matchLabelValue, allowedDomains, ports, chainedTransformer)`. Keep the existing 5-arg `create(...)` as a thin delegate that calls the new method with `chainedTransformer=false`.
 
 **Rationale**:
-- Every non-inference call site (`JobRunner`, `KnativeDeploymentManager.deploy(...)`, `NimDeploymentManager.deploy(...)`, `AbstractDeploymentManager.applyDomainWhitelist(...)` re-creation path) keeps compiling without modification and produces byte-identical output — backing spec SC-002.
-- Inference is the only deployment manager that calls the 6-arg form. The call site is a single line change in `AbstractDeploymentManager.deploy(...)` and `applyDomainWhitelist(...)`, reading `preparedSpec.chainedTransformer()` and threading it through.
-- Future deployment types (e.g. NIM-with-transformer, if/when introduced) opt in by switching to the 6-arg form locally — no global change needed.
+- Every non-inference call site (`JobRunner`, `KnativeDeploymentManager`-default-hook, `NimDeploymentManager`-default-hook, `AbstractDeploymentManager.applyDomainWhitelist(...)` re-creation path) keeps compiling without modification and produces byte-identical output — backing spec SC-002.
+- Inference is the only deployment manager that calls the 6-arg form. The call site is now confined to one place: the `buildCiliumNetworkPolicy` override in `InferenceDeploymentManager`. No threading through the abstract base.
+- Future deployment types (e.g. NIM-with-transformer, if/when introduced) opt in by overriding the same hook in their own manager — no global change needed.
 
 **Alternatives considered**:
 - **Single 6-arg signature, update every caller**: forces churn in `JobRunnerTest`, `NimDeploymentManagerTest`, `KnativeDeploymentManagerTest` for no behavioral reason. Rejected.

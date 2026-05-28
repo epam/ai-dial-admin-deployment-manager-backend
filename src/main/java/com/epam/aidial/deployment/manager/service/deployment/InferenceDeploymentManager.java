@@ -15,12 +15,12 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
@@ -33,6 +33,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -93,7 +94,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected DeployContext<InferenceService> prepareServiceSpec(InferenceDeployment deployment) {
+    protected InferenceService prepareServiceSpec(InferenceDeployment deployment) {
         if (!(deployment.getSource() instanceof HuggingFaceSource huggingFaceSource)) {
             throw new IllegalArgumentException("Inference deployment source should be HuggingFace. Deployment: '%s'"
                     .formatted(deployment.getId()));
@@ -108,7 +109,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
 
-        var service = inferenceManifestGenerator.serviceConfig(
+        return inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 deployment.getModelFormat(),
@@ -125,11 +126,6 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 poolPrimitives,
                 detection.task(),
                 detection.id2Label());
-        // Chained-mode signal flows directly from the detection result already computed above —
-        // task-agnostic per spec 022 clarification Q1 (any non-NONE task today triggers a transformer block).
-        return detection.task() == InferenceTask.NONE
-                ? DeployContext.unchained(service)
-                : DeployContext.chained(service);
     }
 
     @Override
@@ -234,30 +230,41 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return service.getSpec() != null && service.getSpec().getTransformer() != null;
     }
 
+    /**
+     * Inference-specific Cilium policy shape: when the {@code InferenceService} carries a
+     * {@code transformer} block, augment the baseline policy with the chained-mode rules
+     * (per spec 022 FR-001).
+     *
+     * <p>On the {@code deploy()} / {@code rollingUpdate()} paths the just-built
+     * {@code serviceSpec} is in hand — read the chained signal directly off it (a one-line
+     * object-graph check, not a manifest re-parse).
+     *
+     * <p>On the {@code updateCiliumNetworkPolicy(id)} path {@code serviceSpec} is {@code null}
+     * (no in-flight manifest) — fall back to reading the live {@code InferenceService} from
+     * the cluster. Failing fast on an unexpectedly absent cluster resource is required: silently
+     * defaulting to {@code chained=false} would strip the augmentation and recreate the bug
+     * spec 022 fixes.
+     */
     @Override
-    public void updateCiliumNetworkPolicy(String id) {
-        // No @Transactional: the chained-signal derivation makes a synchronous K8s API call
-        // (k8sKserveClient.getService), and a wrapping txn would hold a DB connection across
-        // that call. DeploymentService.updateDeployment now invokes this from afterCommit, so
-        // there is no outer txn to inherit either.
-        //
-        // On the allowedDomains-edit path the chained signal is derived from the live KServe
-        // InferenceService — keeps the augmentation in sync with current topology without a
-        // second HuggingFace Hub fetch. Topology flips reach the CNP via rollingUpdate, which
-        // carries the freshly-computed signal from prepareServiceSpec.
-        updateCiliumNetworkPolicyImpl(id, this::deriveChainedFlagFromCluster);
+    protected CiliumNetworkPolicy buildCiliumNetworkPolicy(InferenceDeployment deployment,
+                                                           InferenceService serviceSpec,
+                                                           String serviceName,
+                                                           List<String> allowedDomains,
+                                                           Set<Integer> ports) {
+        InferenceService source = serviceSpec != null ? serviceSpec : requireLiveService(serviceName);
+        boolean chained = isChainedDeployment(source);
+        return ciliumNetworkPolicyCreator.create(
+                namespace, getServiceNameLabel(), serviceName, allowedDomains, ports, chained);
     }
 
-    private boolean deriveChainedFlagFromCluster(InferenceDeployment deployment) {
-        // Refuses to proceed when the InferenceService is unexpectedly absent. Silently degrading
-        // to chained=false would strip the augmentation and re-create the bug spec 022 fixes.
-        InferenceService service = k8sKserveClient.getService(namespace, deployment.getServiceName());
+    private InferenceService requireLiveService(String serviceName) {
+        InferenceService service = k8sKserveClient.getService(namespace, serviceName);
         if (service == null) {
             throw new IllegalStateException(
                     "Cannot determine chained-transformer state: InferenceService '%s' not found in namespace '%s'"
-                            .formatted(deployment.getServiceName(), namespace));
+                            .formatted(serviceName, namespace));
         }
-        return isChainedDeployment(service);
+        return service;
     }
 
     /**

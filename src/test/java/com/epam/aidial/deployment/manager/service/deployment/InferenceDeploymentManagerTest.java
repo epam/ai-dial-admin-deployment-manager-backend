@@ -438,7 +438,8 @@ class InferenceDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false)))
+                .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(containerPort), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
 
@@ -458,7 +459,9 @@ class InferenceDeploymentManagerTest {
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
         verify(deploymentRepository).updateServiceName(eq(DEPLOYMENT_ID), eq(SERVICE_NAME));
 
-        // Cilium policy created with deployment domains list (no default domains)
+        // Cilium policy created with deployment domains list (no default domains).
+        // Inference path always routes through the 6-arg overload via buildCiliumNetworkPolicy;
+        // chained=false here because the stubbed serviceSpec carries no transformer block.
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
@@ -467,18 +470,19 @@ class InferenceDeploymentManagerTest {
                     domains.contains("test-domain-1")
                         && domains.contains("test-domain-2")
                         && domains.size() == 2),
-                any()
+                any(),
+                eq(false)
         );
     }
 
     @Test
     void deploy_shouldPassChainedFlagToCiliumPolicyCreator_whenTransformerEmitted() {
-        // Given: detection returns TEXT_CLASSIFICATION → manifest will be chained
+        // Given: the manifest generator emits an InferenceService with a transformer block —
+        // that's the source of truth for the chained signal in the refactored design (the hook
+        // reads `serviceSpec.getSpec().getTransformer()` directly, not the detection result).
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         deployment.setServiceName(null);
-        InferenceService serviceSpec = new InferenceService();
-        serviceSpec.setMetadata(new ObjectMeta());
-        serviceSpec.getMetadata().setName(SERVICE_NAME);
+        InferenceService serviceSpec = createInferenceServiceWithTransformer();
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
@@ -503,6 +507,9 @@ class InferenceDeploymentManagerTest {
                 any(),
                 eq(true)
         );
+        // The hook on the deploy path reads chained-ness from the in-flight serviceSpec — no
+        // cluster read required.
+        verify(k8sKserveClient, never()).getService(anyString(), anyString());
     }
 
     @Test
@@ -539,23 +546,27 @@ class InferenceDeploymentManagerTest {
     @Test
     void updateCiliumNetworkPolicy_shouldEmitBaselinePolicy_whenClusterServicePredictorOnly() {
         // Given: cluster InferenceService has no transformer block → baseline (non-chained) policy.
+        // The refactored inference path always routes through the 6-arg overload; the chained flag
+        // is the differentiator, not the call shape.
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
                 .thenReturn(createInferenceServiceWithoutTransformer());
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any()))
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false)))
                 .thenReturn(ciliumNetworkPolicy);
         when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
 
         // When
         inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
 
-        // Then: 5-arg overload is used (baseline shape) — chained-mode 6-arg overload is NOT invoked.
+        // Then: 6-arg overload invoked with chained=false — byte-equivalent to the legacy 5-arg
+        // output per CiliumNetworkPolicyCreatorTest#shouldProduceIdenticalPolicyTo5ArgOverload_whenChainedFalse.
         verify(ciliumNetworkPolicyCreator).create(
-                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any());
+                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false));
         verify(ciliumNetworkPolicyCreator, never()).create(
                 anyString(), anyString(), anyString(), anyList(), any(), eq(true));
+        // Spec 022 FR-005: no HF Hub re-fetch on this path — chained signal sourced from cluster.
         verify(inferenceTaskDetector, never()).detect(any());
     }
 
@@ -566,6 +577,7 @@ class InferenceDeploymentManagerTest {
         // re-create the very failure mode spec 022 fixes.
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME)).thenReturn(null);
 
         assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
@@ -574,7 +586,7 @@ class InferenceDeploymentManagerTest {
                 .hasRootCauseInstanceOf(IllegalStateException.class)
                 .hasStackTraceContaining("InferenceService '%s' not found".formatted(SERVICE_NAME));
 
-        // No policy was written.
+        // No policy was written — the IllegalStateException short-circuits before any creator call.
         verify(ciliumNetworkPolicyCreator, never()).create(
                 anyString(), anyString(), anyString(), anyList(), any());
         verify(ciliumNetworkPolicyCreator, never()).create(
@@ -588,6 +600,7 @@ class InferenceDeploymentManagerTest {
         // wrapped as DeploymentException so the operator retries instead of seeing a 200.
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
                 .thenThrow(new RuntimeException("kube-apiserver unreachable"));
 
@@ -620,12 +633,11 @@ class InferenceDeploymentManagerTest {
 
     @Test
     void rollingUpdate_shouldRefreshCiliumPolicy_whenTopologyFlipsToChained() {
-        // Given: a running deployment whose modelName flip causes prepareServiceSpec to emit a chained
-        // InferenceService — the CNP must be refreshed in lock-step inside rollingUpdate's afterCommit.
+        // Given: a running deployment whose modelName flip causes prepareServiceSpec to emit a
+        // chained InferenceService (the manifest carries a transformer block) — the CNP must be
+        // refreshed in lock-step inside rollingUpdate's afterCommit.
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
-        InferenceService serviceSpec = new InferenceService();
-        serviceSpec.setMetadata(new ObjectMeta());
-        serviceSpec.getMetadata().setName(SERVICE_NAME);
+        InferenceService serviceSpec = createInferenceServiceWithTransformer();
 
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
@@ -734,7 +746,9 @@ class InferenceDeploymentManagerTest {
 
     @Test
     void deploy_shouldPassUnchainedFlag_whenPredictorOnly() {
-        // Given: detection returns NONE (default lenient stub in setUp) → predictor-only manifest
+        // Given: manifest generator emits a predictor-only InferenceService (no transformer block).
+        // The refactored inference path always routes through the 6-arg overload; chained=false
+        // here so the produced policy is byte-equivalent to the legacy 5-arg baseline.
         Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
         deployment.setServiceName(null);
         InferenceService serviceSpec = new InferenceService();
@@ -744,7 +758,7 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any()))
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false)))
                 .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
@@ -753,19 +767,19 @@ class InferenceDeploymentManagerTest {
         inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
-        // Then: legacy 5-arg overload still called (chainedTransformer=false path preserves baseline call shape)
+        // Then: 6-arg overload invoked with chained=false; the chained=true variant must NOT fire.
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
                 eq(SERVICE_NAME),
                 anyList(),
-                any()
+                any(),
+                eq(false)
         );
-        // …and the 6-arg overload was NOT invoked
         verify(ciliumNetworkPolicyCreator, never()).create(
                 anyString(), anyString(), anyString(), anyList(), any(), eq(true));
-        verify(ciliumNetworkPolicyCreator, never()).create(
-                anyString(), anyString(), anyString(), anyList(), any(), eq(false));
+        // Deploy path doesn't read the cluster — chained signal sourced from the in-flight spec.
+        verify(k8sKserveClient, never()).getService(anyString(), anyString());
     }
 
     @Test
@@ -785,7 +799,8 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
 
@@ -793,7 +808,8 @@ class InferenceDeploymentManagerTest {
         managerWithDefaults.deploy(DEPLOYMENT_ID);
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
-        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates)
+        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates).
+        // Inference path uses the 6-arg overload; chained flag is irrelevant to this assertion.
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
@@ -803,7 +819,8 @@ class InferenceDeploymentManagerTest {
                                 && domains.contains("huggingface.co")
                                 && domains.contains("cdn.huggingface.co")
                                 && domains.size() == 3),
-                any()
+                any(),
+                anyBoolean()
         );
     }
 
@@ -824,7 +841,8 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
 
@@ -832,7 +850,7 @@ class InferenceDeploymentManagerTest {
         managerWithDefaults.deploy(DEPLOYMENT_ID);
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
-        // Then: only default allowed domains appear in Cilium policy
+        // Then: only default allowed domains appear in Cilium policy (6-arg overload, chained flag irrelevant).
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
@@ -841,7 +859,8 @@ class InferenceDeploymentManagerTest {
                         domains.contains("huggingface.co")
                                 && domains.contains("cdn.huggingface.co")
                                 && domains.size() == 2),
-                any()
+                any(),
+                anyBoolean()
         );
     }
 
