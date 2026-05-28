@@ -39,15 +39,15 @@ public class CiliumNetworkPolicyCreator {
     private static final String UDP_PORT = "53";
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
-    private static final String CHAINED_INGRESS_PORT_8080 = "8080";
+    private static final String INGRESS_PORT_8080 = "8080";
     private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String CLUSTER_LOCAL_DNS_PATTERN = "*.svc.cluster.local";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
     private static final String KUBE_DNS_NAMESPACE_LABEL_VALUE = "kube-system";
-    private static final String NAMESPACE_ISTIO_SYSTEM = "istio-system";
-    private static final String NAMESPACE_KNATIVE_SERVING = "knative-serving";
+    private static final String ISTIO_NAMESPACE_LABEL_VALUE = "istio-system";
+    private static final String KNATIVE_NAMESPACE_LABEL_VALUE = "knative-serving";
     private static final String ALLOW_ALL_KEY = "*";
     private static final String APP = "app";
 
@@ -218,13 +218,13 @@ public class CiliumNetworkPolicyCreator {
         ToEndpoints sameInferenceService = new ToEndpoints();
         sameInferenceService.setMatchLabels(Map.of(matchLabelName, matchLabelValue));
 
-        // Istio sidecar / control plane
+        // Anything in the istio-system namespace (sidecars, ingress gateway, control plane).
         ToEndpoints istioSystem = new ToEndpoints();
-        istioSystem.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_ISTIO_SYSTEM));
+        istioSystem.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE));
 
-        // Knative serving (activator, autoscaler, queue-proxy)
+        // Anything in the knative-serving namespace (activator, autoscaler, queue-proxy, webhook).
         ToEndpoints knativeServing = new ToEndpoints();
-        knativeServing.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_KNATIVE_SERVING));
+        knativeServing.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE));
 
         Egress egress = new Egress();
         egress.setToEndpoints(List.of(sameInferenceService, istioSystem, knativeServing));
@@ -238,17 +238,17 @@ public class CiliumNetworkPolicyCreator {
                                         String matchLabelValue) {
         FromEndpoints fromEndpoints = new FromEndpoints();
         fromEndpoints.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_ISTIO_SYSTEM, APP, "istio-ingressgateway"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE, APP, "istio-ingressgateway"
         ));
 
         FromEndpoints fromEndpointsActivator = new FromEndpoints();
         fromEndpointsActivator.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_KNATIVE_SERVING, APP, "activator"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE, APP, "activator"
         ));
 
         FromEndpoints fromEndpointsAutoscaler = new FromEndpoints();
         fromEndpointsAutoscaler.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, NAMESPACE_KNATIVE_SERVING, APP, "autoscaler"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE, APP, "autoscaler"
         ));
 
         List<FromEndpoints> fromEndpointsList = new ArrayList<>();
@@ -293,12 +293,12 @@ public class CiliumNetworkPolicyCreator {
         if (chainedTransformer) {
             // Dedup against any pre-existing 8080/TCP entry (e.g. when container-port resolution already produced 8080).
             boolean has8080Tcp = ingressPorts.stream().anyMatch(p ->
-                    CHAINED_INGRESS_PORT_8080.equals(p.getPort())
+                    INGRESS_PORT_8080.equals(p.getPort())
                             && p.getProtocol() == io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
             if (!has8080Tcp) {
                 io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports port8080 =
                         new io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports();
-                port8080.setPort(CHAINED_INGRESS_PORT_8080);
+                port8080.setPort(INGRESS_PORT_8080);
                 port8080.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
                 ingressPorts.add(port8080);
             }
