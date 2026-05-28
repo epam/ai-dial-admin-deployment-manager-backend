@@ -8,13 +8,13 @@ package com.epam.aidial.deployment.manager.service.deployment;
  * persisting the fact, fetching it again from HuggingFace, or re-parsing the partial
  * manifest (spec 022 FR-005 / research R-001).
  */
-public record PreparedServiceSpec<S>(S spec, boolean chainedTransformer) {
+public record DeployContext<S>(S spec, boolean chainedTransformer) {
 
-    public static <S> PreparedServiceSpec<S> unchained(S spec) {
-        return new PreparedServiceSpec<>(spec, false);
+    public static <S> DeployContext<S> unchained(S spec) {
+        return new DeployContext<>(spec, false);
     }
 
-    public static <S> PreparedServiceSpec<S> chained(S spec) {
-        return new PreparedServiceSpec<>(spec, true);
+    public static <S> DeployContext<S> chained(S spec) {
+        return new DeployContext<>(spec, true);
     }
 }

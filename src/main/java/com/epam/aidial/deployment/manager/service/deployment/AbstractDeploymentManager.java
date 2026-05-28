@@ -677,7 +677,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return getDeploymentOptional(id).orElseThrow(notFound("Deployment", id));
     }
 
-    protected abstract PreparedServiceSpec<S> prepareServiceSpec(D deployment);
+    protected abstract DeployContext<S> prepareServiceSpec(D deployment);
 
     protected abstract void createService(String namespace, S service);
 

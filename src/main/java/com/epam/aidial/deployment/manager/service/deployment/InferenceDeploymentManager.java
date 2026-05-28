@@ -94,7 +94,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected PreparedServiceSpec<InferenceService> prepareServiceSpec(InferenceDeployment deployment) {
+    protected DeployContext<InferenceService> prepareServiceSpec(InferenceDeployment deployment) {
         if (!(deployment.getSource() instanceof HuggingFaceSource huggingFaceSource)) {
             throw new IllegalArgumentException("Inference deployment source should be HuggingFace. Deployment: '%s'"
                     .formatted(deployment.getId()));
@@ -129,8 +129,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         // Chained-mode signal flows directly from the detection result already computed above —
         // task-agnostic per spec 022 clarification Q1 (any non-NONE task today triggers a transformer block).
         return detection.task() == InferenceTask.NONE
-                ? PreparedServiceSpec.unchained(service)
-                : PreparedServiceSpec.chained(service);
+                ? DeployContext.unchained(service)
+                : DeployContext.chained(service);
     }
 
     @Override
