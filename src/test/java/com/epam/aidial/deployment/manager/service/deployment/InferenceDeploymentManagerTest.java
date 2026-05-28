@@ -505,18 +505,16 @@ class InferenceDeploymentManagerTest {
 
     @Test
     void updateCiliumNetworkPolicy_shouldPreserveChainedAugmentation_onAllowedDomainsUpdate() {
-        // Given: a chained-mode inference deployment whose allowedDomains the operator is updating
+        // Given: a chained-mode inference deployment whose allowedDomains the operator is updating.
+        // The chained signal is sourced from the live K8s InferenceService — no HuggingFace Hub call.
         Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithTransformer());
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
         when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
                 .thenReturn(ciliumNetworkPolicy);
         when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
-                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(new InferenceService());
-        when(inferenceTaskDetector.detect(any()))
-                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "NEGATIVE", 1, "POSITIVE")));
 
         // When
         inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
@@ -530,10 +528,84 @@ class InferenceDeploymentManagerTest {
                 any(),
                 eq(true)
         );
-        // Detection was re-invoked to derive the chained flag (spec 022 FR-007 acceptance scenario 3).
-        verify(inferenceTaskDetector).detect(any());
+        // Spec 022 FR-005: the chained signal must come from cluster state, not a separate HF Hub fetch.
+        verify(inferenceTaskDetector, never()).detect(any());
         // The K8s update actually went through.
         verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldEmitBaselinePolicy_whenClusterServicePredictorOnly() {
+        // Given: cluster InferenceService has no transformer block → baseline (non-chained) policy.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithoutTransformer());
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any()))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+
+        // When
+        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        // Then: 5-arg overload is used (baseline shape) — chained-mode 6-arg overload is NOT invoked.
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any());
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), eq(true));
+        verify(inferenceTaskDetector, never()).detect(any());
+    }
+
+    @Test
+    void rollingUpdate_shouldRefreshCiliumPolicy_whenTopologyFlipsToChained() {
+        // Given: a running deployment whose modelName flip causes prepareServiceSpec to emit a chained
+        // InferenceService — the CNP must be refreshed in lock-step inside rollingUpdate's afterCommit.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(inferenceTaskDetector.detect(any()))
+                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "A", 1, "B")));
+
+        // When
+        inferenceDeploymentManager.rollingUpdate(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: service was updated AND the CNP was refreshed with chainedTransformer=true (spec 022 FR-007).
+        verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true));
+        verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+    }
+
+    private InferenceService createInferenceServiceWithTransformer() {
+        InferenceService service = new InferenceService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        var spec = new io.kserve.serving.v1beta1.InferenceServiceSpec();
+        spec.setTransformer(new io.kserve.serving.v1beta1.inferenceservicespec.Transformer());
+        service.setSpec(spec);
+        return service;
+    }
+
+    private InferenceService createInferenceServiceWithoutTransformer() {
+        InferenceService service = new InferenceService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        service.setSpec(new io.kserve.serving.v1beta1.InferenceServiceSpec());
+        return service;
     }
 
     @Test

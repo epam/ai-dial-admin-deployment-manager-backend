@@ -234,6 +234,16 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return service.getSpec() != null && service.getSpec().getTransformer() != null;
     }
 
+    @Override
+    protected boolean isChainedTransformerForExistingService(String namespace, String serviceName) {
+        // Used by updateCiliumNetworkPolicy(id) on the allowedDomains-edit path to derive the chained
+        // signal without a HuggingFace Hub round-trip (spec 022 FR-005). Reads the live K8s resource;
+        // returns false if it has not yet been created (rare race: only possible if the operator edits
+        // allowedDomains between InferenceService delete and the CNP-update call).
+        InferenceService service = k8sKserveClient.getService(namespace, serviceName);
+        return service != null && isChainedDeployment(service);
+    }
+
     /**
      * Best-effort transformer readiness check based on URL presence.
      *

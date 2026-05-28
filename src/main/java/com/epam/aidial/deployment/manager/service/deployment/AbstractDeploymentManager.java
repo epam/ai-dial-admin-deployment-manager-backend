@@ -217,7 +217,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
 
         try {
-            var serviceSpec = prepareServiceSpec(deployment).spec();
+            var prepared = prepareServiceSpec(deployment);
+            var serviceSpec = prepared.spec();
+            var chainedTransformer = prepared.chainedTransformer();
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
@@ -225,6 +227,15 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 public void afterCommit() {
                     try {
                         updateService(namespace, serviceSpec);
+                        // Topology can flip on a rolling update (spec 022 FR-007). Refreshing the CNP
+                        // here keeps it in sync with the new InferenceService, using the chained signal
+                        // already computed by prepareServiceSpec — no extra HuggingFace Hub call.
+                        // Skipped when serviceName is unset (a deployment in RUNNING without a serviceName
+                        // is an inconsistent state — there is no CNP to refresh).
+                        if (StringUtils.isNotBlank(deployment.getServiceName())) {
+                            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+                                    getCiliumIngressPorts(deployment), chainedTransformer);
+                        }
                     } catch (Exception e) {
                         var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
                         log.warn(errorMessage, e);
@@ -793,11 +804,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var deployment = getDeployment(id);
 
         try {
-            // Re-run prepareServiceSpec solely to derive the chained-transformer signal so the
-            // regenerated policy preserves chained-mode augmentation across allowedDomains edits
-            // (spec 022 FR-007). The built service spec is intentionally discarded — only the
-            // boolean is needed; the InferenceService K8s resource itself is not re-applied here.
-            var chainedTransformer = prepareServiceSpec(deployment).chainedTransformer();
+            // Source the chained-transformer signal from the live K8s resource instead of re-running
+            // prepareServiceSpec — keeps spec 022 FR-005 honest ("no separate upstream fetch") on the
+            // allowedDomains-edit path and avoids re-introducing a HuggingFace Hub dependency here.
+            // Topology flips reach the CNP via rollingUpdate, which carries the freshly-computed
+            // signal from its own prepareServiceSpec call.
+            var chainedTransformer = isChainedTransformerForExistingService(namespace, deployment.getServiceName());
             updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
                     getCiliumIngressPorts(deployment), chainedTransformer);
         } catch (Exception e) {
@@ -827,6 +839,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
         log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
+    }
+
+    protected boolean isChainedTransformerForExistingService(String namespace, String serviceName) {
+        return false;
     }
 
     private void deleteCiliumNetworkPolicy(String name) {
