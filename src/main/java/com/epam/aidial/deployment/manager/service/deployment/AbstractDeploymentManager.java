@@ -803,10 +803,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     public void updateCiliumNetworkPolicy(String id) {
         var deployment = getDeployment(id);
 
+        if (StringUtils.isBlank(deployment.getServiceName())) {
+            // Deployment has never reached the create-service step (e.g. STOPPED with no prior deploy).
+            // There is no live K8s resource to derive the chained signal from and no CNP to update.
+            log.debug("updateCiliumNetworkPolicy. Skipping — deployment '{}' has no serviceName", id);
+            return;
+        }
+
         try {
             // Source the chained-transformer signal from the live K8s resource instead of re-running
-            // prepareServiceSpec — keeps spec 022 FR-005 honest ("no separate upstream fetch") on the
-            // allowedDomains-edit path and avoids re-introducing a HuggingFace Hub dependency here.
+            // prepareServiceSpec — avoids re-introducing a HuggingFace Hub dependency on this path.
             // Topology flips reach the CNP via rollingUpdate, which carries the freshly-computed
             // signal from its own prepareServiceSpec call.
             var chainedTransformer = isChainedTransformerForExistingService(namespace, deployment.getServiceName());

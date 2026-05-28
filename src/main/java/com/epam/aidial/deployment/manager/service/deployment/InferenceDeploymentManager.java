@@ -237,11 +237,18 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     @Override
     protected boolean isChainedTransformerForExistingService(String namespace, String serviceName) {
         // Used by updateCiliumNetworkPolicy(id) on the allowedDomains-edit path to derive the chained
-        // signal without a HuggingFace Hub round-trip (spec 022 FR-005). Reads the live K8s resource;
-        // returns false if it has not yet been created (rare race: only possible if the operator edits
-        // allowedDomains between InferenceService delete and the CNP-update call).
+        // signal without a HuggingFace Hub round-trip. Reads the live K8s resource.
+        //
+        // Refuses to proceed when the InferenceService is unexpectedly absent. Silently degrading to
+        // chained=false would strip the augmentation and re-create the very bug spec 022 fixes; the
+        // operator should see an explicit failure instead.
         InferenceService service = k8sKserveClient.getService(namespace, serviceName);
-        return service != null && isChainedDeployment(service);
+        if (service == null) {
+            throw new IllegalStateException(
+                    "Cannot determine chained-transformer state: InferenceService '%s' not found in namespace '%s'"
+                            .formatted(serviceName, namespace));
+        }
+        return isChainedDeployment(service);
     }
 
     /**

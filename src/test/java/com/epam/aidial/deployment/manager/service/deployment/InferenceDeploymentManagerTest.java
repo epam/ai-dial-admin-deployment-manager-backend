@@ -65,6 +65,7 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -555,6 +556,65 @@ class InferenceDeploymentManagerTest {
         verify(ciliumNetworkPolicyCreator, never()).create(
                 anyString(), anyString(), anyString(), anyList(), any(), eq(true));
         verify(inferenceTaskDetector, never()).detect(any());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldFail_whenLiveServiceMissing() {
+        // Given: the K8s InferenceService is unexpectedly absent (delete race, RBAC, etc.).
+        // The endpoint MUST NOT silently downgrade the policy to non-chained — that would
+        // re-create the very failure mode spec 022 fixes.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME)).thenReturn(null);
+
+        assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
+                .isInstanceOf(DeploymentException.class)
+                .hasMessageContaining(DEPLOYMENT_ID)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasStackTraceContaining("InferenceService '%s' not found".formatted(SERVICE_NAME));
+
+        // No policy was written.
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any());
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), anyBoolean());
+        verify(k8sClient, never()).updateCiliumNetworkPolicy(anyString(), any());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldPropagate_whenK8sClientThrows() {
+        // Given: the cluster read fails transiently. The endpoint must surface the failure
+        // wrapped as DeploymentException so the operator retries instead of seeing a 200.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenThrow(new RuntimeException("kube-apiserver unreachable"));
+
+        assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
+                .isInstanceOf(DeploymentException.class)
+                .hasRootCauseInstanceOf(RuntimeException.class)
+                .hasStackTraceContaining("kube-apiserver unreachable");
+
+        verify(k8sClient, never()).updateCiliumNetworkPolicy(anyString(), any());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldNoOp_whenServiceNameBlank() {
+        // Given: deployment has never reached the create-service step (no serviceName yet).
+        // There is no live K8s resource to read and no CNP to update — short-circuit silently
+        // rather than attempting a cluster read with a null/blank name.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        deployment.setServiceName(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        verify(k8sKserveClient, never()).getService(anyString(), anyString());
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any());
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), anyBoolean());
+        verify(k8sClient, never()).updateCiliumNetworkPolicy(anyString(), any());
     }
 
     @Test
