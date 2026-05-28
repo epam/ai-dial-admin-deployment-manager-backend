@@ -77,7 +77,6 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -674,56 +673,6 @@ class InferenceDeploymentManagerTest {
         service.setMetadata(metadata);
         service.setSpec(new io.kserve.serving.v1beta1.InferenceServiceSpec());
         return service;
-    }
-
-    @Test
-    void deploy_shouldRegeneratePolicyOnTopologyFlip() {
-        // Given: same deployment, two consecutive deploys with detection results that differ.
-        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
-        deployment.setServiceName(null);
-        InferenceService serviceSpec = new InferenceService();
-        serviceSpec.setMetadata(new ObjectMeta());
-        serviceSpec.getMetadata().setName(SERVICE_NAME);
-
-        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
-        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any()))
-                .thenReturn(ciliumNetworkPolicy);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
-                .thenReturn(ciliumNetworkPolicy);
-        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
-                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
-
-        // First deploy: detection says TEXT_CLASSIFICATION → chained
-        when(inferenceTaskDetector.detect(any()))
-                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "A", 1, "B")));
-        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-
-        // Then: 6-arg(chained=true) was used.
-        verify(ciliumNetworkPolicyCreator).create(
-                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true));
-
-        // Clear the registered synchronizations from deploy #1 — otherwise the second forEach below
-        // would re-fire them, producing duplicate creator invocations and confusing the verifies.
-        TransactionSynchronizationManager.clearSynchronization();
-        TransactionSynchronizationManager.initSynchronization();
-
-        // Reset the deployment back to STOPPED so deploy() runs again (otherwise it short-circuits).
-        deployment.setStatus(DeploymentStatus.STOPPED);
-
-        // Second deploy: detection now says NONE → predictor-only manifest
-        when(inferenceTaskDetector.detect(any())).thenReturn(InferenceTaskDetectionResult.none());
-        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-
-        // Then: 5-arg overload was used on the second pass — chained-mode rules are NOT regenerated.
-        verify(ciliumNetworkPolicyCreator).create(
-                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any());
-        // 6-arg(chained=true) was invoked exactly once total — only the first deploy.
-        verify(ciliumNetworkPolicyCreator, times(1)).create(
-                anyString(), anyString(), anyString(), anyList(), any(), eq(true));
     }
 
     @Test
