@@ -803,28 +803,11 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     @Override
     @Transactional
     public void updateCiliumNetworkPolicy(String id) {
-        var deployment = getDeployment(id);
-
-        if (StringUtils.isBlank(deployment.getServiceName())) {
-            // Deployment has never reached the create-service step (e.g. STOPPED with no prior deploy).
-            // There is no live K8s resource to derive the chained signal from and no CNP to update.
-            log.debug("updateCiliumNetworkPolicy. Skipping — deployment '{}' has no serviceName", id);
-            return;
-        }
-
-        try {
-            // Source the chained-transformer signal from the live K8s resource instead of re-running
-            // prepareServiceSpec — avoids re-introducing a HuggingFace Hub dependency on this path.
-            // Topology flips reach the CNP via rollingUpdate, which carries the freshly-computed
-            // signal from its own prepareServiceSpec call.
-            var chainedTransformer = isChainedTransformerForExistingService(namespace, deployment.getServiceName());
-            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
-                    getCiliumIngressPorts(deployment), chainedTransformer);
-        } catch (Exception e) {
-            var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
-            log.warn(errorMessage, e);
-            throw new DeploymentException(errorMessage, e);
-        }
+        // Default path: non-chained. Subclasses that need to inspect live cluster state to derive
+        // policy customization (currently only InferenceDeploymentManager, for chained predictor +
+        // transformer reachability) override updateCiliumNetworkPolicy(String) and delegate here
+        // via updateCiliumNetworkPolicyImpl with their own derivation function.
+        updateCiliumNetworkPolicyImpl(id, deployment -> false);
     }
 
     private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, boolean chainedTransformer) {
@@ -849,8 +832,27 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
     }
 
-    protected boolean isChainedTransformerForExistingService(String namespace, String serviceName) {
-        return false;
+    protected final void updateCiliumNetworkPolicyImpl(String id, Predicate<D> chainedFlagDeriver) {
+        var deployment = getDeployment(id);
+
+        if (StringUtils.isBlank(deployment.getServiceName())) {
+            // Deployment has never reached the create-service step (e.g. STOPPED with no prior deploy).
+            // There is no live K8s resource to derive the signal from and no CNP to update.
+            log.debug("updateCiliumNetworkPolicy. Skipping — deployment '{}' has no serviceName", id);
+            return;
+        }
+
+        try {
+            // The deriver is called inside the try/catch so its failures (e.g. cluster read miss)
+            // are wrapped uniformly as DeploymentException.
+            boolean chainedTransformer = chainedFlagDeriver.test(deployment);
+            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+                    getCiliumIngressPorts(deployment), chainedTransformer);
+        } catch (Exception e) {
+            var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
+            log.warn(errorMessage, e);
+            throw new DeploymentException(errorMessage, e);
+        }
     }
 
     private void deleteCiliumNetworkPolicy(String name) {

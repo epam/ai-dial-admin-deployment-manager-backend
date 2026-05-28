@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -235,18 +236,23 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected boolean isChainedTransformerForExistingService(String namespace, String serviceName) {
-        // Used by updateCiliumNetworkPolicy(id) on the allowedDomains-edit path to derive the chained
-        // signal without a HuggingFace Hub round-trip. Reads the live K8s resource.
-        //
-        // Refuses to proceed when the InferenceService is unexpectedly absent. Silently degrading to
-        // chained=false would strip the augmentation and re-create the very bug spec 022 fixes; the
-        // operator should see an explicit failure instead.
-        InferenceService service = k8sKserveClient.getService(namespace, serviceName);
+    @Transactional
+    public void updateCiliumNetworkPolicy(String id) {
+        // On the allowedDomains-edit path the chained signal is derived from the live KServe
+        // InferenceService — keeps the augmentation in sync with current topology without a
+        // second HuggingFace Hub fetch. Topology flips reach the CNP via rollingUpdate, which
+        // carries the freshly-computed signal from prepareServiceSpec.
+        updateCiliumNetworkPolicyImpl(id, this::deriveChainedFlagFromCluster);
+    }
+
+    private boolean deriveChainedFlagFromCluster(InferenceDeployment deployment) {
+        // Refuses to proceed when the InferenceService is unexpectedly absent. Silently degrading
+        // to chained=false would strip the augmentation and re-create the bug spec 022 fixes.
+        InferenceService service = k8sKserveClient.getService(namespace, deployment.getServiceName());
         if (service == null) {
             throw new IllegalStateException(
                     "Cannot determine chained-transformer state: InferenceService '%s' not found in namespace '%s'"
-                            .formatted(serviceName, namespace));
+                            .formatted(deployment.getServiceName(), namespace));
         }
         return isChainedDeployment(service);
     }
