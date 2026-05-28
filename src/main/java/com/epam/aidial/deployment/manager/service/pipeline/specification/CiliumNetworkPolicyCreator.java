@@ -41,6 +41,7 @@ public class CiliumNetworkPolicyCreator {
     private static final String INGRESS_PORT_8022 = "8022";
     private static final String CHAINED_INGRESS_PORT_8080 = "8080";
     private static final String UDP_DNS_PATTERN_ALL = "*";
+    private static final String CLUSTER_LOCAL_DNS_PATTERN = "*.svc.cluster.local";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
@@ -80,12 +81,18 @@ public class CiliumNetworkPolicyCreator {
         CiliumNetworkPolicySpec spec = new CiliumNetworkPolicySpec();
         spec.setEndpointSelector(endpointSelector);
         List<Egress> egressList = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(allowedDomains)) {
-            egressList.addAll(toEgressList(allowedDomains));
+        boolean hasAllowedDomains = CollectionUtils.isNotEmpty(allowedDomains);
+        if (hasAllowedDomains) {
+            egressList.add(createExternalEgress(allowedDomains));
+            egressList.add(createKubeDnsEgress(allowedDomains));
+        } else if (chainedTransformer) {
+            // Chained pair uses cluster-local DNS to resolve *-predictor.<ns>.svc.cluster.local.
+            // When external egress is locked down (allowedDomains empty) we still need kube-dns
+            // reachable, but only for cluster-internal names (no external DNS exfil).
+            egressList.add(createClusterDnsOnlyEgress());
         }
         if (chainedTransformer) {
             // Intra-cluster reachability for chained predictor + transformer (spec 022 FR-001).
-            // Independent of allowedDomains: emitted even when external egress is locked down.
             egressList.add(createChainedIntraClusterEgress(matchLabelName, matchLabelValue));
         }
         if (!egressList.isEmpty()) {
@@ -99,10 +106,6 @@ public class CiliumNetworkPolicyCreator {
         policy.setSpec(spec);
 
         return policy;
-    }
-
-    private List<Egress> toEgressList(List<String> domains) {
-        return List.of(createExternalEgress(domains), createKubeDnsEgress(domains));
     }
 
     private Egress createExternalEgress(List<String> domains) {
@@ -182,6 +185,32 @@ public class CiliumNetworkPolicyCreator {
                     return dns;
                 })
                 .toList();
+    }
+
+    private Egress createClusterDnsOnlyEgress() {
+        ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
+        kubeDnsToEndpoints.setMatchLabels(Map.of(
+                KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KUBE_DNS_NAMESPACE_LABEL_VALUE
+        ));
+
+        Ports kubeDnsPorts = new Ports();
+        kubeDnsPorts.setPort(UDP_PORT);
+        kubeDnsPorts.setProtocol(Protocol.ANY);
+
+        Dns dns = new Dns();
+        dns.setMatchPattern(CLUSTER_LOCAL_DNS_PATTERN);
+        Rules rules = new Rules();
+        rules.setDns(List.of(dns));
+
+        ToPorts kubeDnsToPorts = new ToPorts();
+        kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
+        kubeDnsToPorts.setRules(rules);
+
+        Egress egress = new Egress();
+        egress.setToEndpoints(List.of(kubeDnsToEndpoints));
+        egress.setToPorts(List.of(kubeDnsToPorts));
+        return egress;
     }
 
     private Egress createChainedIntraClusterEgress(String matchLabelName, String matchLabelValue) {

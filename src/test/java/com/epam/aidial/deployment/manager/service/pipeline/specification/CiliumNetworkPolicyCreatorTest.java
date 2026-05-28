@@ -103,17 +103,48 @@ class CiliumNetworkPolicyCreatorTest {
     }
 
     @Test
-    void shouldOmitKubeDnsEgress_whenAllowedDomainsEmpty_andChainedTrue() {
+    void shouldEmitClusterOnlyKubeDnsEgress_whenAllowedDomainsEmpty_andChainedTrue() {
+        // External egress is locked down (allowedDomains=[]), but the chained pair still needs
+        // cluster-local DNS to resolve *-predictor.<ns>.svc.cluster.local. Emit a kube-dns block
+        // restricted to *.svc.cluster.local — no external DNS exfil.
         CiliumNetworkPolicy policy = creator.create(
                 NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of(), null, true);
 
         List<Egress> egress = policy.getSpec().getEgress();
 
-        // Only the chained-mode intra-cluster block is present; world/kube-dns are gated by allowedDomains.
-        assertThat(egress).hasSize(1);
-        assertThat(egress.get(0).getToEndpoints()).hasSize(3);
-        assertThat(egress.get(0).getToEndpoints().get(0).getMatchLabels())
+        // Expected layout: cluster-DNS-only kube-dns, then chained intra-cluster.
+        assertThat(egress).hasSize(2);
+
+        // Entry 0: kube-dns endpoint, single matchPattern "*.svc.cluster.local"
+        var kubeDns = egress.get(0);
+        assertThat(kubeDns.getToEndpoints()).hasSize(1);
+        assertThat(kubeDns.getToEndpoints().get(0).getMatchLabels())
+                .containsEntry("k8s:k8s-app", "kube-dns");
+        var dnsRules = kubeDns.getToPorts().get(0).getRules().getDns();
+        assertThat(dnsRules).hasSize(1);
+        assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*.svc.cluster.local");
+        assertThat(dnsRules.get(0).getMatchName()).isNull();
+
+        // Entry 1: chained intra-cluster block (3 toEndpoints)
+        assertThat(egress.get(1).getToEndpoints()).hasSize(3);
+        assertThat(egress.get(1).getToEndpoints().get(0).getMatchLabels())
                 .containsExactlyEntriesOf(Map.of(LABEL_NAME, SERVICE_NAME));
+    }
+
+    @Test
+    void shouldEmitFullKubeDnsAndChainedBlock_whenAllowedDomainsPresent_andChainedTrue() {
+        // When allowedDomains is non-empty, the standard external + full kube-dns blocks emit
+        // alongside the chained intra-cluster block — the cluster-DNS-only variant is NOT used.
+        CiliumNetworkPolicy policy = creator.create(
+                NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of("*"), null, true);
+
+        List<Egress> egress = policy.getSpec().getEgress();
+        assertThat(egress).hasSize(3);
+
+        // kube-dns at index 1 carries the wildcard DNS rule, not the cluster-local pattern.
+        var dnsRules = egress.get(1).getToPorts().get(0).getRules().getDns();
+        assertThat(dnsRules).hasSize(1);
+        assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*");
     }
 
     @Test
