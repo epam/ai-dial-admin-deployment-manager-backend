@@ -226,16 +226,18 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        updateService(namespace, serviceSpec);
-                        // Topology can flip on a rolling update (spec 022 FR-007). Refreshing the CNP
-                        // here keeps it in sync with the new InferenceService, using the chained signal
-                        // already computed by prepareServiceSpec — no extra HuggingFace Hub call.
-                        // Skipped when serviceName is unset (a deployment in RUNNING without a serviceName
-                        // is an inconsistent state — there is no CNP to refresh).
+                        // Refresh the CNP BEFORE updateService on chained-mode topology flips
+                        // (predictor-only → chained): a half-applied update where the new chained
+                        // pair is live but the CNP still blocks transformer→predictor recreates
+                        // bug #87. Updating the policy first is over-permissive for a few
+                        // milliseconds, which is safer than under-permissive.
+                        // Skipped when serviceName is unset (a deployment in RUNNING without a
+                        // serviceName is an inconsistent state — there is no CNP to refresh).
                         if (StringUtils.isNotBlank(deployment.getServiceName())) {
                             updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
                                     getCiliumIngressPorts(deployment), chainedTransformer);
                         }
+                        updateService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
                         log.warn(errorMessage, e);

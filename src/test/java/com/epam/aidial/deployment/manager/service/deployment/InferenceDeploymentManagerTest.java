@@ -47,6 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatcher;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -72,6 +73,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -646,6 +648,12 @@ class InferenceDeploymentManagerTest {
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true));
         verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+
+        // CNP refresh MUST happen before the service update — half-applied flips that update the
+        // service first and the policy second can re-create bug #87 if the CNP write fails.
+        InOrder order = inOrder(k8sClient, k8sKserveClient);
+        order.verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+        order.verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
     }
 
     private InferenceService createInferenceServiceWithTransformer() {
