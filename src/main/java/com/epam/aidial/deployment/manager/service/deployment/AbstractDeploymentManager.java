@@ -806,6 +806,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         // No @Transactional: this path only does two short DB reads (each behind its own
         // repository-level transactional boundary) and one K8s write — holding a connection
         // across the K8s call risks starving the pool under slow kube-apiserver.
+        // Lazy-init-safe: deploymentRepository.getById returns a detached POJO mapped via
+        // MapStruct (PersistenceDeploymentMapper.toDomain). No Hibernate-managed entity
+        // escapes the repository call, so downstream getters cannot trigger
+        // LazyInitializationException despite running outside a JPA session.
         // Subclasses that need to inspect live cluster state to derive policy customization
         // (currently only InferenceDeploymentManager, for chained predictor + transformer
         // reachability) override updateCiliumNetworkPolicy(String) and delegate here via

@@ -274,20 +274,39 @@ public class DeploymentService {
         var updatedDeployment = deploymentRepository.update(id, deployment);
 
         boolean isApplicableForCiliumNetworkPolicyUpdate = isApplicableForCiliumNetworkPolicyUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment);
-        if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForCiliumNetworkPolicyUpdate) {
+        boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
+
+        if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING
+                && isApplicableForCiliumNetworkPolicyUpdate
+                && !isApplicableForRollingUpdate) {
             // Defer the CNP refresh to afterCommit so the synchronous K8s API calls
             // (cluster read for the chained signal + CNP write) don't run while this
             // @Transactional method holds a pooled DB connection. Same pattern as
             // deploy() / rollingUpdate() in AbstractDeploymentManager.
+            //
+            // Skipped when isApplicableForRollingUpdate: rollingUpdate's own afterCommit
+            // (AbstractDeploymentManager.rollingUpdate) refreshes the CNP first using the
+            // freshly-computed chained signal from prepareServiceSpec — strictly better
+            // than this path which would read the signal back from the cluster.
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    deploymentManager.updateCiliumNetworkPolicy(id);
+                    try {
+                        deploymentManager.updateCiliumNetworkPolicy(id);
+                    } catch (DeploymentException e) {
+                        // The DB has already committed the new allowedDomains / containerPort but
+                        // the K8s CNP write failed. The persisted state and the live policy can
+                        // drift until an operator re-submits the edit (or any subsequent deploy /
+                        // rollingUpdate refreshes the CNP). Spec 022 Risks documents the drift
+                        // acceptance; the WARN below is the observability signal.
+                        log.warn("CNP refresh failed post-commit for deployment '{}' "
+                                + "(allowedDomains / containerPort drift possible until re-sync)", id, e);
+                        throw e;
+                    }
                 }
             });
         }
 
-        boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
         if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForRollingUpdate) {
             updatedDeployment = deploymentManager.rollingUpdate(id);
         } else if (updatedDeployment.getStatus() == DeploymentStatus.CRASHED) {
