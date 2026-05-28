@@ -675,6 +675,63 @@ class InferenceDeploymentManagerTest {
         return service;
     }
 
+    /**
+     * Builds an InferenceService whose mapStatus path exercises the chained-deployment branch:
+     * {@code spec.transformer} is set so {@code isChainedDeployment(...)} returns true, and the
+     * caller controls (a) whether {@code status.components} carries a "transformer" entry at all,
+     * and (b) which of {@code transformer.url} / {@code transformer.address.url} is populated —
+     * the two fields {@code isTransformerReady(...)} inspects.
+     */
+    private InferenceService createChainedInferenceServiceWithStatusAndTransformer(
+            States.ActiveModelState activeModelState,
+            ModelStatus.TransitionStatus transitionStatus,
+            String predictorUrl,
+            String transformerUrl,
+            String transformerAddressUrl,
+            boolean includeTransformerComponent) {
+        InferenceService service = new InferenceService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+
+        var spec = new io.kserve.serving.v1beta1.InferenceServiceSpec();
+        spec.setTransformer(new io.kserve.serving.v1beta1.inferenceservicespec.Transformer());
+        service.setSpec(spec);
+
+        var status = new InferenceServiceStatus();
+
+        Components predictor = new Components();
+        if (predictorUrl != null) {
+            predictor.setUrl(predictorUrl);
+        }
+        java.util.Map<String, Components> components = new java.util.HashMap<>();
+        components.put("predictor", predictor);
+
+        if (includeTransformerComponent) {
+            Components transformer = new Components();
+            if (transformerUrl != null) {
+                transformer.setUrl(transformerUrl);
+            }
+            if (transformerAddressUrl != null) {
+                Address address = new Address();
+                address.setUrl(transformerAddressUrl);
+                transformer.setAddress(address);
+            }
+            components.put("transformer", transformer);
+        }
+        status.setComponents(components);
+
+        ModelStatus modelStatus = new ModelStatus();
+        modelStatus.setTransitionStatus(transitionStatus);
+        States states = new States();
+        states.setActiveModelState(activeModelState);
+        modelStatus.setStates(states);
+        status.setModelStatus(modelStatus);
+
+        service.setStatus(status);
+        return service;
+    }
+
     @Test
     void deploy_shouldPassUnchainedFlag_whenPredictorOnly() {
         // Given: detection returns NONE (default lenient stub in setUp) → predictor-only manifest
@@ -1237,6 +1294,140 @@ class InferenceDeploymentManagerTest {
         // Then
         assertThat(result).isTrue();
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
+    }
+
+    @Test
+    void reconcile_shouldReportRunning_whenChainedAndTransformerUrlPresent() {
+        // Case A — chained deployment, predictor LOADED+UPTODATE, transformer surfaces a URL.
+        // mapStatus must return RUNNING; the readiness gate added in spec 022 must let the chained
+        // path through once the transformer URL is observable.
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                SERVICE_URL,
+                null,
+                true);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
+    }
+
+    @Test
+    void reconcile_shouldDowngradeToPending_whenChainedAndTransformerComponentHasNoUrl() {
+        // Case B — chained, predictor LOADED+UPTODATE, transformer component present but neither
+        // .url nor .address.url populated. mapStatus must return PENDING (transformer not ready).
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                null,
+                null,
+                true);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+        verify(deploymentRepository, never()).conditionalUpdateInNewTransaction(any(), any(), any());
+    }
+
+    @Test
+    void reconcile_shouldDowngradeToPending_whenChainedAndTransformerComponentMissing() {
+        // Case C — chained, predictor LOADED+UPTODATE, status.components has only "predictor".
+        // mapStatus must return PENDING — transformer entry absent ⇒ not ready.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                null,
+                null,
+                false);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+        verify(deploymentRepository, never()).conditionalUpdateInNewTransaction(any(), any(), any());
+    }
+
+    @Test
+    void reconcile_shouldReportRunning_whenChainedAndTransformerOnlyHasAddressUrl() {
+        // Case D — chained, transformer surfaces address.url instead of the direct .url. The
+        // fallback branch in isTransformerReady must accept this as ready.
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                null,
+                INTERNAL_SERVICE_URL,
+                true);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // resolveServiceUrl prefers transformer.url over address.url, and here transformer.url is
+        // null while predictor.url is set — so the deployment-level URL ends up being whatever
+        // resolveServiceUrl falls back to. The point of this case is that mapStatus reaches
+        // RUNNING via the address.url branch in isTransformerReady, not what URL gets stored.
+        assertThat(result).isTrue();
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(eq(DEPLOYMENT_ID), any(), any());
+        verify(deploymentRepository, never()).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+    }
+
+    @Test
+    void reconcile_shouldReportRunning_whenNonChainedAndPredictorLoadedUptodate() {
+        // Case E — regression guard. The chained-readiness branch added in spec 022 must not
+        // affect predictor-only deployments. A non-chained service with predictor LOADED+UPTODATE
+        // must still resolve to RUNNING regardless of whether status.components carries a
+        // "transformer" entry.
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        InferenceService service = createInferenceServiceWithStatus(
+                SERVICE_NAME,
+                SERVICE_URL,
+                null,
+                true,
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
     }
 
     private ArgumentMatcher<Consumer<Deployment>> mutatorExpectingUrlAndRunning(String expectedUrl) {

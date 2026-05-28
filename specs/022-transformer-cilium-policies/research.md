@@ -23,21 +23,6 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 
 ---
 
-## R-005 — `updateCiliumNetworkPolicy(id)` signal source: cluster read vs. re-run detection vs. cache
-
-**Decision**: When the operator edits `allowedDomains` (or another non-topology field) on an existing deployment, the policy is regenerated via `updateCiliumNetworkPolicy(id)`. The chained flag is sourced by reading the live `InferenceService` from the API server and checking for a `spec.transformer` block. The deployment manager refuses to proceed (throws `DeploymentException`) if the cluster resource is unexpectedly absent, rather than silently downgrading to `chainedTransformer=false`.
-
-**Rationale**:
-- The previous approach re-ran `prepareServiceSpec(...)` solely to derive the flag, which re-issued two HuggingFace Hub HTTP calls per `allowedDomains` edit — directly contradicting FR-005 and adding HF Hub as a hard dependency on a domain-whitelist endpoint that has no business touching HF.
-- A Kubernetes API read is bounded, in-cluster, and already required for many other operator endpoints — comparable risk surface, no external dependency.
-- Failing fast (vs. silent degradation) is the safer default: a silently-stripped chained augmentation recreates bug #87 (transformer→predictor blocked), which is exactly what spec 022 was opened to fix. Operators retrying a 5xx is a recoverable outcome; running a wedged deployment under a downgraded policy is not.
-
-**Alternatives considered**:
-- **Cache the chained bit in the `disposableResourceManager` metadata alongside the CNP itself**: removes the cluster read entirely on the update path. Rejected for v1 because it introduces a new persistence concern (`disposableResourceManager` is a cleanup/lifecycle store, not a domain cache) and adds a fork in the failure-mode tree. Worth revisiting if the API read shows up as a bottleneck.
-- **Silently default to `chainedTransformer=false` on read failure**: rejected — see Risks in spec.md.
-
----
-
 ## R-002 — Policy creator API shape: new overload vs. wider single method
 
 **Decision**: Add a new 6-arg overload `create(namespace, matchLabelName, matchLabelValue, allowedDomains, ports, chainedTransformer)`. Keep the existing 5-arg `create(...)` as a thin delegate that calls the new method with `chainedTransformer=false`.
@@ -83,16 +68,18 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 
 ---
 
-## R-005 — Ingress fromEndpoint placement: append to existing rule vs. new ingress rule
+## R-005 — `updateCiliumNetworkPolicy(id)` signal source: cluster read vs. re-run detection vs. cache
 
-**Decision**: Append the same-`InferenceService` matchLabel entry to the **existing** ingress rule's `fromEndpoints` list (the one that already contains istio-ingressgateway / activator / autoscaler). Do **not** create a new ingress rule.
+**Decision**: When the operator edits `allowedDomains` (or another non-topology field) on an existing deployment, the policy is regenerated via `updateCiliumNetworkPolicy(id)`. The chained flag is sourced by reading the live `InferenceService` from the API server and checking for a `spec.transformer` block. The deployment manager refuses to proceed (throws `DeploymentException`) if the cluster resource is unexpectedly absent, rather than silently downgrading to `chainedTransformer=false`.
 
 **Rationale**:
-- Matches the reference YAML: the example shows the same-InferenceService entry as the fourth entry in the existing `fromEndpoints` list, not as a separate ingress block.
-- Semantically equivalent: Cilium ingress rules with the same `toPorts` constraint combine via OR on `fromEndpoints`. Adding a new ingress rule with only the chained entry and no port constraint would actually be **more** permissive (would admit traffic on any port from the matched source). Appending to the existing list keeps the port-constraint coupling intact.
+- The previous approach re-ran `prepareServiceSpec(...)` solely to derive the flag, which re-issued two HuggingFace Hub HTTP calls per `allowedDomains` edit — directly contradicting FR-005 and adding HF Hub as a hard dependency on a domain-whitelist endpoint that has no business touching HF.
+- A Kubernetes API read is bounded, in-cluster, and already required for many other operator endpoints — comparable risk surface, no external dependency.
+- Failing fast (vs. silent degradation) is the safer default: a silently-stripped chained augmentation recreates bug #87 (transformer→predictor blocked), which is exactly what spec 022 was opened to fix. Operators retrying a 5xx is a recoverable outcome; running a wedged deployment under a downgraded policy is not.
 
 **Alternatives considered**:
-- **Separate ingress rule for chained-mode source**: more permissive than intended; rejected on security grounds.
+- **Cache the chained bit in the `disposableResourceManager` metadata alongside the CNP itself**: removes the cluster read entirely on the update path. Rejected for v1 because it introduces a new persistence concern (`disposableResourceManager` is a cleanup/lifecycle store, not a domain cache) and adds a fork in the failure-mode tree. Worth revisiting if the API read shows up as a bottleneck.
+- **Silently default to `chainedTransformer=false` on read failure**: rejected — see Risks in spec.md.
 
 ---
 
@@ -134,3 +121,16 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 
 **Alternatives considered**:
 - **Add a new Micrometer counter `cilium_policy_chained_total`**: low operational value compared to a log line; rejected to keep the scope tight.
+
+---
+
+## R-009 — Ingress fromEndpoint placement: append to existing rule vs. new ingress rule
+
+**Decision**: Append the same-`InferenceService` matchLabel entry to the **existing** ingress rule's `fromEndpoints` list (the one that already contains istio-ingressgateway / activator / autoscaler). Do **not** create a new ingress rule.
+
+**Rationale**:
+- Matches the reference YAML: the example shows the same-InferenceService entry as the fourth entry in the existing `fromEndpoints` list, not as a separate ingress block.
+- Semantically equivalent: Cilium ingress rules with the same `toPorts` constraint combine via OR on `fromEndpoints`. Adding a new ingress rule with only the chained entry and no port constraint would actually be **more** permissive (would admit traffic on any port from the matched source). Appending to the existing list keeps the port-constraint coupling intact.
+
+**Alternatives considered**:
+- **Separate ingress rule for chained-mode source**: more permissive than intended; rejected on security grounds.
