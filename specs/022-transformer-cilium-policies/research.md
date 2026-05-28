@@ -8,10 +8,10 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 
 ## R-001 — Signal threading: return-type wrapper vs. abstract hook vs. manifest re-parsing
 
-**Decision**: Wrap the `prepareServiceSpec` return value in a small record `PreparedServiceSpec<S>(S spec, boolean chainedTransformer)`. The chained flag is set inside `InferenceDeploymentManager.prepareServiceSpec(...)` — where the spec-021 detection result is already computed — and read in `AbstractDeploymentManager.deploy(...)` immediately before `createCiliumNetworkPolicy(...)`.
+**Decision**: Wrap the `prepareServiceSpec` return value in a small record `DeployContext<S>(S spec, boolean chainedTransformer)` (renamed from `PreparedServiceSpec` post-merge — see commit `0fa96409`). The chained flag is set inside `InferenceDeploymentManager.prepareServiceSpec(...)` — where the spec-021 detection result is already computed — and read in `AbstractDeploymentManager.deploy(...)` immediately before `createCiliumNetworkPolicy(...)`.
 
 **Rationale**:
-- Satisfies spec FR-005 verbatim: "explicit input from the caller, never by re-parsing the partial manifest, never from a persisted column."
+- Satisfies spec FR-005 on the **deploy** and **rollingUpdate** paths: explicit input from the caller, never by re-parsing the partial manifest, never from a persisted column. On the **`updateCiliumNetworkPolicy(id)`** path the chained flag is sourced from the live KServe `InferenceService` (a Kubernetes API read) instead — see R-005 below.
 - Compile-time-safe: every override of `prepareServiceSpec` must return the new type, so it is impossible to forget to wire the flag in a new deployment manager (forgetting defaults to `unchained(...)` via the static factory, which is the safe default).
 - Zero allocations on the hot path that matter: one record per deploy operation, garbage-collected immediately.
 - Keeps the signal task-agnostic — `chainedTransformer` is a boolean, not "is text-classification". Any future chained inference task flips the same flag (per [clarification Q1](./spec.md#clarifications)).
@@ -20,6 +20,21 @@ Phase 0 records the design decisions that resolve the open questions from `plan.
 - **Abstract hook `boolean isChainedManifest(D deployment, S serviceSpec)`**: would require inference to either re-derive the answer (running detection twice) or inspect the partial `InferenceService` for a `transformer` block. Re-derivation is wasteful; manifest inspection is forbidden by FR-005.
 - **Transient field on the domain model (`InferenceDeployment.isChained()`)**: pollutes the domain model with deployment-time state and risks accidental persistence if the field is ever mistakenly mapped. Rejected.
 - **Pass the detection result all the way down through `createCiliumNetworkPolicy`'s parameter list as `InferenceTaskDetectionResult`**: leaks an inference-specific type into the abstract base class. The boolean is the minimal sufficient signal.
+
+---
+
+## R-005 — `updateCiliumNetworkPolicy(id)` signal source: cluster read vs. re-run detection vs. cache
+
+**Decision**: When the operator edits `allowedDomains` (or another non-topology field) on an existing deployment, the policy is regenerated via `updateCiliumNetworkPolicy(id)`. The chained flag is sourced by reading the live `InferenceService` from the API server and checking for a `spec.transformer` block. The deployment manager refuses to proceed (throws `DeploymentException`) if the cluster resource is unexpectedly absent, rather than silently downgrading to `chainedTransformer=false`.
+
+**Rationale**:
+- The previous approach re-ran `prepareServiceSpec(...)` solely to derive the flag, which re-issued two HuggingFace Hub HTTP calls per `allowedDomains` edit — directly contradicting FR-005 and adding HF Hub as a hard dependency on a domain-whitelist endpoint that has no business touching HF.
+- A Kubernetes API read is bounded, in-cluster, and already required for many other operator endpoints — comparable risk surface, no external dependency.
+- Failing fast (vs. silent degradation) is the safer default: a silently-stripped chained augmentation recreates bug #87 (transformer→predictor blocked), which is exactly what spec 022 was opened to fix. Operators retrying a 5xx is a recoverable outcome; running a wedged deployment under a downgraded policy is not.
+
+**Alternatives considered**:
+- **Cache the chained bit in the `disposableResourceManager` metadata alongside the CNP itself**: removes the cluster read entirely on the update path. Rejected for v1 because it introduces a new persistence concern (`disposableResourceManager` is a cleanup/lifecycle store, not a domain cache) and adds a fork in the failure-mode tree. Worth revisiting if the API read shows up as a bottleneck.
+- **Silently default to `chainedTransformer=false` on read failure**: rejected — see Risks in spec.md.
 
 ---
 
