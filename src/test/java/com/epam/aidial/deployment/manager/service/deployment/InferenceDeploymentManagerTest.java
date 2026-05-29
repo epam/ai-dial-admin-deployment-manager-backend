@@ -613,25 +613,6 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
-    void updateCiliumNetworkPolicy_shouldNoOp_whenServiceNameBlank() {
-        // Given: deployment has never reached the create-service step (no serviceName yet).
-        // There is no live K8s resource to read and no CNP to update — short-circuit silently
-        // rather than attempting a cluster read with a null/blank name.
-        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
-        deployment.setServiceName(null);
-        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
-
-        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
-
-        verify(k8sKserveClient, never()).getService(anyString(), anyString());
-        verify(ciliumNetworkPolicyCreator, never()).create(
-                anyString(), anyString(), anyString(), anyList(), any());
-        verify(ciliumNetworkPolicyCreator, never()).create(
-                anyString(), anyString(), anyString(), anyList(), any(), anyBoolean());
-        verify(k8sClient, never()).updateCiliumNetworkPolicy(anyString(), any());
-    }
-
-    @Test
     void rollingUpdate_shouldRefreshCiliumPolicy_whenTopologyFlipsToChained() {
         // Given: a running deployment whose modelName flip causes prepareServiceSpec to emit a
         // chained InferenceService (the manifest carries a transformer block) — the CNP must be

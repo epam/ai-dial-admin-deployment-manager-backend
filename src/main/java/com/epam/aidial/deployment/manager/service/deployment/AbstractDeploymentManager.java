@@ -821,13 +821,6 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         // no Hibernate-managed entity escapes the repository call.
         var deployment = getDeployment(id);
 
-        if (StringUtils.isBlank(deployment.getServiceName())) {
-            // Deployment has never reached the create-service step (e.g. STOPPED with no prior deploy).
-            // There is no live K8s resource to derive the signal from and no CNP to update.
-            log.debug("updateCiliumNetworkPolicy. Skipping — deployment '{}' has no serviceName", id);
-            return;
-        }
-
         try {
             updateCiliumNetworkPolicy(deployment, null, id, deployment.getServiceName(),
                     getEffectiveDeploymentAllowedDomains(deployment),
