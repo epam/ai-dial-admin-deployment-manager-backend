@@ -339,7 +339,8 @@ Status: **Implemented**
 
 #### Scenario: All pods
 - **WHEN** `GET /api/v1/deployments/{id}/pods` is called
-- **THEN** all pod instances are returned; each `PodInfoDto` entry includes `name`, `createdAt`, `restartCount`, `lastTerminationReason`, `lastExitCode`, `lastSignal`, `lastFinishedAt`
+- **THEN** all pod instances are returned; each `PodInfoDto` entry includes `name`, `createdAt`, `restartCount`, `lastTerminationReason`, `lastTerminationMessage`, `lastExitCode`, `lastSignal`, `lastFinishedAt`
+- **AND** `lastTerminationMessage` carries the container's `lastState.terminated.message` (or `state.terminated.message`) from the same termination as the other `lastTermination*`/`lastExitCode` fields, when present
 
 #### Scenario: Active pods only
 - **WHEN** `GET /api/v1/deployments/{id}/active-pods` is called

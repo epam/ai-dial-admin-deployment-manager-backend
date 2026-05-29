@@ -4,6 +4,7 @@
     "createdAt": 1672574400000,
     "restartCount": 5,
     "lastTerminationReason": "OOMKilled",
+    "lastTerminationMessage": "Container exceeded its memory limit",
     "lastExitCode": 137,
     "lastSignal": 9
   }

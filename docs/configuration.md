@@ -240,7 +240,7 @@ Applies to chained text-classification inference deployments (auto-detected from
 | `app.text-classification-transformer-container-config.resources.limits.memory`    | `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_LIMIT`                       | `512Mi`            | No                                                | Chained manifest generation                 | Memory limit for the transformer container.                                                                                  |
 
 
-#### [Preview] Node Pool Configuration
+#### Node Pool Configuration
 
 Node pools are scheduling presets. Each pool projects its scheduling primitives onto the workload's pod template at deploy time.
 
@@ -255,9 +255,9 @@ Each pool entry has the following fields:
 
 | Property | Environment Variable | Default | Required | Description |
 |----------|---------------------|---------|----------|-------------|
-| `app.node-pools.pools` | `NODE_POOLS` [Preview] | _(empty)_ | No | YAML list of pool entries. Per-entry field schema described above. |
-| `app.node-pools.default` | `NODE_POOL_DEFAULT` [Preview] | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
-| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL` [Preview] | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
+| `app.node-pools.pools` | `NODE_POOLS`  | _(empty)_ | No | YAML list of pool entries. Per-entry field schema described above. |
+| `app.node-pools.default` | `NODE_POOL_DEFAULT` | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
+| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL`  | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
 Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
 

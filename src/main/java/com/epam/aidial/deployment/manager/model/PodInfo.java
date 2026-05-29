@@ -17,6 +17,8 @@ public class PodInfo {
     @Nullable
     private String lastTerminationReason;
     @Nullable
+    private String lastTerminationMessage;
+    @Nullable
     private Integer lastExitCode;
     @Nullable
     private Integer lastSignal;
