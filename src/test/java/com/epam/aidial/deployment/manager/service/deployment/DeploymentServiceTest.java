@@ -17,7 +17,6 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,8 +24,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -101,16 +98,6 @@ class DeploymentServiceTest {
         when(deploymentManager.provisionSecrets(anyString(), any())).thenReturn(List.of());
         when(deploymentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(securityClaimsExtractor.getEmail()).thenReturn("test-user@example.com");
-
-        // updateDeployment registers TransactionSynchronizations; the manager is normally active
-        // inside a Spring @Transactional boundary, but we drive it manually here. Mirrors the
-        // pattern used in InferenceDeploymentManagerTest.
-        TransactionSynchronizationManager.initSynchronization();
-    }
-
-    @AfterEach
-    void tearDown() {
-        TransactionSynchronizationManager.clear();
     }
 
     @Test
@@ -172,9 +159,9 @@ class DeploymentServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void updateDeployment_shouldRegisterStandaloneCnpAfterCommit_whenOnlyAllowedDomainsChanged() {
+    void updateDeployment_shouldRefreshCnpSynchronously_whenOnlyAllowedDomainsChanged() {
         // Only the CNP predicate fires (allowedDomains diff, no other fields changed).
-        // Expect one TransactionSynchronization (the standalone CNP refresh); rollingUpdate is NOT invoked.
+        // CNP refresh runs synchronously inside the @Transactional method; rollingUpdate is NOT invoked.
         var existing = runningMcp(List.of("a.com"), 8080);
         var updated = runningMcp(List.of("a.com", "b.com"), 8080);
 
@@ -186,17 +173,14 @@ class DeploymentServiceTest {
 
         deploymentService.updateDeployment(DEPLOYMENT_ID, request);
 
-        assertThat(TransactionSynchronizationManager.getSynchronizations()).hasSize(1);
-        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
-
         verify(deploymentManager).updateCiliumNetworkPolicy(DEPLOYMENT_ID);
         verify(deploymentManager, never()).rollingUpdate(anyString());
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void updateDeployment_shouldSkipStandaloneCnpAfterCommit_whenRollingUpdateAlsoApplies() {
-        // containerPort diff triggers BOTH predicates. The standalone afterCommit must NOT register —
+    void updateDeployment_shouldSkipStandaloneCnpRefresh_whenRollingUpdateAlsoApplies() {
+        // containerPort diff triggers BOTH predicates. Standalone CNP refresh must NOT fire —
         // rollingUpdate's own afterCommit refreshes the CNP using the fresh chained signal.
         var existing = runningMcp(List.of("a.com"), 8080);
         var updated = runningMcp(List.of("a.com"), 9090);
@@ -212,20 +196,15 @@ class DeploymentServiceTest {
 
         deploymentService.updateDeployment(DEPLOYMENT_ID, request);
 
-        assertThat(TransactionSynchronizationManager.getSynchronizations())
-                .as("no standalone CNP afterCommit when rollingUpdate covers the refresh")
-                .isEmpty();
         verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
         verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void updateDeployment_shouldRethrowDeploymentException_whenAfterCommitCnpRefreshFails() {
-        // Same setup as the standalone-register test, but the K8s write fails. The afterCommit
-        // callback must rethrow DeploymentException — Spring's TransactionSynchronizationUtils
-        // swallows it in production, but the rethrow keeps the failure observable in unit tests
-        // and consistent with the rollingUpdate / deploy afterCommit pattern.
+    void updateDeployment_shouldPropagateDeploymentException_whenCnpRefreshFails() {
+        // Same setup as the standalone-refresh test, but the K8s write fails. The exception
+        // propagates synchronously from updateDeployment — operator sees a 5xx and retries.
         var existing = runningMcp(List.of("a.com"), 8080);
         var updated = runningMcp(List.of("a.com", "b.com"), 8080);
 
@@ -237,11 +216,7 @@ class DeploymentServiceTest {
         doThrow(new DeploymentException("simulated kube-apiserver failure"))
                 .when(deploymentManager).updateCiliumNetworkPolicy(DEPLOYMENT_ID);
 
-        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
-
-        assertThat(TransactionSynchronizationManager.getSynchronizations()).hasSize(1);
-        var synchronization = TransactionSynchronizationManager.getSynchronizations().get(0);
-        assertThatThrownBy(synchronization::afterCommit)
+        assertThatThrownBy(() -> deploymentService.updateDeployment(DEPLOYMENT_ID, request))
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("simulated kube-apiserver failure");
     }
