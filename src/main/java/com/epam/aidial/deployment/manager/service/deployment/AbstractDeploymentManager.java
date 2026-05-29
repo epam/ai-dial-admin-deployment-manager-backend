@@ -225,13 +225,11 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 public void afterCommit() {
                     try {
                         // Refresh CNP BEFORE updateService: on topology flips a half-applied update
-                        // where the new topology is live but the CNP still blocks the new traffic
-                        // recreates bug #87. Over-permissive briefly > under-permissive.
-                        if (StringUtils.isNotBlank(deployment.getServiceName())) {
-                            updateCiliumNetworkPolicy(deployment, serviceSpec, id, deployment.getServiceName(),
-                                    getEffectiveDeploymentAllowedDomains(deployment),
-                                    getCiliumIngressPorts(deployment));
-                        }
+                        // where the new topology is live but the CNP still blocks the new traffic.
+                        // Over-permissive briefly > under-permissive.
+                        updateCiliumNetworkPolicy(deployment, serviceSpec, id, deployment.getServiceName(),
+                                getEffectiveDeploymentAllowedDomains(deployment),
+                                getCiliumIngressPorts(deployment));
                         updateService(namespace, serviceSpec);
                     } catch (Exception e) {
                         var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
