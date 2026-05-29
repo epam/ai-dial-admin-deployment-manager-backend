@@ -490,6 +490,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 Instant.parse(pod.getMetadata().getCreationTimestamp()),
                 containerInfo.restartCount(),
                 containerInfo.lastTerminationReason(),
+                containerInfo.lastTerminationMessage(),
                 containerInfo.lastExitCode(),
                 containerInfo.lastSignal(),
                 containerInfo.lastFinishedAt()
@@ -498,7 +499,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
     private ContainerInfo extractContainerInfo(List<ContainerStatus> containerStatuses) {
         if (CollectionUtils.isEmpty(containerStatuses)) {
-            return new ContainerInfo(0, null, null, null, null);
+            return new ContainerInfo(0, null, null, null, null, null);
         }
 
         int totalRestartCount = 0;
@@ -521,13 +522,14 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             return new ContainerInfo(
                     totalRestartCount,
                     mostRecentTermination.getReason(),
+                    mostRecentTermination.getMessage(),
                     mostRecentTermination.getExitCode(),
                     mostRecentTermination.getSignal(),
                     K8sParseUtils.parseInstant(mostRecentTermination.getFinishedAt())
             );
         }
 
-        return new ContainerInfo(totalRestartCount, null, null, null, null);
+        return new ContainerInfo(totalRestartCount, null, null, null, null, null);
     }
 
     private ContainerStateTerminated getTerminatedState(ContainerState state) {
@@ -891,6 +893,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     private record ContainerInfo(
             int restartCount,
             String lastTerminationReason,
+            String lastTerminationMessage,
             Integer lastExitCode,
             Integer lastSignal,
             Instant lastFinishedAt
