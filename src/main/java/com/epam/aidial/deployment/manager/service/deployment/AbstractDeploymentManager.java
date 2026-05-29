@@ -224,13 +224,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        // Refresh the CNP BEFORE updateService on topology flips that require new
-                        // reachability (e.g. predictor-only → chained on the inference path): a
-                        // half-applied update where the new topology is live but the CNP still
-                        // blocks the new traffic recreates bug #87. Updating the policy first is
-                        // over-permissive for a few milliseconds, which is safer than under-permissive.
-                        // Skipped when serviceName is unset (a deployment in RUNNING without a
-                        // serviceName is an inconsistent state — there is no CNP to refresh).
+                        // Refresh CNP BEFORE updateService: on topology flips a half-applied update
+                        // where the new topology is live but the CNP still blocks the new traffic
+                        // recreates bug #87. Over-permissive briefly > under-permissive.
                         if (StringUtils.isNotBlank(deployment.getServiceName())) {
                             updateCiliumNetworkPolicy(deployment, serviceSpec, id, deployment.getServiceName(),
                                     getEffectiveDeploymentAllowedDomains(deployment),
@@ -772,15 +768,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     /**
-     * Subclass-owned hook that renders the deployment's {@link CiliumNetworkPolicy}. The default
-     * implementation produces the baseline (non-augmented) policy that all deployment types have
-     * historically shared. Subclasses override to inspect their own freshly-built {@code serviceSpec}
-     * and add type-specific reachability rules (e.g. {@code InferenceDeploymentManager} inspects
-     * the {@code InferenceService} for a {@code transformer} block).
-     *
-     * <p>{@code serviceSpec} is {@code null} on the {@link #updateCiliumNetworkPolicy(String)} path
-     * — there is no in-flight manifest at that point. Subclasses that need topology state on the
-     * update path must read it from the cluster themselves.
+     * Renders the deployment's {@link CiliumNetworkPolicy}. Default produces the baseline policy;
+     * subclasses override to add type-specific rules. {@code serviceSpec} is {@code null} on the
+     * {@link #updateCiliumNetworkPolicy(String)} path — overrides that need topology state must
+     * read it from the cluster themselves.
      */
     protected CiliumNetworkPolicy buildCiliumNetworkPolicy(D deployment, S serviceSpec, String serviceName,
                                                            List<String> allowedDomains, Set<Integer> ports) {
@@ -812,15 +803,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     }
 
     @Override
+    @Transactional
     public void updateCiliumNetworkPolicy(String id) {
-        // No @Transactional: the buildCiliumNetworkPolicy hook may make a synchronous K8s API call
-        // in subclasses that need live cluster state, and a wrapping txn would hold a DB connection
-        // across that call. DeploymentService.updateDeployment invokes this from afterCommit, so
-        // there is no outer txn to inherit either. Lazy-init-safe: deploymentRepository.getById
-        // returns a detached POJO mapped via MapStruct (PersistenceDeploymentMapper.toDomain) —
-        // no Hibernate-managed entity escapes the repository call.
         var deployment = getDeployment(id);
-
         try {
             updateCiliumNetworkPolicy(deployment, null, id, deployment.getServiceName(),
                     getEffectiveDeploymentAllowedDomains(deployment),

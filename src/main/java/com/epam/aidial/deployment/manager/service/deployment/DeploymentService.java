@@ -274,10 +274,8 @@ public class DeploymentService {
         boolean isApplicableForCiliumNetworkPolicyUpdate = isApplicableForCiliumNetworkPolicyUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment);
         boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
 
-        // Skipped when isApplicableForRollingUpdate: rollingUpdate's own afterCommit
-        // (AbstractDeploymentManager.rollingUpdate) refreshes the CNP first using the
-        // freshly-computed chained signal from prepareServiceSpec — strictly better
-        // than this path which would read the signal back from the cluster.
+        // Skip when rollingUpdate also fires — its afterCommit already refreshes the CNP using
+        // the freshly-built spec (no extra cluster read).
         if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING
                 && isApplicableForCiliumNetworkPolicyUpdate
                 && !isApplicableForRollingUpdate) {

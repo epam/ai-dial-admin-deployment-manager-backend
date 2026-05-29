@@ -231,19 +231,10 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     /**
-     * Inference-specific Cilium policy shape: when the {@code InferenceService} carries a
-     * {@code transformer} block, augment the baseline policy with the chained-mode rules
-     * (per spec 022 FR-001).
-     *
-     * <p>On the {@code deploy()} / {@code rollingUpdate()} paths the just-built
-     * {@code serviceSpec} is in hand — read the chained signal directly off it (a one-line
-     * object-graph check, not a manifest re-parse).
-     *
-     * <p>On the {@code updateCiliumNetworkPolicy(id)} path {@code serviceSpec} is {@code null}
-     * (no in-flight manifest) — fall back to reading the live {@code InferenceService} from
-     * the cluster. Failing fast on an unexpectedly absent cluster resource is required: silently
-     * defaulting to {@code chained=false} would strip the augmentation and recreate the bug
-     * spec 022 fixes.
+     * Augments the baseline policy with chained-mode rules (spec 022 FR-001) when the
+     * {@code InferenceService} carries a transformer. On the update path {@code serviceSpec}
+     * is null and the live cluster resource is read; failing fast on absence avoids silently
+     * stripping the augmentation (which would recreate the bug spec 022 fixes).
      */
     @Override
     protected CiliumNetworkPolicy buildCiliumNetworkPolicy(InferenceDeployment deployment,
@@ -252,17 +243,15 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                                                            List<String> allowedDomains,
                                                            Set<Integer> ports) {
         InferenceService source = serviceSpec != null ? serviceSpec : requireLiveService(serviceName);
-        boolean chained = isChainedDeployment(source);
         return ciliumNetworkPolicyCreator.create(
-                namespace, getServiceNameLabel(), serviceName, allowedDomains, ports, chained);
+                namespace, getServiceNameLabel(), serviceName, allowedDomains, ports, isChainedDeployment(source));
     }
 
     private InferenceService requireLiveService(String serviceName) {
         InferenceService service = k8sKserveClient.getService(namespace, serviceName);
         if (service == null) {
             throw new IllegalStateException(
-                    "Cannot determine chained-transformer state: InferenceService '%s' not found in namespace '%s'"
-                            .formatted(serviceName, namespace));
+                    "InferenceService '%s' not found in namespace '%s'".formatted(serviceName, namespace));
         }
         return service;
     }
