@@ -4,6 +4,7 @@ import io.cilium.v2.CiliumNetworkPolicy;
 import io.cilium.v2.ciliumnetworkpolicyspec.Egress;
 import io.cilium.v2.ciliumnetworkpolicyspec.Ingress;
 import io.cilium.v2.ciliumnetworkpolicyspec.egress.ToEndpoints;
+import io.cilium.v2.ciliumnetworkpolicyspec.egress.toports.rules.Dns;
 import io.cilium.v2.ciliumnetworkpolicyspec.ingress.FromEndpoints;
 import org.junit.jupiter.api.Test;
 
@@ -35,23 +36,28 @@ class CiliumNetworkPolicyCreatorTest {
 
         Egress chained = egress.get(2);
         assertThat(chained.getToPorts())
-                .as("chained egress block has no toPorts constraint (spec 022 R-004)")
+                .as("chained egress block has no toPorts constraint (spec 022 FR-002)")
                 .isNull();
 
         List<ToEndpoints> toEndpoints = chained.getToEndpoints();
-        assertThat(toEndpoints).hasSize(3);
+        // Narrowed selectors: sameInferenceService + istiod + activator + autoscaler
+        assertThat(toEndpoints).hasSize(4);
 
         // Entry 1: same-InferenceService pods (predictor ↔ transformer)
         assertThat(toEndpoints.get(0).getMatchLabels())
-                .containsExactlyEntriesOf(Map.of(LABEL_NAME, SERVICE_NAME));
+                .containsExactlyInAnyOrderEntriesOf(Map.of(LABEL_NAME, SERVICE_NAME));
 
-        // Entry 2: istio-system namespace
+        // Entry 2: istiod in istio-system
         assertThat(toEndpoints.get(1).getMatchLabels())
-                .containsExactlyEntriesOf(Map.of(NS_LABEL, "istio-system"));
+                .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "istio-system", "app", "istiod"));
 
-        // Entry 3: knative-serving namespace
+        // Entry 3: knative activator
         assertThat(toEndpoints.get(2).getMatchLabels())
-                .containsExactlyEntriesOf(Map.of(NS_LABEL, "knative-serving"));
+                .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "knative-serving", "app", "activator"));
+
+        // Entry 4: knative autoscaler
+        assertThat(toEndpoints.get(3).getMatchLabels())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "knative-serving", "app", "autoscaler"));
     }
 
     @Test
@@ -74,32 +80,33 @@ class CiliumNetworkPolicyCreatorTest {
     }
 
     @Test
-    void shouldAppend8080TcpToIngressPorts_whenChainedTrue() {
+    void shouldIncludeCallerPortsInIngressToPorts_whenChainedTrue() {
+        // 8080 (KServe model-server port) arrives via `ports` from the caller — production
+        // wires this in via getCiliumIngressPorts → DEFAULT_KSERVE_SERVICE_PORT. The chained
+        // branch no longer adds 8080 as a literal, so the only entry comes from `ports`.
+        CiliumNetworkPolicy policy = creator.create(
+                NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of("*"), Set.of(8080), true);
+
+        var portsList = policy.getSpec().getIngress().get(1).getToPorts().get(0).getPorts();
+        var portStrings = portsList.stream().map(p -> p.getPort()).toList();
+
+        assertThat(portStrings).contains("8012", "8022", "8080");
+        assertThat(portStrings.stream().filter("8080"::equals).count())
+                .as("8080/TCP must appear exactly once")
+                .isEqualTo(1L);
+    }
+
+    @Test
+    void shouldNotInject8080AsChainedLiteral_whenCallerDidNotPassIt() {
+        // Regression guard for review finding #6: the chained branch no longer injects 8080
+        // unconditionally. If the caller doesn't pass it, the policy doesn't expose it.
         CiliumNetworkPolicy policy = creator.create(
                 NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of("*"), null, true);
 
         var portsList = policy.getSpec().getIngress().get(1).getToPorts().get(0).getPorts();
         var portStrings = portsList.stream().map(p -> p.getPort()).toList();
 
-        assertThat(portStrings).contains("8012", "8022", "8080");
-        // exactly one 8080 entry
-        assertThat(portStrings.stream().filter("8080"::equals).count()).isEqualTo(1L);
-    }
-
-    @Test
-    void shouldDeduplicatePort8080_whenAlreadyResolvedFromContainerPort() {
-        // Container-port resolution already produced 8080 → chained-mode logic must dedupe.
-        CiliumNetworkPolicy policy = creator.create(
-                NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of("*"), Set.of(8080), true);
-
-        var portsList = policy.getSpec().getIngress().get(1).getToPorts().get(0).getPorts();
-        long count8080 = portsList.stream()
-                .filter(p -> "8080".equals(p.getPort()))
-                .count();
-
-        assertThat(count8080)
-                .as("8080/TCP must appear exactly once after dedup")
-                .isEqualTo(1L);
+        assertThat(portStrings).containsExactly("8012", "8022");
     }
 
     @Test
@@ -125,26 +132,59 @@ class CiliumNetworkPolicyCreatorTest {
         assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*.svc.cluster.local");
         assertThat(dnsRules.get(0).getMatchName()).isNull();
 
-        // Entry 1: chained intra-cluster block (3 toEndpoints)
-        assertThat(egress.get(1).getToEndpoints()).hasSize(3);
+        // Entry 1: chained intra-cluster block (4 toEndpoints with narrowed selectors)
+        assertThat(egress.get(1).getToEndpoints()).hasSize(4);
         assertThat(egress.get(1).getToEndpoints().get(0).getMatchLabels())
-                .containsExactlyEntriesOf(Map.of(LABEL_NAME, SERVICE_NAME));
+                .containsExactlyInAnyOrderEntriesOf(Map.of(LABEL_NAME, SERVICE_NAME));
     }
 
     @Test
     void shouldEmitFullKubeDnsAndChainedBlock_whenAllowedDomainsPresent_andChainedTrue() {
-        // When allowedDomains is non-empty, the standard external + full kube-dns blocks emit
-        // alongside the chained intra-cluster block — the cluster-DNS-only variant is NOT used.
+        // When allowedDomains is "*", the wildcard matchPattern already covers cluster-local
+        // names — no extra entry needed.
         CiliumNetworkPolicy policy = creator.create(
                 NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of("*"), null, true);
 
         List<Egress> egress = policy.getSpec().getEgress();
         assertThat(egress).hasSize(3);
 
-        // kube-dns at index 1 carries the wildcard DNS rule, not the cluster-local pattern.
         var dnsRules = egress.get(1).getToPorts().get(0).getRules().getDns();
         assertThat(dnsRules).hasSize(1);
         assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*");
+    }
+
+    @Test
+    void shouldAppendClusterLocalDnsPattern_whenChainedAndSpecificDomains() {
+        // Regression guard for review finding #1: the production HF configuration uses specific
+        // non-wildcard domains (huggingface.co, …). Without an explicit cluster-local matchPattern,
+        // Cilium's DNS proxy refuses *-predictor.<ns>.svc.cluster.local and the chained pair fails.
+        CiliumNetworkPolicy policy = creator.create(
+                NAMESPACE, LABEL_NAME, SERVICE_NAME,
+                List.of("huggingface.co", "transfer.xethub.hf.co"), null, true);
+
+        List<Egress> egress = policy.getSpec().getEgress();
+        // Expected: external-egress + kube-dns + chained intra-cluster
+        assertThat(egress).hasSize(3);
+
+        var dnsRules = egress.get(1).getToPorts().get(0).getRules().getDns();
+        var matchNames = dnsRules.stream().map(Dns::getMatchName).filter(java.util.Objects::nonNull).toList();
+        var matchPatterns = dnsRules.stream().map(Dns::getMatchPattern).filter(java.util.Objects::nonNull).toList();
+
+        assertThat(matchNames).containsExactlyInAnyOrder("huggingface.co", "transfer.xethub.hf.co");
+        assertThat(matchPatterns).containsExactly("*.svc.cluster.local");
+    }
+
+    @Test
+    void shouldNotAppendClusterLocalDnsPattern_whenSpecificDomainsButNotChained() {
+        // Predictor-only / non-chained paths must NOT gain the cluster-local pattern — preserves
+        // byte-equivalence with the pre-feature policy (SC-002).
+        CiliumNetworkPolicy policy = creator.create(
+                NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of("huggingface.co"), null, false);
+
+        var dnsRules = policy.getSpec().getEgress().get(1).getToPorts().get(0).getRules().getDns();
+        var matchPatterns = dnsRules.stream().map(Dns::getMatchPattern).filter(java.util.Objects::nonNull).toList();
+
+        assertThat(matchPatterns).isEmpty();
     }
 
     @Test

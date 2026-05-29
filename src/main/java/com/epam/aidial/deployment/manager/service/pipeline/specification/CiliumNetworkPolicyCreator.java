@@ -39,7 +39,6 @@ public class CiliumNetworkPolicyCreator {
     private static final String UDP_PORT = "53";
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
-    private static final String INGRESS_PORT_8080 = "8080";
     private static final String UDP_DNS_PATTERN_ALL = "*";
     private static final String CLUSTER_LOCAL_DNS_PATTERN = "*.svc.cluster.local";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
@@ -50,6 +49,10 @@ public class CiliumNetworkPolicyCreator {
     private static final String KNATIVE_NAMESPACE_LABEL_VALUE = "knative-serving";
     private static final String ALLOW_ALL_KEY = "*";
     private static final String APP = "app";
+    private static final String ISTIO_INGRESSGATEWAY_APP = "istio-ingressgateway";
+    private static final String ISTIOD_APP = "istiod";
+    private static final String KNATIVE_ACTIVATOR_APP = "activator";
+    private static final String KNATIVE_AUTOSCALER_APP = "autoscaler";
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
@@ -84,12 +87,14 @@ public class CiliumNetworkPolicyCreator {
         boolean hasAllowedDomains = CollectionUtils.isNotEmpty(allowedDomains);
         if (hasAllowedDomains) {
             egressList.add(createExternalEgress(allowedDomains));
-            egressList.add(createKubeDnsEgress(allowedDomains));
+            // Chained pairs need to resolve *-predictor.<ns>.svc.cluster.local via kube-dns even
+            // when allowedDomains is a specific list — Cilium's DNS proxy would otherwise reject
+            // cluster-local names not in the matchName set.
+            egressList.add(createKubeDnsEgress(allowedDomains, chainedTransformer));
         } else if (chainedTransformer) {
-            // Chained pair uses cluster-local DNS to resolve *-predictor.<ns>.svc.cluster.local.
-            // When external egress is locked down (allowedDomains empty) we still need kube-dns
-            // reachable, but only for cluster-internal names (no external DNS exfil).
-            egressList.add(createClusterDnsOnlyEgress());
+            // External egress locked down; emit a kube-dns block restricted to cluster-local
+            // names only so the predictor's cluster DNS name resolves without external DNS exfil.
+            egressList.add(createKubeDnsEgress(List.of(), true));
         }
         if (chainedTransformer) {
             // Intra-cluster reachability for chained predictor + transformer (spec 022 FR-001).
@@ -149,7 +154,7 @@ public class CiliumNetworkPolicyCreator {
         return domains.contains(ALLOW_ALL_KEY);
     }
 
-    private Egress createKubeDnsEgress(List<String> domains) {
+    private Egress createKubeDnsEgress(List<String> domains, boolean includeClusterLocal) {
         ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
         kubeDnsToEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
@@ -160,7 +165,7 @@ public class CiliumNetworkPolicyCreator {
         kubeDnsPorts.setPort(UDP_PORT);
         kubeDnsPorts.setProtocol(Protocol.ANY);
         Rules rules = new Rules();
-        rules.setDns(toDnsList(domains));
+        rules.setDns(toDnsList(domains, includeClusterLocal));
 
         ToPorts kubeDnsToPorts = new ToPorts();
         kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
@@ -172,45 +177,25 @@ public class CiliumNetworkPolicyCreator {
         return egress;
     }
 
-    private List<Dns> toDnsList(List<String> domains) {
+    private List<Dns> toDnsList(List<String> domains, boolean includeClusterLocal) {
+        // matchPattern "*" already covers every name including cluster-local — no extra entry.
         if (allowAllEgress(domains)) {
             Dns dns = new Dns();
             dns.setMatchPattern(UDP_DNS_PATTERN_ALL);
             return List.of(dns);
         }
-        return domains.stream()
-                .map(domain -> {
-                    Dns dns = new Dns();
-                    dns.setMatchName(domain);
-                    return dns;
-                })
-                .toList();
-    }
-
-    private Egress createClusterDnsOnlyEgress() {
-        ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
-        kubeDnsToEndpoints.setMatchLabels(Map.of(
-                KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
-                KUBE_DNS_NAMESPACE_LABEL_NAME, KUBE_DNS_NAMESPACE_LABEL_VALUE
-        ));
-
-        Ports kubeDnsPorts = new Ports();
-        kubeDnsPorts.setPort(UDP_PORT);
-        kubeDnsPorts.setProtocol(Protocol.ANY);
-
-        Dns dns = new Dns();
-        dns.setMatchPattern(CLUSTER_LOCAL_DNS_PATTERN);
-        Rules rules = new Rules();
-        rules.setDns(List.of(dns));
-
-        ToPorts kubeDnsToPorts = new ToPorts();
-        kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
-        kubeDnsToPorts.setRules(rules);
-
-        Egress egress = new Egress();
-        egress.setToEndpoints(List.of(kubeDnsToEndpoints));
-        egress.setToPorts(List.of(kubeDnsToPorts));
-        return egress;
+        List<Dns> rules = new ArrayList<>(domains.size() + 1);
+        for (String domain : domains) {
+            Dns dns = new Dns();
+            dns.setMatchName(domain);
+            rules.add(dns);
+        }
+        if (includeClusterLocal) {
+            Dns clusterLocal = new Dns();
+            clusterLocal.setMatchPattern(CLUSTER_LOCAL_DNS_PATTERN);
+            rules.add(clusterLocal);
+        }
+        return rules;
     }
 
     private Egress createChainedIntraClusterEgress(String matchLabelName, String matchLabelValue) {
@@ -218,17 +203,31 @@ public class CiliumNetworkPolicyCreator {
         ToEndpoints sameInferenceService = new ToEndpoints();
         sameInferenceService.setMatchLabels(Map.of(matchLabelName, matchLabelValue));
 
-        // Anything in the istio-system namespace (sidecars, ingress gateway, control plane).
-        ToEndpoints istioSystem = new ToEndpoints();
-        istioSystem.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE));
+        // istiod (xDS sidecar config sync). istio-ingressgateway is an ingress source, not an
+        // egress target, so we don't need whole-namespace reach.
+        ToEndpoints istiod = new ToEndpoints();
+        istiod.setMatchLabels(Map.of(
+                KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE,
+                APP, ISTIOD_APP
+        ));
 
-        // Anything in the knative-serving namespace (activator, autoscaler, queue-proxy, webhook).
-        ToEndpoints knativeServing = new ToEndpoints();
-        knativeServing.setMatchLabels(Map.of(KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE));
+        // Knative activator (cold-start data path) and autoscaler (metrics push). Queue-proxy
+        // runs as a sidecar in the workload pod, so cluster-network egress does not apply.
+        ToEndpoints activator = new ToEndpoints();
+        activator.setMatchLabels(Map.of(
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE,
+                APP, KNATIVE_ACTIVATOR_APP
+        ));
+
+        ToEndpoints autoscaler = new ToEndpoints();
+        autoscaler.setMatchLabels(Map.of(
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE,
+                APP, KNATIVE_AUTOSCALER_APP
+        ));
 
         Egress egress = new Egress();
-        egress.setToEndpoints(List.of(sameInferenceService, istioSystem, knativeServing));
-        // No toPorts — intra-cluster control-plane traffic is unrestricted on the port axis (spec 022 R-004).
+        egress.setToEndpoints(List.of(sameInferenceService, istiod, activator, autoscaler));
+        // No toPorts — intra-cluster control-plane traffic is unrestricted on the port axis (spec 022 FR-002).
         return egress;
     }
 
@@ -238,17 +237,17 @@ public class CiliumNetworkPolicyCreator {
                                         String matchLabelValue) {
         FromEndpoints fromEndpoints = new FromEndpoints();
         fromEndpoints.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE, APP, "istio-ingressgateway"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE, APP, ISTIO_INGRESSGATEWAY_APP
         ));
 
         FromEndpoints fromEndpointsActivator = new FromEndpoints();
         fromEndpointsActivator.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE, APP, "activator"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE, APP, KNATIVE_ACTIVATOR_APP
         ));
 
         FromEndpoints fromEndpointsAutoscaler = new FromEndpoints();
         fromEndpointsAutoscaler.setMatchLabels(Map.of(
-                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE, APP, "autoscaler"
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE, APP, KNATIVE_AUTOSCALER_APP
         ));
 
         List<FromEndpoints> fromEndpointsList = new ArrayList<>();
@@ -290,19 +289,7 @@ public class CiliumNetworkPolicyCreator {
                     .forEach(ingressPorts::add);
         }
 
-        if (chainedTransformer) {
-            // Dedup against any pre-existing 8080/TCP entry (e.g. when container-port resolution already produced 8080).
-            boolean has8080Tcp = ingressPorts.stream().anyMatch(p ->
-                    INGRESS_PORT_8080.equals(p.getPort())
-                            && p.getProtocol() == io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
-            if (!has8080Tcp) {
-                io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports port8080 =
-                        new io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports();
-                port8080.setPort(INGRESS_PORT_8080);
-                port8080.setProtocol(io.cilium.v2.ciliumnetworkpolicyspec.ingress.toports.Ports.Protocol.TCP);
-                ingressPorts.add(port8080);
-            }
-        }
+        // KServe model-server port 8080 arrives via `ports` from the caller (DEFAULT_KSERVE_SERVICE_PORT).
 
         io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts ingressToPorts =
                 new io.cilium.v2.ciliumnetworkpolicyspec.ingress.ToPorts();

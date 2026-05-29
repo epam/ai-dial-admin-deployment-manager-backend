@@ -595,6 +595,55 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
+    void updateCiliumNetworkPolicy_shouldCreateInstead_whenK8sUpdateReturns404() {
+        // Given: the CNP does not exist in the cluster (e.g. cilium-policies was disabled at
+        // deploy time and has since been flipped on). The update path must catch the 404 and
+        // create the policy instead of bubbling the failure.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithTransformer());
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+        doThrow(new io.fabric8.kubernetes.client.KubernetesClientException("not found", 404, null))
+                .when(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+
+        // When
+        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        // Then: after the 404, the policy is created and registered as a disposable resource.
+        verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+        verify(k8sClient).createCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+        verify(disposableResourceManager).saveK8sResources(
+                eq(List.of(ciliumNetworkPolicy)),
+                eq(com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind.CILIUM_NETWORK_POLICY),
+                eq(DEPLOYMENT_ID),
+                eq(NAMESPACE));
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldPropagate_whenK8sUpdateNon404Error() {
+        // Non-404 errors must NOT be silently swallowed by the create-on-404 fallback.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithTransformer());
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+        doThrow(new io.fabric8.kubernetes.client.KubernetesClientException("forbidden", 403, null))
+                .when(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+
+        assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
+                .isInstanceOf(DeploymentException.class)
+                .hasRootCauseInstanceOf(io.fabric8.kubernetes.client.KubernetesClientException.class);
+        verify(k8sClient, never()).createCiliumNetworkPolicy(anyString(), any());
+    }
+
+    @Test
     void updateCiliumNetworkPolicy_shouldPropagate_whenK8sClientThrows() {
         // Given: the cluster read fails transiently. The endpoint must surface the failure
         // wrapped as DeploymentException so the operator retries instead of seeing a 200.

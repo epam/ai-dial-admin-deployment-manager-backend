@@ -224,8 +224,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        // Refresh CNP BEFORE updateService: on topology flips a half-applied update
-                        // where the new topology is live but the CNP still blocks the new traffic.
+                        // Refresh CNP BEFORE updateService to avoid a half-applied update where
+                        // the new topology is live but the CNP still blocks the new traffic.
                         // Over-permissive briefly > under-permissive.
                         updateCiliumNetworkPolicy(deployment, serviceSpec, id, deployment.getServiceName(),
                                 getEffectiveDeploymentAllowedDomains(deployment),
@@ -831,8 +831,26 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         var ciliumNetworkPolicy = buildCiliumNetworkPolicy(deployment, serviceSpec, serviceName, allowedDomains, ports);
         ciliumNetworkPolicy.getMetadata().setName(cnpName);
 
-        k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
-        log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
+        try {
+            k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
+            log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
+        } catch (KubernetesClientException e) {
+            if (e.getCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+                throw e;
+            }
+            // Pre-existing deployments created while cilium-network-policies-enabled=false have
+            // no CNP. When the flag is later flipped on, the update path must create the policy
+            // rather than 404-ing. Register the disposable resource so undeploy cleanup picks it
+            // up later.
+            log.info("updateCiliumNetworkPolicy. CNP '{}' not found; creating it instead", cnpName);
+            disposableResourceManager.saveK8sResources(
+                    List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
+            k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
+            disposableResourceManager.changeResourceLifecycleByGroupId(
+                    groupId,
+                    new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, cnpName),
+                    ResourceLifecycleState.STABLE);
+        }
     }
 
     private void deleteCiliumNetworkPolicy(String name) {

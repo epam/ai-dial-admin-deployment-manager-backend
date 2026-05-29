@@ -74,6 +74,3 @@ Where `<slug>` is the directory name under `specs/` that the feature belongs to 
 ## Active Technologies
 - Java 21 (constitution §Tech Stack) + Spring Boot 3.5.10, Lombok 8.10 plugin, Fabric8-generated `io.cilium.v2.*` model types (already in the project; data classes only — no K8s CRUD added in service layer), Fabric8 KServe generated types via existing `service/manifest/` code path. (022-transformer-cilium-policies)
 - N/A — feature introduces no schema changes, no persisted columns, no Flyway migration. The chained signal is transient. (022-transformer-cilium-policies)
-
-## Recent Changes
-- 022-transformer-cilium-policies: Added Java 21 (constitution §Tech Stack) + Spring Boot 3.5.10, Lombok 8.10 plugin, Fabric8-generated `io.cilium.v2.*` model types (already in the project; data classes only — no K8s CRUD added in service layer), Fabric8 KServe generated types via existing `service/manifest/` code path.
