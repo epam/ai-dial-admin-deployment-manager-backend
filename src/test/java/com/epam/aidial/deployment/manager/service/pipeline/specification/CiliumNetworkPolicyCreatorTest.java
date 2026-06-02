@@ -40,8 +40,9 @@ class CiliumNetworkPolicyCreatorTest {
                 .isNull();
 
         List<ToEndpoints> toEndpoints = chained.getToEndpoints();
-        // Narrowed selectors: sameInferenceService + istiod + activator + autoscaler
-        assertThat(toEndpoints).hasSize(4);
+        // Narrowed selectors: sameInferenceService + istiod + istio-ingressgateway
+        //                     + activator + autoscaler + controller
+        assertThat(toEndpoints).hasSize(6);
 
         // Entry 1: same-InferenceService pods (predictor ↔ transformer)
         assertThat(toEndpoints.get(0).getMatchLabels())
@@ -51,13 +52,22 @@ class CiliumNetworkPolicyCreatorTest {
         assertThat(toEndpoints.get(1).getMatchLabels())
                 .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "istio-system", "app", "istiod"));
 
-        // Entry 3: knative activator
+        // Entry 3: istio-ingressgateway in istio-system
         assertThat(toEndpoints.get(2).getMatchLabels())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of(NS_LABEL, "istio-system", "app", "istio-ingressgateway"));
+
+        // Entry 4: knative activator
+        assertThat(toEndpoints.get(3).getMatchLabels())
                 .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "knative-serving", "app", "activator"));
 
-        // Entry 4: knative autoscaler
-        assertThat(toEndpoints.get(3).getMatchLabels())
+        // Entry 5: knative autoscaler
+        assertThat(toEndpoints.get(4).getMatchLabels())
                 .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "knative-serving", "app", "autoscaler"));
+
+        // Entry 6: knative controller
+        assertThat(toEndpoints.get(5).getMatchLabels())
+                .containsExactlyInAnyOrderEntriesOf(Map.of(NS_LABEL, "knative-serving", "app", "controller"));
     }
 
     @Test
@@ -132,8 +142,8 @@ class CiliumNetworkPolicyCreatorTest {
         assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*.svc.cluster.local");
         assertThat(dnsRules.get(0).getMatchName()).isNull();
 
-        // Entry 1: chained intra-cluster block (4 toEndpoints with narrowed selectors)
-        assertThat(egress.get(1).getToEndpoints()).hasSize(4);
+        // Entry 1: chained intra-cluster block (6 toEndpoints with narrowed selectors)
+        assertThat(egress.get(1).getToEndpoints()).hasSize(6);
         assertThat(egress.get(1).getToEndpoints().get(0).getMatchLabels())
                 .containsExactlyInAnyOrderEntriesOf(Map.of(LABEL_NAME, SERVICE_NAME));
     }

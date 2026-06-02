@@ -53,6 +53,7 @@ public class CiliumNetworkPolicyCreator {
     private static final String ISTIOD_APP = "istiod";
     private static final String KNATIVE_ACTIVATOR_APP = "activator";
     private static final String KNATIVE_AUTOSCALER_APP = "autoscaler";
+    private static final String KNATIVE_CONTROLLER_APP = "controller";
 
     @Value("${app.cilium-network-policies-enabled}")
     private boolean ciliumNetworkPoliciesEnabled;
@@ -199,20 +200,25 @@ public class CiliumNetworkPolicyCreator {
     }
 
     private Egress createChainedIntraClusterEgress(String matchLabelName, String matchLabelValue) {
-        // Same-InferenceService pods (predictor ↔ transformer hop)
+        // Narrowed allow-list for the chained data path: same-InferenceService hop + the six
+        // specific istio-system / knative-serving control-plane components the predictor +
+        // transformer pair must reach. istio-ingressgateway and the Knative controller appear
+        // as egress targets per the reference YAML for spec 022.
         ToEndpoints sameInferenceService = new ToEndpoints();
         sameInferenceService.setMatchLabels(Map.of(matchLabelName, matchLabelValue));
 
-        // istiod (xDS sidecar config sync). istio-ingressgateway is an ingress source, not an
-        // egress target, so we don't need whole-namespace reach.
         ToEndpoints istiod = new ToEndpoints();
         istiod.setMatchLabels(Map.of(
                 KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE,
                 APP, ISTIOD_APP
         ));
 
-        // Knative activator (cold-start data path) and autoscaler (metrics push). Queue-proxy
-        // runs as a sidecar in the workload pod, so cluster-network egress does not apply.
+        ToEndpoints istioIngressGateway = new ToEndpoints();
+        istioIngressGateway.setMatchLabels(Map.of(
+                KUBE_DNS_NAMESPACE_LABEL_NAME, ISTIO_NAMESPACE_LABEL_VALUE,
+                APP, ISTIO_INGRESSGATEWAY_APP
+        ));
+
         ToEndpoints activator = new ToEndpoints();
         activator.setMatchLabels(Map.of(
                 KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE,
@@ -225,8 +231,15 @@ public class CiliumNetworkPolicyCreator {
                 APP, KNATIVE_AUTOSCALER_APP
         ));
 
+        ToEndpoints knativeController = new ToEndpoints();
+        knativeController.setMatchLabels(Map.of(
+                KUBE_DNS_NAMESPACE_LABEL_NAME, KNATIVE_NAMESPACE_LABEL_VALUE,
+                APP, KNATIVE_CONTROLLER_APP
+        ));
+
         Egress egress = new Egress();
-        egress.setToEndpoints(List.of(sameInferenceService, istiod, activator, autoscaler));
+        egress.setToEndpoints(List.of(
+                sameInferenceService, istiod, istioIngressGateway, activator, autoscaler, knativeController));
         // No toPorts — intra-cluster control-plane traffic is unrestricted on the port axis (spec 022 FR-002).
         return egress;
     }
