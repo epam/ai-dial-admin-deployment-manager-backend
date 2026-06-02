@@ -1127,7 +1127,7 @@ class InferenceDeploymentManagerTest {
             }
         })
                 .isInstanceOf(DeploymentException.class)
-                .hasMessageContaining("Rolling update failed for deployment");
+                .hasMessageContaining("Rolling update failed during service update for deployment");
     }
 
     @Test

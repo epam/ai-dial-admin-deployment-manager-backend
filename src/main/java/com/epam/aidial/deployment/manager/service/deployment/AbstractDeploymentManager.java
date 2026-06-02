@@ -223,16 +223,24 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    // Refresh CNP BEFORE updateService to avoid a half-applied update where
+                    // the new topology is live but the CNP still blocks the new traffic.
+                    // Over-permissive briefly > under-permissive.
                     try {
-                        // Refresh CNP BEFORE updateService to avoid a half-applied update where
-                        // the new topology is live but the CNP still blocks the new traffic.
-                        // Over-permissive briefly > under-permissive.
                         updateCiliumNetworkPolicy(deployment, serviceSpec, id, deployment.getServiceName(),
                                 getEffectiveDeploymentAllowedDomains(deployment),
                                 getCiliumIngressPorts(deployment));
+                    } catch (Exception e) {
+                        var errorMessage = "Rolling update failed during Cilium policy refresh for deployment '%s'"
+                                .formatted(id);
+                        log.warn(errorMessage, e);
+                        throw new DeploymentException(errorMessage, e);
+                    }
+                    try {
                         updateService(namespace, serviceSpec);
                     } catch (Exception e) {
-                        var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
+                        var errorMessage = "Rolling update failed during service update for deployment '%s'"
+                                .formatted(id);
                         log.warn(errorMessage, e);
                         throw new DeploymentException(errorMessage, e);
                     }
