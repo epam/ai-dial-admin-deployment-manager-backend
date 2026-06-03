@@ -209,17 +209,14 @@ public class DeploymentService {
      */
     private Deployment resurrect(String id, Integer revision) {
         var snapshot = getDeploymentSnapshot(id, revision);
+        resolveImageDefinitionReference(snapshot);
         componentCleanupService.finalizePendingCleanup(id, ComponentType.DEPLOYMENT);
 
         var request = deploymentMapper.toCreateDeployment(snapshot);
-        // toCreateDeployment does not carry nodePoolId from the domain object, so set it explicitly to
-        // restore the snapshot's scheduling rather than falling back to the create-time cascade default.
+        // toCreateDeployment drops nodePoolId; restore it verbatim (false = no create-time cascade).
         request.setNodePoolId(snapshot.getNodePoolId());
-        // The snapshot's metadata env definitions carry null values (values are persisted only in the
-        // audited env list, with sensitive ones stripped). Re-hydrate them so simple env values are
-        // restored and sensitive ones stay null — to be re-supplied via updateDeployment before deploy.
         hydrateEnvValuesFromSnapshot(request, snapshot.getEnvs());
-        return createDeployment(request);
+        return createDeployment(request, false);
     }
 
     private void hydrateEnvValuesFromSnapshot(CreateDeployment request, List<EnvVar> snapshotEnvs) {

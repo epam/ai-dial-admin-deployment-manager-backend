@@ -170,12 +170,8 @@ public abstract class DeploymentRollbackFunctionalTest {
 
     @Test
     void shouldResurrectDeletedDeployment_onRollbackToPreDeleteRevision() {
-        // The deployment existed at the rollback revision but has since been deleted: rollback must
-        // re-create it (with its original id) instead of failing with 404. It comes back in
-        // NOT_DEPLOYED with no live K8s identity; the simple env value is restored verbatim while the
-        // sensitive one is reprovisioned empty (audit never stores sensitive values). Deleting the row
-        // leaves the original env secret as a STABLE disposable resource, so this also exercises the
-        // drain that lets the create path's resource guard pass.
+        // Deleted deployment is re-created under its original id in NOT_DEPLOYED: simple env restored,
+        // sensitive one reprovisioned empty, and the leftover env secret drained so the create guard passes.
         CreateDeployment request = createDeploymentWithEnvs("rollback-test-resurrect", List.of(
                 envSimple("simple-a", "v1"),
                 envSensitive("secret-a", "vA")));
@@ -219,6 +215,33 @@ public abstract class DeploymentRollbackFunctionalTest {
         assertThat(componentRemovalRepository.getAll())
                 .as("resurrection must drop the pending removal row so the scheduled cleaner can't re-delete it")
                 .noneMatch(r -> created.getId().equals(r.getId()) && r.getType() == ComponentType.DEPLOYMENT);
+    }
+
+    @Test
+    void shouldFailResurrection_whenReferencedImageDefinitionNoLongerExists() {
+        // Dangling image-def reference on resurrection must reject with 400 (like the in-place path)
+        // identifying the reference, not the create path's 404, and before any leftovers are drained.
+        ImageDefinition orphanable = FunctionalTestHelper.createInterceptorImageDefinition();
+        orphanable.setName("resurrect-dangling-image");
+        ImageDefinition orphanableCreated = imageDefinitionService.createImageDefinition(orphanable);
+        UUID orphanableId = orphanableCreated.getId();
+        imageDefinitionService.completeBuildSuccessfully(orphanableId, "resurrect-dangling-built", System.currentTimeMillis());
+
+        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-resurrect-dangling");
+        request.setSource(new InternalImageSource(orphanableId, null, null, null));
+        Deployment created = deploymentService.createDeployment(request);
+        Integer createRevision = createRevisionFor(created.getId());
+
+        // Delete the deployment, then orphan the image definition it referenced.
+        deploymentRepository.deleteById(created.getId());
+        imageDefinitionService.deleteImageDefinitionSync(orphanableId);
+
+        assertThatThrownBy(() -> deploymentService.rollback(created.getId(), createRevision))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(orphanableId.toString());
+        assertThat(deploymentService.getDeployment(created.getId()))
+                .as("a rejected resurrection must not re-create the deployment")
+                .isEmpty();
     }
 
     @Test

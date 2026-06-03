@@ -191,11 +191,15 @@ public class ImageDefinitionService {
      */
     private ImageDefinition resurrect(UUID id, Integer revision) {
         var snapshot = getImageDefinitionSnapshot(id, revision);
+        var snapshotType = ImageType.of(snapshot);
+        imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(snapshotType, snapshot.getName(), snapshot.getVersion())
+                .ifPresent(existing -> {
+                    throw new EntityAlreadyExistsException(
+                            "Image definition already exists: type=%s, name=%s, version=%s"
+                                    .formatted(snapshotType, snapshot.getName(), snapshot.getVersion()));
+                });
         componentCleanupService.finalizePendingCleanup(String.valueOf(id), ComponentType.IMAGE_DEFINITION);
-        // Null the id for a clean INSERT (fresh UUID) across all DB dialects rather than relying on
-        // merge-with-assigned-id semantics; createImageDefinition resets buildStatus to NOT_BUILT and
-        // enforces the name+version uniqueness constraint.
-        snapshot.setId(null);
+        snapshot.setId(null); // force a fresh-UUID INSERT instead of merge-with-assigned-id
         return createImageDefinition(snapshot);
     }
 

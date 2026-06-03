@@ -153,9 +153,7 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
 
     @Test
     void shouldResurrectDeletedImageDefinition_onRollbackToPreDeleteRevision() {
-        // The image definition existed at the rollback revision but has since been deleted: rollback must
-        // re-create it instead of failing with 404. Because image-definition ids are server-generated,
-        // the re-created definition gets a NEW id; it comes back in NOT_BUILT with the snapshot's fields.
+        // Deleted image definition is re-created in NOT_BUILT under a NEW id (ids are server-generated).
         ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
         imageDef.setName("resurrect-image");
         ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);

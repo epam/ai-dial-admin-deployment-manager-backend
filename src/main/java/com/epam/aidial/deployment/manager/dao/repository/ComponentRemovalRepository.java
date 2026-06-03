@@ -35,11 +35,7 @@ public class ComponentRemovalRepository {
         jpaRepository.deleteById(new ComponentId(id, type));
     }
 
-    /**
-     * Idempotent delete: removes the pending removal row for the given component if one exists, and
-     * is a no-op otherwise. Unlike {@link #delete}, it never throws when the row is absent, so callers
-     * draining a component's leftovers (e.g. resurrection on rollback) need not check first.
-     */
+    /** Idempotent counterpart to {@link #delete}, which throws when the row is absent. */
     public void deleteIfPresent(String id, ComponentType type) {
         var componentId = new ComponentId(id, type);
         if (jpaRepository.existsById(componentId)) {

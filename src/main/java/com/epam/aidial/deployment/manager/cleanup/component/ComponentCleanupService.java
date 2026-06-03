@@ -82,14 +82,14 @@ public class ComponentCleanupService {
     }
 
     /**
-     * Synchronously drains leftovers from a previous generation of a component so its id can be safely
-     * re-created (resurrection on rollback): deletes lingering K8s / disposable resources owned by the
-     * group, and drops a still-pending {@link ComponentRemoval} row so {@link ScheduledComponentCleanup}
-     * won't later run {@code strategy.delete(id)} against the freshly re-created component.
+     * Drains a deleted component's leftovers so its id can be safely re-created (resurrection on rollback):
+     * cleans lingering K8s / disposable resources for the group and drops any pending {@link ComponentRemoval}
+     * row so {@link ScheduledComponentCleanup} won't re-delete the re-created component.
      *
-     * <p>The disposable-resource cleanup commits independently (REQUIRES_NEW + live K8s calls) of the
-     * caller's transaction; this is acceptable because the prior generation was already destined for
-     * deletion. A narrow race remains if an async delete executor is mid-flight for the same id.
+     * <p>The disposable-resource cleanup commits independently (REQUIRES_NEW + live K8s calls), so if the
+     * caller's transaction later rolls back the drain is NOT undone — harmless, since the drained generation
+     * was already deleted; the {@link ComponentRemoval} row simply reappears for the cleaner to no-op on.
+     * A narrow race also remains if an async delete is mid-flight for the same id.
      */
     @Transactional
     public void finalizePendingCleanup(String id, ComponentType type) {
