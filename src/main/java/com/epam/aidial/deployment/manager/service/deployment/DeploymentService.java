@@ -315,11 +315,16 @@ public class DeploymentService {
         var updatedDeployment = deploymentRepository.update(id, deployment);
 
         boolean isApplicableForCiliumNetworkPolicyUpdate = isApplicableForCiliumNetworkPolicyUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment);
-        if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForCiliumNetworkPolicyUpdate) {
+        boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
+
+        // Skip when rollingUpdate also fires — its afterCommit already refreshes the CNP using
+        // the freshly-built spec (no extra cluster read).
+        if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING
+                && isApplicableForCiliumNetworkPolicyUpdate
+                && !isApplicableForRollingUpdate) {
             deploymentManager.updateCiliumNetworkPolicy(id);
         }
 
-        boolean isApplicableForRollingUpdate = isApplicableForRollingUpdate(existingDeploymentWithResolvedSecrets, updatedDeployment, envsAreChanged);
         if (updatedDeployment.getStatus() == DeploymentStatus.RUNNING && isApplicableForRollingUpdate) {
             updatedDeployment = deploymentManager.rollingUpdate(id);
         } else if (updatedDeployment.getStatus() == DeploymentStatus.CRASHED) {

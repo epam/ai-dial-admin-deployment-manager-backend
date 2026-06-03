@@ -26,6 +26,7 @@ import com.epam.aidial.deployment.manager.service.manifest.PoolSchedulingPrimiti
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.K8sNamingUtils;
 import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
+import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.ContainerState;
 import io.fabric8.kubernetes.api.model.ContainerStateTerminated;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
@@ -136,7 +137,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
-                        createCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment),
+                        createCiliumNetworkPolicy(deployment, serviceSpec, id,
+                                getEffectiveDeploymentAllowedDomains(deployment),
                                 getCiliumIngressPorts(deployment), deployment.getServiceName());
                         createService(namespace, serviceSpec);
                     } catch (Exception e) {
@@ -221,10 +223,24 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    // Refresh CNP BEFORE updateService to avoid a half-applied update where
+                    // the new topology is live but the CNP still blocks the new traffic.
+                    // Over-permissive briefly > under-permissive.
+                    try {
+                        updateCiliumNetworkPolicy(deployment, serviceSpec, id, deployment.getServiceName(),
+                                getEffectiveDeploymentAllowedDomains(deployment),
+                                getCiliumIngressPorts(deployment));
+                    } catch (Exception e) {
+                        var errorMessage = "Rolling update failed during Cilium policy refresh for deployment '%s'"
+                                .formatted(id);
+                        log.warn(errorMessage, e);
+                        throw new DeploymentException(errorMessage, e);
+                    }
                     try {
                         updateService(namespace, serviceSpec);
                     } catch (Exception e) {
-                        var errorMessage = "Rolling update failed for deployment '%s'".formatted(id);
+                        var errorMessage = "Rolling update failed during service update for deployment '%s'"
+                                .formatted(id);
                         log.warn(errorMessage, e);
                         throw new DeploymentException(errorMessage, e);
                     }
@@ -759,16 +775,27 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return false;
     }
 
-    private void createCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports, String name) {
-        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, name={}", groupId, allowedDomains, ports, name);
+    /**
+     * Renders the deployment's {@link CiliumNetworkPolicy}. Default produces the baseline policy;
+     * subclasses override to add type-specific rules. {@code serviceSpec} is {@code null} on the
+     * {@link #updateCiliumNetworkPolicy(String)} path — overrides that need topology state must
+     * read it from the cluster themselves.
+     */
+    protected CiliumNetworkPolicy buildCiliumNetworkPolicy(D deployment, S serviceSpec, String serviceName,
+                                                           List<String> allowedDomains, Set<Integer> ports) {
+        return ciliumNetworkPolicyCreator.create(namespace, getServiceNameLabel(), serviceName, allowedDomains, ports);
+    }
+
+    private void createCiliumNetworkPolicy(D deployment, S serviceSpec, String groupId, List<String> allowedDomains,
+                                           Set<Integer> ports, String name) {
+        log.trace("createCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}, name={}",
+                groupId, allowedDomains, ports, name);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping creation.");
             return;
         }
-        var serviceNameLabel = getServiceNameLabel();
-        log.trace("createCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}'", serviceNameLabel, name);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, name, allowedDomains, ports);
+        var ciliumNetworkPolicy = buildCiliumNetworkPolicy(deployment, serviceSpec, name, allowedDomains, ports);
 
         disposableResourceManager.saveK8sResources(List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
         log.trace("createCiliumNetworkPolicy. Saved Cilium Network Policy as disposable resource for groupId='{}' in namespace='{}'", groupId, namespace);
@@ -787,9 +814,10 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     @Transactional
     public void updateCiliumNetworkPolicy(String id) {
         var deployment = getDeployment(id);
-
         try {
-            updateCiliumNetworkPolicy(id, getEffectiveDeploymentAllowedDomains(deployment), getCiliumIngressPorts(deployment));
+            updateCiliumNetworkPolicy(deployment, null, id, deployment.getServiceName(),
+                    getEffectiveDeploymentAllowedDomains(deployment),
+                    getCiliumIngressPorts(deployment));
         } catch (Exception e) {
             var errorMessage = "Cilium Network Policy update failed for deployment '%s'".formatted(id);
             log.warn(errorMessage, e);
@@ -797,23 +825,40 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
     }
 
-    private void updateCiliumNetworkPolicy(String groupId, List<String> allowedDomains, Set<Integer> ports) {
-        log.trace("updateCiliumNetworkPolicy. groupId='{}', allowedDomains={}, ports={}", groupId, allowedDomains, ports);
+    private void updateCiliumNetworkPolicy(D deployment, S serviceSpec, String groupId, String serviceName,
+                                           List<String> allowedDomains, Set<Integer> ports) {
+        log.trace("updateCiliumNetworkPolicy. groupId='{}', serviceName='{}', allowedDomains={}, ports={}",
+                groupId, serviceName, allowedDomains, ports);
         if (!ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()) {
             log.debug("Cilium Network Policies are not enabled. Skipping update.");
             return;
         }
-        var serviceNameLabel = getServiceNameLabel();
-        var serviceName = getServiceName(groupId);
         var cnpName = resolveCiliumNetworkPolicyName(groupId, serviceName);
-        log.trace("updateCiliumNetworkPolicy. serviceNameLabel='{}', serviceName='{}', cnpName='{}'",
-                serviceNameLabel, serviceName, cnpName);
+        log.trace("updateCiliumNetworkPolicy. cnpName='{}'", cnpName);
 
-        var ciliumNetworkPolicy = ciliumNetworkPolicyCreator.create(namespace, serviceNameLabel, serviceName, allowedDomains, ports);
+        var ciliumNetworkPolicy = buildCiliumNetworkPolicy(deployment, serviceSpec, serviceName, allowedDomains, ports);
         ciliumNetworkPolicy.getMetadata().setName(cnpName);
 
-        k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
-        log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
+        try {
+            k8sClient.updateCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
+            log.trace("updateCiliumNetworkPolicy. Updated Cilium Network Policy: {}", ciliumNetworkPolicy);
+        } catch (KubernetesClientException e) {
+            if (e.getCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+                throw e;
+            }
+            // Pre-existing deployments created while cilium-network-policies-enabled=false have
+            // no CNP. When the flag is later flipped on, the update path must create the policy
+            // rather than 404-ing. Register the disposable resource so undeploy cleanup picks it
+            // up later.
+            log.info("updateCiliumNetworkPolicy. CNP '{}' not found; creating it instead", cnpName);
+            disposableResourceManager.saveK8sResources(
+                    List.of(ciliumNetworkPolicy), K8sResourceKind.CILIUM_NETWORK_POLICY, groupId, namespace);
+            k8sClient.createCiliumNetworkPolicy(namespace, ciliumNetworkPolicy);
+            disposableResourceManager.changeResourceLifecycleByGroupId(
+                    groupId,
+                    new K8sResourceReference(this.namespace, K8sResourceKind.CILIUM_NETWORK_POLICY, cnpName),
+                    ResourceLifecycleState.STABLE);
+        }
     }
 
     private void deleteCiliumNetworkPolicy(String name) {

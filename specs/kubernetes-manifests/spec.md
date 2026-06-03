@@ -84,11 +84,12 @@ For chained deployments:
 - The predictor `protocolVersion` is pinned to `v2`.
 - The predictor args have `--return_raw_logits` and `--task=sequence_classification` auto-injected (always).
 - The transformer container is named `kserve-container`, receives `--model_name=<deploymentName>` and `--predictor_protocol=v2` args, and an `ID2LABEL` env var carrying the detected map serialized as a JSON object with stringified-integer keys.
-- The deployment's resolved public URL is the transformer component's URL; status is `RUNNING` only when both components are healthy.
+- The deployment's resolved public URL is the transformer component's URL. The deployment is reported `RUNNING` only once the predictor reports `LOADED+UPTODATE` **and** the transformer component has surfaced a URL on `status.components` — a best-effort signal, since KServe does not surface per-component health for the transformer, so a transformer that previously surfaced a URL but later crashed continues to read as ready until KServe reconciles.
+- The per-deployment `CiliumNetworkPolicy` carries three additions over the predictor-only baseline: a chained intra-cluster egress block whose `toEndpoints` list has six narrowed per-app selectors — same-`InferenceService`, `app=istiod` and `app=istio-ingressgateway` in `istio-system`, and `app=activator`, `app=autoscaler`, `app=controller` in `knative-serving` — with no port constraint; a same-`InferenceService` entry appended to the existing ingress `fromEndpoints`; and `8080/TCP` admitted into the ingress `toPorts` via container-port resolution (`InferenceDeploymentManager.getCiliumIngressPorts` injects `DEFAULT_KSERVE_SERVICE_PORT = 8080`), not via a chained-mode dedup literal. Non-chained deployments produce byte-identical policies to the pre-feature shape. *(Implemented via 022-transformer-cilium-policies — see that spec for FR-level detail. The chained-mode signal is read by `InferenceDeploymentManager`'s override of the `buildCiliumNetworkPolicy(...)` hook on `AbstractDeploymentManager`; the abstract base carries no inference-specific concept.)*
 
 Operator-supplied predictor args containing `--return_probabilities` or `--task=<non-sequence_classification>` are rejected at manifest generation with HTTP 400 before any cluster mutation. If the transformer image is unset, the deploy is rejected with HTTP 500 before any cluster mutation.
 
-Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
+Status: **Implemented** *(Implemented via 021-inference-task-transformer; chained-mode Cilium policy augmentation via 022-transformer-cilium-policies)*
 
 #### Scenario: Chained manifest for a detected text-classification model
 - **WHEN** detection returns `TEXT_CLASSIFICATION` with a valid `id2Label`
@@ -101,6 +102,10 @@ Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
 #### Scenario: Missing transformer image
 - **WHEN** detection returns `TEXT_CLASSIFICATION` and the transformer image property is unset
 - **THEN** the deploy is rejected with HTTP 500 (`MissingTransformerImageException`) before any cluster mutation
+
+#### Scenario: Chained-mode Cilium policy augmentation
+- **WHEN** manifest generation produces a chained `InferenceService` (predictor + transformer) and `app.cilium-network-policies-enabled=true`
+- **THEN** the generated `CiliumNetworkPolicy` contains the chained intra-cluster egress block (six narrowed per-app `toEndpoints` — same-`InferenceService`, `istiod`/`istio-ingressgateway`, `activator`/`autoscaler`/`controller`), the same-`InferenceService` ingress `fromEndpoint`, and `8080/TCP` admitted into the ingress `toPorts` via the caller's container-port resolution (`DEFAULT_KSERVE_SERVICE_PORT`). When manifest generation produces predictor-only, the policy is byte-identical to the pre-feature shape. *(Implemented via 022-transformer-cilium-policies)*
 
 ### Requirement: NIM-specific resources generated for NIM deployments
 When NIM is enabled, the system SHALL generate NIM-specific Kubernetes resources for NIM deployments. The manifest includes:
