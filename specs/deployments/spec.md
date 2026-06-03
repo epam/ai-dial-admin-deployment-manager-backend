@@ -380,6 +380,8 @@ Status: **Implemented**
 ### Requirement: Revision rollback
 The system SHALL expose `POST /api/v1/deployments/{id}/revision/{revision}/rollback` to restore a deployment's stored configuration to its snapshot at the supplied audit revision. Rollback is permitted only when the deployment is in an inactive lifecycle state (`NOT_DEPLOYED`, `STOPPED`) — active states (`PENDING`, `RUNNING`, `CRASHED`, `STOPPING`) reject with HTTP 400 and the operator must `undeploy` first. The only reference-existence check enforced on rollback is the snapshot's `imageDefinitionId` (when the source is `internal_image`); a missing image definition rejects with HTTP 400 identifying the reference. Immutable / system-managed fields (`id`, `name`, `serviceName`, `status`, `url`, `createdAt`, `updatedAt`) are preserved from the current entity; all other user-editable fields come from the snapshot. The service does NOT pre-check identical state; rolling back to a revision whose snapshot already equals the current state may record a fresh audit revision. The deployment's K8s envs secret is unconditionally reprovisioned on rollback to match the snapshot's env-var structure (names + mount types + simple values from the snapshot; sensitive values reset to null, since audit history never stored them). The operator must re-supply the sensitive values via the regular update endpoint before deploying. No live workload resources (Service, KService / Deployment, CiliumNetworkPolicy, pods) are modified.
 
+If the deployment no longer exists under `{id}` but a snapshot exists at the supplied revision, rollback **re-creates** it (its original id is preserved, since deployment ids are client-assigned) rather than returning 404 — letting an operator revert a deletion in a single call. The re-created deployment comes back in `NOT_DEPLOYED` with no `serviceName`/`url`; simple env values are restored from the snapshot while sensitive ones are provisioned empty (to be re-supplied before deploying). Before re-creation, any leftovers from the deleted generation (disposable K8s resources keyed by the deployment id, and a still-pending component-removal marker) are drained synchronously, so the re-creation neither collides with resources awaiting deletion nor is later re-deleted by the scheduled cleaner. Rollback still returns HTTP 404 when the id never had a recorded state at-or-before the revision (Envers returns no snapshot).
+
 Status: **Implemented** (Implemented via 020-revision-rollback)
 
 #### Scenario: Rollback restores configuration when inactive
@@ -389,6 +391,10 @@ Status: **Implemented** (Implemented via 020-revision-rollback)
 #### Scenario: Rollback rejected in active state
 - **WHEN** the rollback endpoint is called on a `PENDING` / `RUNNING` / `CRASHED` / `STOPPING` deployment
 - **THEN** the system responds with HTTP 400 and the deployment is unchanged
+
+#### Scenario: Rollback re-creates a deleted deployment
+- **WHEN** the rollback endpoint is called for an `{id}` that has been deleted but had a snapshot at the supplied revision
+- **THEN** the deployment is re-created under its original id in `NOT_DEPLOYED` (simple env values restored, sensitive ones empty), any leftovers from the deleted generation are drained first, and HTTP 200 is returned with the resulting `DeploymentDto`
 
 #### Scenario: Rollback rejected for missing image definition
 - **WHEN** the rollback target snapshot's `InternalImageSource` references an `imageDefinitionId` that no longer exists

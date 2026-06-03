@@ -1,8 +1,11 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
+import com.epam.aidial.deployment.manager.dao.repository.ComponentRemovalRepository;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
+import com.epam.aidial.deployment.manager.model.ComponentRemoval;
+import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -57,6 +60,8 @@ public abstract class DeploymentRollbackFunctionalTest {
     private DeploymentService deploymentService;
     @Autowired
     private DeploymentRepository deploymentRepository;
+    @Autowired
+    private ComponentRemovalRepository componentRemovalRepository;
     @Autowired
     private ImageDefinitionService imageDefinitionService;
     @Autowired
@@ -161,6 +166,59 @@ public abstract class DeploymentRollbackFunctionalTest {
     void shouldFailRollback_whenDeploymentNotFound() {
         assertThatThrownBy(() -> deploymentService.rollback("not-existing", 1))
                 .isInstanceOf(EntityNotFoundException.class);
+    }
+
+    @Test
+    void shouldResurrectDeletedDeployment_onRollbackToPreDeleteRevision() {
+        // The deployment existed at the rollback revision but has since been deleted: rollback must
+        // re-create it (with its original id) instead of failing with 404. It comes back in
+        // NOT_DEPLOYED with no live K8s identity; the simple env value is restored verbatim while the
+        // sensitive one is reprovisioned empty (audit never stores sensitive values). Deleting the row
+        // leaves the original env secret as a STABLE disposable resource, so this also exercises the
+        // drain that lets the create path's resource guard pass.
+        CreateDeployment request = createDeploymentWithEnvs("rollback-test-resurrect", List.of(
+                envSimple("simple-a", "v1"),
+                envSensitive("secret-a", "vA")));
+        Deployment created = deploymentService.createDeployment(request);
+        Integer createRevision = createRevisionFor(created.getId());
+
+        deploymentRepository.deleteById(created.getId());
+        assertThat(deploymentService.getDeployment(created.getId())).isEmpty();
+
+        Deployment resurrected = deploymentService.rollback(created.getId(), createRevision);
+
+        assertThat(resurrected.getId()).isEqualTo(created.getId());
+        assertThat(resurrected.getStatus()).isEqualTo(DeploymentStatus.NOT_DEPLOYED);
+        assertThat(resurrected.getServiceName()).isNull();
+        assertThat(resurrected.getUrl()).isNull();
+        assertThat(resurrected.getEnvs().stream().map(EnvVar::getName))
+                .containsExactlyInAnyOrder("simple-a", "secret-a");
+        SimpleEnvVar simple = (SimpleEnvVar) resurrected.getEnvs().stream()
+                .filter(e -> e.getName().equals("simple-a")).findFirst().orElseThrow();
+        assertThat(simple.getValue().getValue()).isEqualTo("v1");
+        SensitiveEnvVar sensitive = (SensitiveEnvVar) resurrected.getEnvs().stream()
+                .filter(e -> e.getName().equals("secret-a")).findFirst().orElseThrow();
+        assertThat(sensitive.getValue()).isNull();
+        assertThat(deploymentService.getDeployment(created.getId())).isPresent();
+    }
+
+    @Test
+    void shouldDropPendingRemovalRow_whenResurrectingDeletedDeployment() {
+        // A still-pending ComponentRemoval row would otherwise let ScheduledComponentCleanup run
+        // strategy.delete(id) and re-delete the freshly resurrected deployment. Resurrection must drop it.
+        CreateDeployment request = createInterceptorDeploymentWithoutSecrets("rollback-test-resurrect-drain");
+        Deployment created = deploymentService.createDeployment(request);
+        Integer createRevision = createRevisionFor(created.getId());
+
+        deploymentRepository.deleteById(created.getId());
+        componentRemovalRepository.save(ComponentRemoval.of(created.getId(), ComponentType.DEPLOYMENT));
+
+        Deployment resurrected = deploymentService.rollback(created.getId(), createRevision);
+
+        assertThat(resurrected.getId()).isEqualTo(created.getId());
+        assertThat(componentRemovalRepository.getAll())
+                .as("resurrection must drop the pending removal row so the scheduled cleaner can't re-delete it")
+                .noneMatch(r -> created.getId().equals(r.getId()) && r.getType() == ComponentType.DEPLOYMENT);
     }
 
     @Test

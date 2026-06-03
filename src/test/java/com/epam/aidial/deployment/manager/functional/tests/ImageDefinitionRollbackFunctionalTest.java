@@ -1,7 +1,11 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
+import com.epam.aidial.deployment.manager.dao.repository.ComponentRemovalRepository;
+import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.functional.utils.FunctionalTestHelper;
+import com.epam.aidial.deployment.manager.model.ComponentRemoval;
+import com.epam.aidial.deployment.manager.model.ComponentType;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
@@ -46,6 +50,8 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
     private HistoryService historyService;
     @Autowired
     private SecurityClaimsExtractor securityClaimsExtractor;
+    @Autowired
+    private ComponentRemovalRepository componentRemovalRepository;
     @Autowired
     private PlatformTransactionManager transactionManager;
     @PersistenceContext
@@ -143,6 +149,70 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
 
         assertThat(rolledBack.getId()).isEqualTo(created.getId());
         assertThat(rolledBack.getDescription()).isEqualTo(created.getDescription());
+    }
+
+    @Test
+    void shouldResurrectDeletedImageDefinition_onRollbackToPreDeleteRevision() {
+        // The image definition existed at the rollback revision but has since been deleted: rollback must
+        // re-create it instead of failing with 404. Because image-definition ids are server-generated,
+        // the re-created definition gets a NEW id; it comes back in NOT_BUILT with the snapshot's fields.
+        ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        imageDef.setName("resurrect-image");
+        ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
+        Integer createRevision = createRevisionFor(created.getId());
+
+        imageDefinitionService.deleteImageDefinitionSync(created.getId());
+        assertThat(imageDefinitionService.getImageDefinition(created.getId())).isEmpty();
+
+        ImageDefinition resurrected = imageDefinitionService.rollback(created.getId(), createRevision);
+
+        assertThat(resurrected.getId()).isNotNull().isNotEqualTo(created.getId());
+        assertThat(resurrected.getBuildStatus()).isEqualTo(ImageStatus.NOT_BUILT);
+        assertThat(resurrected.getName()).isEqualTo(created.getName());
+        assertThat(resurrected.getVersion()).isEqualTo(created.getVersion());
+        assertThat(resurrected.getDescription()).isEqualTo(created.getDescription());
+        assertThat(imageDefinitionService.getImageDefinition(resurrected.getId())).isPresent();
+    }
+
+    @Test
+    void shouldDropPendingRemovalRow_whenResurrectingDeletedImageDefinition() {
+        // A still-pending ComponentRemoval row for the old id would otherwise let ScheduledComponentCleanup
+        // run a delete against it; resurrection must drop it.
+        ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        imageDef.setName("resurrect-image-drain");
+        ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
+        Integer createRevision = createRevisionFor(created.getId());
+
+        imageDefinitionService.deleteImageDefinitionSync(created.getId());
+        componentRemovalRepository.save(ComponentRemoval.of(String.valueOf(created.getId()), ComponentType.IMAGE_DEFINITION));
+
+        ImageDefinition resurrected = imageDefinitionService.rollback(created.getId(), createRevision);
+
+        assertThat(resurrected.getId()).isNotNull();
+        assertThat(componentRemovalRepository.getAll())
+                .as("resurrection must drop the pending removal row for the deleted id")
+                .noneMatch(r -> String.valueOf(created.getId()).equals(r.getId()) && r.getType() == ComponentType.IMAGE_DEFINITION);
+    }
+
+    @Test
+    void shouldFailResurrection_whenNameVersionCollidesWithExistingImageDefinition() {
+        // Delete A (name X, version 1), then create B reusing the freed (name X, version 1). Rolling A
+        // back to its create revision must re-create A's (X, 1) snapshot — which now collides with B.
+        ImageDefinition firstDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        firstDef.setName("resurrect-collision");
+        firstDef.setVersion("1.0.0");
+        ImageDefinition created = imageDefinitionService.createImageDefinition(firstDef);
+        Integer createRevision = createRevisionFor(created.getId());
+
+        imageDefinitionService.deleteImageDefinitionSync(created.getId());
+
+        ImageDefinition secondDef = FunctionalTestHelper.createInterceptorImageDefinition();
+        secondDef.setName("resurrect-collision");
+        secondDef.setVersion("1.0.0");
+        imageDefinitionService.createImageDefinition(secondDef);
+
+        assertThatThrownBy(() -> imageDefinitionService.rollback(created.getId(), createRevision))
+                .isInstanceOf(EntityAlreadyExistsException.class);
     }
 
     @Test

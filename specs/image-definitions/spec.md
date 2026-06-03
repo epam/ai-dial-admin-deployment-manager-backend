@@ -164,6 +164,8 @@ Status: **Implemented**
 ### Requirement: Revision rollback
 The system SHALL expose `POST /api/v1/images/definitions/{id}/revision/{revision}/rollback` to restore an image definition's stored configuration to its snapshot at the supplied audit revision. Rollback is permitted only when current `buildStatus` is `NOT_BUILT`, `BUILD_FAILED`, or `BUILD_STOPPED` — `BUILDING` and `BUILD_SUCCESSFUL` reject with HTTP 400 because a built image definition may already be referenced by deployments; operators must instead create a new version and re-point deployments via `change-image`. The rollback always persists via the regular update path, which resets `buildStatus` to `NOT_BUILT`. Build artifacts (`imageName`, `builtAt`, build logs) are NOT separately cleared by rollback — they cannot be non-null in rollback-eligible states under normal flow (`ImageBuildRunner` rejects rebuilds of `BUILD_SUCCESSFUL`, so `failBuild` can never run against a built image), so no clearing step is necessary. The rollback path enforces the `(name, version)` uniqueness constraint and the build-status guard. The service does NOT pre-check identical state; rolling back to a revision whose snapshot already equals the current state may record a fresh audit revision. Cascade to dependent deployments is NOT performed — their stored configuration is untouched.
 
+If the image definition no longer exists under `{id}` but a snapshot exists at the supplied revision, rollback **re-creates** it (in `NOT_BUILT`) rather than returning 404 — letting an operator revert a deletion in a single call. Because image-definition ids are server-generated UUIDs (the persistence-layer generator overwrites any supplied id on insert), the re-created definition receives a **NEW id**; clients MUST read the returned DTO for it. Before re-creation, any leftovers from the deleted definition (build jobs / config maps / pushed images keyed by the old id, and a still-pending component-removal marker) are drained synchronously so the scheduled cleaner cannot act on the old id afterwards. Re-creation goes through the standard create path, so the snapshot's `(name, version)` must still be free — a collision rejects with HTTP 409. Rollback still returns HTTP 404 when the id never had a recorded state at-or-before the revision.
+
 Status: **Implemented** (Implemented via 020-revision-rollback)
 
 #### Scenario: Rollback restores configuration from rollback-eligible state
@@ -177,6 +179,14 @@ Status: **Implemented** (Implemented via 020-revision-rollback)
 #### Scenario: Rollback rejected on name+version collision
 - **WHEN** the rolled-back name+version pair matches another existing image definition
 - **THEN** the system responds with HTTP 400 and the image definition is unchanged
+
+#### Scenario: Rollback re-creates a deleted image definition under a new id
+- **WHEN** the rollback endpoint is called for an `{id}` that has been deleted but had a snapshot at the supplied revision, and the snapshot's `(name, version)` is currently free
+- **THEN** the image definition is re-created in `NOT_BUILT` under a new server-generated id (after draining leftovers from the deleted definition) and HTTP 200 is returned with the resulting DTO carrying the new id
+
+#### Scenario: Rollback re-creation rejected on name+version collision
+- **WHEN** the rollback target is a deleted image definition whose snapshot `(name, version)` is now taken by another existing image definition
+- **THEN** the system responds with HTTP 409 and no image definition is created
 
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.ImageDefinitionController`
