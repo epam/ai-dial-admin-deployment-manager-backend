@@ -35,6 +35,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [019-explicit-pool-scheduling](019-explicit-pool-scheduling/spec.md) | Implemented | deployments | Replace derived label-key + capacity-numbers pool config with explicit nodeSelector/affinity/tolerations; create-time defaults cascade for new deployments |
 | [020-revision-rollback](020-revision-rollback/spec.md) | Implemented | auditing, deployments, image-definitions, domain-whitelist | Per-resource rollback to a past audit revision for deployments (inactive states only), image definitions (non-built states only), and the global image-build whitelist |
 | [021-inference-task-transformer](021-inference-task-transformer/spec.md) | Implemented | inference-deployments, kubernetes-manifests | Auto-detect HuggingFace text-classification at deploy time; chain a KServe predictor + transformer with operator-controlled image/resources |
+| [022-transformer-cilium-policies](022-transformer-cilium-policies/spec.md) | Implemented | inference-deployments, kubernetes-manifests | Augment per-deployment `CiliumNetworkPolicy` for chained predictor + transformer (intra-cluster egress, same-`InferenceService` ingress, `8080/TCP`); baseline preserved for predictor-only and non-inference deployments |
 
 ---
 

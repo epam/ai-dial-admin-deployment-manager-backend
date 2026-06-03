@@ -47,6 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatcher;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -65,12 +66,14 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -435,7 +438,8 @@ class InferenceDeploymentManagerTest {
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT)))
                 .thenReturn(containerPort);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false)))
+                .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(containerPort), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
 
@@ -455,7 +459,9 @@ class InferenceDeploymentManagerTest {
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
         verify(deploymentRepository).updateServiceName(eq(DEPLOYMENT_ID), eq(SERVICE_NAME));
 
-        // Cilium policy created with deployment domains list (no default domains)
+        // Cilium policy created with deployment domains list (no default domains).
+        // Inference path always routes through the 6-arg overload via buildCiliumNetworkPolicy;
+        // chained=false here because the stubbed serviceSpec carries no transformer block.
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
@@ -464,8 +470,346 @@ class InferenceDeploymentManagerTest {
                     domains.contains("test-domain-1")
                         && domains.contains("test-domain-2")
                         && domains.size() == 2),
-                any()
+                any(),
+                eq(false)
         );
+    }
+
+    @Test
+    void deploy_shouldPassChainedFlagToCiliumPolicyCreator_whenTransformerEmitted() {
+        // Given: the manifest generator emits an InferenceService with a transformer block —
+        // that's the source of truth for the chained signal in the refactored design (the hook
+        // reads `serviceSpec.getSpec().getTransformer()` directly, not the detection result).
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(null);
+        InferenceService serviceSpec = createInferenceServiceWithTransformer();
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(inferenceTaskDetector.detect(any()))
+                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "NEGATIVE", 1, "POSITIVE")));
+
+        // When
+        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: chained-mode creator overload called with chainedTransformer=true
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                eq(SERVICE_NAME),
+                anyList(),
+                any(),
+                eq(true)
+        );
+        // The hook on the deploy path reads chained-ness from the in-flight serviceSpec — no
+        // cluster read required.
+        verify(k8sKserveClient, never()).getService(anyString(), anyString());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldPreserveChainedAugmentation_onAllowedDomainsUpdate() {
+        // Given: a chained-mode inference deployment whose allowedDomains the operator is updating.
+        // The chained signal is sourced from the live K8s InferenceService — no HuggingFace Hub call.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithTransformer());
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+
+        // When
+        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        // Then: chained-mode augmentation preserved (6-arg overload with chainedTransformer=true)
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                eq(SERVICE_NAME),
+                anyList(),
+                any(),
+                eq(true)
+        );
+        // Spec 022 FR-005: the chained signal must come from cluster state, not a separate HF Hub fetch.
+        verify(inferenceTaskDetector, never()).detect(any());
+        // The K8s update actually went through.
+        verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldEmitBaselinePolicy_whenClusterServicePredictorOnly() {
+        // Given: cluster InferenceService has no transformer block → baseline (non-chained) policy.
+        // The refactored inference path always routes through the 6-arg overload; the chained flag
+        // is the differentiator, not the call shape.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithoutTransformer());
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+
+        // When
+        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        // Then: 6-arg overload invoked with chained=false — byte-equivalent to the legacy 5-arg
+        // output per CiliumNetworkPolicyCreatorTest#shouldProduceIdenticalPolicyTo5ArgOverload_whenChainedFalse.
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false));
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), eq(true));
+        // Spec 022 FR-005: no HF Hub re-fetch on this path — chained signal sourced from cluster.
+        verify(inferenceTaskDetector, never()).detect(any());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldFail_whenLiveServiceMissing() {
+        // Given: the K8s InferenceService is unexpectedly absent (delete race, RBAC, etc.).
+        // The endpoint MUST NOT silently downgrade the policy to non-chained — that would
+        // re-create the very failure mode spec 022 fixes.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME)).thenReturn(null);
+
+        assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
+                .isInstanceOf(DeploymentException.class)
+                .hasMessageContaining(DEPLOYMENT_ID)
+                .hasRootCauseInstanceOf(IllegalStateException.class)
+                .hasStackTraceContaining("InferenceService '%s' not found".formatted(SERVICE_NAME));
+
+        // No policy was written — the IllegalStateException short-circuits before any creator call.
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any());
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), anyBoolean());
+        verify(k8sClient, never()).updateCiliumNetworkPolicy(anyString(), any());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldCreateInstead_whenK8sUpdateReturns404() {
+        // Given: the CNP does not exist in the cluster (e.g. cilium-policies was disabled at
+        // deploy time and has since been flipped on). The update path must catch the 404 and
+        // create the policy instead of bubbling the failure.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithTransformer());
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+        doThrow(new io.fabric8.kubernetes.client.KubernetesClientException("not found", 404, null))
+                .when(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+
+        // When
+        inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        // Then: after the 404, the policy is created and registered as a disposable resource.
+        verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+        verify(k8sClient).createCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+        verify(disposableResourceManager).saveK8sResources(
+                eq(List.of(ciliumNetworkPolicy)),
+                eq(com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind.CILIUM_NETWORK_POLICY),
+                eq(DEPLOYMENT_ID),
+                eq(NAMESPACE));
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldPropagate_whenK8sUpdateNon404Error() {
+        // Non-404 errors must NOT be silently swallowed by the create-on-404 fallback.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenReturn(createInferenceServiceWithTransformer());
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+        doThrow(new io.fabric8.kubernetes.client.KubernetesClientException("forbidden", 403, null))
+                .when(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+
+        assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
+                .isInstanceOf(DeploymentException.class)
+                .hasRootCauseInstanceOf(io.fabric8.kubernetes.client.KubernetesClientException.class);
+        verify(k8sClient, never()).createCiliumNetworkPolicy(anyString(), any());
+    }
+
+    @Test
+    void updateCiliumNetworkPolicy_shouldPropagate_whenK8sClientThrows() {
+        // Given: the cluster read fails transiently. The endpoint must surface the failure
+        // wrapped as DeploymentException so the operator retries instead of seeing a 200.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(k8sKserveClient.getService(NAMESPACE, SERVICE_NAME))
+                .thenThrow(new RuntimeException("kube-apiserver unreachable"));
+
+        assertThatThrownBy(() -> inferenceDeploymentManager.updateCiliumNetworkPolicy(DEPLOYMENT_ID))
+                .isInstanceOf(DeploymentException.class)
+                .hasRootCauseInstanceOf(RuntimeException.class)
+                .hasStackTraceContaining("kube-apiserver unreachable");
+
+        verify(k8sClient, never()).updateCiliumNetworkPolicy(anyString(), any());
+    }
+
+    @Test
+    void rollingUpdate_shouldRefreshCiliumPolicy_whenTopologyFlipsToChained() {
+        // Given: a running deployment whose modelName flip causes prepareServiceSpec to emit a
+        // chained InferenceService (the manifest carries a transformer block) — the CNP must be
+        // refreshed in lock-step inside rollingUpdate's afterCommit.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService serviceSpec = createInferenceServiceWithTransformer();
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicy.getMetadata()).thenReturn(new ObjectMeta());
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(inferenceTaskDetector.detect(any()))
+                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "A", 1, "B")));
+
+        // When
+        inferenceDeploymentManager.rollingUpdate(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: service was updated AND the CNP was refreshed with chainedTransformer=true (spec 022 FR-007).
+        verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(true));
+        verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+
+        // CNP refresh MUST happen before the service update — half-applied flips that update the
+        // service first and the policy second can re-create bug #87 if the CNP write fails.
+        InOrder order = inOrder(k8sClient, k8sKserveClient);
+        order.verify(k8sClient).updateCiliumNetworkPolicy(eq(NAMESPACE), eq(ciliumNetworkPolicy));
+        order.verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
+    }
+
+    private InferenceService createInferenceServiceWithTransformer() {
+        InferenceService service = new InferenceService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        var spec = new io.kserve.serving.v1beta1.InferenceServiceSpec();
+        spec.setTransformer(new io.kserve.serving.v1beta1.inferenceservicespec.Transformer());
+        service.setSpec(spec);
+        return service;
+    }
+
+    private InferenceService createInferenceServiceWithoutTransformer() {
+        InferenceService service = new InferenceService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+        service.setSpec(new io.kserve.serving.v1beta1.InferenceServiceSpec());
+        return service;
+    }
+
+    /**
+     * Builds an InferenceService whose mapStatus path exercises the chained-deployment branch:
+     * {@code spec.transformer} is set so {@code isChainedDeployment(...)} returns true, and the
+     * caller controls (a) whether {@code status.components} carries a "transformer" entry at all,
+     * and (b) which of {@code transformer.url} / {@code transformer.address.url} is populated —
+     * the two fields {@code isTransformerReady(...)} inspects.
+     */
+    private InferenceService createChainedInferenceServiceWithStatusAndTransformer(
+            States.ActiveModelState activeModelState,
+            ModelStatus.TransitionStatus transitionStatus,
+            String predictorUrl,
+            String transformerUrl,
+            String transformerAddressUrl,
+            boolean includeTransformerComponent) {
+        InferenceService service = new InferenceService();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SERVICE_NAME);
+        service.setMetadata(metadata);
+
+        var spec = new io.kserve.serving.v1beta1.InferenceServiceSpec();
+        spec.setTransformer(new io.kserve.serving.v1beta1.inferenceservicespec.Transformer());
+        service.setSpec(spec);
+
+        var status = new InferenceServiceStatus();
+
+        Components predictor = new Components();
+        if (predictorUrl != null) {
+            predictor.setUrl(predictorUrl);
+        }
+        java.util.Map<String, Components> components = new java.util.HashMap<>();
+        components.put("predictor", predictor);
+
+        if (includeTransformerComponent) {
+            Components transformer = new Components();
+            if (transformerUrl != null) {
+                transformer.setUrl(transformerUrl);
+            }
+            if (transformerAddressUrl != null) {
+                Address address = new Address();
+                address.setUrl(transformerAddressUrl);
+                transformer.setAddress(address);
+            }
+            components.put("transformer", transformer);
+        }
+        status.setComponents(components);
+
+        ModelStatus modelStatus = new ModelStatus();
+        modelStatus.setTransitionStatus(transitionStatus);
+        States states = new States();
+        states.setActiveModelState(activeModelState);
+        modelStatus.setStates(states);
+        status.setModelStatus(modelStatus);
+
+        service.setStatus(status);
+        return service;
+    }
+
+    @Test
+    void deploy_shouldPassUnchainedFlag_whenPredictorOnly() {
+        // Given: manifest generator emits a predictor-only InferenceService (no transformer block).
+        // The refactored inference path always routes through the 6-arg overload; chained=false
+        // here so the produced policy is byte-equivalent to the legacy 5-arg baseline.
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(null);
+        InferenceService serviceSpec = new InferenceService();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), eq(false)))
+                .thenReturn(ciliumNetworkPolicy);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+
+        // When
+        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: 6-arg overload invoked with chained=false; the chained=true variant must NOT fire.
+        verify(ciliumNetworkPolicyCreator).create(
+                eq(NAMESPACE),
+                anyString(),
+                eq(SERVICE_NAME),
+                anyList(),
+                any(),
+                eq(false)
+        );
+        verify(ciliumNetworkPolicyCreator, never()).create(
+                anyString(), anyString(), anyString(), anyList(), any(), eq(true));
+        // Deploy path doesn't read the cluster — chained signal sourced from the in-flight spec.
+        verify(k8sKserveClient, never()).getService(anyString(), anyString());
     }
 
     @Test
@@ -485,7 +829,8 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
 
@@ -493,7 +838,8 @@ class InferenceDeploymentManagerTest {
         managerWithDefaults.deploy(DEPLOYMENT_ID);
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
-        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates)
+        // Then: Cilium policy created with merged list (deployment domains + default domains, no duplicates).
+        // Inference path uses the 6-arg overload; chained flag is irrelevant to this assertion.
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
@@ -503,7 +849,8 @@ class InferenceDeploymentManagerTest {
                                 && domains.contains("huggingface.co")
                                 && domains.contains("cdn.huggingface.co")
                                 && domains.size() == 3),
-                any()
+                any(),
+                anyBoolean()
         );
     }
 
@@ -524,7 +871,8 @@ class InferenceDeploymentManagerTest {
         when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
         when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
         when(ciliumNetworkPolicyCreator.isCiliumNetworkPoliciesEnabled()).thenReturn(true);
-        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any())).thenReturn(ciliumNetworkPolicy);
+        when(ciliumNetworkPolicyCreator.create(eq(NAMESPACE), anyString(), eq(SERVICE_NAME), anyList(), any(), anyBoolean()))
+                .thenReturn(ciliumNetworkPolicy);
         when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
                 any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
 
@@ -532,7 +880,7 @@ class InferenceDeploymentManagerTest {
         managerWithDefaults.deploy(DEPLOYMENT_ID);
         TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
 
-        // Then: only default allowed domains appear in Cilium policy
+        // Then: only default allowed domains appear in Cilium policy (6-arg overload, chained flag irrelevant).
         verify(ciliumNetworkPolicyCreator).create(
                 eq(NAMESPACE),
                 anyString(),
@@ -541,7 +889,8 @@ class InferenceDeploymentManagerTest {
                         domains.contains("huggingface.co")
                                 && domains.contains("cdn.huggingface.co")
                                 && domains.size() == 2),
-                any()
+                any(),
+                anyBoolean()
         );
     }
 
@@ -778,7 +1127,7 @@ class InferenceDeploymentManagerTest {
             }
         })
                 .isInstanceOf(DeploymentException.class)
-                .hasMessageContaining("Rolling update failed for deployment");
+                .hasMessageContaining("Rolling update failed during service update for deployment");
     }
 
     @Test
@@ -994,6 +1343,140 @@ class InferenceDeploymentManagerTest {
         // Then
         assertThat(result).isTrue();
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.STOPPING));
+    }
+
+    @Test
+    void reconcile_shouldReportRunning_whenChainedAndTransformerUrlPresent() {
+        // Case A — chained deployment, predictor LOADED+UPTODATE, transformer surfaces a URL.
+        // mapStatus must return RUNNING; the readiness gate added in spec 022 must let the chained
+        // path through once the transformer URL is observable.
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                SERVICE_URL,
+                null,
+                true);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
+    }
+
+    @Test
+    void reconcile_shouldDowngradeToPending_whenChainedAndTransformerComponentHasNoUrl() {
+        // Case B — chained, predictor LOADED+UPTODATE, transformer component present but neither
+        // .url nor .address.url populated. mapStatus must return PENDING (transformer not ready).
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                null,
+                null,
+                true);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+        verify(deploymentRepository, never()).conditionalUpdateInNewTransaction(any(), any(), any());
+    }
+
+    @Test
+    void reconcile_shouldDowngradeToPending_whenChainedAndTransformerComponentMissing() {
+        // Case C — chained, predictor LOADED+UPTODATE, status.components has only "predictor".
+        // mapStatus must return PENDING — transformer entry absent ⇒ not ready.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                null,
+                null,
+                false);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+        verify(deploymentRepository, never()).conditionalUpdateInNewTransaction(any(), any(), any());
+    }
+
+    @Test
+    void reconcile_shouldReportRunning_whenChainedAndTransformerOnlyHasAddressUrl() {
+        // Case D — chained, transformer surfaces address.url instead of the direct .url. The
+        // fallback branch in isTransformerReady must accept this as ready.
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        InferenceService service = createChainedInferenceServiceWithStatusAndTransformer(
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE,
+                SERVICE_URL,
+                null,
+                INTERNAL_SERVICE_URL,
+                true);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // resolveServiceUrl prefers transformer.url over address.url, and here transformer.url is
+        // null while predictor.url is set — so the deployment-level URL ends up being whatever
+        // resolveServiceUrl falls back to. The point of this case is that mapStatus reaches
+        // RUNNING via the address.url branch in isTransformerReady, not what URL gets stored.
+        assertThat(result).isTrue();
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(eq(DEPLOYMENT_ID), any(), any());
+        verify(deploymentRepository, never()).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+    }
+
+    @Test
+    void reconcile_shouldReportRunning_whenNonChainedAndPredictorLoadedUptodate() {
+        // Case E — regression guard. The chained-readiness branch added in spec 022 must not
+        // affect predictor-only deployments. A non-chained service with predictor LOADED+UPTODATE
+        // must still resolve to RUNNING regardless of whether status.components carries a
+        // "transformer" entry.
+        Deployment deployment = createDeployment(DeploymentStatus.PENDING);
+        InferenceService service = createInferenceServiceWithStatus(
+                SERVICE_NAME,
+                SERVICE_URL,
+                null,
+                true,
+                States.ActiveModelState.LOADED,
+                ModelStatus.TransitionStatus.UPTODATE);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+
+        var reconcileConfig = getReconcileConfig(service);
+
+        boolean result = inferenceDeploymentManager.reconcile(reconcileConfig);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        assertThat(result).isTrue();
+        verify(deploymentRepository).conditionalUpdateInNewTransaction(
+                eq(DEPLOYMENT_ID),
+                any(),
+                argThat(mutatorExpectingUrlAndRunning(SERVICE_URL)));
     }
 
     private ArgumentMatcher<Consumer<Deployment>> mutatorExpectingUrlAndRunning(String expectedUrl) {

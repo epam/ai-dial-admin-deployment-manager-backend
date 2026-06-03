@@ -434,24 +434,29 @@ public abstract class DeploymentFunctionalTest {
         imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
         var newImageDefinitionId = createdImageDef.getId();
 
-        var mixedOperation = Mockito.mock(MixedOperation.class);
-        var resource = Mockito.mock(Resource.class);
+        var knativeMixedOperation = Mockito.mock(MixedOperation.class);
+        var knativeServiceResource = Mockito.mock(Resource.class);
         var service = Mockito.mock(Service.class);
         var metadata = Mockito.mock(ObjectMeta.class);
         when(metadata.getAnnotations()).thenReturn(Map.of("serving.knative.dev/creator", "immutable-creator"));
         when(service.getMetadata()).thenReturn(metadata);
-        when(resource.get()).thenReturn(service);
-        when(mixedOperation.inNamespace(any())).thenReturn(mixedOperation);
-        when(mixedOperation.withName(any())).thenReturn(resource);
-        when(mixedOperation.resource(any())).thenReturn(resource);
-        when(knativeClient.services()).thenReturn(mixedOperation);
+        when(knativeServiceResource.get()).thenReturn(service);
+        when(knativeMixedOperation.inNamespace(any())).thenReturn(knativeMixedOperation);
+        when(knativeMixedOperation.withName(any())).thenReturn(knativeServiceResource);
+        when(knativeMixedOperation.resource(any())).thenReturn(knativeServiceResource);
+        when(knativeClient.services()).thenReturn(knativeMixedOperation);
 
-        when(kubernetesClient.resources(any(Class.class))).thenReturn(mixedOperation);
+        var ciliumMixedOperation = Mockito.mock(MixedOperation.class);
+        var ciliumNetworkPolicyResource = Mockito.mock(Resource.class);
+        when(ciliumMixedOperation.inNamespace(any())).thenReturn(ciliumMixedOperation);
+        when(ciliumMixedOperation.resource(any())).thenReturn(ciliumNetworkPolicyResource);
+        when(kubernetesClient.resources(eq(CiliumNetworkPolicy.class))).thenReturn(ciliumMixedOperation);
 
         mockSecretMetaData(savedDeployment);
 
         // When
         savedDeployment.setStatus(DeploymentStatus.RUNNING);
+        savedDeployment.setServiceName("some-service");
         deploymentRepository.update(savedDeployment.getId(), savedDeployment);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
@@ -466,7 +471,7 @@ public abstract class DeploymentFunctionalTest {
         assertThat(((InternalImageSource) updatedDeployment.getSource()).imageDefinitionId()).isEqualTo(newImageDefinitionId);
         assertThat(updatedDeployment.getStatus()).isEqualTo(DeploymentStatus.PENDING);
 
-        verify(resource, times(1)).update();
+        verify(knativeServiceResource, times(1)).update();
     }
 
     @Test
@@ -592,22 +597,27 @@ public abstract class DeploymentFunctionalTest {
         imageDefinitionService.completeBuildSuccessfully(createdImageDef.getId(), "test-image", System.currentTimeMillis());
         var newImageDefinitionId = createdImageDef.getId();
 
-        var mixedOperation = Mockito.mock(MixedOperation.class);
-        var resource = Mockito.mock(Resource.class);
+        var knativeMixedOperation = Mockito.mock(MixedOperation.class);
+        var knativeServiceResource = Mockito.mock(Resource.class);
         var service = Mockito.mock(Service.class);
         var metadata = Mockito.mock(ObjectMeta.class);
         when(metadata.getAnnotations()).thenReturn(null);
         when(service.getMetadata()).thenReturn(metadata);
-        when(resource.get()).thenReturn(service);
-        when(mixedOperation.inNamespace(any())).thenReturn(mixedOperation);
-        when(mixedOperation.withName(any())).thenReturn(resource);
-        when(mixedOperation.resource(any())).thenReturn(resource);
-        when(knativeClient.services()).thenReturn(mixedOperation);
+        when(knativeServiceResource.get()).thenReturn(service);
+        when(knativeMixedOperation.inNamespace(any())).thenReturn(knativeMixedOperation);
+        when(knativeMixedOperation.withName(any())).thenReturn(knativeServiceResource);
+        when(knativeMixedOperation.resource(any())).thenReturn(knativeServiceResource);
+        when(knativeClient.services()).thenReturn(knativeMixedOperation);
 
-        when(kubernetesClient.resources(any(Class.class))).thenReturn(mixedOperation);
+        var ciliumMixedOperation = Mockito.mock(MixedOperation.class);
+        var ciliumNetworkPolicyResource = Mockito.mock(Resource.class);
+        when(ciliumMixedOperation.inNamespace(any())).thenReturn(ciliumMixedOperation);
+        when(ciliumMixedOperation.resource(any())).thenReturn(ciliumNetworkPolicyResource);
+        when(kubernetesClient.resources(eq(CiliumNetworkPolicy.class))).thenReturn(ciliumMixedOperation);
 
         // When
         savedDeployment1.setStatus(DeploymentStatus.RUNNING);
+        savedDeployment1.setServiceName("some-service-1");
         deploymentRepository.update(savedDeployment1.getId(), savedDeployment1);
 
         var updateRequest = FunctionalTestHelper.createInterceptorDeploymentRequest(imageDefinitionId);
@@ -619,7 +629,7 @@ public abstract class DeploymentFunctionalTest {
 
         // Then
         // should update only once because deployment1 is active, and deployment2 isn't
-        verify(resource, times(1)).update();
+        verify(knativeServiceResource, times(1)).update();
     }
 
     @Test
