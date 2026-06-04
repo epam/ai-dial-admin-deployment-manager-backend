@@ -14,9 +14,6 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nvidia.apps.v1alpha1.NIMService;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.Ingress;
 import com.nvidia.apps.v1alpha1.nimservicespec.expose.ingress.Spec;
@@ -27,6 +24,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
 import java.util.List;
@@ -56,11 +55,10 @@ class NimManifestGeneratorTest {
     private final PoolPrimitivesConverter poolPrimitivesConverter =
             new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper objectMapper = JsonMapperConfiguration.createPrettyJsonMapper();
 
     @BeforeEach
-    void setupMocks() throws JsonProcessingException {
+    void setupMocks() throws JacksonException {
         var baseServiceJson = ResourceUtils.readResource("/manifest/nim_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, NIMService.class);
 
@@ -76,7 +74,7 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenEnvs() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withOverriddenEnvs() throws JacksonException, JSONException {
         // Given
         var deploymentName = "basic-nim-app";
         var imageName = "my-registry.io/custom/my-model:v1.2.3";
@@ -97,7 +95,7 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenResources() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withOverriddenResources() throws JacksonException, JSONException {
         // Given
         var deploymentName = "resource-nim-app";
         var imageName = "my-registry.io/models/resource-model:prod";
@@ -119,7 +117,7 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withCustomPort() throws JsonProcessingException {
+    void testServiceConfig_withCustomPort() throws JacksonException {
         // Given
         var deploymentName = "custom-port-nim-app";
         var imageName = "my-registry.io/custom/my-model:v1.2.3";
@@ -144,7 +142,7 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withNullPort_usesDefaultFromTemplate() throws JsonProcessingException {
+    void testServiceConfig_withNullPort_usesDefaultFromTemplate() throws JacksonException {
         // Given
         var deploymentName = "default-port-nim-app";
         var imageName = "my-registry.io/custom/my-model:v1.2.3";
@@ -584,7 +582,7 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_kserveMode_matchesExpectedManifest() throws JsonProcessingException, JSONException {
+    void testServiceConfig_kserveMode_matchesExpectedManifest() throws JacksonException, JSONException {
         // Given
         nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "kserve-nim-app";
@@ -605,7 +603,7 @@ class NimManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_legacyModeWithExternalUrl_matchesExpectedManifest() throws JsonProcessingException, JSONException {
+    void testServiceConfig_legacyModeWithExternalUrl_matchesExpectedManifest() throws JacksonException, JSONException {
         // Given: legacy mode with external URL (ingress-based exposure)
         nimDeployProperties.setUseClusterInternalUrl(false);
         nimDeployProperties.setClusterHost("example.com");
@@ -739,7 +737,7 @@ class NimManifestGeneratorTest {
         assertThat(spec.getTolerations()).isNullOrEmpty();
     }
 
-    private String serialize(Object obj) throws JsonProcessingException {
+    private String serialize(Object obj) throws JacksonException {
         return objectMapper.writeValueAsString(obj);
     }
 

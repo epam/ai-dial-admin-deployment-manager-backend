@@ -9,17 +9,17 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.cfg.EnumFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.cfg.EnumFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class JsonMapperConfiguration {
@@ -39,12 +39,13 @@ public class JsonMapperConfiguration {
     @Bean
     @Qualifier("exportJsonMapper")
     public JsonMapper getExportJsonMapper() {
-        JsonMapper mapper = createPrettyJsonMapper();
-        mapper.addMixIn(ImageDefinition.class, ImageDefinitionExportMixIn.class);
-        mapper.addMixIn(Deployment.class, DeploymentExportMixIn.class);
-        mapper.addMixIn(InternalImageSource.class, InternalImageSourceExportMixIn.class);
-        mapper.addMixIn(SensitiveEnvVar.class, SensitiveEnvVarExportMixIn.class);
-        return mapper;
+        // Jackson 3 mappers are immutable, so mix-ins must be registered on the builder
+        return createPrettyJsonMapperBuilder()
+                .addMixIn(ImageDefinition.class, ImageDefinitionExportMixIn.class)
+                .addMixIn(Deployment.class, DeploymentExportMixIn.class)
+                .addMixIn(InternalImageSource.class, InternalImageSourceExportMixIn.class)
+                .addMixIn(SensitiveEnvVar.class, SensitiveEnvVarExportMixIn.class)
+                .build();
     }
 
     public static JsonMapper createJsonMapper() {
@@ -52,21 +53,31 @@ public class JsonMapperConfiguration {
     }
 
     public static JsonMapper createPrettyJsonMapper() {
+        return createPrettyJsonMapperBuilder().build();
+    }
+
+    private static JsonMapper.Builder createPrettyJsonMapperBuilder() {
         return createDefaultJsonMapperBuilder()
-                .enable(SerializationFeature.INDENT_OUTPUT)
-                .build();
+                .enable(SerializationFeature.INDENT_OUTPUT);
     }
 
     private static JsonMapper.Builder createDefaultJsonMapperBuilder() {
         return JsonMapper.builder()
                 .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
                 .enable(EnumFeature.WRITE_ENUMS_TO_LOWERCASE)
-                .disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
-                .disable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                // preserve the Jackson 2 wire format: dates as millisecond timestamps, declaration-ordered properties
+                .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)
+                // preserve Jackson 2 creator semantics: deserialize POJOs via setters/field defaults,
+                // not constructor parameters (Jackson 3 detects parameter names by default,
+                // which bypasses Lombok @Builder.Default field initializers)
+                .disable(MapperFeature.DETECT_PARAMETER_NAMES)
+                .disable(DateTimeFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
+                .disable(DateTimeFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .configure(JsonParser.Feature.AUTO_CLOSE_SOURCE, false)
-                .serializationInclusion(JsonInclude.Include.NON_NULL)
-                .addModule(new JavaTimeModule());
+                .configure(StreamReadFeature.AUTO_CLOSE_SOURCE, false)
+                .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
+                .addModule(new KubernetesModelJacksonModule());
     }
 
 }

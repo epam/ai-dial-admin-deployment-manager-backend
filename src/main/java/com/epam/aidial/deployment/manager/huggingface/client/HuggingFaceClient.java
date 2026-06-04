@@ -8,9 +8,6 @@ import com.epam.aidial.deployment.manager.huggingface.model.ModelsPageResponse;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelsRequest;
 import com.epam.aidial.deployment.manager.huggingface.model.TagsInfo;
 import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -20,6 +17,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -141,7 +141,7 @@ public class HuggingFaceClient {
             return result;
         } catch (HuggingFaceClientException e) {
             throw e;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             var errorMessage = "Malformed config.json from Hugging Face for model '%s'".formatted(modelName);
             log.warn(errorMessage, e);
             throw new HuggingFaceMalformedResponseException(errorMessage, e);

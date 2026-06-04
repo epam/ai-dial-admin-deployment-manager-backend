@@ -1,18 +1,19 @@
 package com.epam.aidial.deployment.manager.web.security.apikey;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.PostConstruct;
 
 @Slf4j
 @Component
@@ -57,8 +57,8 @@ public class CoreApiKeyIntrospector {
                 .connectTimeout(timeout)
                 .readTimeout(timeout)
                 .additionalCustomizers(rt -> rt.getMessageConverters().stream()
-                        .filter(MappingJackson2HttpMessageConverter.class::isInstance)
-                        .map(MappingJackson2HttpMessageConverter.class::cast)
+                        .filter(JacksonJsonHttpMessageConverter.class::isInstance)
+                        .map(JacksonJsonHttpMessageConverter.class::cast)
                         .findFirst()
                         .ifPresent(c -> {
                             // DIAL Core's /v1/user/info returns JSON body but labels it application/octet-stream.

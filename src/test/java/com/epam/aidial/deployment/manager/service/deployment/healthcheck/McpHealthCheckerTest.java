@@ -14,9 +14,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.retry.RetryCallback;
-import org.springframework.retry.RetryContext;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.core.retry.Retryable;
 
 import java.time.Duration;
 import java.util.function.Function;
@@ -25,7 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,10 +83,10 @@ class McpHealthCheckerTest {
     }
 
     @Test
-    void waitReady_shouldSuccessfullyWaitForServiceToBeReady() {
+    void waitReady_shouldSuccessfullyWaitForServiceToBeReady() throws RetryException {
         when(retryTemplate.execute(any())).thenAnswer(invocation -> {
-            RetryCallback<Object, Exception> callback = invocation.getArgument(0);
-            return callback.doWithRetry(mock(RetryContext.class));
+            Retryable<Object> retryable = invocation.getArgument(0);
+            return retryable.execute();
         });
 
         mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT);
@@ -111,9 +110,9 @@ class McpHealthCheckerTest {
     }
 
     @Test
-    void waitReady_shouldThrowIllegalStateExceptionWhenClientInitializationFails() {
-        var initializationException = new RuntimeException("Connection failed");
-        when(retryTemplate.execute(any())).thenThrow(initializationException);
+    void waitReady_shouldThrowIllegalStateExceptionWhenClientInitializationFails() throws RetryException {
+        var retryException = new RetryException("Retry exhausted", new RuntimeException("Connection failed"));
+        when(retryTemplate.execute(any())).thenThrow(retryException);
 
         assertThatThrownBy(() -> mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT))
                 .isInstanceOf(IllegalStateException.class)
@@ -123,11 +122,10 @@ class McpHealthCheckerTest {
     }
 
     @Test
-    void waitReady_shouldCloseClientAfterInitialization() {
+    void waitReady_shouldCloseClientAfterInitialization() throws RetryException {
         when(retryTemplate.execute(any())).thenAnswer(invocation -> {
-            RetryCallback<Object, Exception> callback = invocation.getArgument(0);
-            RetryContext context = mock(RetryContext.class);
-            return callback.doWithRetry(context);
+            Retryable<Object> retryable = invocation.getArgument(0);
+            return retryable.execute();
         });
 
         mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT);

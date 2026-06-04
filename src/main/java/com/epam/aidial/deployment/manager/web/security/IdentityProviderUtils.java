@@ -1,15 +1,15 @@
 package com.epam.aidial.deployment.manager.web.security;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -47,7 +47,7 @@ public class IdentityProviderUtils {
             this.defaultRolesMapping = defaultRolesMapping != null
                     ? objectMapper.readValue(defaultRolesMapping, new TypeReference<>() {})
                     : Map.of();
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Invalid JSON in config.rest.security.default.roles-mapping", e);
         }
         this.defaultEmailClaim = defaultEmailClaim;

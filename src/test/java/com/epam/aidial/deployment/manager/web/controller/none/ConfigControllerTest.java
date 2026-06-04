@@ -16,7 +16,7 @@ import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
 import com.epam.aidial.deployment.manager.web.mapper.ImportConfigDtoMapper;
 import com.epam.aidial.deployment.manager.web.validation.ImportConfigValidator;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;

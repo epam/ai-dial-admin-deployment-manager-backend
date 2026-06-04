@@ -1,8 +1,8 @@
 package db.migration.common;
 
-import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import db.migration.MigrationJsonMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -13,7 +13,7 @@ import java.sql.Statement;
 @Slf4j
 public abstract class V1_50__UnifyDeploymentSourceBase extends BaseJavaMigration {
 
-    protected static final ObjectMapper MAPPER = JsonMapperConfiguration.createJsonMapper();
+    protected static final ObjectMapper MAPPER = MigrationJsonMapper.createJsonMapper();
 
     @Override
     public void migrate(Context context) throws Exception {

@@ -25,14 +25,17 @@ import java.util.Map;
 @Component
 public class AuditRevisionListener implements EntityTrackingRevisionListener, ApplicationContextAware {
 
-    private static volatile SecurityClaimsExtractor securityClaimsExtractor;
-    private static volatile TransactionTimestampContext transactionTimestampContext;
-    private static volatile AuditActivityMapper auditActivityMapper;
+    // Instance fields: Envers obtains this listener through Hibernate's SpringBeanContainer, so each
+    // instance is a fully initialized Spring bean of its own ApplicationContext. Static fields would
+    // break when several contexts coexist in one JVM (e.g. cached test contexts).
+    private SecurityClaimsExtractor securityClaimsExtractor;
+    private TransactionTimestampContext transactionTimestampContext;
+    private AuditActivityMapper auditActivityMapper;
 
     // ThreadLocal is not explicitly cleared after transaction completion because Hibernate Envers
     // does not provide an "after flush" callback. The map is replaced on each newRevision() call,
     // so stale references are limited to a single small HashMap per pooled thread between transactions.
-    private static final ThreadLocal<Map<String, AuditActivityEntity>> DEDUP_MAP = ThreadLocal.withInitial(HashMap::new);
+    private final ThreadLocal<Map<String, AuditActivityEntity>> dedupMap = ThreadLocal.withInitial(HashMap::new);
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -62,7 +65,7 @@ public class AuditRevisionListener implements EntityTrackingRevisionListener, Ap
             log.debug("Unable to get transaction timestamp, using current time", e);
             rev.setTimestamp(System.currentTimeMillis());
         }
-        DEDUP_MAP.set(new HashMap<>());
+        dedupMap.set(new HashMap<>());
     }
 
     @Override
@@ -81,9 +84,9 @@ public class AuditRevisionListener implements EntityTrackingRevisionListener, Ap
         String resourceId = entityId != null ? entityId.toString() : null;
         String dedupKey = resourceType + ":" + resourceId;
 
-        Map<String, AuditActivityEntity> dedupMap = DEDUP_MAP.get();
+        Map<String, AuditActivityEntity> transactionDedup = dedupMap.get();
 
-        AuditActivityEntity existing = dedupMap.get(dedupKey);
+        AuditActivityEntity existing = transactionDedup.get(dedupKey);
         if (existing != null) {
             if (activityType == ActivityType.Create || activityType == ActivityType.Delete) {
                 rev.getActivities().remove(existing);
@@ -104,6 +107,6 @@ public class AuditRevisionListener implements EntityTrackingRevisionListener, Ap
                 .build();
 
         rev.getActivities().add(activity);
-        dedupMap.put(dedupKey, activity);
+        transactionDedup.put(dedupKey, activity);
     }
 }

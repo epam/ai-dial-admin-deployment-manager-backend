@@ -57,8 +57,6 @@ import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.dto.config.ExportComponentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto;
 import com.epam.aidial.deployment.manager.web.mapper.ExportConfigMapper;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -70,6 +68,8 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -187,7 +187,7 @@ public abstract class ConfigExportImportFunctionalTest {
         JsonNode actualTree = exportJsonMapper.readTree(actualJson);
 
         // Compare each exported key to expected
-        expectedTree.fields().forEachRemaining(entry -> {
+        expectedTree.properties().forEach(entry -> {
             String key = entry.getKey();
             JsonNode expectedNode = actualTree.get(key);
             assertThat(expectedNode).as("Exported JSON should contain key: " + key).isNotNull();

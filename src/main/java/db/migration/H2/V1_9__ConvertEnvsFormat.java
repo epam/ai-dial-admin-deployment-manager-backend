@@ -1,8 +1,8 @@
 package db.migration.H2;
 
-import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import db.migration.MigrationJsonMapper;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.h2.value.ValueJson;
@@ -14,7 +14,7 @@ import java.util.UUID;
 
 public class V1_9__ConvertEnvsFormat extends BaseJavaMigration {
 
-    private static final ObjectMapper MAPPER = JsonMapperConfiguration.createJsonMapper();
+    private static final ObjectMapper MAPPER = MigrationJsonMapper.createJsonMapper();
 
     @Override
     public void migrate(Context context) throws Exception {

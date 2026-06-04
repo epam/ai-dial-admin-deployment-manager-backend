@@ -1,14 +1,14 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.apache.commons.collections4.CollectionUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 
@@ -26,8 +26,9 @@ public class PoolPrimitivesConverter {
     private final ObjectMapper mapper;
 
     public PoolPrimitivesConverter(JsonMapper jsonMapper) {
-        this.mapper = jsonMapper.copy()
-                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        this.mapper = jsonMapper.rebuild()
+                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .build();
     }
 
     @Nullable

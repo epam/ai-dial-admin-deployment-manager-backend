@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.web.security.TestSecurityConfig;
 import com.epam.aidial.deployment.manager.web.security.UserRole;
 import org.junit.jupiter.params.provider.Arguments;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.cache.test.autoconfigure.AutoConfigureCache;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
@@ -51,6 +52,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
         JsonMapperConfiguration.class,
         TestSecurityConfig.class,
 })
+@AutoConfigureCache
 public abstract class AbstractControllerSecurityTest {
 
     protected static final String TEST_AUDIENCE = "audience_test";

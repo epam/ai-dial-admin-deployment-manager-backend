@@ -41,18 +41,17 @@ import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -106,14 +105,11 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @MockitoBean
     private NodePoolService nodePoolService;
 
-    @Captor
-    private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;
-    @Captor
-    private ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor;
-    @Captor
-    private ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor;
-    @Captor
-    private ArgumentCaptor<CreateDeployment> createDeploymentCaptor;
+    // Spring Boot 4 no longer processes Mockito's @Captor in slice tests — initialize captors directly
+    private final ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor = ArgumentCaptor.captor();
+    private final ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor = ArgumentCaptor.captor();
+    private final ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor = ArgumentCaptor.captor();
+    private final ArgumentCaptor<CreateDeployment> createDeploymentCaptor = ArgumentCaptor.captor();
 
     @Test
     void testGetAllDeployments() throws Exception {
