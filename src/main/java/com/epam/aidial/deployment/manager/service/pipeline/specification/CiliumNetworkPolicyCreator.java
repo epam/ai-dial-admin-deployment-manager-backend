@@ -40,7 +40,7 @@ public class CiliumNetworkPolicyCreator {
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
     private static final String UDP_DNS_PATTERN_ALL = "*";
-    private static final String CLUSTER_LOCAL_DNS_PATTERN = "*.svc.cluster.local";
+    private static final String CLUSTER_LOCAL_DNS_SUFFIX = ".svc.cluster.local";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
@@ -88,14 +88,14 @@ public class CiliumNetworkPolicyCreator {
         boolean hasAllowedDomains = CollectionUtils.isNotEmpty(allowedDomains);
         if (hasAllowedDomains) {
             egressList.add(createExternalEgress(allowedDomains));
-            // Chained pairs need to resolve *-predictor.<ns>.svc.cluster.local via kube-dns even
-            // when allowedDomains is a specific list — Cilium's DNS proxy would otherwise reject
-            // cluster-local names not in the matchName set.
-            egressList.add(createKubeDnsEgress(allowedDomains, chainedTransformer));
+            // Chained pairs need to resolve <svc>-predictor.<namespace>.svc.cluster.local via
+            // kube-dns; Cilium's DNS proxy would otherwise reject cluster-local names not in
+            // the matchName set. Scoped to the deployment's own namespace.
+            egressList.add(createKubeDnsEgress(namespace, allowedDomains, chainedTransformer));
         } else if (chainedTransformer) {
-            // External egress locked down; emit a kube-dns block restricted to cluster-local
-            // names only so the predictor's cluster DNS name resolves without external DNS exfil.
-            egressList.add(createKubeDnsEgress(List.of(), true));
+            // External egress locked down; emit a kube-dns block restricted to the deployment's
+            // own namespace so the predictor's cluster DNS name resolves without DNS exfil.
+            egressList.add(createKubeDnsEgress(namespace, List.of(), true));
         }
         if (chainedTransformer) {
             // Intra-cluster reachability for chained predictor + transformer (spec 022 FR-001).
@@ -155,7 +155,7 @@ public class CiliumNetworkPolicyCreator {
         return domains.contains(ALLOW_ALL_KEY);
     }
 
-    private Egress createKubeDnsEgress(List<String> domains, boolean includeClusterLocal) {
+    private Egress createKubeDnsEgress(String namespace, List<String> domains, boolean includeClusterLocal) {
         ToEndpoints kubeDnsToEndpoints = new ToEndpoints();
         kubeDnsToEndpoints.setMatchLabels(Map.of(
                 KUBE_DNS_LABEL_NAME, KUBE_DNS_LABEL_VALUE,
@@ -166,7 +166,7 @@ public class CiliumNetworkPolicyCreator {
         kubeDnsPorts.setPort(UDP_PORT);
         kubeDnsPorts.setProtocol(Protocol.ANY);
         Rules rules = new Rules();
-        rules.setDns(toDnsList(domains, includeClusterLocal));
+        rules.setDns(toDnsList(namespace, domains, includeClusterLocal));
 
         ToPorts kubeDnsToPorts = new ToPorts();
         kubeDnsToPorts.setPorts(List.of(kubeDnsPorts));
@@ -178,7 +178,7 @@ public class CiliumNetworkPolicyCreator {
         return egress;
     }
 
-    private List<Dns> toDnsList(List<String> domains, boolean includeClusterLocal) {
+    private List<Dns> toDnsList(String namespace, List<String> domains, boolean includeClusterLocal) {
         // matchPattern "*" already covers every name including cluster-local — no extra entry.
         if (allowAllEgress(domains)) {
             Dns dns = new Dns();
@@ -193,7 +193,7 @@ public class CiliumNetworkPolicyCreator {
         }
         if (includeClusterLocal) {
             Dns clusterLocal = new Dns();
-            clusterLocal.setMatchPattern(CLUSTER_LOCAL_DNS_PATTERN);
+            clusterLocal.setMatchPattern("*." + namespace + CLUSTER_LOCAL_DNS_SUFFIX);
             rules.add(clusterLocal);
         }
         return rules;
