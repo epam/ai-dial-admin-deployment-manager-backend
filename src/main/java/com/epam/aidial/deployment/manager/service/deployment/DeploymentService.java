@@ -213,8 +213,6 @@ public class DeploymentService {
         componentCleanupService.finalizePendingCleanup(id, ComponentType.DEPLOYMENT);
 
         var request = deploymentMapper.toCreateDeployment(snapshot);
-        // toCreateDeployment drops nodePoolId; restore it verbatim (false = no create-time cascade).
-        request.setNodePoolId(snapshot.getNodePoolId());
         hydrateEnvValuesFromSnapshot(request, snapshot.getEnvs());
         return createDeployment(request, false);
     }

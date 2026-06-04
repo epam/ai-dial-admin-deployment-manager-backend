@@ -181,13 +181,15 @@ public class ImageDefinitionService {
     /**
      * Re-create an image definition that existed at the requested revision but has since been deleted.
      * The snapshot is reconstructed from the audit history ({@link #getImageDefinitionSnapshot} throws 404
-     * if the id never existed at that revision). Any leftovers from the deleted definition (build jobs /
-     * config maps / pushed images, plus a still-pending component-removal marker) are drained first so the
-     * re-creation isn't later re-deleted by the scheduled cleaner. The re-created definition gets a
-     * <em>fresh</em> id — image-definition ids are Hibernate-generated UUIDs that the generator overwrites
-     * on insert — so the returned DTO's id differs from the requested {id}. It is created in NOT_BUILT
-     * (the prior build artifacts are gone) and is subject to the same name+version uniqueness check as a
-     * normal create.
+     * if the id never existed at that revision). The re-created definition gets a <em>fresh</em> id —
+     * image-definition ids are Hibernate-generated UUIDs that the generator overwrites on insert — so the
+     * returned DTO's id differs from the requested {id}. Any leftovers from the deleted generation (build
+     * jobs / config maps / pushed images, plus a still-pending component-removal marker) are all keyed by
+     * the old id and therefore harmless to the re-created definition; they are left for the scheduled
+     * cleaner to drain in due course. (If this path ever becomes id-preserving for parity with deployment
+     * resurrection, an eager {@code finalizePendingCleanup} drain becomes load-bearing again — see
+     * {@code DeploymentService#resurrect}.) It is created in NOT_BUILT (the prior build artifacts are gone)
+     * and is subject to the same name+version uniqueness check as a normal create.
      */
     private ImageDefinition resurrect(UUID id, Integer revision) {
         var snapshot = getImageDefinitionSnapshot(id, revision);
@@ -198,7 +200,6 @@ public class ImageDefinitionService {
                             "Image definition already exists: type=%s, name=%s, version=%s"
                                     .formatted(snapshotType, snapshot.getName(), snapshot.getVersion()));
                 });
-        componentCleanupService.finalizePendingCleanup(String.valueOf(id), ComponentType.IMAGE_DEFINITION);
         snapshot.setId(null); // force a fresh-UUID INSERT instead of merge-with-assigned-id
         return createImageDefinition(snapshot);
     }

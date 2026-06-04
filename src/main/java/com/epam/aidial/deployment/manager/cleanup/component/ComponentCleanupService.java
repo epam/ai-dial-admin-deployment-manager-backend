@@ -82,9 +82,10 @@ public class ComponentCleanupService {
     }
 
     /**
-     * Drains a deleted component's leftovers so its id can be safely re-created (resurrection on rollback):
-     * cleans lingering K8s / disposable resources for the group and drops any pending {@link ComponentRemoval}
-     * row so {@link ScheduledComponentCleanup} won't re-delete the re-created component.
+     * Drains a deleted component's leftovers so its id can be safely re-created — load-bearing only for
+     * <em>id-preserving</em> resurrection (deployments): cleans lingering K8s / disposable resources for the
+     * group and drops any pending {@link ComponentRemoval} row so {@link ScheduledComponentCleanup} won't
+     * re-delete the re-created component.
      *
      * <p>The disposable-resource cleanup commits independently (REQUIRES_NEW + live K8s calls), so if the
      * caller's transaction later rolls back the drain is NOT undone — harmless, since the drained generation
@@ -95,7 +96,7 @@ public class ComponentCleanupService {
     public void finalizePendingCleanup(String id, ComponentType type) {
         disposableResourceManager.markResourcesForCleanupByGroupId(id);
         disposableResourceCleaner.cleanAllCleanableByGroupId(id);
-        componentRemovalRepository.deleteIfPresent(id, type);
+        componentRemovalRepository.delete(id, type);
     }
 
     void deleteAllPersisted() {

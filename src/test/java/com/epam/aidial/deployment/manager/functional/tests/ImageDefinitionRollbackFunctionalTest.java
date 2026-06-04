@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.functional.tests;
 
+import com.epam.aidial.deployment.manager.cleanup.component.ScheduledComponentCleanup;
 import com.epam.aidial.deployment.manager.dao.repository.ComponentRemovalRepository;
 import com.epam.aidial.deployment.manager.exception.EntityAlreadyExistsException;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
@@ -52,6 +53,8 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
     private SecurityClaimsExtractor securityClaimsExtractor;
     @Autowired
     private ComponentRemovalRepository componentRemovalRepository;
+    @Autowired
+    private ScheduledComponentCleanup scheduledComponentCleanup;
     @Autowired
     private PlatformTransactionManager transactionManager;
     @PersistenceContext
@@ -173,9 +176,10 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
     }
 
     @Test
-    void shouldDropPendingRemovalRow_whenResurrectingDeletedImageDefinition() {
-        // A still-pending ComponentRemoval row for the old id would otherwise let ScheduledComponentCleanup
-        // run a delete against it; resurrection must drop it.
+    void shouldSurviveScheduledCleanerForOldId_afterResurrection() {
+        // Resurrection assigns a fresh server-generated id, so a still-pending ComponentRemoval row for the
+        // old id is harmless: the scheduled cleaner's delete targets the old id only. Resurrection therefore
+        // leaves the row for the cleaner to drain, and the cleaner must not touch the resurrected definition.
         ImageDefinition imageDef = FunctionalTestHelper.createInterceptorImageDefinition();
         imageDef.setName("resurrect-image-drain");
         ImageDefinition created = imageDefinitionService.createImageDefinition(imageDef);
@@ -185,10 +189,15 @@ public abstract class ImageDefinitionRollbackFunctionalTest {
         componentRemovalRepository.save(ComponentRemoval.of(String.valueOf(created.getId()), ComponentType.IMAGE_DEFINITION));
 
         ImageDefinition resurrected = imageDefinitionService.rollback(created.getId(), createRevision);
+        assertThat(resurrected.getId()).isNotNull().isNotEqualTo(created.getId());
 
-        assertThat(resurrected.getId()).isNotNull();
+        scheduledComponentCleanup.cleanComponents();
+
+        assertThat(imageDefinitionService.getImageDefinition(resurrected.getId()))
+                .as("the scheduled cleaner acting on the old id must not delete the resurrected definition")
+                .isPresent();
         assertThat(componentRemovalRepository.getAll())
-                .as("resurrection must drop the pending removal row for the deleted id")
+                .as("the scheduled cleaner drains the old id's pending removal row")
                 .noneMatch(r -> String.valueOf(created.getId()).equals(r.getId()) && r.getType() == ComponentType.IMAGE_DEFINITION);
     }
 
