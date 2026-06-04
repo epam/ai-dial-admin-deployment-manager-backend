@@ -23,7 +23,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
@@ -50,7 +49,7 @@ class KnativeManifestGeneratorTest {
     private KnativeManifestGenerator manifestGenerator;
 
     @BeforeEach
-    void setupMocks() throws JacksonException {
+    void setupMocks() {
         var baseServiceJson = ResourceUtils.readResource("/manifest/knative_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, Service.class);
         var baseContainerJson = ResourceUtils.readResource("/manifest/knative_service_container_template.json");
@@ -62,7 +61,7 @@ class KnativeManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenEnvs() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenEnvs() throws JSONException {
         // Given
         var deploymentName = "basic-app";
         var imageName = "my-registry/my-image:latest";
@@ -84,7 +83,7 @@ class KnativeManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenScaling() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenScaling() throws JSONException {
         // Given
         var deploymentName = "scaling-app";
         var imageName = "my-registry/scaling-image:v1";
@@ -131,7 +130,7 @@ class KnativeManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenResources() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenResources() throws JSONException {
         // Given
         var deploymentName = "resource-app";
         var imageName = "my-registry/resource-image:v1";
@@ -367,7 +366,7 @@ class KnativeManifestGeneratorTest {
         assertThat(revisionSpec.getTolerations()).isNullOrEmpty();
     }
 
-    private String serialize(Object obj) throws JacksonException {
+    private String serialize(Object obj) {
         return objectMapper.writeValueAsString(obj);
     }
 

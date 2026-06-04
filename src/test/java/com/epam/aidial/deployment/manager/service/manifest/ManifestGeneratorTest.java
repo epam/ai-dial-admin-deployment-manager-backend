@@ -13,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
@@ -44,17 +43,17 @@ class ManifestGeneratorTest {
     private final ObjectMapper objectMapper = JsonMapperConfiguration.createPrettyJsonMapper();
 
     @BeforeEach
-    void setupMocks() throws JacksonException {
+    void setupMocks() {
         var baseSecret = objectMapper.readValue(BASE_SECRET_JSON, Secret.class);
         when(appconfig.cloneBuilderSecretConfig()).thenReturn(baseSecret);
     }
 
-    private String serialize(Object obj) throws JacksonException {
+    private String serialize(Object obj) {
         return objectMapper.writeValueAsString(obj);
     }
 
     @Test
-    void testSecretConfig_createsSecretWithProvidedData() throws JacksonException, JSONException {
+    void testSecretConfig_createsSecretWithProvidedData() throws JSONException {
         // Given
         var secretName = "my-custom-secret";
         var secretData = Map.of(
@@ -91,7 +90,7 @@ class ManifestGeneratorTest {
     }
 
     @Test
-    void testDialRegistryAuthSecretConfig_withBasicAuth() throws JacksonException, JSONException {
+    void testDialRegistryAuthSecretConfig_withBasicAuth() throws JSONException {
         // Given
         var secretName = "dial-registry-secret";
         var dockerConfigContent = """
@@ -123,7 +122,7 @@ class ManifestGeneratorTest {
     }
 
     @Test
-    void testDialRegistryAuthSecretConfig_withoutBasicAuth() throws JacksonException, JSONException {
+    void testDialRegistryAuthSecretConfig_withoutBasicAuth() throws JSONException {
         // Given
         var secretName = "dial-registry-secret-no-auth";
         // Mock the registry service to return a non-basic auth scheme

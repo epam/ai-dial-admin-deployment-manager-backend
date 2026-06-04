@@ -7,7 +7,6 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
@@ -26,9 +25,8 @@ public class PoolPrimitivesConverter {
     private final ObjectMapper mapper;
 
     public PoolPrimitivesConverter(JsonMapper jsonMapper) {
-        this.mapper = jsonMapper.rebuild()
-                .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                .build();
+        // no FAIL_ON_EMPTY_BEANS opt-out needed anymore: Jackson 3 disables it by default
+        this.mapper = jsonMapper;
     }
 
     @Nullable

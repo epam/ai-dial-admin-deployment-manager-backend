@@ -21,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
@@ -61,7 +60,7 @@ class InferenceManifestGeneratorTest {
     private final ObjectMapper objectMapper = JsonMapperConfiguration.createPrettyJsonMapper();
 
     @BeforeEach
-    void setupMocks() throws JacksonException {
+    void setupMocks() {
         var baseServiceJson = ResourceUtils.readResource("/manifest/inference_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, InferenceService.class);
 
@@ -73,7 +72,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenEnvs() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenEnvs() throws JSONException {
         // Given
         var deploymentName = "basic-inference-app";
         var storageUri = "s3://my-bucket/my-model";
@@ -95,7 +94,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenResources() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenResources() throws JSONException {
         // Given
         var deploymentName = "resource-inference-app";
         var storageUri = "s3://my-bucket/resource-model";
@@ -117,7 +116,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenScaling() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenScaling() throws JSONException {
         // Given
         var deploymentName = "scaling-inference-app";
         var storageUri = "s3://my-bucket/scaling-model";
@@ -139,7 +138,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenScaling_onlyRequiredParam() throws JacksonException, JSONException {
+    void testServiceConfig_withOverriddenScaling_onlyRequiredParam() throws JSONException {
         // Given
         var deploymentName = "scale-zero-delay-app";
         var storageUri = "s3://my-bucket/model";
@@ -178,7 +177,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withCustomPort() throws JacksonException, JSONException {
+    void testServiceConfig_withCustomPort() throws JSONException {
         // Given
         var deploymentName = "custom-port-inference-app";
         var storageUri = "s3://my-bucket/port-model";
@@ -199,7 +198,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withArgs() throws JacksonException, JSONException {
+    void testServiceConfig_withArgs() throws JSONException {
         // Given
         var deploymentName = "args-inference-app";
         var storageUri = "s3://my-bucket/args-model";
@@ -615,7 +614,7 @@ class InferenceManifestGeneratorTest {
         assertThat(args).doesNotContain("--return_raw_logits");
     }
 
-    private String serialize(Object obj) throws JacksonException {
+    private String serialize(Object obj) {
         return objectMapper.writeValueAsString(obj);
     }
 
