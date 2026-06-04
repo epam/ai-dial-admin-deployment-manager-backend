@@ -65,6 +65,11 @@ public class JsonMapperConfiguration {
         return JsonMapper.builder()
                 .enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS)
                 .enable(EnumFeature.WRITE_ENUMS_TO_LOWERCASE)
+                // preserve Jackson 2 enum semantics: (de)serialize via name(), not toString() —
+                // Jackson 3 flipped both defaults to enabled, which would silently change the wire
+                // format for any future enum that overrides toString()
+                .disable(EnumFeature.READ_ENUMS_USING_TO_STRING)
+                .disable(EnumFeature.WRITE_ENUMS_USING_TO_STRING)
                 // preserve the Jackson 2 wire format: dates as millisecond timestamps, declaration-ordered properties
                 .enable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY)

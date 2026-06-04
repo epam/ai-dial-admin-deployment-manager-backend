@@ -81,7 +81,7 @@ Status: **Implemented**
   - `TomcatFactoryCustomizer`: Tomcat-level customizations for log integration
 - Trace context utility: `com.epam.aidial.deployment.manager.utils.TraceContextUtils` — formats `traceparent` from OTel `Span.current()`
 - Log4j2 core version: 2.25.4 (`log4j-core`, `log4j-slf4j2-impl`, `log4j-jul`)
-- OTel Log4j2 appender: `opentelemetry-log4j-appender-2.17` (version aligned with the Boot-BOM-managed OpenTelemetry API); installed programmatically by `OpenTelemetryLogAppenderConfiguration` because the official starter does not auto-install it
+- OTel Log4j2 appender: `opentelemetry-log4j-appender-2.17` (version aligned with the Boot-BOM-managed OpenTelemetry API); installed programmatically by `OpenTelemetryLogAppenderConfiguration` because the official starter does not auto-install it; buffers up to 1000 pre-install startup events (`numLogsCapturedBeforeOtelInstall` in `log4j2.xml`) so they are not lost before the Spring context wires the SDK
 - OTel Spring Boot starter: official `org.springframework.boot:spring-boot-starter-opentelemetry` (Spring Boot 4); telemetry is configured via `management.*` properties (see `docs/configuration.md` § OpenTelemetry Configuration) and OTLP export is disabled by default via `OTEL_EXPORT_ENABLED=false`
 - Log configuration files: `log-config/` (Log4j2 XML configuration)
 - Related spec: `api-conventions`

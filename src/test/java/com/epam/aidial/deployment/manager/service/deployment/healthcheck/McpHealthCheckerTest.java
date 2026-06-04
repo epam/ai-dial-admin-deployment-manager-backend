@@ -116,7 +116,8 @@ class McpHealthCheckerTest {
 
         assertThatThrownBy(() -> mcpHealthChecker.waitReady(SERVICE_URL, mcpDeployment, TIMEOUT))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("MCP service failed to become ready at URL: %s. Reason: %s".formatted(SERVICE_URL, "Connection failed"));
+                .hasMessageContaining("MCP service failed to become ready at URL: %s. Reason: %s".formatted(SERVICE_URL, "RuntimeException: Connection failed"))
+                .hasCause(retryException);
         verify(retryTemplateFactory).apply(TIMEOUT);
         verify(mcpEndpointPathResolver).resolveEndpointPath(mcpDeployment);
     }

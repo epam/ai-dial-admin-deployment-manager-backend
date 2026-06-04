@@ -69,6 +69,8 @@ class OpenTelemetryExportConfigurationTest {
                 .withPropertyValues("OTEL_EXPORT_ENABLED=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
+                    // the exporter exposes no endpoint accessor, so this relies on the OTel SDK's toString()
+                    // including the endpoint — if an SDK upgrade breaks this assertion, adapt the lookup, not the yml
                     assertThat(context.getBean(OtlpHttpSpanExporter.class).toString()).contains("http://localhost:4318/v1/traces");
                 });
     }

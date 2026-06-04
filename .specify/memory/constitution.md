@@ -2,7 +2,7 @@
 Version change: 1.4.0 → 1.5.0 (MINOR: Spring Boot 4 platform upgrade — Tech Stack section rewritten for Boot 4.0.6 / Framework 7 / Jackson 3)
 Modified sections:
   - Tech Stack (Spring Boot 3.5.10 → 4.0.6; Gradle 8.13 → 8.14.5; removed the actuator 3.5.14 deliberate-override note — the Boot 4 BOM supersedes it; Jackson 2 → Jackson 3 (`tools.jackson`) as the application serialization stack, Jackson 2 retained only as a transitive dependency of third-party SDKs and for Hibernate JSON column mapping; spring-retry replaced by Spring Framework 7 core retry (`org.springframework.core.retry`); community `opentelemetry-spring-boot-starter` replaced by the official `spring-boot-starter-opentelemetry`; ShedLock 6.3.0 → 7.7.0; SpringDoc 2.8.5 → 3.0.3; MapStruct 1.6.0 → 1.6.3; ArchUnit 1.3.0 → 1.4.2; Flyway via `spring-boot-starter-flyway` (BOM-managed); Testcontainers 2.x (BOM-managed); log4j2 modules aligned to 2.25.4; the global `commons-logging` exclusion was removed because Spring Framework 7 depends on commons-logging 1.3 directly; jjwt (test-only) 0.9.1 → 0.13.0, which also removed the javax.xml.bind/jaxb 2.x dependencies)
-  - Tooling Commands (Docker build stage image gradle:8.13 → gradle:8.14)
+  - Tooling Commands (Docker build stage image gradle:8.13 → gradle:8.14.5, pinned to the exact wrapper version)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -258,7 +258,7 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
 | `./gradlew bootRun` | Run the service locally on the JVM |
 | `./gradlew generateDbSchema` | Regenerate `docs/db-schema.md` from H2 Flyway migrations — run after any migration change |
-| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.14-jdk21-alpine` → `amazoncorretto:21-alpine`) |
+| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.14.5-jdk21-alpine` → `amazoncorretto:21-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
 considering the task done. Use `./gradlew testFast` to run tests during development; a clean

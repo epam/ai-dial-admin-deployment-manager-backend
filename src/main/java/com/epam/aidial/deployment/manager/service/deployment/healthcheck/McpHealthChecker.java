@@ -61,7 +61,7 @@ public class McpHealthChecker implements HealthChecker {
                 }
             });
         } catch (RetryException e) {
-            throw new IllegalStateException("MCP service failed to become ready at URL: %s. Reason: %s".formatted(serviceUrl, e.getLastException().getMessage()));
+            throw new IllegalStateException("MCP service failed to become ready at URL: %s. Reason: %s".formatted(serviceUrl, ExceptionUtils.getRootCauseMessage(e)), e);
         }
         log.debug("MCP service is ready at URL: {}", serviceUrl);
     }

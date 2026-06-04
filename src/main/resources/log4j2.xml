@@ -10,7 +10,9 @@
             <PatternLayout
                     pattern="%style{%d{ISO8601}}{green} %highlight{%-5level} trace_id: %X{trace_id} span_id=%X{span_id} [%style{%t}{bright,blue}] %style{%c{1.}}{bright,yellow}: %msg%n%throwable"/>
         </Console>
-        <OpenTelemetry name="OpenTelemetryAppender"/>
+        <!-- buffer startup log events until OpenTelemetryLogAppenderConfiguration installs the SDK,
+             so logs emitted before Spring context refresh still reach the OTLP exporter -->
+        <OpenTelemetry name="OpenTelemetryAppender" numLogsCapturedBeforeOtelInstall="1000"/>
     </Appenders>
 
     <Loggers>
