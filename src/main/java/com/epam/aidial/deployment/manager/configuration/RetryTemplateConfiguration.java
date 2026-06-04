@@ -3,9 +3,8 @@ package com.epam.aidial.deployment.manager.configuration;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.retry.backoff.ExponentialBackOffPolicy;
-import org.springframework.retry.policy.TimeoutRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 
 import java.time.Duration;
 import java.util.function.Function;
@@ -20,19 +19,15 @@ public class RetryTemplateConfiguration {
     }
 
     private RetryTemplate createRetryTemplate(Duration timeout) {
-        RetryTemplate retryTemplate = new RetryTemplate();
+        RetryPolicy retryPolicy = RetryPolicy.builder()
+                // attempts are capped by the overall timeout only, mirroring the former spring-retry TimeoutRetryPolicy
+                .maxRetries(Long.MAX_VALUE)
+                .delay(Duration.ofSeconds(1))
+                .maxDelay(Duration.ofSeconds(10))
+                .multiplier(1.5)
+                .timeout(timeout)
+                .build();
 
-        ExponentialBackOffPolicy backOffPolicy = new ExponentialBackOffPolicy();
-        backOffPolicy.setInitialInterval(1_000);
-        backOffPolicy.setMaxInterval(10_000);
-        backOffPolicy.setMultiplier(1.5);
-        retryTemplate.setBackOffPolicy(backOffPolicy);
-
-        TimeoutRetryPolicy retryPolicy = new TimeoutRetryPolicy();
-        retryPolicy.setTimeout(timeout.toMillis());
-        retryTemplate.setRetryPolicy(retryPolicy);
-
-        return retryTemplate;
+        return new RetryTemplate(retryPolicy);
     }
 }
-

@@ -135,7 +135,7 @@ public class ConfigTransferService {
         }
     }
 
-    private ExportConfig sanitizeExportConfig(ExportConfig config) throws Exception {
+    private ExportConfig sanitizeExportConfig(ExportConfig config) {
         return exportJsonMapper.readValue(exportJsonMapper.writeValueAsBytes(config), ExportConfig.class);
     }
 }

@@ -1,9 +1,7 @@
 package com.epam.aidial.deployment.manager.web.security.apikey;
 
 import com.epam.aidial.deployment.manager.web.security.UserRole;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -12,11 +10,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.PostConstruct;
 
 @Getter
 @Setter
@@ -80,7 +80,7 @@ public class ApiKeyProperties {
         }
         try {
             return objectMapper.readValue(json, new TypeReference<>() { });
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Invalid " + propertyName + " JSON: " + ex.getMessage(), ex);
         }
     }
