@@ -31,6 +31,7 @@ public class ComponentRemovalRepository {
         return mapper.toDomain(savedEntity);
     }
 
+    /** Idempotent: Spring Data's {@code deleteById} silently ignores an absent row. */
     public void delete(String id, ComponentType type) {
         jpaRepository.deleteById(new ComponentId(id, type));
     }

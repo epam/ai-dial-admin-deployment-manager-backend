@@ -16,6 +16,7 @@ import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
 import com.epam.aidial.deployment.manager.model.EnvVarDefinition;
+import com.epam.aidial.deployment.manager.model.EnvVarMountType;
 import com.epam.aidial.deployment.manager.model.EnvVarValue;
 import com.epam.aidial.deployment.manager.model.ImageDefinition;
 import com.epam.aidial.deployment.manager.model.ImageStatus;
@@ -172,7 +173,13 @@ public class DeploymentService {
             throw new EntityNotFoundException("Unable to find revision with id " + revision);
         }
 
-        var existing = deploymentRepository.getById(id).orElseThrow(notFound("Deployment", id));
+        var existingOpt = deploymentRepository.getById(id);
+        if (existingOpt.isEmpty()) {
+            // The deployment existed at the requested revision but has since been deleted: re-create it
+            // instead of failing with 404, so an operator can revert a deletion in a single call.
+            return resurrect(id, revision);
+        }
+        var existing = existingOpt.get();
         if (existing.getStatus().isActive()) {
             throw new IllegalArgumentException(
                     "Cannot roll back deployment '%s' while it is in active state '%s'. Undeploy it first."
@@ -188,6 +195,40 @@ public class DeploymentService {
         reconcileEnvSecrets(id, existing, snapshot);
 
         return deploymentRepository.update(id, snapshot);
+    }
+
+    /**
+     * Re-create a deployment that existed at the requested revision but has since been deleted. The
+     * snapshot is reconstructed from the audit history ({@link #getDeploymentSnapshot} throws 404 if the
+     * id never existed at that revision). Any leftovers from the deleted generation are first drained so
+     * the create path's {@code checkNoResourcesAreAssociatedWithId} guard passes and the scheduled
+     * component cleaner cannot later re-delete the re-created deployment. The standard create path then
+     * runs: the deployment comes back in NOT_DEPLOYED with no serviceName/url, and — since audit history
+     * never stores sensitive env values — sensitive envs are provisioned empty and must be re-supplied
+     * via {@code updateDeployment} before deploying, symmetric with {@link #reconcileEnvSecrets}.
+     */
+    private Deployment resurrect(String id, Integer revision) {
+        var snapshot = getDeploymentSnapshot(id, revision);
+        resolveImageDefinitionReference(snapshot);
+        componentCleanupService.finalizePendingCleanup(id, ComponentType.DEPLOYMENT);
+
+        var request = deploymentMapper.toCreateDeployment(snapshot);
+        hydrateEnvValuesFromSnapshot(request, snapshot.getEnvs());
+        return createDeployment(request, false);
+    }
+
+    private void hydrateEnvValuesFromSnapshot(CreateDeployment request, List<EnvVar> snapshotEnvs) {
+        Map<String, EnvVarValue> valuesByName = new HashMap<>();
+        for (EnvVar env : ListUtils.emptyIfNull(snapshotEnvs)) {
+            valuesByName.put(env.getName(), env.getValue());
+        }
+        // Restore only non-sensitive (CONTENT) values from the snapshot; sensitive values are never
+        // stored in audit history, so they stay null and must be re-supplied before deploy — mirroring
+        // partitionFromSnapshot used by the update-based rollback path.
+        ListUtils.emptyIfNull(request.getMetadata().getEnvs())
+                .forEach(def -> def.setValue(def.getMountType() == EnvVarMountType.CONTENT
+                        ? valuesByName.get(def.getName())
+                        : null));
     }
 
     /**
