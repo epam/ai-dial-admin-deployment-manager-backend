@@ -583,4 +583,58 @@ class K8sClientTest {
         verify(namespacedJobOperation).withName(JOB_NAME);
         verify(scalableJobResource).waitUntilCondition(eq(predicate), eq(TIMEOUT_SEC), eq(TimeUnit.SECONDS));
     }
+
+    @Test
+    void shouldScrapePodMetricsThroughApiServerProxy() {
+        // Given
+        String expectedProxyUri = "/api/v1/namespaces/%s/pods/http:%s:8080/proxy/metrics".formatted(NAMESPACE, POD_NAME);
+        when(kubernetesClient.raw(expectedProxyUri)).thenReturn("# TYPE x counter\nx 1\n");
+
+        // When
+        Optional<String> result = k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8080, "/metrics", 3000);
+
+        // Then
+        assertThat(result).contains("# TYPE x counter\nx 1\n");
+        verify(kubernetesClient).raw(expectedProxyUri);
+    }
+
+    @Test
+    void shouldFailScrapePodMetricsToEmpty_whenBodyIsNull() {
+        // Given — Fabric8 raw() yields null for 404-class responses
+        when(kubernetesClient.raw(any(String.class))).thenReturn(null);
+
+        // When
+        Optional<String> result = k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8080, "/metrics", 3000);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldFailScrapePodMetricsToEmpty_whenClientThrows() {
+        // Given
+        when(kubernetesClient.raw(any(String.class)))
+                .thenThrow(new KubernetesClientException("proxy error", 503, null));
+
+        // When
+        Optional<String> result = k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8080, "/metrics", 3000);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldFailScrapePodMetricsToEmpty_whenScrapeTimesOut() {
+        // Given — block longer than the scrape budget
+        when(kubernetesClient.raw(any(String.class))).thenAnswer(invocation -> {
+            TimeUnit.MILLISECONDS.sleep(500);
+            return "too late";
+        });
+
+        // When
+        Optional<String> result = k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8080, "/metrics", 50);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
 }

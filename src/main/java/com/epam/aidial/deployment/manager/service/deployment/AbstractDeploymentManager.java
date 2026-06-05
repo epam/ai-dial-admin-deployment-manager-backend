@@ -667,6 +667,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return k8sClient.getAllEventsBase(namespace);
     }
 
+    @Override
+    public String getNamespace() {
+        return namespace;
+    }
+
+    @Override
+    public int getDefaultContainerPort() {
+        return defaultContainerPort;
+    }
+
     protected String getServiceName(String id) {
         return getDeploymentOptional(id)
                 .map(Deployment::getServiceName)

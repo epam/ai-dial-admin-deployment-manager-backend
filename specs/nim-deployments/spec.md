@@ -140,4 +140,4 @@ Status: **Implemented**
 - Manifest generator: `com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator`
 - Kubernetes backend: NIM-specific `NIMService` resources via `K8sNimClient` (conditioned on `app.nim.enabled=true`)
 - K8s package: `com.epam.aidial.deployment.manager.kubernetes.nim.*`
-- Related specs: `deployments` (base + lifecycle), `kubernetes-manifests`
+- Related specs: `deployments` (base + lifecycle), `kubernetes-manifests`, `model-metrics` (live serving-quality snapshot — `GET /api/v1/deployments/{id}/metrics`)

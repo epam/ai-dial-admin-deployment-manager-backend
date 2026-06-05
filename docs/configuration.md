@@ -226,6 +226,20 @@ To customize the proxy (e.g. add tooling, change the base image), fork the upstr
 | `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
 
 
+#### [Preview] Model Metrics Scrape Configuration
+
+Powers `GET /api/v1/deployments/{id}/metrics` — the on-demand live metrics snapshot for INFERENCE and NIM deployments (see `specs/model-metrics/spec.md`). The engine's Prometheus `/metrics` is read through the Kubernetes API-server pod proxy; collection is request-triggered only (never background polling). Requires read-only RBAC on `pods/proxy` (and `metrics.k8s.io` pods when the resource-usage block is enabled).
+
+| Property                                     | Environment Variable                       | Default Value | Required | Applied when                  | Description                                                                                                                                              |
+|----------------------------------------------|--------------------------------------------|---------------|----------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app.metrics.scrape.enabled`                 | `METRICS_SCRAPE_ENABLED`                   | `true`        | No       | -                             | Master switch for the metrics snapshot endpoint. When `false`, requests are rejected with HTTP 400.                                                      |
+| `app.metrics.scrape.timeout-ms`              | `METRICS_SCRAPE_TIMEOUT_MS`                | `3000`        | No       | -                             | Per-scrape budget (ms) for reading a pod's `/metrics` through the API-server proxy. On timeout the serving block degrades gracefully (never an error).   |
+| `app.metrics.scrape.cache-ttl-ms`            | `METRICS_SCRAPE_CACHE_TTL_MS`              | `5000`        | No       | -                             | Response cache TTL (ms) per deployment id — bounds API-server load under rapid repeated requests (e.g. an auto-refreshing UI panel).                     |
+| `app.metrics.scrape.resource-usage.enabled`  | `METRICS_SCRAPE_RESOURCE_USAGE_ENABLED`    | `true`        | No       | -                             | Enables the per-pod CPU/memory block sourced from `metrics.k8s.io` (metrics-server). Degrades gracefully when the metrics-server is absent.              |
+| `app.metrics.scrape.rate-window.enabled`     | `METRICS_SCRAPE_RATE_WINDOW_ENABLED`       | `false`       | No       | -                             | Reserved for the windowed-rates stretch (cached previous sample). Not implemented in the PoC — counter-derived values are lifetime aggregates.           |
+| `app.metrics.scrape.rate-window.ttl-seconds` | `METRICS_SCRAPE_RATE_WINDOW_TTL_SECONDS`   | `60`          | No       | `rate-window.enabled=true`    | Reserved for the windowed-rates stretch: previous-sample retention in seconds.                                                                           |
+
+
 #### Text-Classification Transformer Configuration
 
 Applies to chained text-classification inference deployments (auto-detected from HuggingFace metadata — see `specs/inference-deployments/spec.md`). The image property has no default and **must be set** before any chained deployment can be deployed; resource defaults are sized for SST-2-class transformer workloads (~200MB image, stateless).

@@ -140,4 +140,4 @@ Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
 - Chained-mode signal threading: `InferenceDeploymentManager` overrides the `buildCiliumNetworkPolicy(D, S, ...)` hook on `AbstractDeploymentManager` and reads chained-ness directly from the in-flight `InferenceService` (on deploy / rollingUpdate) or the live cluster resource (on `updateCiliumNetworkPolicy(id)`). No persistence, no partial-manifest re-parsing, no leak of the chained concept into the abstract base.
 - Kubernetes backend: KServe `InferenceService` resources via `K8sKserveClient` (conditioned on `app.kserve.enabled=true`)
 - K8s package: `com.epam.aidial.deployment.manager.kubernetes.kserve.*`
-- Related specs: `deployments` (base + lifecycle), `kubernetes-manifests`, `huggingface`
+- Related specs: `deployments` (base + lifecycle), `kubernetes-manifests`, `huggingface`, `model-metrics` (live serving-quality snapshot — `GET /api/v1/deployments/{id}/metrics`)

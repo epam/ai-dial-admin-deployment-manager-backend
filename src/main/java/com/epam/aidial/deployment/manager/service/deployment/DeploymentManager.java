@@ -35,6 +35,10 @@ public interface DeploymentManager<S> {
 
     List<PodInfo> getInstances(String id);
 
+    String getNamespace();
+
+    int getDefaultContainerPort();
+
     NonNamespaceOperation<Event, EventList, Resource<Event>> getAllEventsBase();
 
     /**

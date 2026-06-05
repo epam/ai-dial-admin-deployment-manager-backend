@@ -115,6 +115,16 @@ app:
       startup-timeout: ${K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC:3600}
       informer-resync-interval: ${K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC:600}
       use-cluster-internal-url: ${K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL:true}
+  metrics:
+    scrape:
+      enabled: ${METRICS_SCRAPE_ENABLED:true}
+      timeout-ms: ${METRICS_SCRAPE_TIMEOUT_MS:3000}
+      cache-ttl-ms: ${METRICS_SCRAPE_CACHE_TTL_MS:5000}
+      resource-usage:
+        enabled: ${METRICS_SCRAPE_RESOURCE_USAGE_ENABLED:true}
+      rate-window:
+        enabled: ${METRICS_SCRAPE_RATE_WINDOW_ENABLED:false}
+        ttl-seconds: ${METRICS_SCRAPE_RATE_WINDOW_TTL_SECONDS:60}
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
   image-build-timeout-sec: 300

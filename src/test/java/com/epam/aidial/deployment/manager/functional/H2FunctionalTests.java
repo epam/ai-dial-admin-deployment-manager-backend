@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.functional.tests.AuditFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigExportImportFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigImportValidationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.DeploymentMetricsFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentRollbackFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowWithMockedK8sClientFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.GlobalWhitelistRollbackFunctionalTest;
@@ -48,6 +49,10 @@ public class H2FunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class DeploymentTests extends DeploymentFunctionalTest {
+    }
+
+    @Nested
+    class DeploymentMetricsTests extends DeploymentMetricsFunctionalTest {
     }
 
     @Nested

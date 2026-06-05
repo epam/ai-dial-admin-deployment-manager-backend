@@ -27,6 +27,7 @@ import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentLogsService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
+import com.epam.aidial.deployment.manager.service.deployment.metrics.DeploymentMetricsService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
@@ -37,6 +38,7 @@ import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenceDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.DeploymentMetricsDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
@@ -104,6 +106,10 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private EventStreamingService eventStreamingService;
     @MockitoBean
     private NodePoolService nodePoolService;
+    @MockitoBean
+    private DeploymentMetricsService deploymentMetricsService;
+    @MockitoBean
+    private DeploymentMetricsDtoMapper deploymentMetricsDtoMapper;
 
     // Spring Boot 4 no longer processes Mockito's @Captor in slice tests — initialize captors directly
     private final ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor = ArgumentCaptor.captor();

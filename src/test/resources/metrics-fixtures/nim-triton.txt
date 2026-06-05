@@ -1,0 +1,12 @@
+# Synthetic Triton-based NIM (embedding/reranking) /metrics capture per spike §3.4 —
+# nv_* vocabulary; most serving-quality metrics do not exist and are reported unavailable.
+# TYPE nv_inference_count counter
+nv_inference_count{model="nv-embedqa-e5-v5",version="1"} 1000.0
+# TYPE nv_inference_request_success counter
+nv_inference_request_success{model="nv-embedqa-e5-v5",version="1"} 990.0
+# TYPE nv_inference_request_failure counter
+nv_inference_request_failure{model="nv-embedqa-e5-v5",version="1"} 10.0
+# TYPE nv_inference_request_duration_us counter
+nv_inference_request_duration_us{model="nv-embedqa-e5-v5",version="1"} 5000000000.0
+# TYPE nv_gpu_utilization gauge
+nv_gpu_utilization{gpu_uuid="GPU-0"} 0.45
