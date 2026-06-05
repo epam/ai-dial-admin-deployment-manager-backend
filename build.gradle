@@ -66,6 +66,8 @@ repositories {
 
 dependencies {
     implementation platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+    // overrides the Boot-BOM-managed OpenTelemetry 1.55.0 — unbounded memory allocation in W3C baggage propagation, patched in 1.62.0
+    implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
 
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
@@ -117,8 +119,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
-    // version aligned with the OpenTelemetry API 1.55.0 managed by the Spring Boot BOM
-    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.21.0-alpha'
+    // version aligned with the OpenTelemetry API 1.62.0 pinned via opentelemetry-bom above (instrumentation 2.28.x <-> SDK 1.62.x)
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.28.1-alpha'
 
     implementation 'org.hibernate.orm:hibernate-envers'
     // Jackson 2 is intentionally kept: legacy Java Flyway migrations are pinned to it so they keep
@@ -174,6 +176,9 @@ dependencies {
             because("previous versions have vulnerabilities")
         }
         implementation ('io.netty:netty-codec-http3:4.2.13.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-handler-proxy:4.2.13.Final') {
             because("previous versions have vulnerabilities")
         }
         implementation ('io.netty:netty-transport-native-epoll:4.2.13.Final') {

@@ -28,7 +28,7 @@ Constitutionally-significant libraries (any upgrade MUST go through a PR with a 
 - **Serialization**: Jackson 3 (`tools.jackson`, BOM-managed) is the application serialization stack; `com.fasterxml.jackson.annotation` annotations are shared by both generations. Jackson 2 is retained deliberately for two frozen consumers — legacy Java Flyway migrations (`db.migration.MigrationJsonMapper`; see `src/main/java/db/migration/CLAUDE.md`) and Hibernate's JSON column mapping — plus transitively via third-party SDKs (Fabric8, MCP SDK, jib); its security floor is enforced via the `jackson-core` 2.21.1 constraint.
 - **Retry**: Spring Framework 7 core retry (`org.springframework.core.retry`); `spring-retry` MUST NOT be reintroduced
 - **Logging**: Log4j2 2.25.4 (`log4j-core`, `log4j-slf4j2-impl`, `log4j-jul`); `spring-boot-starter-logging` MUST be excluded globally. `commons-logging` MUST NOT be excluded — Spring Framework 7 depends on it directly.
-- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-log4j-appender-2.17` (version aligned with the BOM-managed OpenTelemetry API; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
+- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-log4j-appender-2.17` (version aligned with the OpenTelemetry API pinned via the `opentelemetry-bom` platform in build.gradle — a security floor over the Boot-BOM-managed version; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
 - **Caching**: Caffeine 3.2.3 via `spring-boot-starter-cache`
 - **Distributed locking**: ShedLock 7.7.0 (JDBC provider)
 - **API docs**: SpringDoc OpenAPI 3.0.3
