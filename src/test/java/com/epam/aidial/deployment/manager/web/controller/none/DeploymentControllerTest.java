@@ -42,7 +42,10 @@ import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMappe
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -77,6 +80,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Spring Boot 4 removed MockitoTestExecutionListener (deprecated since 3.4), so @Mock/@Captor fields are no
+// longer auto-initialized in any Spring test — use Mockito's own extension instead, per the 4.0 migration guide
+@ExtendWith(MockitoExtension.class)
 @WebMvcTest(value = DeploymentController.class)
 @Import({
         JsonMapperConfiguration.class,
@@ -105,11 +111,14 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @MockitoBean
     private NodePoolService nodePoolService;
 
-    // Spring Boot 4 no longer processes Mockito's @Captor in slice tests — initialize captors directly
-    private final ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor = ArgumentCaptor.captor();
-    private final ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor = ArgumentCaptor.captor();
-    private final ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor = ArgumentCaptor.captor();
-    private final ArgumentCaptor<CreateDeployment> createDeploymentCaptor = ArgumentCaptor.captor();
+    @Captor
+    private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;
+    @Captor
+    private ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor;
+    @Captor
+    private ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor;
+    @Captor
+    private ArgumentCaptor<CreateDeployment> createDeploymentCaptor;
 
     @Test
     void testGetAllDeployments() throws Exception {
