@@ -122,8 +122,9 @@ class CiliumNetworkPolicyCreatorTest {
     @Test
     void shouldEmitClusterOnlyKubeDnsEgress_whenAllowedDomainsEmpty_andChainedTrue() {
         // External egress is locked down (allowedDomains=[]), but the chained pair still needs
-        // cluster-local DNS to resolve *-predictor.<ns>.svc.cluster.local. Emit a kube-dns block
-        // restricted to *.svc.cluster.local — no external DNS exfil.
+        // cluster-local DNS to resolve <svc>-predictor.<ns>.svc.cluster.local. Emit a kube-dns
+        // block restricted to *.<namespace>.svc.cluster.local — no external DNS exfil and no
+        // cross-namespace resolution.
         CiliumNetworkPolicy policy = creator.create(
                 NAMESPACE, LABEL_NAME, SERVICE_NAME, List.of(), null, true);
 
@@ -132,14 +133,14 @@ class CiliumNetworkPolicyCreatorTest {
         // Expected layout: cluster-DNS-only kube-dns, then chained intra-cluster.
         assertThat(egress).hasSize(2);
 
-        // Entry 0: kube-dns endpoint, single matchPattern "*.svc.cluster.local"
+        // Entry 0: kube-dns endpoint, single matchPattern "*.<namespace>.svc.cluster.local"
         var kubeDns = egress.get(0);
         assertThat(kubeDns.getToEndpoints()).hasSize(1);
         assertThat(kubeDns.getToEndpoints().get(0).getMatchLabels())
                 .containsEntry("k8s:k8s-app", "kube-dns");
         var dnsRules = kubeDns.getToPorts().get(0).getRules().getDns();
         assertThat(dnsRules).hasSize(1);
-        assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*.svc.cluster.local");
+        assertThat(dnsRules.get(0).getMatchPattern()).isEqualTo("*." + NAMESPACE + ".svc.cluster.local");
         assertThat(dnsRules.get(0).getMatchName()).isNull();
 
         // Entry 1: chained intra-cluster block (6 toEndpoints with narrowed selectors)
@@ -167,7 +168,8 @@ class CiliumNetworkPolicyCreatorTest {
     void shouldAppendClusterLocalDnsPattern_whenChainedAndSpecificDomains() {
         // Regression guard for review finding #1: the production HF configuration uses specific
         // non-wildcard domains (huggingface.co, …). Without an explicit cluster-local matchPattern,
-        // Cilium's DNS proxy refuses *-predictor.<ns>.svc.cluster.local and the chained pair fails.
+        // Cilium's DNS proxy refuses <svc>-predictor.<ns>.svc.cluster.local and the chained pair
+        // fails. The pattern is scoped to the deployment's own namespace.
         CiliumNetworkPolicy policy = creator.create(
                 NAMESPACE, LABEL_NAME, SERVICE_NAME,
                 List.of("huggingface.co", "transfer.xethub.hf.co"), null, true);
@@ -181,7 +183,26 @@ class CiliumNetworkPolicyCreatorTest {
         var matchPatterns = dnsRules.stream().map(Dns::getMatchPattern).filter(java.util.Objects::nonNull).toList();
 
         assertThat(matchNames).containsExactlyInAnyOrder("huggingface.co", "transfer.xethub.hf.co");
-        assertThat(matchPatterns).containsExactly("*.svc.cluster.local");
+        assertThat(matchPatterns).containsExactly("*." + NAMESPACE + ".svc.cluster.local");
+    }
+
+    @Test
+    void shouldUseCallerSuppliedNamespaceInClusterLocalPattern() {
+        // Guards against the cluster-local pattern reverting to a static, namespace-agnostic
+        // literal: vary the namespace argument and confirm the matchPattern follows the caller.
+        CiliumNetworkPolicy nsA = creator.create(
+                "ns-alpha", LABEL_NAME, SERVICE_NAME, List.of(), null, true);
+        CiliumNetworkPolicy nsB = creator.create(
+                "ns-beta", LABEL_NAME, SERVICE_NAME, List.of("huggingface.co"), null, true);
+
+        var dnsAlpha = nsA.getSpec().getEgress().get(0).getToPorts().get(0).getRules().getDns();
+        var dnsBeta = nsB.getSpec().getEgress().get(1).getToPorts().get(0).getRules().getDns();
+
+        assertThat(dnsAlpha).hasSize(1);
+        assertThat(dnsAlpha.get(0).getMatchPattern()).isEqualTo("*.ns-alpha.svc.cluster.local");
+
+        var betaPatterns = dnsBeta.stream().map(Dns::getMatchPattern).filter(java.util.Objects::nonNull).toList();
+        assertThat(betaPatterns).containsExactly("*.ns-beta.svc.cluster.local");
     }
 
     @Test
