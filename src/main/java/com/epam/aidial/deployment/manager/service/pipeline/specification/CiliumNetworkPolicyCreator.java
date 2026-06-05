@@ -40,7 +40,7 @@ public class CiliumNetworkPolicyCreator {
     private static final String INGRESS_PORT_8012 = "8012";
     private static final String INGRESS_PORT_8022 = "8022";
     private static final String UDP_DNS_PATTERN_ALL = "*";
-    private static final String CLUSTER_LOCAL_DNS_SUFFIX = ".svc.cluster.local";
+    private static final String CLUSTER_LOCAL_DNS_PATTERN = "*.%s.svc.cluster.local";
     private static final String KUBE_DNS_LABEL_NAME = "k8s:k8s-app";
     private static final String KUBE_DNS_LABEL_VALUE = "kube-dns";
     private static final String KUBE_DNS_NAMESPACE_LABEL_NAME = "k8s:io.kubernetes.pod.namespace";
@@ -193,7 +193,7 @@ public class CiliumNetworkPolicyCreator {
         }
         if (includeClusterLocal) {
             Dns clusterLocal = new Dns();
-            clusterLocal.setMatchPattern("*." + namespace + CLUSTER_LOCAL_DNS_SUFFIX);
+            clusterLocal.setMatchPattern(CLUSTER_LOCAL_DNS_PATTERN.formatted(namespace));
             rules.add(clusterLocal);
         }
         return rules;
