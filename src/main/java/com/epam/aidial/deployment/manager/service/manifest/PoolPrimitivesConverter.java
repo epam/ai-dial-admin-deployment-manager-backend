@@ -3,10 +3,10 @@ package com.epam.aidial.deployment.manager.service.manifest;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.Toleration;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
@@ -20,14 +20,10 @@ import java.util.List;
  */
 @Component
 @LogExecution
+@RequiredArgsConstructor
 public class PoolPrimitivesConverter {
 
-    private final ObjectMapper mapper;
-
-    public PoolPrimitivesConverter(JsonMapper jsonMapper) {
-        // no FAIL_ON_EMPTY_BEANS opt-out needed anymore: Jackson 3 disables it by default
-        this.mapper = jsonMapper;
-    }
+    private final JsonMapper mapper;
 
     @Nullable
     public <T> T convertAffinity(@Nullable Affinity source, Class<T> targetType) {
