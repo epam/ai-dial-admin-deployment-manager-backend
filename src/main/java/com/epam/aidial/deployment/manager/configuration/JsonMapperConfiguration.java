@@ -80,11 +80,6 @@ public class JsonMapperConfiguration {
                 .disable(DateTimeFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS)
                 .disable(DateTimeFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                // preserve Jackson 2 deserialization leniency — Jackson 3 flipped both defaults to enabled:
-                // an explicit JSON null for a primitive DTO field keeps coercing to 0/false instead of failing,
-                // and content trailing a JSON document keeps being ignored instead of being rejected
-                .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
-                .disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
                 .configure(StreamReadFeature.AUTO_CLOSE_SOURCE, false)
                 .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
                 .addModule(new KubernetesModelJacksonModule());
