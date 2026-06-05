@@ -150,8 +150,13 @@ public class ImageDefinitionService {
             throw new EntityNotFoundException("Unable to find revision with id " + revision);
         }
 
-        var existing = imageDefinitionRepository.getImageDefinitionById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Image definition not found by id: %s".formatted(id)));
+        var existingOpt = imageDefinitionRepository.getImageDefinitionById(id);
+        if (existingOpt.isEmpty()) {
+            // The image definition existed at the requested revision but has since been deleted: re-create
+            // it instead of failing with 404, so an operator can revert a deletion in a single call.
+            return resurrect(id, revision);
+        }
+        var existing = existingOpt.get();
 
         if (existing.getBuildStatus() == ImageStatus.BUILDING || existing.getBuildStatus() == ImageStatus.BUILD_SUCCESSFUL) {
             throw new IllegalArgumentException(
@@ -171,6 +176,32 @@ public class ImageDefinitionService {
                 });
 
         return imageDefinitionRepository.updateImageDefinition(id, snapshot);
+    }
+
+    /**
+     * Re-create an image definition that existed at the requested revision but has since been deleted.
+     * The snapshot is reconstructed from the audit history ({@link #getImageDefinitionSnapshot} throws 404
+     * if the id never existed at that revision). The re-created definition gets a <em>fresh</em> id —
+     * image-definition ids are Hibernate-generated UUIDs that the generator overwrites on insert — so the
+     * returned DTO's id differs from the requested {id}. Any leftovers from the deleted generation (build
+     * jobs / config maps / pushed images, plus a still-pending component-removal marker) are all keyed by
+     * the old id and therefore harmless to the re-created definition; they are left for the scheduled
+     * cleaner to drain in due course. (If this path ever becomes id-preserving for parity with deployment
+     * resurrection, an eager {@code finalizePendingCleanup} drain becomes load-bearing again — see
+     * {@code DeploymentService#resurrect}.) It is created in NOT_BUILT (the prior build artifacts are gone)
+     * and is subject to the same name+version uniqueness check as a normal create.
+     */
+    private ImageDefinition resurrect(UUID id, Integer revision) {
+        var snapshot = getImageDefinitionSnapshot(id, revision);
+        var snapshotType = ImageType.of(snapshot);
+        imageDefinitionRepository.getImageDefinitionByTypeAndNameAndVersion(snapshotType, snapshot.getName(), snapshot.getVersion())
+                .ifPresent(existing -> {
+                    throw new EntityAlreadyExistsException(
+                            "Image definition already exists: type=%s, name=%s, version=%s"
+                                    .formatted(snapshotType, snapshot.getName(), snapshot.getVersion()));
+                });
+        snapshot.setId(null); // force a fresh-UUID INSERT instead of merge-with-assigned-id
+        return createImageDefinition(snapshot);
     }
 
     @Transactional

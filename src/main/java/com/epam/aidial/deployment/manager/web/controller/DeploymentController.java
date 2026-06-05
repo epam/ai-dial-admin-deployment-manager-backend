@@ -105,11 +105,13 @@ public class DeploymentController {
     @Operation(summary = "Roll back a deployment to a past revision",
             description = "Restores the deployment's stored configuration to its snapshot at the given audit revision. "
                     + "Allowed only when the deployment is in NOT_DEPLOYED or STOPPED. "
+                    + "If the deployment was deleted but existed at the revision, it is re-created (in NOT_DEPLOYED, "
+                    + "with sensitive env values reset and to be re-supplied before deploying). "
                     + "Does not modify live Kubernetes state — the operator must trigger deploy afterwards to apply.")
-    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+    @ApiResponse(responseCode = "200", description = "Rollback applied, deployment re-created, or identical-state no-op")
     @ApiResponse(responseCode = "400", description = "Active-state, validation, or missing-reference rejection")
     @ApiResponse(responseCode = "403", description = "Read-only role")
-    @ApiResponse(responseCode = "404", description = "Deployment or revision not found")
+    @ApiResponse(responseCode = "404", description = "Revision not found, or deployment never existed at the revision")
     public DeploymentDto rollbackDeployment(@PathVariable String id, @PathVariable Integer revision) {
         var rolledBack = deploymentService.rollback(id, revision);
         return dtoMapper.toDeploymentDto(rolledBack);
