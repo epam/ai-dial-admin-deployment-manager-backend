@@ -1,5 +1,7 @@
 package com.epam.aidial.deployment.manager.cleanup.component;
 
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceCleaner;
+import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.dao.repository.ComponentRemovalRepository;
 import com.epam.aidial.deployment.manager.model.ComponentRemoval;
@@ -25,14 +27,20 @@ public class ComponentCleanupService {
     @Qualifier("component-cleaner")
     private final ExecutorService executorService;
     private final ComponentRemovalRepository componentRemovalRepository;
+    private final DisposableResourceManager disposableResourceManager;
+    private final DisposableResourceCleaner disposableResourceCleaner;
 
     public ComponentCleanupService(List<CleanupStrategy> strategies,
                             @Qualifier("component-cleaner") ExecutorService executorService,
-                            ComponentRemovalRepository componentRemovalRepository) {
+                            ComponentRemovalRepository componentRemovalRepository,
+                            DisposableResourceManager disposableResourceManager,
+                            DisposableResourceCleaner disposableResourceCleaner) {
         this.cleanupStrategies = strategies.stream()
                 .collect(Collectors.toMap(CleanupStrategy::getComponentType, Function.identity()));
         this.executorService = executorService;
         this.componentRemovalRepository = componentRemovalRepository;
+        this.disposableResourceManager = disposableResourceManager;
+        this.disposableResourceCleaner = disposableResourceCleaner;
     }
 
     /**
@@ -71,6 +79,24 @@ public class ComponentCleanupService {
                 SYNC_DELETION_DEPTH.set(depth);
             }
         }
+    }
+
+    /**
+     * Drains a deleted component's leftovers so its id can be safely re-created — load-bearing only for
+     * <em>id-preserving</em> resurrection (deployments): cleans lingering K8s / disposable resources for the
+     * group and drops any pending {@link ComponentRemoval} row so {@link ScheduledComponentCleanup} won't
+     * re-delete the re-created component.
+     *
+     * <p>The disposable-resource cleanup commits independently (REQUIRES_NEW + live K8s calls), so if the
+     * caller's transaction later rolls back the drain is NOT undone — harmless, since the drained generation
+     * was already deleted; the {@link ComponentRemoval} row simply reappears for the cleaner to no-op on.
+     * A narrow race also remains if an async delete is mid-flight for the same id.
+     */
+    @Transactional
+    public void finalizePendingCleanup(String id, ComponentType type) {
+        disposableResourceManager.markResourcesForCleanupByGroupId(id);
+        disposableResourceCleaner.cleanAllCleanableByGroupId(id);
+        componentRemovalRepository.delete(id, type);
     }
 
     void deleteAllPersisted() {
