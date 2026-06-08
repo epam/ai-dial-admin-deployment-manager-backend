@@ -122,9 +122,6 @@ app:
       cache-ttl-ms: ${METRICS_SCRAPE_CACHE_TTL_MS:5000}
       resource-usage:
         enabled: ${METRICS_SCRAPE_RESOURCE_USAGE_ENABLED:true}
-      rate-window:
-        enabled: ${METRICS_SCRAPE_RATE_WINDOW_ENABLED:false}
-        ttl-seconds: ${METRICS_SCRAPE_RATE_WINDOW_TTL_SECONDS:60}
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
   image-build-timeout-sec: 300

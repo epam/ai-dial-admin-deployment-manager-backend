@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -64,6 +65,7 @@ public class DeploymentMetricsService {
     private static final String NIM_METRICS_PATH = "/v1/metrics";
 
     private static final String REASON_NO_READY_PODS = "no ready pods to read metrics from";
+    private static final String REASON_NO_PODS = "no pods to read resource usage from";
     private static final String REASON_SCRAPE_FAILED = "metrics endpoint unreachable or returned an error";
     private static final String REASON_UNKNOWN_ENGINE = "engine not recognized from exposed metrics";
     private static final String REASON_USAGE_DISABLED = "pod resource usage collection is disabled by configuration";
@@ -79,7 +81,7 @@ public class DeploymentMetricsService {
     private final PodResourceUsageReader podResourceUsageReader;
     private final MetricsScrapeProperties properties;
 
-    @Cacheable(MetricsCachingConfig.DEPLOYMENT_METRICS_CACHE_NAME)
+    @Cacheable(cacheNames = MetricsCachingConfig.DEPLOYMENT_METRICS_CACHE_NAME, sync = true)
     public UnifiedDeploymentMetrics getSnapshot(String id) {
         if (!properties.isEnabled()) {
             throw new IllegalArgumentException("Metrics collection is disabled by configuration (app.metrics.scrape.enabled=false)");
@@ -171,10 +173,10 @@ public class DeploymentMetricsService {
                                              List<PodInfo> readyPods, Map<String, BlockAvailability> availability) {
         var podUsages = new ArrayList<PodResourceUsage>();
 
-        if (!properties.getResourceUsage().isEnabled()) {
+        if (!resourceUsageEnabled()) {
             availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_USAGE_DISABLED));
         } else if (allPods.isEmpty()) {
-            availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_NO_READY_PODS));
+            availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_NO_PODS));
         } else {
             for (var pod : allPods) {
                 podResourceUsageReader.read(manager.getNamespace(), pod.getName()).ifPresent(podUsages::add);
@@ -202,11 +204,17 @@ public class DeploymentMetricsService {
     private Optional<String> scrapeFirstAvailablePath(String namespace, String pod, int port, List<String> paths) {
         for (var path : paths) {
             var body = k8sClient.scrapePodMetrics(namespace, pod, port, path, properties.getTimeoutMs());
-            if (body.isPresent()) {
+            // A blank 200 body is no more usable than a failed scrape — keep probing the next path.
+            if (body.filter(StringUtils::isNotBlank).isPresent()) {
                 return body;
             }
         }
         return Optional.empty();
+    }
+
+    /** Nested config can be absent under a partial override; treat a missing block as disabled. */
+    private boolean resourceUsageEnabled() {
+        return properties.getResourceUsage() != null && properties.getResourceUsage().isEnabled();
     }
 
     private static void markEngineBlocksUnavailable(Map<String, BlockAvailability> availability, String reason) {

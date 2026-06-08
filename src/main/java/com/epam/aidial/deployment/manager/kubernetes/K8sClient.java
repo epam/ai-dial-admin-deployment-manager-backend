@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,8 +26,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 @Slf4j
@@ -35,7 +40,17 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class K8sClient {
 
+    /**
+     * Upper bound on concurrent in-flight metric scrapes. The pod-proxy read below is blocking and
+     * not interruptible, so the per-scrape {@code timeoutMs} bounds only the wait — abandoned reads
+     * keep running until the underlying HTTP client gives up. Capping them on a dedicated pool keeps
+     * that backlog bounded and off the shared {@link java.util.concurrent.ForkJoinPool#commonPool()}.
+     */
+    private static final int SCRAPE_POOL_SIZE = 8;
+
     private final KubernetesClient client;
+
+    private final ExecutorService scrapeExecutor = Executors.newFixedThreadPool(SCRAPE_POOL_SIZE, scrapeThreadFactory());
 
     public PodList getJobPods(String namespace, String name) {
         return getPods(namespace, Map.of("job-name", name));
@@ -94,7 +109,7 @@ public class K8sClient {
         var proxyUri = "/api/v1/namespaces/%s/pods/http:%s:%d/proxy%s".formatted(namespace, podName, port, metricsPath);
         log.debug("Scraping pod metrics via API-server proxy: {}", proxyUri);
         try {
-            var body = CompletableFuture.supplyAsync(() -> client.raw(proxyUri))
+            var body = CompletableFuture.supplyAsync(() -> client.raw(proxyUri), scrapeExecutor)
                     .get(timeoutMs, TimeUnit.MILLISECONDS);
             if (body == null) {
                 log.warn("Metrics scrape of pod '{}' in namespace '{}' (port {}) returned no body", podName, namespace, port);
@@ -104,13 +119,28 @@ public class K8sClient {
             log.warn("Timed out scraping metrics of pod '{}' in namespace '{}' after {} ms", podName, namespace, timeoutMs);
             return Optional.empty();
         } catch (ExecutionException e) {
-            log.warn("Failed to scrape metrics of pod '{}' in namespace '{}': {}", podName, namespace, e.getCause().getMessage());
+            var cause = e.getCause() != null ? e.getCause() : e;
+            log.warn("Failed to scrape metrics of pod '{}' in namespace '{}': {}", podName, namespace, cause.getMessage());
             return Optional.empty();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Interrupted while scraping metrics of pod '{}' in namespace '{}'", podName, namespace);
             return Optional.empty();
         }
+    }
+
+    @PreDestroy
+    void shutdownScrapeExecutor() {
+        scrapeExecutor.shutdownNow();
+    }
+
+    private static ThreadFactory scrapeThreadFactory() {
+        var counter = new AtomicInteger();
+        return runnable -> {
+            var thread = new Thread(runnable, "metrics-scrape-" + counter.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        };
     }
 
     public NonNamespaceOperation<Event, EventList, Resource<Event>> getAllEventsBase(String namespace) {

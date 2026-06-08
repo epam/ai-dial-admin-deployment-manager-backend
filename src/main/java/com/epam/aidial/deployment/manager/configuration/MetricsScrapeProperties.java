@@ -12,16 +12,9 @@ public class MetricsScrapeProperties {
     private long timeoutMs;
     private long cacheTtlMs;
     private ResourceUsage resourceUsage;
-    private RateWindow rateWindow;
 
     @Data
     public static class ResourceUsage {
         private boolean enabled;
-    }
-
-    @Data
-    public static class RateWindow {
-        private boolean enabled;
-        private long ttlSeconds;
     }
 }

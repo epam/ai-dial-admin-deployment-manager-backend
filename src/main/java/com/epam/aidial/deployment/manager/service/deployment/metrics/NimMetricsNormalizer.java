@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 /**
  * NIM vocabulary → unified schema (spike §3.4). LLM NIMs (vLLM/TRT-LLM-based) expose vLLM-style
@@ -26,23 +25,6 @@ import java.util.Set;
 @LogExecution
 @RequiredArgsConstructor
 public class NimMetricsNormalizer implements EngineMetricsNormalizer {
-
-    private static final String VLLM_PREFIX = "vllm:";
-    private static final String TRITON_PREFIX = "nv_";
-
-    /** Bare vLLM-style base names some LLM NIM builds expose without the {@code vllm:} prefix. */
-    private static final Set<String> VLLM_STYLE_BASE_NAMES = Set.of(
-            "time_to_first_token_seconds",
-            "time_per_output_token_seconds",
-            "inter_token_latency_seconds",
-            "e2e_request_latency_seconds",
-            "prompt_tokens_total",
-            "generation_tokens_total",
-            "num_requests_waiting",
-            "num_requests_running",
-            "gpu_cache_usage_perc",
-            "kv_cache_usage_perc",
-            "request_success_total");
 
     /** LLM NIM explicit outcome counters (verified live) — preferred error-ratio source. */
     private static final String LLM_REQUEST_SUCCESS = "request_success_total";
@@ -62,11 +44,11 @@ public class NimMetricsNormalizer implements EngineMetricsNormalizer {
 
     @Override
     public NormalizedEngineMetrics normalize(List<MetricSample> samples) {
-        if (isTriton(samples)) {
-            return normalizeTriton(samples);
+        if (isLlmNim(samples)) {
+            var normalized = vllmMetricsNormalizer.normalize(aliasVllmStyleNames(samples));
+            return withLlmNimOutcomeCounters(normalized, samples);
         }
-        var normalized = vllmMetricsNormalizer.normalize(aliasVllmStyleNames(samples));
-        return withLlmNimOutcomeCounters(normalized, samples);
+        return normalizeTriton(samples);
     }
 
     /**
@@ -94,17 +76,23 @@ public class NimMetricsNormalizer implements EngineMetricsNormalizer {
         return new NormalizedEngineMetrics(normalized.serving(), operational, rawCounters);
     }
 
-    private static boolean isTriton(List<MetricSample> samples) {
-        boolean hasTriton = false;
+    /**
+     * Positively identifies an LLM NIM (vLLM/TRT-LLM-based) by its serving vocabulary: any
+     * {@code vllm:}-prefixed series, or any bare vLLM-style base name. A NIM that exposes neither —
+     * e.g. a Triton-based embedding/reranking NIM with only {@code nv_*} series — is normalized via
+     * the Triton path. Detecting on positive evidence (not merely the absence of a {@code vllm:}
+     * prefix) keeps a hybrid exposition that mixes bare vLLM names with {@code nv_*} GPU series
+     * correctly classified as an LLM NIM rather than silently emptying the serving block.
+     */
+    private static boolean isLlmNim(List<MetricSample> samples) {
         for (var sample : samples) {
-            if (sample.name().startsWith(VLLM_PREFIX)) {
-                return false;
-            }
-            if (sample.name().startsWith(TRITON_PREFIX)) {
-                hasTriton = true;
+            var name = sample.name();
+            if (name.startsWith(VllmMetricsNormalizer.PREFIX)
+                    || VllmMetricsNormalizer.BASE_METRIC_NAMES.contains(stripSeriesSuffix(name))) {
+                return true;
             }
         }
-        return hasTriton;
+        return false;
     }
 
     /** Prefixes bare vLLM-style names with {@code vllm:} so the vLLM mapping rules apply as-is. */
@@ -112,8 +100,9 @@ public class NimMetricsNormalizer implements EngineMetricsNormalizer {
         var aliased = new ArrayList<MetricSample>(samples.size());
         for (var sample : samples) {
             var name = sample.name();
-            if (!name.startsWith(VLLM_PREFIX) && VLLM_STYLE_BASE_NAMES.contains(stripSeriesSuffix(name))) {
-                aliased.add(new MetricSample(VLLM_PREFIX + name, sample.labels(), sample.value()));
+            if (!name.startsWith(VllmMetricsNormalizer.PREFIX)
+                    && VllmMetricsNormalizer.BASE_METRIC_NAMES.contains(stripSeriesSuffix(name))) {
+                aliased.add(new MetricSample(VllmMetricsNormalizer.PREFIX + name, sample.labels(), sample.value()));
             } else {
                 aliased.add(sample);
             }

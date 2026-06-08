@@ -67,6 +67,30 @@ class NimMetricsNormalizerTest {
     }
 
     @Test
+    void shouldClassifyHybridExpositionAsLlmNim_notTriton() {
+        // Bare vLLM-style serving names alongside nv_* GPU series and NO "vllm:" prefix: positive
+        // detection must still classify this as an LLM NIM, not silently empty the serving block.
+        var samples = parser.parse("""
+                time_to_first_token_seconds_bucket{le="0.5"} 3
+                time_to_first_token_seconds_bucket{le="+Inf"} 3
+                time_to_first_token_seconds_sum 1.2
+                time_to_first_token_seconds_count 3
+                num_requests_running 2
+                request_success_total 10
+                request_failure_total 0
+                nv_gpu_utilization{gpu_uuid="GPU-0"} 0.42
+                """);
+
+        var normalized = normalizer.normalize(samples);
+
+        assertThat(normalized.serving().ttft()).isNotNull();
+        assertThat(normalized.serving().ttft().count()).isEqualTo(3);
+        assertThat(normalized.serving().runningRequests()).isEqualTo(2);
+        assertThat(normalized.operational().requestErrorRatio()).isEqualTo(0.0);
+        assertThat(normalized.rawCounters()).containsEntry("request_failure_total", 0.0);
+    }
+
+    @Test
     void shouldReportPartialMetricsForTritonNim() {
         var samples = parser.parse(ResourceUtils.readResource("/metrics-fixtures/nim-triton.txt"));
 

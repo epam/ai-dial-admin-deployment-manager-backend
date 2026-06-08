@@ -19,20 +19,20 @@ import java.util.List;
 @LogExecution
 public class EngineDetector {
 
+    /** Prefix-detectable inference engines, sniffed from their exposed series (NIM is type-based). */
+    private static final List<EngineFamily> PREFIX_DETECTABLE = List.of(
+            EngineFamily.VLLM, EngineFamily.TGI, EngineFamily.SGLANG);
+
     public EngineFamily detect(Deployment deployment, List<MetricSample> samples) {
         if (deployment instanceof NimDeployment) {
             return EngineFamily.NIM;
         }
         for (var sample : samples) {
             var name = sample.name();
-            if (name.startsWith("vllm:")) {
-                return EngineFamily.VLLM;
-            }
-            if (name.startsWith("tgi_")) {
-                return EngineFamily.TGI;
-            }
-            if (name.startsWith("sglang:")) {
-                return EngineFamily.SGLANG;
+            for (var family : PREFIX_DETECTABLE) {
+                if (name.startsWith(family.metricNamePrefix())) {
+                    return family;
+                }
             }
         }
         return EngineFamily.UNKNOWN;

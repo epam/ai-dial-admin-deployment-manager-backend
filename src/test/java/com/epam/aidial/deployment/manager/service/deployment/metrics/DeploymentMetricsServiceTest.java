@@ -75,8 +75,6 @@ class DeploymentMetricsServiceTest {
         var resourceUsage = new MetricsScrapeProperties.ResourceUsage();
         resourceUsage.setEnabled(true);
         properties.setResourceUsage(resourceUsage);
-        var rateWindow = new MetricsScrapeProperties.RateWindow();
-        properties.setRateWindow(rateWindow);
 
         var vllmNormalizer = new VllmMetricsNormalizer();
         service = new DeploymentMetricsService(
@@ -267,6 +265,38 @@ class DeploymentMetricsServiceTest {
         assertThat(snapshot.serving()).isNotNull();
         verify(k8sClient).scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/v1/metrics", TIMEOUT_MS);
         verify(k8sClient).scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/metrics", TIMEOUT_MS);
+    }
+
+    @Test
+    void shouldReturnTgiSnapshotThroughSameContract() {
+        givenDeployment(inferenceDeployment(null));
+        givenPods(podInfo(POD_NAME));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/tgi.txt")));
+        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.TGI);
+        assertThat(snapshot.serving()).isNotNull();
+        assertThat(snapshot.operational()).isNotNull();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
+        assertThat(snapshot.availability().get(AVAILABILITY_OPERATIONAL).available()).isTrue();
+    }
+
+    @Test
+    void shouldReturnSglangSnapshotThroughSameContract() {
+        givenDeployment(inferenceDeployment(null));
+        givenPods(podInfo(POD_NAME));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/sglang.txt")));
+        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.SGLANG);
+        assertThat(snapshot.serving()).isNotNull();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
     }
 
     @Test

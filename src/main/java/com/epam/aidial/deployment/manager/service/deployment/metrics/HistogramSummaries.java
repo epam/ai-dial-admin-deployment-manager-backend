@@ -30,18 +30,22 @@ final class HistogramSummaries {
         boolean seen = false;
 
         for (var sample : samples) {
+            double value = sample.value();
+            if (Double.isNaN(value)) {
+                continue;
+            }
             if (sample.name().equals(baseName + "_bucket")) {
                 var le = sample.labels().get("le");
                 if (le != null) {
                     double bound = parseBound(le);
-                    buckets.merge(bound, sample.value(), Double::sum);
+                    buckets.merge(bound, value, Double::sum);
                     seen = true;
                 }
             } else if (sample.name().equals(baseName + "_sum")) {
-                sum += sample.value();
+                sum += value;
                 seen = true;
             } else if (sample.name().equals(baseName + "_count")) {
-                count += sample.value();
+                count += value;
                 seen = true;
             }
         }
