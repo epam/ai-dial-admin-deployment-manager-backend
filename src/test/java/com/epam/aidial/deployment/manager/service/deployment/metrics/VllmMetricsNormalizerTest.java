@@ -19,7 +19,7 @@ class VllmMetricsNormalizerTest {
     void shouldSupportVllmOnly() {
         assertThat(normalizer.supports(EngineFamily.VLLM)).isTrue();
         assertThat(normalizer.supports(EngineFamily.TGI)).isFalse();
-        assertThat(normalizer.supports(EngineFamily.NIM)).isFalse();
+        assertThat(normalizer.supports(EngineFamily.UNKNOWN)).isFalse();
     }
 
     @Test

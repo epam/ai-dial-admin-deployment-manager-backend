@@ -88,7 +88,7 @@ public class K8sClient {
      * subresource. The proxy rides the existing kube auth/TLS and works even when the deployment
      * manager runs outside the cluster (pod IPs are not routable there, the API server is).
      * {@code metricsPath} is the engine's exposition path (e.g. {@code /metrics} for vLLM-class
-     * engines, {@code /v1/metrics} for LLM NIMs). Any failure — timeout, non-2xx, missing pod —
+     * engines). Any failure — timeout, non-2xx, missing pod —
      * maps to {@link Optional#empty()} with context logging, never an exception: missing
      * telemetry must not fail the request.
      *

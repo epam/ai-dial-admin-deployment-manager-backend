@@ -11,16 +11,12 @@ import org.springframework.stereotype.Component;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * vLLM vocabulary → unified schema (spike §3 vLLM column). Accepts both V0 and V1 names where
  * they drifted (verified against a live dev-cluster vLLM V1 pod): KV-cache gauge
  * {@code vllm:gpu_cache_usage_perc} → {@code vllm:kv_cache_usage_perc}, inter-token latency
  * histogram {@code vllm:time_per_output_token_seconds} → {@code vllm:inter_token_latency_seconds}.
- * Also reused by {@link NimMetricsNormalizer} for LLM NIMs, which expose vLLM-style names.
  */
 @Component
 @LogExecution
@@ -40,21 +36,6 @@ public class VllmMetricsNormalizer implements EngineMetricsNormalizer {
     private static final String FINISHED_REASON_LABEL = "finished_reason";
     private static final String FINISHED_REASON_ABORT = "abort";
     private static final String FINISHED_REASON_ERROR = "error";
-
-    /** {@link EngineFamily#VLLM} exposition prefix — single source for the vLLM vocabulary. */
-    public static final String PREFIX = EngineFamily.VLLM.metricNamePrefix();
-
-    /**
-     * Bare base names (prefix stripped) of every series this normalizer maps. Reused by
-     * {@link NimMetricsNormalizer} to alias bare vLLM-style LLM-NIM names into the {@code vllm:}
-     * namespace, so the recognized vocabulary stays defined in exactly one place.
-     */
-    public static final Set<String> BASE_METRIC_NAMES = Stream.of(
-                    TTFT, INTER_TOKEN_LATENCY_V0, INTER_TOKEN_LATENCY_V1, E2E_LATENCY, PROMPT_TOKENS,
-                    GENERATION_TOKENS, REQUESTS_WAITING, REQUESTS_RUNNING, KV_CACHE_USAGE_V0,
-                    KV_CACHE_USAGE_V1, REQUEST_SUCCESS)
-            .map(name -> name.substring(PREFIX.length()))
-            .collect(Collectors.toUnmodifiableSet());
 
     @Override
     public boolean supports(EngineFamily family) {

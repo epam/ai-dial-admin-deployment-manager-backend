@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.kubernetes.metrics.PodResourceUsageRea
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.metrics.BlockAvailability;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
 import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
@@ -32,7 +31,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_OPERATIONAL;
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_RESOURCES;
@@ -42,16 +40,17 @@ import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeployment
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.WINDOW_LIFETIME;
 
 /**
- * On-demand live metrics snapshot for INFERENCE and NIM deployments: scrape the engine's
- * Prometheus {@code /metrics} from one Ready pod through the API-server pod proxy, detect the
- * engine family, normalize to the unified schema, and attach replica counts plus optional
- * per-pod resource usage.
+ * On-demand live metrics snapshot for any deployment: replica counts plus optional per-pod
+ * resource usage are reported for every deployment type, and INFERENCE deployments additionally
+ * get serving-quality metrics by scraping the engine's Prometheus {@code /metrics} from one Ready
+ * pod through the API-server pod proxy, detecting the engine family and normalizing to the unified
+ * schema.
  *
- * <p>Graceful degradation is a hard contract rule: no Ready pods, an unreachable metrics
- * endpoint, an unrecognized engine, or an absent metrics-server each null out only the affected
- * block(s) with the reason recorded in {@code availability} — the request still succeeds with a
- * partial payload, never a 500. Collection is request-triggered only; a short-TTL response
- * cache bounds API-server load under rapid repeated requests.</p>
+ * <p>Graceful degradation is a hard contract rule: a non-inference type, no Ready pods, an
+ * unreachable metrics endpoint, an unrecognized engine, or an absent metrics-server each null out
+ * only the affected block(s) with the reason recorded in {@code availability} — the request still
+ * succeeds with a partial payload, never a 500. Collection is request-triggered only; a short-TTL
+ * response cache bounds API-server load under rapid repeated requests.</p>
  */
 @Slf4j
 @Service
@@ -61,9 +60,8 @@ public class DeploymentMetricsService {
 
     /** Standard Prometheus exposition path served by vLLM/TGI/SGLang. */
     private static final String METRICS_PATH = "/metrics";
-    /** LLM NIMs serve their metrics under the API prefix (verified live on a dev-cluster NIM). */
-    private static final String NIM_METRICS_PATH = "/v1/metrics";
 
+    private static final String REASON_SERVING_UNSUPPORTED = "serving metrics are available only for inference deployments";
     private static final String REASON_NO_READY_PODS = "no ready pods to read metrics from";
     private static final String REASON_NO_PODS = "no pods to read resource usage from";
     private static final String REASON_SCRAPE_FAILED = "metrics endpoint unreachable or returned an error";
@@ -89,11 +87,6 @@ public class DeploymentMetricsService {
 
         var deployment = deploymentService.getDeployment(id, false)
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found: %s".formatted(id)));
-        if (!(deployment instanceof InferenceDeployment) && !(deployment instanceof NimDeployment)) {
-            throw new IllegalArgumentException(
-                    "Deployment type does not support model metrics: %s. Supported types: INFERENCE, NIM"
-                            .formatted(deployment.getClass().getSimpleName()));
-        }
 
         var manager = deploymentManagerProvider.provide(id);
         var availability = new HashMap<String, BlockAvailability>();
@@ -101,7 +94,7 @@ public class DeploymentMetricsService {
         var allPods = listInstances(manager, id, false);
         var readyPods = listInstances(manager, id, true);
 
-        var engineMetrics = scrapeAndNormalize(deployment, manager, readyPods, availability);
+        var engineMetrics = collectServingMetrics(deployment, manager, readyPods, availability);
         var resources = collectResources(manager, allPods, readyPods, availability);
         availability.put(AVAILABILITY_RESOURCES, BlockAvailability.AVAILABLE);
         availability.put(AVAILABILITY_RESOURCES_GPU, BlockAvailability.unavailable(REASON_GPU_REQUIRES_DCGM));
@@ -132,23 +125,32 @@ public class DeploymentMetricsService {
         }
     }
 
-    private EngineScrapeResult scrapeAndNormalize(Deployment deployment, DeploymentManager<?> manager,
-                                                  List<PodInfo> readyPods, Map<String, BlockAvailability> availability) {
+    /**
+     * Serving-quality metrics are scraped only for INFERENCE deployments; every other type reports
+     * the serving/operational blocks as unavailable (resource metrics still apply to all types).
+     */
+    private EngineScrapeResult collectServingMetrics(Deployment deployment, DeploymentManager<?> manager,
+                                                     List<PodInfo> readyPods, Map<String, BlockAvailability> availability) {
+        if (!(deployment instanceof InferenceDeployment)) {
+            markEngineBlocksUnavailable(availability, REASON_SERVING_UNSUPPORTED);
+            return new EngineScrapeResult(EngineFamily.UNKNOWN, null, null);
+        }
         if (CollectionUtils.isEmpty(readyPods)) {
             markEngineBlocksUnavailable(availability, REASON_NO_READY_PODS);
-            return new EngineScrapeResult(deployment instanceof NimDeployment ? EngineFamily.NIM : EngineFamily.UNKNOWN, null, null);
+            return new EngineScrapeResult(EngineFamily.UNKNOWN, null, null);
         }
 
         var pod = readyPods.getFirst().getName();
         var port = deployment.getContainerPort() != null ? deployment.getContainerPort() : manager.getDefaultContainerPort();
-        var body = scrapeFirstAvailablePath(manager.getNamespace(), pod, port, metricsPathsFor(deployment));
+        var body = k8sClient.scrapePodMetrics(manager.getNamespace(), pod, port, METRICS_PATH, properties.getTimeoutMs())
+                .filter(StringUtils::isNotBlank);
         if (body.isEmpty()) {
             markEngineBlocksUnavailable(availability, REASON_SCRAPE_FAILED);
-            return new EngineScrapeResult(engineDetector.detect(deployment, List.of()), pod, null);
+            return new EngineScrapeResult(EngineFamily.UNKNOWN, pod, null);
         }
 
         List<MetricSample> samples = prometheusTextParser.parse(body.get());
-        var engine = engineDetector.detect(deployment, samples);
+        var engine = engineDetector.detect(samples);
         if (engine == EngineFamily.UNKNOWN) {
             markEngineBlocksUnavailable(availability, REASON_UNKNOWN_ENGINE);
             return new EngineScrapeResult(engine, pod, null);
@@ -189,27 +191,6 @@ public class DeploymentMetricsService {
         }
 
         return new ResourceMetrics(allPods.size(), readyPods.size(), List.copyOf(podUsages));
-    }
-
-    /**
-     * Engine exposition paths in probe order: LLM NIMs serve metrics under {@code /v1/metrics}
-     * (Triton-based NIMs and everything else use the standard {@code /metrics}).
-     */
-    private static List<String> metricsPathsFor(Deployment deployment) {
-        return deployment instanceof NimDeployment
-                ? List.of(NIM_METRICS_PATH, METRICS_PATH)
-                : List.of(METRICS_PATH);
-    }
-
-    private Optional<String> scrapeFirstAvailablePath(String namespace, String pod, int port, List<String> paths) {
-        for (var path : paths) {
-            var body = k8sClient.scrapePodMetrics(namespace, pod, port, path, properties.getTimeoutMs());
-            // A blank 200 body is no more usable than a failed scrape — keep probing the next path.
-            if (body.filter(StringUtils::isNotBlank).isPresent()) {
-                return body;
-            }
-        }
-        return Optional.empty();
     }
 
     /** Nested config can be absent under a partial override; treat a missing block as disabled. */

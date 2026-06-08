@@ -224,14 +224,15 @@ public class DeploymentController {
 
     @GetMapping(path = "{id}/metrics",
             produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Get a live metrics snapshot for a model deployment",
-            description = "Supported for INFERENCE and NIM deployments. Missing telemetry never fails the request: "
-                    + "affected blocks are null with the reason recorded in 'availability' and the response is still 200. "
-                    + "Counter-derived values are lifetime aggregates (window=lifetime); raw cumulative counters are echoed "
-                    + "in 'rawCounters' for client-side rate derivation. Exactly one Ready pod is scraped and named in 'scrapedPod'.")
+    @Operation(summary = "Get a live metrics snapshot for a deployment",
+            description = "Resource metrics (replica counts and per-pod CPU/memory) are reported for any deployment "
+                    + "type; serving-quality metrics are additionally scraped for INFERENCE deployments. Missing "
+                    + "telemetry never fails the request: affected blocks are null with the reason recorded in "
+                    + "'availability' and the response is still 200. Counter-derived values are lifetime aggregates "
+                    + "(window=lifetime); raw cumulative counters are echoed in 'rawCounters' for client-side rate "
+                    + "derivation. Exactly one Ready pod is scraped for serving metrics and named in 'scrapedPod'.")
     @ApiResponse(responseCode = "200", description = "Live metrics snapshot (possibly partial — see availability)")
-    @ApiResponse(responseCode = "400", description = "Deployment type does not support model metrics, "
-            + "or metrics collection is disabled by configuration")
+    @ApiResponse(responseCode = "400", description = "Metrics collection is disabled by configuration")
     @ApiResponse(responseCode = "404", description = "Deployment not found")
     public DeploymentMetricsDto getMetrics(@PathVariable String id) {
         return metricsDtoMapper.toDto(deploymentMetricsService.getSnapshot(id));

@@ -8,7 +8,6 @@ import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
 import com.epam.aidial.deployment.manager.model.metrics.PodResourceUsage;
 import com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics;
@@ -39,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -76,15 +76,13 @@ class DeploymentMetricsServiceTest {
         resourceUsage.setEnabled(true);
         properties.setResourceUsage(resourceUsage);
 
-        var vllmNormalizer = new VllmMetricsNormalizer();
         service = new DeploymentMetricsService(
                 deploymentService,
                 deploymentManagerProvider,
                 k8sClient,
                 new PrometheusTextParser(),
                 new EngineDetector(),
-                List.of(vllmNormalizer, new TgiMetricsNormalizer(), new SglangMetricsNormalizer(),
-                        new NimMetricsNormalizer(vllmNormalizer)),
+                List.of(new VllmMetricsNormalizer(), new TgiMetricsNormalizer(), new SglangMetricsNormalizer()),
                 podResourceUsageReader,
                 properties);
 
@@ -232,42 +230,6 @@ class DeploymentMetricsServiceTest {
     }
 
     @Test
-    void shouldReturnNimSnapshotThroughSameContract() {
-        givenDeployment(NimDeployment.builder().id(DEPLOYMENT_ID).build());
-        givenPods(podInfo(POD_NAME));
-        when(deploymentManager.getDefaultContainerPort()).thenReturn(8000);
-        when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/v1/metrics", TIMEOUT_MS))
-                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/nim-llm.txt")));
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
-
-        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
-
-        assertThat(snapshot.engine()).isEqualTo(EngineFamily.NIM);
-        assertThat(snapshot.serving()).isNotNull();
-        assertThat(snapshot.serving().kvCacheUsage()).isEqualTo(0.0);
-        assertThat(snapshot.window()).isEqualTo(UnifiedDeploymentMetrics.WINDOW_LIFETIME);
-    }
-
-    @Test
-    void shouldFallBackToStandardMetricsPath_whenNimV1PathUnavailable() {
-        givenDeployment(NimDeployment.builder().id(DEPLOYMENT_ID).build());
-        givenPods(podInfo(POD_NAME));
-        when(deploymentManager.getDefaultContainerPort()).thenReturn(8000);
-        when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/v1/metrics", TIMEOUT_MS))
-                .thenReturn(Optional.empty());
-        when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/metrics", TIMEOUT_MS))
-                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/nim-triton.txt")));
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
-
-        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
-
-        assertThat(snapshot.engine()).isEqualTo(EngineFamily.NIM);
-        assertThat(snapshot.serving()).isNotNull();
-        verify(k8sClient).scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/v1/metrics", TIMEOUT_MS);
-        verify(k8sClient).scrapePodMetrics(NAMESPACE, POD_NAME, 8000, "/metrics", TIMEOUT_MS);
-    }
-
-    @Test
     void shouldReturnTgiSnapshotThroughSameContract() {
         givenDeployment(inferenceDeployment(null));
         givenPods(podInfo(POD_NAME));
@@ -340,12 +302,29 @@ class DeploymentMetricsServiceTest {
     }
 
     @Test
-    void shouldFailGetSnapshot_whenDeploymentTypeUnsupported() {
+    void shouldReturnResourceOnlySnapshot_forNonInferenceDeployment() {
         givenDeployment(McpDeployment.builder().id(DEPLOYMENT_ID).build());
+        givenPods(podInfo(POD_NAME));
+        when(podResourceUsageReader.read(NAMESPACE, POD_NAME))
+                .thenReturn(Optional.of(new PodResourceUsage(POD_NAME, 50.0, 2000.0, null, null)));
 
-        assertThatThrownBy(() -> service.getSnapshot(DEPLOYMENT_ID))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("does not support model metrics");
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        // resource metrics are reported for every deployment type
+        assertThat(snapshot.resources().replicasTotal()).isEqualTo(1);
+        assertThat(snapshot.resources().replicasReady()).isEqualTo(1);
+        assertThat(snapshot.resources().pods()).hasSize(1);
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES).available()).isTrue();
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_USAGE).available()).isTrue();
+
+        // serving metrics are skipped entirely — no pod is scraped for a non-inference type
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.UNKNOWN);
+        assertThat(snapshot.serving()).isNull();
+        assertThat(snapshot.operational()).isNull();
+        assertThat(snapshot.scrapedPod()).isNull();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isFalse();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).reason()).contains("inference");
+        verify(k8sClient, never()).scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong());
     }
 
     @Test

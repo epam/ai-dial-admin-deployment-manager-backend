@@ -107,25 +107,30 @@ public abstract class DeploymentMetricsFunctionalTest {
     }
 
     @Test
-    void shouldReturnNimMetricsSnapshotThroughSameContract() {
-        // Given
+    void shouldReturnResourceOnlySnapshotForNimDeployment() {
+        // Given — a NIM deployment (not INFERENCE): resource metrics apply, serving does not
         var id = "metrics-nim-deployment";
         createNimDeployment(id, "metrics-nim-svc");
         stubPods(NIM_SERVICE_LABEL, "metrics-nim-svc", readyPod("metrics-nim-pod-0"));
-        stubScrape("metrics-nim-pod-0", 8000, "/v1/metrics", ResourceUtils.readResource("/metrics-fixtures/nim-llm.txt"));
         stubPodUsage("100m", "512Mi");
 
         // When
         var metrics = deploymentController.getMetrics(id);
 
-        // Then — exactly the same contract shape as the inference snapshot
-        assertThat(metrics.engine()).isEqualTo("NIM");
-        assertThat(metrics.window()).isEqualTo("lifetime");
-        assertThat(metrics.serving()).isNotNull();
-        assertThat(metrics.serving().kvCacheUsage()).isEqualTo(0.0);
-        assertThat(metrics.serving().runningRequests()).isZero();
+        // Then — resource block populated, serving block honestly unavailable, no scrape attempted
+        assertThat(metrics.engine()).isEqualTo("UNKNOWN");
+        assertThat(metrics.scrapedPod()).isNull();
+        assertThat(metrics.serving()).isNull();
+        assertThat(metrics.operational()).isNull();
         assertThat(metrics.resources().replicas().total()).isEqualTo(1);
-        assertThat(metrics.availability().get("serving").available()).isTrue();
+        assertThat(metrics.resources().replicas().ready()).isEqualTo(1);
+        assertThat(metrics.resources().pods()).hasSize(1);
+        assertThat(metrics.resources().pods().getFirst().cpuMillicores()).isEqualTo(100.0);
+        assertThat(metrics.availability().get("resources").available()).isTrue();
+        assertThat(metrics.availability().get("resources.usage").available()).isTrue();
+        assertThat(metrics.availability().get("serving").available()).isFalse();
+        assertThat(metrics.availability().get("serving").reason()).contains("inference");
+        Mockito.verify(kubernetesClient, Mockito.never()).raw(anyString());
     }
 
     @Test
@@ -169,14 +174,15 @@ public abstract class DeploymentMetricsFunctionalTest {
     }
 
     @Test
-    void shouldFailGetMetrics_whenDeploymentTypeUnsupported() {
-        // Given — an interceptor deployment (not INFERENCE/NIM)
+    void shouldReturnResourceOnlySnapshotForNonModelDeployment() {
+        // Given — an interceptor deployment (not a model type): resource metrics still apply
         var imageDefinition = imageDefinitionService.createImageDefinition(
                 FunctionalTestHelper.createInterceptorImageDefinition());
         imageDefinitionService.completeBuildSuccessfully(imageDefinition.getId(), "test-image", System.currentTimeMillis());
+        var id = "metrics-interceptor-deployment";
         var request = CreateInterceptorDeployment.builder()
-                .id("metrics-bad-type-deployment")
-                .displayName("Metrics unsupported type")
+                .id(id)
+                .displayName("Metrics interceptor type")
                 .metadata(new DeploymentMetadata(List.of()))
                 .resources(new Resources(Map.of(), Map.of()))
                 .source(new InternalImageSource(imageDefinition.getId(), null, null, null))
@@ -185,10 +191,17 @@ public abstract class DeploymentMetricsFunctionalTest {
                 .build();
         deploymentService.createDeployment(request);
 
-        // When / Then — maps to 400 ErrorView via DefaultExceptionHandler
-        assertThatThrownBy(() -> deploymentController.getMetrics("metrics-bad-type-deployment"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("does not support model metrics");
+        // When — the endpoint accepts every deployment type now (no 400 for the type)
+        var metrics = deploymentController.getMetrics(id);
+
+        // Then — replica counts are reported (zero here, no service yet); serving honestly unavailable
+        assertThat(metrics.engine()).isEqualTo("UNKNOWN");
+        assertThat(metrics.serving()).isNull();
+        assertThat(metrics.resources()).isNotNull();
+        assertThat(metrics.resources().replicas().total()).isZero();
+        assertThat(metrics.availability().get("resources").available()).isTrue();
+        assertThat(metrics.availability().get("serving").available()).isFalse();
+        assertThat(metrics.availability().get("serving").reason()).contains("inference");
     }
 
     @Test

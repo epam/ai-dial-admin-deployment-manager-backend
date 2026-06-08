@@ -1,8 +1,8 @@
-# Feature Specification: Unified Model Metrics API (PoC — Live Snapshot)
+# Feature Specification: Unified Deployment Metrics API (PoC — Live Snapshot)
 
 **Feature Branch**: `feat/model-metrics-poc`
 **Created**: 2026-06-05
-**Status**: Implemented — code, tests, docs, and the capability spec (`specs/model-metrics/spec.md`) shipped; dev-cluster PoC acceptance performed live against one KServe vLLM (V1) deployment and one LLM NIM, with real `/metrics` fixtures captured and four engine-drift corrections folded back in (vLLM V1 ITL rename, `error` finished_reason, LLM-NIM `/v1/metrics` path, NIM outcome-counter error ratio). Only the Triton-NIM fixture remains synthetic (no such deployment available yet)
+**Status**: Implemented — code, tests, docs, and the capability spec (`specs/model-metrics/spec.md`) shipped. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type; serving-quality metrics are scraped for INFERENCE deployments. Dev-cluster PoC acceptance performed live against a KServe vLLM (V1) deployment, with real `/metrics` fixtures captured and engine-drift corrections folded back in (vLLM V1 ITL rename, `error` finished_reason)
 **Capability**: N/A — creates new capability model-metrics
 **Input**: User description: "Implement PoC of unified model metrics API feature described in docs/model-metrics-api-spike.md document."
 
@@ -45,27 +45,29 @@ and identification of the engine and pod that was read.
 
 ---
 
-### User Story 2 - Same unified contract for NIM deployments (Priority: P2)
+### User Story 2 - Resource context for any deployment type (Priority: P2)
 
-An operator running an NVIDIA NIM deployment requests the same snapshot and gets the same response
-shape — identical field names, units, and availability semantics — so any client (UI panel, script,
-autoscaler experiment) written against the inference snapshot works unchanged against NIM.
+An operator requests the snapshot for a non-inference deployment (e.g. an MCP server, application,
+adapter, or interceptor) and still gets replica counts and per-pod CPU/memory in the same response
+shape — so a client (UI panel, script) written against the snapshot works for every deployment kind,
+with the serving-quality blocks honestly marked unavailable when they don't apply.
 
-**Why this priority**: The "unified" half of the feature's value. Proves the schema abstracts over
-engine vocabularies rather than leaking one engine's view; it is the second of the two PoC acceptance
-deployments.
+**Why this priority**: Resource headroom and replica context are useful for every workload, not only
+model deployments. Reporting them uniformly across types — rather than rejecting non-model
+deployments — is what makes the endpoint a general deployment-metrics surface.
 
-**Independent Test**: Deploy one LLM NIM on the dev cluster, request the snapshot, and verify the
-payload validates against the same contract as User Story 1 with NIM identified as the engine.
+**Independent Test**: Request the snapshot for a non-inference deployment and verify the payload
+validates against the same contract as User Story 1, with replica counts (and per-pod usage when the
+resource-metrics service is present) populated and the serving block marked unavailable.
 
 **Acceptance Scenarios**:
 
-1. **Given** a running LLM NIM deployment with a Ready pod, **When** the operator requests the metrics
-   snapshot, **Then** the response uses exactly the same schema, unified metric names, and units as for
-   inference deployments, with the engine reported as NIM.
-2. **Given** a NIM variant that does not expose some serving-quality metrics (e.g. Triton-based NIMs
-   lack TTFT and KV-cache), **When** the snapshot is requested, **Then** the metrics that exist are
-   returned and the missing ones are flagged unavailable — never guessed, never an error.
+1. **Given** a running deployment of any type with at least one pod, **When** the operator requests the
+   metrics snapshot, **Then** the response uses the same schema and reports total/ready replica counts
+   and per-pod CPU/memory usage.
+2. **Given** a non-inference deployment, **When** the snapshot is requested, **Then** the serving and
+   operational blocks are marked unavailable with a reason while the resource block is still populated —
+   never an error.
 
 ---
 
@@ -95,9 +97,9 @@ partial response carrying a reason, with the remaining blocks still populated.
    snapshot is requested, **Then** engine is reported as unknown, serving metrics are marked unavailable
    with that reason, and any independently obtainable blocks (e.g. replicas, pod resource usage) are still
    returned.
-4. **Given** a deployment of a type that does not support model metrics (anything other than inference
-   or NIM), **When** the snapshot is requested, **Then** the request is rejected as invalid with the
-   platform's standard error shape.
+4. **Given** a deployment of a type that does not expose serving-quality metrics (anything other than
+   inference), **When** the snapshot is requested, **Then** the serving and operational blocks are
+   marked unavailable with a reason while the resource block is still returned — the request succeeds.
 5. **Given** a deployment id that does not exist, **When** the snapshot is requested, **Then** the
    response is the platform's standard not-found error.
 
@@ -149,11 +151,12 @@ a reason while serving metrics remain.
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide an on-demand live metrics snapshot for a single deployment,
-  supported for inference and NIM deployment types.
-- **FR-002**: The system MUST reject snapshot requests for unsupported deployment types as invalid
-  requests, and respond to unknown deployment ids with the platform's standard not-found error, both
-  using the platform's standard error shape (per `specs/api-conventions/spec.md`).
+- **FR-001**: The system MUST provide an on-demand live metrics snapshot for a single deployment of
+  any type. Resource metrics (replica counts and per-pod CPU/memory) MUST be reported for every
+  deployment type; serving-quality and operational metrics MUST be collected for inference deployments
+  and marked unavailable with a reason for all other types.
+- **FR-002**: The system MUST respond to unknown deployment ids with the platform's standard not-found
+  error, using the platform's standard error shape (per `specs/api-conventions/spec.md`).
 - **FR-003**: The snapshot MUST express all metrics in a unified, engine-neutral schema with explicit
   units, covering: serving quality (time-to-first-token, inter-token latency, prompt and generation
   tokens/second, queue depth, running requests, KV-cache utilization), resources (replica totals and
@@ -165,8 +168,8 @@ a reason while serving metrics remain.
   source, unrecognized engine, or absent cluster resource-metrics capability each null out only the
   affected block(s) while the request still succeeds with a partial payload.
 - **FR-006**: The system MUST detect the engine family automatically (vLLM, TGI, SGLang via their
-  exposed metric vocabularies; NIM via the deployment type) and report it in the response; an
-  unrecognized engine is reported as unknown with serving metrics unavailable.
+  exposed metric vocabularies) and report it in the response; an unrecognized engine is reported as
+  unknown with serving metrics unavailable.
 - **FR-007**: Counter-derived values MUST be labelled with their aggregation window (always "lifetime"
   in the PoC), and the raw cumulative counters MUST be included under unified names so consumers can
   derive windowed rates themselves.
@@ -197,7 +200,7 @@ a reason while serving metrics remain.
   that is populated or declared unavailable as a unit.
 - **Availability Marker**: per-block flag plus optional human-readable reason explaining degradation.
 - **Distribution Summary**: mean, p50, p95, p99, and observation count for a latency-style metric.
-- **Engine Family**: the recognized serving engine vocabulary (vLLM, TGI, SGLang, NIM, unknown) that
+- **Engine Family**: the recognized serving engine vocabulary (vLLM, TGI, SGLang, unknown) that
   determines how raw engine metrics map to the unified schema.
 - **Raw Counter Set**: cumulative engine counters under unified names, enabling client-side rate
   derivation and future time-series backends.
@@ -212,14 +215,15 @@ a reason while serving metrics remain.
 - **SC-002**: 100% of the enumerated missing-telemetry conditions (no Ready pods, unreachable metrics
   source, unrecognized engine, absent resource-metrics service) produce a successful partial response
   with a stated reason — zero internal-error responses across the degradation matrix.
-- **SC-003**: A client written once against the snapshot contract consumes both deployment kinds
-  unchanged — demonstrated end-to-end on the dev cluster with one vLLM HuggingFace inference deployment
-  and one LLM NIM showing live TTFT, tokens/second, and KV-cache utilization.
+- **SC-003**: A client written once against the snapshot contract consumes every deployment kind
+  unchanged — an inference deployment showing live TTFT, tokens/second, and KV-cache utilization, and a
+  non-inference deployment showing replica counts and per-pod resource usage with the serving block
+  marked unavailable.
 - **SC-004**: Every numeric value in the response is interpretable without out-of-band knowledge: it
   carries an explicit unit and, where counter-derived, an explicit window label.
-- **SC-005**: Real captured engine metric outputs from the dev-cluster verification (vLLM and NIM) are
-  checked in as test fixtures, and the engine-name mappings in the spike §3 matrix are confirmed or
-  corrected against them.
+- **SC-005**: Real captured engine metric outputs from the dev-cluster verification (vLLM) are checked
+  in as test fixtures, and the engine-name mappings in the spike §3 matrix are confirmed or corrected
+  against them.
 
 ## Assumptions
 

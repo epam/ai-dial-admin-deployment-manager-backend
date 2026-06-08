@@ -3,14 +3,13 @@ package com.epam.aidial.deployment.manager.model.metrics;
 /**
  * Recognized model-serving engine vocabularies that determine how raw engine metrics
  * map to the unified schema. {@code metricNamePrefix} is the distinctive exposition prefix used
- * to sniff inference engines from their exposed series; {@code NIM} is identified by deployment
- * type and {@code UNKNOWN} by exclusion, so both carry no prefix.
+ * to sniff inference engines from their exposed series; {@code UNKNOWN} is identified by exclusion
+ * and so carries no prefix.
  */
 public enum EngineFamily {
     VLLM("vllm:"),
     TGI("tgi_"),
     SGLANG("sglang:"),
-    NIM(null),
     UNKNOWN(null);
 
     private final String metricNamePrefix;
