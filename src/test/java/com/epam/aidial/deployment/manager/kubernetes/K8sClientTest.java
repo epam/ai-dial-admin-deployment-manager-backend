@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.ScalableResource;
 import io.fabric8.kubernetes.client.dsl.V1BatchAPIGroupDSL;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,6 +33,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
@@ -94,10 +97,17 @@ class K8sClientTest {
     private Resource cnpResource;
 
     private K8sClient k8sClient;
+    private ExecutorService scrapeExecutor;
 
     @BeforeEach
     void setUp() {
-        k8sClient = new K8sClient(kubernetesClient);
+        scrapeExecutor = Executors.newSingleThreadExecutor();
+        k8sClient = new K8sClient(kubernetesClient, scrapeExecutor);
+    }
+
+    @AfterEach
+    void tearDown() {
+        scrapeExecutor.shutdownNow();
     }
 
     @Test
