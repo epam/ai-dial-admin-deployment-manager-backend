@@ -1,8 +1,11 @@
 package com.epam.aidial.deployment.manager.kubernetes.metrics;
 
+import com.epam.aidial.deployment.manager.model.metrics.PodResourceUsage;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.ContainerMetrics;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MetricAPIGroupDSL;
@@ -18,6 +21,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,6 +87,44 @@ class PodResourceUsageReaderTest {
         when(podMetricOperation.metrics(NAMESPACE, POD_NAME)).thenReturn(new PodMetrics());
 
         assertThat(reader.read(NAMESPACE, POD_NAME)).isEmpty();
+    }
+
+    @Test
+    void shouldReadAllWantedPodsWithOneNamespaceCall() {
+        // Given — namespace metrics for three pods; only two are wanted
+        when(podMetricOperation.metrics(NAMESPACE)).thenReturn(podMetricsList(
+                podMetrics("pod-a", "250m", "1Gi"),
+                podMetrics("pod-b", "100m", "512Mi"),
+                podMetrics("pod-c", "50m", "256Mi")));
+
+        // When
+        var result = reader.readAll(NAMESPACE, List.of("pod-a", "pod-c"));
+
+        // Then — filtered to the wanted pods via a single namespace-wide call (no per-pod calls)
+        assertThat(result).extracting(PodResourceUsage::name).containsExactlyInAnyOrder("pod-a", "pod-c");
+        verify(podMetricOperation).metrics(NAMESPACE);
+        verify(podMetricOperation, never()).metrics(eq(NAMESPACE), anyString());
+    }
+
+    @Test
+    void shouldReadAllToEmpty_whenMetricsServerAbsent() {
+        when(podMetricOperation.metrics(NAMESPACE))
+                .thenThrow(new KubernetesClientException("the server could not find the requested resource", 404, null));
+
+        assertThat(reader.readAll(NAMESPACE, List.of("pod-a"))).isEmpty();
+    }
+
+    private static PodMetricsList podMetricsList(PodMetrics... items) {
+        var list = new PodMetricsList();
+        list.setItems(List.of(items));
+        return list;
+    }
+
+    private static PodMetrics podMetrics(String name, String cpu, String memory) {
+        var podMetrics = new PodMetrics();
+        podMetrics.setMetadata(new ObjectMetaBuilder().withName(name).build());
+        podMetrics.setContainers(List.of(containerMetrics(cpu, memory)));
+        return podMetrics;
     }
 
     private static ContainerMetrics containerMetrics(String cpu, String memory) {

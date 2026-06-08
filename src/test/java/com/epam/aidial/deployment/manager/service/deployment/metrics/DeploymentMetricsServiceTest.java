@@ -34,6 +34,7 @@ import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeployment
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_SERVING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -97,8 +98,8 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/vllm.txt")));
-        when(podResourceUsageReader.read(NAMESPACE, POD_NAME))
-                .thenReturn(Optional.of(new PodResourceUsage(POD_NAME, 250.0, 1073741824.0, null, null)));
+        when(podResourceUsageReader.readAll(NAMESPACE, List.of(POD_NAME)))
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 250.0, 1073741824.0, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -155,7 +156,7 @@ class DeploymentMetricsServiceTest {
         when(deploymentManager.getActiveInstances(DEPLOYMENT_ID))
                 .thenReturn(List.of(podInfo("pod-b"), podInfo("pod-c")));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -201,8 +202,8 @@ class DeploymentMetricsServiceTest {
         givenDeployment(inferenceDeployment(null));
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
-        when(podResourceUsageReader.read(NAMESPACE, POD_NAME))
-                .thenReturn(Optional.of(new PodResourceUsage(POD_NAME, 100.0, 1000.0, null, null)));
+        when(podResourceUsageReader.readAll(NAMESPACE, List.of(POD_NAME)))
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 100.0, 1000.0, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -220,7 +221,7 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong()))
                 .thenReturn(Optional.of("# TYPE http_requests_total counter\nhttp_requests_total 5\n"));
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -235,7 +236,7 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/tgi.txt")));
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -252,7 +253,7 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/sglang.txt")));
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -281,7 +282,7 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong()))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/vllm.txt")));
-        when(podResourceUsageReader.read(anyString(), anyString())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -305,8 +306,8 @@ class DeploymentMetricsServiceTest {
     void shouldReturnResourceOnlySnapshot_forNonInferenceDeployment() {
         givenDeployment(McpDeployment.builder().id(DEPLOYMENT_ID).build());
         givenPods(podInfo(POD_NAME));
-        when(podResourceUsageReader.read(NAMESPACE, POD_NAME))
-                .thenReturn(Optional.of(new PodResourceUsage(POD_NAME, 50.0, 2000.0, null, null)));
+        when(podResourceUsageReader.readAll(NAMESPACE, List.of(POD_NAME)))
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 50.0, 2000.0, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 

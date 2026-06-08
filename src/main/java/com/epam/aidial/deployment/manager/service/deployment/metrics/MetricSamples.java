@@ -1,15 +1,12 @@
 package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
-import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
-
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 
 /**
- * Shared extraction helpers for normalizers: name lookups aggregate across label sets
- * (e.g. per-model labels) by summation; lifetime rates use the conventional
- * {@code process_start_time_seconds} gauge when the engine exposes it.
+ * Shared extraction helpers for normalizers, backed by a {@link MetricSampleIndex}: name lookups
+ * aggregate across label sets (e.g. per-model labels) by summation; lifetime rates use the
+ * conventional {@code process_start_time_seconds} gauge when the engine exposes it.
  */
 final class MetricSamples {
 
@@ -20,12 +17,12 @@ final class MetricSamples {
     }
 
     /** Sum of all finite samples with any of the given names; empty when none are present. */
-    static Optional<Double> sum(List<MetricSample> samples, String... names) {
+    static Optional<Double> sum(MetricSampleIndex index, String... names) {
         double total = 0;
         boolean seen = false;
-        for (var sample : samples) {
-            for (var name : names) {
-                if (sample.name().equals(name) && !Double.isNaN(sample.value())) {
+        for (var name : names) {
+            for (var sample : index.named(name)) {
+                if (!Double.isNaN(sample.value())) {
                     total += sample.value();
                     seen = true;
                 }
@@ -35,11 +32,11 @@ final class MetricSamples {
     }
 
     /** Sum of samples with the given name whose label matches the given value. */
-    static Optional<Double> sumWithLabel(List<MetricSample> samples, String name, String labelKey, String labelValue) {
+    static Optional<Double> sumWithLabel(MetricSampleIndex index, String name, String labelKey, String labelValue) {
         double total = 0;
         boolean seen = false;
-        for (var sample : samples) {
-            if (sample.name().equals(name) && labelValue.equals(sample.labels().get(labelKey)) && !Double.isNaN(sample.value())) {
+        for (var sample : index.named(name)) {
+            if (labelValue.equals(sample.labels().get(labelKey)) && !Double.isNaN(sample.value())) {
                 total += sample.value();
                 seen = true;
             }
@@ -56,9 +53,9 @@ final class MetricSamples {
      * Empty when the counter or {@code process_start_time_seconds} is absent — the raw counter
      * is still echoed so clients can derive rates themselves.
      */
-    static Optional<Double> lifetimeRate(List<MetricSample> samples, String counterName, Instant now) {
-        var counter = sum(samples, counterName);
-        var startTime = sum(samples, PROCESS_START_TIME_SECONDS);
+    static Optional<Double> lifetimeRate(MetricSampleIndex index, String counterName, Instant now) {
+        var counter = sum(index, counterName);
+        var startTime = sum(index, PROCESS_START_TIME_SECONDS);
         if (counter.isEmpty() || startTime.isEmpty()) {
             return Optional.empty();
         }

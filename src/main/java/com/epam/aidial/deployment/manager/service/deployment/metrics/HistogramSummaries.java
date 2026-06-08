@@ -17,6 +17,11 @@ final class HistogramSummaries {
     private HistogramSummaries() {
     }
 
+    /** Index-backed overload — summarizes only the histogram's own series, not the full sample list. */
+    static DistributionSummary summarize(MetricSampleIndex index, String baseName) {
+        return summarize(index.histogramSeries(baseName), baseName);
+    }
+
     /**
      * Summarizes the histogram with the given base name (its series are {@code base_bucket},
      * {@code base_sum}, {@code base_count}). Multiple label sets (e.g. per-model labels) are

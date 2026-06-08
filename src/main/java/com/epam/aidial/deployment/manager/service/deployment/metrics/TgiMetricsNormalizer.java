@@ -2,15 +2,12 @@ package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
-import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
 import com.epam.aidial.deployment.manager.model.metrics.NormalizedEngineMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.OperationalMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.ServingMetrics;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,7 +18,7 @@ import java.util.Optional;
  */
 @Component
 @LogExecution
-public class TgiMetricsNormalizer implements EngineMetricsNormalizer {
+public class TgiMetricsNormalizer extends AbstractEngineMetricsNormalizer {
 
     private static final String INTER_TOKEN_LATENCY = "tgi_request_mean_time_per_token_duration";
     private static final String E2E_LATENCY = "tgi_request_duration";
@@ -38,39 +35,39 @@ public class TgiMetricsNormalizer implements EngineMetricsNormalizer {
     }
 
     @Override
-    public NormalizedEngineMetrics normalize(List<MetricSample> samples) {
+    public NormalizedEngineMetrics normalize(MetricSampleIndex index) {
         var now = Instant.now();
 
         var serving = new ServingMetrics(
                 null,
-                HistogramSummaries.summarize(samples, INTER_TOKEN_LATENCY),
-                MetricSamples.lifetimeRate(samples, INPUT_LENGTH + "_sum", now).orElse(null),
-                MetricSamples.lifetimeRate(samples, GENERATED_TOKENS + "_sum", now).orElse(null),
-                MetricSamples.asInteger(MetricSamples.sum(samples, QUEUE_SIZE)),
-                MetricSamples.asInteger(MetricSamples.sum(samples, BATCH_CURRENT_SIZE)),
+                HistogramSummaries.summarize(index, INTER_TOKEN_LATENCY),
+                MetricSamples.lifetimeRate(index, INPUT_LENGTH + "_sum", now).orElse(null),
+                MetricSamples.lifetimeRate(index, GENERATED_TOKENS + "_sum", now).orElse(null),
+                MetricSamples.asInteger(MetricSamples.sum(index, QUEUE_SIZE)),
+                MetricSamples.asInteger(MetricSamples.sum(index, BATCH_CURRENT_SIZE)),
                 null);
 
         var operational = new OperationalMetrics(
-                requestErrorRatio(samples),
-                HistogramSummaries.summarize(samples, E2E_LATENCY));
+                requestErrorRatio(index),
+                HistogramSummaries.summarize(index, E2E_LATENCY));
 
-        var rawCounters = new HashMap<String, Double>();
-        MetricSamples.sum(samples, INPUT_LENGTH + "_sum").ifPresent(v -> rawCounters.put("prompt_tokens_total", v));
-        MetricSamples.sum(samples, GENERATED_TOKENS + "_sum").ifPresent(v -> rawCounters.put("generation_tokens_total", v));
-        MetricSamples.sum(samples, REQUEST_COUNT).ifPresent(v -> rawCounters.put("request_total", v));
-        MetricSamples.sum(samples, REQUEST_SUCCESS).ifPresent(v -> rawCounters.put("request_success_total", v));
+        var rawCounters = rawCounters(index, rawCounterSources(
+                "prompt_tokens_total", INPUT_LENGTH + "_sum",
+                "generation_tokens_total", GENERATED_TOKENS + "_sum",
+                "request_total", REQUEST_COUNT,
+                "request_success_total", REQUEST_SUCCESS));
 
         return new NormalizedEngineMetrics(serving, operational, rawCounters);
     }
 
     /** Lifetime error ratio: failed requests ({@code count - success}) over all requests. */
-    private static Double requestErrorRatio(List<MetricSample> samples) {
-        Optional<Double> total = MetricSamples.sum(samples, REQUEST_COUNT);
-        Optional<Double> success = MetricSamples.sum(samples, REQUEST_SUCCESS);
-        if (total.isEmpty() || success.isEmpty() || total.get() <= 0) {
+    private static Double requestErrorRatio(MetricSampleIndex index) {
+        Optional<Double> total = MetricSamples.sum(index, REQUEST_COUNT);
+        Optional<Double> success = MetricSamples.sum(index, REQUEST_SUCCESS);
+        if (total.isEmpty() || success.isEmpty()) {
             return null;
         }
-        return MetricSamples.clampRatio((total.get() - success.get()) / total.get());
+        return clampedRatio(total.get() - success.get(), total.get());
     }
 
 }

@@ -27,7 +27,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -156,10 +155,11 @@ public class DeploymentMetricsService {
             return new EngineScrapeResult(engine, pod, null);
         }
 
+        var index = new MetricSampleIndex(samples);
         var normalized = normalizers.stream()
                 .filter(normalizer -> normalizer.supports(engine))
                 .findFirst()
-                .map(normalizer -> normalizer.normalize(samples))
+                .map(normalizer -> normalizer.normalize(index))
                 .orElse(null);
         if (normalized == null) {
             markEngineBlocksUnavailable(availability, REASON_UNKNOWN_ENGINE);
@@ -173,16 +173,15 @@ public class DeploymentMetricsService {
 
     private ResourceMetrics collectResources(DeploymentManager<?> manager, List<PodInfo> allPods,
                                              List<PodInfo> readyPods, Map<String, BlockAvailability> availability) {
-        var podUsages = new ArrayList<PodResourceUsage>();
+        List<PodResourceUsage> podUsages = List.of();
 
         if (!resourceUsageEnabled()) {
             availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_USAGE_DISABLED));
         } else if (allPods.isEmpty()) {
             availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_NO_PODS));
         } else {
-            for (var pod : allPods) {
-                podResourceUsageReader.read(manager.getNamespace(), pod.getName()).ifPresent(podUsages::add);
-            }
+            var podNames = allPods.stream().map(PodInfo::getName).toList();
+            podUsages = podResourceUsageReader.readAll(manager.getNamespace(), podNames);
             if (podUsages.isEmpty()) {
                 availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_USAGE_UNAVAILABLE));
             } else {

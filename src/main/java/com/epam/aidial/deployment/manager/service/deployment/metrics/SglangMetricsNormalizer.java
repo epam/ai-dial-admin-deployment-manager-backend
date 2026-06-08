@@ -2,15 +2,12 @@ package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
-import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
 import com.epam.aidial.deployment.manager.model.metrics.NormalizedEngineMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.OperationalMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.ServingMetrics;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
 
 /**
  * SGLang vocabulary → unified schema (spike §3 SGLang column). {@code sglang:token_usage}
@@ -19,7 +16,7 @@ import java.util.List;
  */
 @Component
 @LogExecution
-public class SglangMetricsNormalizer implements EngineMetricsNormalizer {
+public class SglangMetricsNormalizer extends AbstractEngineMetricsNormalizer {
 
     private static final String TTFT = "sglang:time_to_first_token_seconds";
     private static final String INTER_TOKEN_LATENCY = "sglang:inter_token_latency_seconds";
@@ -38,41 +35,41 @@ public class SglangMetricsNormalizer implements EngineMetricsNormalizer {
     }
 
     @Override
-    public NormalizedEngineMetrics normalize(List<MetricSample> samples) {
+    public NormalizedEngineMetrics normalize(MetricSampleIndex index) {
         var now = Instant.now();
 
         var serving = new ServingMetrics(
-                HistogramSummaries.summarize(samples, TTFT),
-                HistogramSummaries.summarize(samples, INTER_TOKEN_LATENCY),
-                MetricSamples.lifetimeRate(samples, PROMPT_TOKENS, now).orElse(null),
-                MetricSamples.lifetimeRate(samples, GENERATION_TOKENS, now).orElse(null),
-                MetricSamples.asInteger(MetricSamples.sum(samples, QUEUE_REQS)),
-                MetricSamples.asInteger(MetricSamples.sum(samples, RUNNING_REQS)),
-                MetricSamples.sum(samples, TOKEN_USAGE)
+                HistogramSummaries.summarize(index, TTFT),
+                HistogramSummaries.summarize(index, INTER_TOKEN_LATENCY),
+                MetricSamples.lifetimeRate(index, PROMPT_TOKENS, now).orElse(null),
+                MetricSamples.lifetimeRate(index, GENERATION_TOKENS, now).orElse(null),
+                MetricSamples.asInteger(MetricSamples.sum(index, QUEUE_REQS)),
+                MetricSamples.asInteger(MetricSamples.sum(index, RUNNING_REQS)),
+                MetricSamples.sum(index, TOKEN_USAGE)
                         .map(MetricSamples::clampRatio)
                         .orElse(null));
 
         var operational = new OperationalMetrics(
-                requestErrorRatio(samples),
-                HistogramSummaries.summarize(samples, E2E_LATENCY));
+                requestErrorRatio(index),
+                HistogramSummaries.summarize(index, E2E_LATENCY));
 
-        var rawCounters = new HashMap<String, Double>();
-        MetricSamples.sum(samples, PROMPT_TOKENS).ifPresent(v -> rawCounters.put("prompt_tokens_total", v));
-        MetricSamples.sum(samples, GENERATION_TOKENS).ifPresent(v -> rawCounters.put("generation_tokens_total", v));
-        MetricSamples.sum(samples, ABORTED_REQUESTS).ifPresent(v -> rawCounters.put("request_aborted_total", v));
-        MetricSamples.sum(samples, REQUESTS_TOTAL).ifPresent(v -> rawCounters.put("request_total", v));
+        var rawCounters = rawCounters(index, rawCounterSources(
+                "prompt_tokens_total", PROMPT_TOKENS,
+                "generation_tokens_total", GENERATION_TOKENS,
+                "request_aborted_total", ABORTED_REQUESTS,
+                "request_total", REQUESTS_TOTAL));
 
         return new NormalizedEngineMetrics(serving, operational, rawCounters);
     }
 
     /** Lifetime error ratio: aborted over total, when both counters are exposed. */
-    private static Double requestErrorRatio(List<MetricSample> samples) {
-        var aborted = MetricSamples.sum(samples, ABORTED_REQUESTS);
-        var total = MetricSamples.sum(samples, REQUESTS_TOTAL);
-        if (aborted.isEmpty() || total.isEmpty() || total.get() <= 0) {
+    private static Double requestErrorRatio(MetricSampleIndex index) {
+        var aborted = MetricSamples.sum(index, ABORTED_REQUESTS);
+        var total = MetricSamples.sum(index, REQUESTS_TOTAL);
+        if (aborted.isEmpty() || total.isEmpty()) {
             return null;
         }
-        return MetricSamples.clampRatio(aborted.get() / total.get());
+        return clampedRatio(aborted.get(), total.get());
     }
 
 }

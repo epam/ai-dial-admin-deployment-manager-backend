@@ -1,7 +1,6 @@
 package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
-import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -110,7 +109,7 @@ class VllmMetricsNormalizerTest {
 
     @Test
     void shouldLeaveFieldsNull_whenMetricsAbsent() {
-        var normalized = normalizer.normalize(List.of());
+        var normalized = normalizer.normalize(new MetricSampleIndex(List.of()));
 
         var serving = normalized.serving();
         assertThat(serving.ttft()).isNull();
@@ -130,8 +129,8 @@ class VllmMetricsNormalizerTest {
         assertThat(serving.generationTokensPerSecond()).isNull();
     }
 
-    private List<MetricSample> fixture(String resource) {
-        return parser.parse(ResourceUtils.readResource(resource));
+    private MetricSampleIndex fixture(String resource) {
+        return new MetricSampleIndex(parser.parse(ResourceUtils.readResource(resource)));
     }
 
 }

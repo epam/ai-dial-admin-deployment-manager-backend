@@ -16,12 +16,14 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.ContainerMetrics;
 import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetrics;
+import io.fabric8.kubernetes.api.model.metrics.v1beta1.PodMetricsList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MetricAPIGroupDSL;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -36,7 +38,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 /**
@@ -69,7 +70,7 @@ public abstract class DeploymentMetricsFunctionalTest {
         createInferenceDeployment(id, "metrics-vllm-svc");
         stubPods(KSERVE_SERVICE_LABEL, "metrics-vllm-svc", readyPod("metrics-vllm-pod-0"));
         stubScrape("metrics-vllm-pod-0", 8080, "/metrics", ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
-        stubPodUsage("250m", "1Gi");
+        stubPodUsage("metrics-vllm-pod-0", "250m", "1Gi");
 
         // When
         var metrics = deploymentController.getMetrics(id);
@@ -112,7 +113,7 @@ public abstract class DeploymentMetricsFunctionalTest {
         var id = "metrics-nim-deployment";
         createNimDeployment(id, "metrics-nim-svc");
         stubPods(NIM_SERVICE_LABEL, "metrics-nim-svc", readyPod("metrics-nim-pod-0"));
-        stubPodUsage("100m", "512Mi");
+        stubPodUsage("metrics-nim-pod-0", "100m", "512Mi");
 
         // When
         var metrics = deploymentController.getMetrics(id);
@@ -159,7 +160,7 @@ public abstract class DeploymentMetricsFunctionalTest {
         createInferenceDeployment(id, "metrics-scrape-fail-svc");
         stubPods(KSERVE_SERVICE_LABEL, "metrics-scrape-fail-svc", readyPod("metrics-fail-pod-0"));
         when(kubernetesClient.raw(anyString())).thenReturn(null);
-        stubPodUsage("100m", "256Mi");
+        stubPodUsage("metrics-fail-pod-0", "100m", "256Mi");
 
         // When
         var metrics = deploymentController.getMetrics(id);
@@ -258,17 +259,20 @@ public abstract class DeploymentMetricsFunctionalTest {
         when(kubernetesClient.raw(proxyUri)).thenReturn(body);
     }
 
-    private void stubPodUsage(String cpu, String memory) {
+    private void stubPodUsage(String podName, String cpu, String memory) {
         var containerMetrics = new ContainerMetrics();
         containerMetrics.setUsage(Map.of("cpu", new Quantity(cpu), "memory", new Quantity(memory)));
         var podMetrics = new PodMetrics();
+        podMetrics.setMetadata(new ObjectMetaBuilder().withName(podName).build());
         podMetrics.setContainers(List.of(containerMetrics));
+        var podMetricsList = new PodMetricsList();
+        podMetricsList.setItems(List.of(podMetrics));
 
         var metricsDsl = Mockito.mock(MetricAPIGroupDSL.class);
         var podMetricOperation = Mockito.mock(PodMetricOperation.class);
         when(kubernetesClient.top()).thenReturn(metricsDsl);
         when(metricsDsl.pods()).thenReturn(podMetricOperation);
-        when(podMetricOperation.metrics(eq(NAMESPACE), anyString())).thenReturn(podMetrics);
+        when(podMetricOperation.metrics(NAMESPACE)).thenReturn(podMetricsList);
     }
 
     private static Pod readyPod(String name) {

@@ -2,15 +2,12 @@ package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
-import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
 import com.epam.aidial.deployment.manager.model.metrics.NormalizedEngineMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.OperationalMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.ServingMetrics;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
 
 /**
  * vLLM vocabulary → unified schema (spike §3 vLLM column). Accepts both V0 and V1 names where
@@ -20,7 +17,7 @@ import java.util.List;
  */
 @Component
 @LogExecution
-public class VllmMetricsNormalizer implements EngineMetricsNormalizer {
+public class VllmMetricsNormalizer extends AbstractEngineMetricsNormalizer {
 
     private static final String TTFT = "vllm:time_to_first_token_seconds";
     private static final String INTER_TOKEN_LATENCY_V0 = "vllm:time_per_output_token_seconds";
@@ -43,33 +40,33 @@ public class VllmMetricsNormalizer implements EngineMetricsNormalizer {
     }
 
     @Override
-    public NormalizedEngineMetrics normalize(List<MetricSample> samples) {
+    public NormalizedEngineMetrics normalize(MetricSampleIndex index) {
         var now = Instant.now();
 
-        var interTokenLatency = HistogramSummaries.summarize(samples, INTER_TOKEN_LATENCY_V0);
+        var interTokenLatency = HistogramSummaries.summarize(index, INTER_TOKEN_LATENCY_V0);
         if (interTokenLatency == null) {
-            interTokenLatency = HistogramSummaries.summarize(samples, INTER_TOKEN_LATENCY_V1);
+            interTokenLatency = HistogramSummaries.summarize(index, INTER_TOKEN_LATENCY_V1);
         }
 
         var serving = new ServingMetrics(
-                HistogramSummaries.summarize(samples, TTFT),
+                HistogramSummaries.summarize(index, TTFT),
                 interTokenLatency,
-                MetricSamples.lifetimeRate(samples, PROMPT_TOKENS, now).orElse(null),
-                MetricSamples.lifetimeRate(samples, GENERATION_TOKENS, now).orElse(null),
-                MetricSamples.asInteger(MetricSamples.sum(samples, REQUESTS_WAITING)),
-                MetricSamples.asInteger(MetricSamples.sum(samples, REQUESTS_RUNNING)),
-                MetricSamples.sum(samples, KV_CACHE_USAGE_V0, KV_CACHE_USAGE_V1)
+                MetricSamples.lifetimeRate(index, PROMPT_TOKENS, now).orElse(null),
+                MetricSamples.lifetimeRate(index, GENERATION_TOKENS, now).orElse(null),
+                MetricSamples.asInteger(MetricSamples.sum(index, REQUESTS_WAITING)),
+                MetricSamples.asInteger(MetricSamples.sum(index, REQUESTS_RUNNING)),
+                MetricSamples.sum(index, KV_CACHE_USAGE_V0, KV_CACHE_USAGE_V1)
                         .map(MetricSamples::clampRatio)
                         .orElse(null));
 
         var operational = new OperationalMetrics(
-                requestErrorRatio(samples),
-                HistogramSummaries.summarize(samples, E2E_LATENCY));
+                requestErrorRatio(index),
+                HistogramSummaries.summarize(index, E2E_LATENCY));
 
-        var rawCounters = new HashMap<String, Double>();
-        MetricSamples.sum(samples, PROMPT_TOKENS).ifPresent(v -> rawCounters.put("prompt_tokens_total", v));
-        MetricSamples.sum(samples, GENERATION_TOKENS).ifPresent(v -> rawCounters.put("generation_tokens_total", v));
-        MetricSamples.sum(samples, REQUEST_SUCCESS).ifPresent(v -> rawCounters.put("request_success_total", v));
+        var rawCounters = rawCounters(index, rawCounterSources(
+                "prompt_tokens_total", PROMPT_TOKENS,
+                "generation_tokens_total", GENERATION_TOKENS,
+                "request_success_total", REQUEST_SUCCESS));
 
         return new NormalizedEngineMetrics(serving, operational, rawCounters);
     }
@@ -79,16 +76,16 @@ public class VllmMetricsNormalizer implements EngineMetricsNormalizer {
      * {@code finished_reason}: aborted/errored finishes over all finishes (vLLM V1 added the
      * explicit {@code error} reason alongside V0's {@code abort}).
      */
-    private static Double requestErrorRatio(List<MetricSample> samples) {
-        var total = MetricSamples.sum(samples, REQUEST_SUCCESS);
-        if (total.isEmpty() || total.get() <= 0) {
+    private static Double requestErrorRatio(MetricSampleIndex index) {
+        var total = MetricSamples.sum(index, REQUEST_SUCCESS);
+        if (total.isEmpty()) {
             return null;
         }
-        double failed = MetricSamples.sumWithLabel(samples, REQUEST_SUCCESS, FINISHED_REASON_LABEL, FINISHED_REASON_ABORT)
+        double failed = MetricSamples.sumWithLabel(index, REQUEST_SUCCESS, FINISHED_REASON_LABEL, FINISHED_REASON_ABORT)
                 .orElse(0.0)
-                + MetricSamples.sumWithLabel(samples, REQUEST_SUCCESS, FINISHED_REASON_LABEL, FINISHED_REASON_ERROR)
+                + MetricSamples.sumWithLabel(index, REQUEST_SUCCESS, FINISHED_REASON_LABEL, FINISHED_REASON_ERROR)
                 .orElse(0.0);
-        return MetricSamples.clampRatio(failed / total.get());
+        return clampedRatio(failed, total.get());
     }
 
 }
