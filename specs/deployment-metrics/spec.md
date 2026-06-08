@@ -3,9 +3,9 @@
 ## Purpose
 This spec describes the unified deployment metrics API — an on-demand live metrics snapshot for any deployment. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type. For INFERENCE deployments, engine-specific Prometheus metrics (vLLM, TGI, SGLang) are additionally scraped from one Ready pod through the Kubernetes API-server pod proxy and normalized to a single engine-neutral schema so clients never depend on a particular engine's vocabulary.
 
-Status: **Implemented** *(Implemented via 023-model-metrics-api — PoC scope: live snapshot only)*
+Status: **Implemented** *(Implemented via 023-deployment-metrics-api — PoC scope: live snapshot only)*
 
-Design source: `docs/model-metrics-api-spike.md` (issue #162 spike — ADR, engine-availability matrix, follow-up tickets). OpenAPI contract: `specs/023-model-metrics-api/contracts/deployment-metrics-api.yaml`.
+Design source: `docs/deployment-metrics-api-spike.md` (issue #162 spike — ADR, engine-availability matrix, follow-up tickets). OpenAPI contract: `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml`.
 
 ## Key Terms
 - **Unified schema**: engine-neutral metric names with explicit units, grouped into `serving`, `resources`, and `operational` blocks plus a `rawCounters` echo of directly-exposed cumulative counters.
@@ -19,7 +19,7 @@ Design source: `docs/model-metrics-api-spike.md` (issue #162 spike — ADR, engi
 ### Requirement: Live metrics snapshot endpoint
 The system SHALL expose `GET /api/v1/deployments/{id}/metrics` returning a live unified metrics snapshot for a deployment of any type. Resource metrics (replica counts and per-pod CPU/memory) are reported for every type; serving-quality metrics are scraped for INFERENCE deployments and marked unavailable for all others. An unknown id yields HTTP 404 (`ErrorView`, per `api-conventions`). For INFERENCE deployments exactly one Ready pod is scraped per request and named in `scrapedPod`.
 
-Status: **Implemented** *(Implemented via 023-model-metrics-api)*
+Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: vLLM inference snapshot
 - **WHEN** the endpoint is called for a running vLLM-class inference deployment with at least one Ready pod
@@ -36,7 +36,7 @@ Status: **Implemented** *(Implemented via 023-model-metrics-api)*
 ### Requirement: Graceful degradation — never 500 for missing telemetry
 The system SHALL respond HTTP 200 with a partial payload when telemetry is missing: no Ready pods, an unreachable/erroring metrics endpoint, an unrecognized engine vocabulary, or an absent metrics-server each null out only the affected block(s) and record a human-readable reason in `availability`. Every 200 response carries an availability entry for every block key.
 
-Status: **Implemented** *(Implemented via 023-model-metrics-api)*
+Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: No Ready pods
 - **WHEN** the deployment has no Ready pods (e.g. undeployed or stopped)
@@ -57,7 +57,7 @@ Status: **Implemented** *(Implemented via 023-model-metrics-api)*
 ### Requirement: Lifetime window labelling and raw counters
 Counter-derived values (tokens/second, request error ratio) SHALL be lifetime aggregates labelled via `window: "lifetime"`, and directly-exposed cumulative counters SHALL be echoed under unified names in `rawCounters` so clients (or a future TSDB) can derive their own windowed rates. Latency metrics are distribution summaries (mean, p50, p95, p99, count) approximated from cumulative Prometheus histogram buckets in a single snapshot. Token rates require the engine to expose `process_start_time_seconds`; otherwise the rate is null while the raw counter remains.
 
-Status: **Implemented** *(Implemented via 023-model-metrics-api)*
+Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: Raw counters echoed
 - **WHEN** a vLLM deployment is scraped
@@ -70,7 +70,7 @@ Status: **Implemented** *(Implemented via 023-model-metrics-api)*
 ### Requirement: Request-triggered collection with bounded staleness
 Metric collection SHALL happen only in response to an API request — never via background polling (constitution Principle III). Repeated requests within a short interval are served from a per-deployment response cache with bounded staleness (default TTL 5 s) to limit kube API-server load. Degraded/partial snapshots are cached on the same terms as complete ones — there is no separate negative-caching path — so a transient failure (e.g. a momentary scrape timeout) may be served for up to the TTL before re-collection. Concurrent first requests for the same id are coalesced (single-flight) so only one collection runs per key per TTL.
 
-Status: **Implemented** *(Implemented via 023-model-metrics-api)*
+Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: Rapid repeated polling
 - **WHEN** a client polls the endpoint faster than the cache TTL
@@ -79,7 +79,7 @@ Status: **Implemented** *(Implemented via 023-model-metrics-api)*
 ### Requirement: Operator configuration
 Operators SHALL be able to disable the capability, tune the per-scrape time budget and cache TTL, and independently toggle the per-pod resource-usage block via `app.metrics.scrape.*` properties (see `docs/configuration.md` § Model Metrics Scrape Configuration). When disabled, requests are rejected with HTTP 400 and a clear message.
 
-Status: **Implemented** *(Implemented via 023-model-metrics-api)*
+Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: Feature disabled
 - **WHEN** `app.metrics.scrape.enabled=false` and the endpoint is called

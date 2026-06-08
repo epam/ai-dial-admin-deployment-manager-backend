@@ -84,4 +84,4 @@ Status: **Implemented**
 - OTel Log4j2 appender: `opentelemetry-log4j-appender-2.17` (version aligned with the Boot-BOM-managed OpenTelemetry API); installed programmatically by `OpenTelemetryLogAppenderConfiguration` because the official starter does not auto-install it; buffers up to 1000 pre-install startup events (`numLogsCapturedBeforeOtelInstall` in `log4j2.xml`) so they are not lost before the Spring context wires the SDK
 - OTel Spring Boot starter: official `org.springframework.boot:spring-boot-starter-opentelemetry` (Spring Boot 4); telemetry is configured via `management.*` properties (see `docs/configuration.md` § OpenTelemetry Configuration) and OTLP export is disabled by default via `OTEL_EXPORT_ENABLED=false`
 - Log configuration files: `log-config/` (Log4j2 XML configuration)
-- Related specs: `api-conventions`; `model-metrics` (workload-engine metrics snapshot — enables the trace→deployment-metrics pivot for model deployments)
+- Related specs: `api-conventions`; `deployment-metrics` (workload-engine metrics snapshot — enables the trace→deployment-metrics pivot for model deployments)

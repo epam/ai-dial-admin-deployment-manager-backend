@@ -2,11 +2,11 @@
 
 **Feature Branch**: `feat/model-metrics-poc`
 **Created**: 2026-06-05
-**Status**: Implemented — code, tests, docs, and the capability spec (`specs/model-metrics/spec.md`) shipped. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type; serving-quality metrics are scraped for INFERENCE deployments. Dev-cluster PoC acceptance performed live against a KServe vLLM (V1) deployment, with real `/metrics` fixtures captured and engine-drift corrections folded back in (vLLM V1 ITL rename, `error` finished_reason)
-**Capability**: N/A — creates new capability model-metrics
-**Input**: User description: "Implement PoC of unified model metrics API feature described in docs/model-metrics-api-spike.md document."
+**Status**: Implemented — code, tests, docs, and the capability spec (`specs/deployment-metrics/spec.md`) shipped. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type; serving-quality metrics are scraped for INFERENCE deployments. Dev-cluster PoC acceptance performed live against a KServe vLLM (V1) deployment, with real `/metrics` fixtures captured and engine-drift corrections folded back in (vLLM V1 ITL rename, `error` finished_reason)
+**Capability**: N/A — creates new capability deployment-metrics
+**Input**: User description: "Implement PoC of unified model metrics API feature described in docs/deployment-metrics-api-spike.md document."
 
-> Source design: `docs/model-metrics-api-spike.md` (spike for issue #162). The spike's §3 unified
+> Source design: `docs/deployment-metrics-api-spike.md` (spike for issue #162). The spike's §3 unified
 > metric schema and §4.1 snapshot contract are the authoritative field-level references for this
 > feature; this spec defines the user-facing behaviour the PoC must deliver.
 

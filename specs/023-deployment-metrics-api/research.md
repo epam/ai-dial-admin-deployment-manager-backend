@@ -1,6 +1,6 @@
 # Phase 0 Research: Unified Model Metrics API (PoC)
 
-**Date**: 2026-06-05 · **Inputs**: `docs/model-metrics-api-spike.md` (the spike already performed the
+**Date**: 2026-06-05 · **Inputs**: `docs/deployment-metrics-api-spike.md` (the spike already performed the
 heavy research — ADR, schema, engine matrix); this document records the decisions, the codebase
 verification performed for this plan, and the resolution of every remaining unknown. No
 NEEDS CLARIFICATION markers remain.

@@ -228,7 +228,7 @@ To customize the proxy (e.g. add tooling, change the base image), fork the upstr
 
 #### [Preview] Model Metrics Scrape Configuration
 
-Powers `GET /api/v1/deployments/{id}/metrics` — the on-demand live metrics snapshot for INFERENCE and NIM deployments (see `specs/model-metrics/spec.md`). The engine's Prometheus `/metrics` is read through the Kubernetes API-server pod proxy; collection is request-triggered only (never background polling). Requires read-only RBAC on `pods/proxy` (and `metrics.k8s.io` pods when the resource-usage block is enabled).
+Powers `GET /api/v1/deployments/{id}/metrics` — the on-demand live metrics snapshot for INFERENCE and NIM deployments (see `specs/deployment-metrics/spec.md`). The engine's Prometheus `/metrics` is read through the Kubernetes API-server pod proxy; collection is request-triggered only (never background polling). Requires read-only RBAC on `pods/proxy` (and `metrics.k8s.io` pods when the resource-usage block is enabled).
 
 | Property                                     | Environment Variable                       | Default Value | Required | Applied when                  | Description                                                                                                                                              |
 |----------------------------------------------|--------------------------------------------|---------------|----------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
