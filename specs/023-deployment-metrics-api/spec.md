@@ -136,8 +136,12 @@ a reason while serving metrics remain.
 
 - **Engine restart resets lifetime counters**: counter-derived values silently restart from zero; the
   explicit `window: "lifetime"` label and collection timestamp let consumers detect and tolerate this.
-- **Multiple Ready pods**: the PoC reads exactly one Ready pod and names it in the payload; cross-pod
-  aggregation is explicitly out of scope (spike §7 open item).
+- **Multiple Ready pods**: the PoC reads exactly one Ready pod for serving metrics and names it in the
+  payload; cross-pod aggregation is explicitly out of scope (spike §7 open item). When the Ready pods
+  span KServe components (a chained `TEXT_CLASSIFICATION` deployment has both a `predictor` and a
+  `transformer` pod under one InferenceService), the `predictor` pod is selected — the engine runs there,
+  while the transformer exposes no engine metrics. Absent component labels (KNative/raw inference,
+  single-pod), the first Ready pod is used.
 - **Deployment exists but is undeployed/stopped**: behaves as the "no Ready pods" degradation, not an
   error.
 - **Rapid repeated polling** (e.g. an auto-refreshing UI): responses may be served from a short-lived
@@ -176,7 +180,8 @@ a reason while serving metrics remain.
 - **FR-008**: Latency metrics MUST be reported as distribution summaries (mean, p50, p95, p99,
   observation count), approximated from a single point-in-time reading.
 - **FR-009**: The response MUST identify the pod the engine metrics were read from and the collection
-  timestamp; the PoC reads exactly one Ready pod.
+  timestamp; the PoC reads exactly one Ready pod, preferring the `predictor` component when the Ready
+  pods carry KServe component labels (so a chained deployment's metrics-less transformer pod is skipped).
 - **FR-010**: Metric collection MUST happen only in response to an operator request (request-triggered),
   never via background polling, and repeated requests within a short interval MAY be served from a
   cache with bounded staleness to limit load on the cluster control plane.

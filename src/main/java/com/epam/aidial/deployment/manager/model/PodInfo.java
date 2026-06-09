@@ -12,6 +12,13 @@ import java.time.Instant;
 @AllArgsConstructor
 public class PodInfo {
     private String name;
+    /**
+     * KServe {@code component} label value of the pod ({@code "predictor"} / {@code "transformer"}),
+     * or {@code null} for pods that carry no such label (KNative/raw inference, non-inference types).
+     * Lets callers single out the serving pod of a multi-pod InferenceService.
+     */
+    @Nullable
+    private String component;
     private Instant createdAt;
     private int restartCount;
     @Nullable

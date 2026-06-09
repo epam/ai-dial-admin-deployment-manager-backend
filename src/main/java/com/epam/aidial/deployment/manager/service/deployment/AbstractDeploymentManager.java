@@ -67,6 +67,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public abstract class AbstractDeploymentManager<D extends Deployment, S> implements DeploymentManager<S> {
 
+    /** KServe stamps this label on every pod it owns to mark the component ({@code predictor} / {@code transformer}). */
+    private static final String KSERVE_COMPONENT_LABEL = "component";
+
     protected final K8sClient k8sClient;
     protected final ManifestGenerator manifestGenerator;
     protected final DeploymentRepository deploymentRepository;
@@ -493,8 +496,12 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         var containerInfo = extractContainerInfo(containerStatuses);
 
+        var labels = pod.getMetadata().getLabels();
+        var component = labels != null ? labels.get(KSERVE_COMPONENT_LABEL) : null;
+
         return new PodInfo(
                 pod.getMetadata().getName(),
+                component,
                 Instant.parse(pod.getMetadata().getCreationTimestamp()),
                 containerInfo.restartCount(),
                 containerInfo.lastTerminationReason(),

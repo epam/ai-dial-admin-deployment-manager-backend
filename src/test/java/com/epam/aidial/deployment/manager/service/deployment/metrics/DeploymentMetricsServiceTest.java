@@ -166,6 +166,21 @@ class DeploymentMetricsServiceTest {
     }
 
     @Test
+    void shouldScrapePredictorPod_whenTransformerSortsFirst() {
+        givenDeployment(inferenceDeployment(null));
+        // KServe returns both components under one InferenceService label in an undefined order;
+        // the transformer exposes no engine metrics, so the predictor must be scraped regardless.
+        givenPods(List.of(podInfo("transformer-pod", "transformer"), podInfo("predictor-pod", "predictor")));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.scrapedPod()).isEqualTo("predictor-pod");
+        verify(k8sClient).scrapePodMetrics(NAMESPACE, "predictor-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS);
+    }
+
+    @Test
     void shouldDegradeServing_whenNoReadyPods() {
         givenDeployment(inferenceDeployment(null));
         when(deploymentManager.getInstances(DEPLOYMENT_ID)).thenReturn(List.of());
@@ -342,8 +357,12 @@ class DeploymentMetricsServiceTest {
     }
 
     private void givenPods(PodInfo pod) {
-        when(deploymentManager.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(pod));
-        when(deploymentManager.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(pod));
+        givenPods(List.of(pod));
+    }
+
+    private void givenPods(List<PodInfo> pods) {
+        when(deploymentManager.getInstances(DEPLOYMENT_ID)).thenReturn(pods);
+        when(deploymentManager.getActiveInstances(DEPLOYMENT_ID)).thenReturn(pods);
     }
 
     private static InferenceDeployment inferenceDeployment(Integer containerPort) {
@@ -354,7 +373,11 @@ class DeploymentMetricsServiceTest {
     }
 
     private static PodInfo podInfo(String name) {
-        return new PodInfo(name, Instant.now(), 0, null, null, null, null, null);
+        return podInfo(name, null);
+    }
+
+    private static PodInfo podInfo(String name, String component) {
+        return new PodInfo(name, component, Instant.now(), 0, null, null, null, null, null);
     }
 
 }

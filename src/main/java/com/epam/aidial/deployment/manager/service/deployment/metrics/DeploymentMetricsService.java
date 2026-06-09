@@ -60,6 +60,13 @@ public class DeploymentMetricsService {
     /** Standard Prometheus exposition path served by vLLM/TGI/SGLang. */
     private static final String METRICS_PATH = "/metrics";
 
+    /**
+     * KServe {@link PodInfo#getComponent() component} label value of the model-serving pod. A
+     * transformer pod sits in front of it for pre/post-processing and exposes no engine metrics, so
+     * when an InferenceService has both we must scrape the predictor, not whichever pod sorts first.
+     */
+    private static final String COMPONENT_PREDICTOR = "predictor";
+
     private static final String REASON_SERVING_UNSUPPORTED = "serving metrics are available only for inference deployments";
     private static final String REASON_NO_READY_PODS = "no ready pods to read metrics from";
     private static final String REASON_NO_PODS = "no pods to read resource usage from";
@@ -139,7 +146,7 @@ public class DeploymentMetricsService {
             return new EngineScrapeResult(EngineFamily.UNKNOWN, null, null);
         }
 
-        var pod = readyPods.getFirst().getName();
+        var pod = selectServingPod(readyPods).getName();
         var port = deployment.getContainerPort() != null ? deployment.getContainerPort() : manager.getDefaultContainerPort();
         var body = k8sClient.scrapePodMetrics(manager.getNamespace(), pod, port, METRICS_PATH, properties.getTimeoutMs())
                 .filter(StringUtils::isNotBlank);
@@ -169,6 +176,20 @@ public class DeploymentMetricsService {
         availability.put(AVAILABILITY_SERVING, BlockAvailability.AVAILABLE);
         availability.put(AVAILABILITY_OPERATIONAL, BlockAvailability.AVAILABLE);
         return new EngineScrapeResult(engine, pod, normalized);
+    }
+
+    /**
+     * Chooses which Ready pod to scrape for serving metrics. A KServe InferenceService with a
+     * transformer carries the engine on its {@code predictor} pod while the {@code transformer} pod
+     * exposes no engine metrics; both share the InferenceService label, so the pod listing returns
+     * both in an undefined order. Prefer the predictor when present; otherwise (KNative/raw
+     * inference, single-pod, or no component labels) fall back to the first Ready pod.
+     */
+    private static PodInfo selectServingPod(List<PodInfo> readyPods) {
+        return readyPods.stream()
+                .filter(pod -> COMPONENT_PREDICTOR.equalsIgnoreCase(pod.getComponent()))
+                .findFirst()
+                .orElseGet(readyPods::getFirst);
     }
 
     private ResourceMetrics collectResources(DeploymentManager<?> manager, List<PodInfo> allPods,
