@@ -11,8 +11,8 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.metrics.BlockAvailability;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
-import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
 import com.epam.aidial.deployment.manager.model.metrics.NormalizedEngineMetrics;
+import com.epam.aidial.deployment.manager.model.metrics.ParsedExposition;
 import com.epam.aidial.deployment.manager.model.metrics.PodResourceUsage;
 import com.epam.aidial.deployment.manager.model.metrics.ResourceMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics;
@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_OPERATIONAL;
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_RESOURCES;
@@ -41,9 +42,10 @@ import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeployment
 /**
  * On-demand live metrics snapshot for any deployment: replica counts plus optional per-pod
  * resource usage are reported for every deployment type, and INFERENCE deployments additionally
- * get serving-quality metrics by scraping the engine's Prometheus {@code /metrics} from one Ready
- * pod through the API-server pod proxy, detecting the engine family and normalizing to the unified
- * schema.
+ * get serving-quality metrics by scraping the engine's Prometheus {@code /metrics} from the Ready
+ * predictor pod through the API-server pod proxy, detecting the engine family and normalizing to the
+ * unified schema. For a chained KServe Python ModelServer deployment the transformer pod is also
+ * scraped so its pre/post-processing latency combines with the predictor's inference latency.
  *
  * <p>Graceful degradation is a hard contract rule: a non-inference type, no Ready pods, an
  * unreachable metrics endpoint, an unrecognized engine, or an absent metrics-server each null out
@@ -66,6 +68,14 @@ public class DeploymentMetricsService {
      * when an InferenceService has both we must scrape the predictor, not whichever pod sorts first.
      */
     private static final String COMPONENT_PREDICTOR = "predictor";
+
+    /**
+     * KServe {@link PodInfo#getComponent() component} label value of the pre/post-processing pod of
+     * a chained InferenceService. For the KServe Python ModelServer engine its
+     * {@code request_preprocess_seconds}/{@code request_postprocess_seconds} histograms are combined
+     * with the predictor's {@code request_predict_seconds} into an end-to-end latency.
+     */
+    private static final String COMPONENT_TRANSFORMER = "transformer";
 
     private static final String REASON_SERVING_UNSUPPORTED = "serving metrics are available only for inference deployments";
     private static final String REASON_NO_READY_PODS = "no ready pods to read metrics from";
@@ -146,27 +156,27 @@ public class DeploymentMetricsService {
             return new EngineScrapeResult(EngineFamily.UNKNOWN, null, null);
         }
 
-        var pod = selectServingPod(readyPods).getName();
+        var predictorPod = selectServingPod(readyPods);
+        var pod = predictorPod.getName();
         var port = deployment.getContainerPort() != null ? deployment.getContainerPort() : manager.getDefaultContainerPort();
-        var body = k8sClient.scrapePodMetrics(manager.getNamespace(), pod, port, METRICS_PATH, properties.getTimeoutMs())
-                .filter(StringUtils::isNotBlank);
-        if (body.isEmpty()) {
+
+        var exposition = scrapeAndParse(manager, pod, port);
+        if (exposition.isEmpty()) {
             markEngineBlocksUnavailable(availability, REASON_SCRAPE_FAILED);
             return new EngineScrapeResult(EngineFamily.UNKNOWN, pod, null);
         }
 
-        List<MetricSample> samples = prometheusTextParser.parse(body.get());
-        var engine = engineDetector.detect(samples);
+        var engine = engineDetector.detect(exposition.get());
         if (engine == EngineFamily.UNKNOWN) {
             markEngineBlocksUnavailable(availability, REASON_UNKNOWN_ENGINE);
             return new EngineScrapeResult(engine, pod, null);
         }
 
-        var index = new MetricSampleIndex(samples);
+        var context = buildScrapeContext(engine, manager, port, predictorPod, readyPods, exposition.get());
         var normalized = normalizers.stream()
                 .filter(normalizer -> normalizer.supports(engine))
                 .findFirst()
-                .map(normalizer -> normalizer.normalize(index))
+                .map(normalizer -> normalizer.normalize(context))
                 .orElse(null);
         if (normalized == null) {
             markEngineBlocksUnavailable(availability, REASON_UNKNOWN_ENGINE);
@@ -176,6 +186,41 @@ public class DeploymentMetricsService {
         availability.put(AVAILABILITY_SERVING, BlockAvailability.AVAILABLE);
         availability.put(AVAILABILITY_OPERATIONAL, BlockAvailability.AVAILABLE);
         return new EngineScrapeResult(engine, pod, normalized);
+    }
+
+    /** Scrapes one pod's {@code /metrics} and parses the exposition; empty when blank or unreachable. */
+    private Optional<ParsedExposition> scrapeAndParse(DeploymentManager<?> manager, String pod, int port) {
+        return k8sClient.scrapePodMetrics(manager.getNamespace(), pod, port, METRICS_PATH, properties.getTimeoutMs())
+                .filter(StringUtils::isNotBlank)
+                .map(prometheusTextParser::parse);
+    }
+
+    /**
+     * Builds the normalizer input. Generative engines (vLLM/TGI/SGLang) run on a single pod and use
+     * the predictor index alone. For a chained KServe Python ModelServer deployment the transformer
+     * pod is additionally scraped so pre/post-processing latency can be combined with predictor
+     * inference latency; if the transformer is absent or unreachable the context degrades gracefully
+     * to predictor-only (pre/post stay null), the serving block stays available.
+     */
+    private EngineScrapeContext buildScrapeContext(EngineFamily engine, DeploymentManager<?> manager, int port,
+                                                   PodInfo predictorPod, List<PodInfo> readyPods, ParsedExposition predictorExposition) {
+        var predictorIndex = new MetricSampleIndex(predictorExposition.samples());
+        if (engine != EngineFamily.KSERVE_MODELSERVER) {
+            return EngineScrapeContext.of(predictorIndex);
+        }
+        return selectTransformerPod(readyPods, predictorPod)
+                .flatMap(transformerPod -> scrapeAndParse(manager, transformerPod.getName(), port))
+                .map(transformerExposition -> new EngineScrapeContext(
+                        predictorIndex, new MetricSampleIndex(transformerExposition.samples())))
+                .orElseGet(() -> EngineScrapeContext.of(predictorIndex));
+    }
+
+    /** The Ready {@code transformer} pod of a chained InferenceService, other than the predictor. */
+    private static Optional<PodInfo> selectTransformerPod(List<PodInfo> readyPods, PodInfo predictorPod) {
+        return readyPods.stream()
+                .filter(pod -> COMPONENT_TRANSFORMER.equalsIgnoreCase(pod.getComponent()))
+                .filter(pod -> !pod.getName().equals(predictorPod.getName()))
+                .findFirst();
     }
 
     /**

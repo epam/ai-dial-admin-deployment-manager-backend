@@ -2,14 +2,16 @@ package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.metrics.MetricSample;
+import com.epam.aidial.deployment.manager.model.metrics.ParsedExposition;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Hand-rolled parser for the Prometheus text exposition format 0.0.4 (the format every target
@@ -19,22 +21,32 @@ import java.util.Map;
  *
  * <p>Supported: {@code name{labels} value [timestamp]} lines, escaped label values
  * ({@code \\}, {@code \"}, {@code \n}), {@code +Inf}/{@code -Inf}/{@code NaN}/scientific-notation
- * values. Comments ({@code # HELP}/{@code # TYPE}) and OpenMetrics exemplars are ignored.
- * Unparseable lines are skipped with a debug log, never propagated as errors.</p>
+ * values. {@code # HELP} comments and OpenMetrics exemplars are ignored; {@code # TYPE} comments
+ * are not value-bearing but their declared metric name is retained in
+ * {@link ParsedExposition#declaredMetricNames()} so engine detection can recognize label-gated
+ * histograms that emit no samples while idle. Unparseable lines are skipped with a debug log,
+ * never propagated as errors.</p>
  */
 @Slf4j
 @Component
 @LogExecution
 public class PrometheusTextParser {
 
-    public List<MetricSample> parse(String text) {
+    private static final String TYPE_COMMENT_PREFIX = "# TYPE ";
+
+    public ParsedExposition parse(String text) {
         var samples = new ArrayList<MetricSample>();
+        var declaredMetricNames = new HashSet<String>();
         if (StringUtils.isBlank(text)) {
-            return samples;
+            return new ParsedExposition(samples, declaredMetricNames);
         }
         for (var line : text.split("\n")) {
             var trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.startsWith("#")) {
+                declaredNameFromTypeComment(trimmed).ifPresent(declaredMetricNames::add);
                 continue;
             }
             try {
@@ -46,7 +58,18 @@ public class PrometheusTextParser {
                 log.debug("Skipping unparseable exposition line '{}': {}", trimmed, e.getMessage());
             }
         }
-        return samples;
+        return new ParsedExposition(samples, declaredMetricNames);
+    }
+
+    /** Extracts the metric base name from a {@code # TYPE <name> <type>} comment line. */
+    private static Optional<String> declaredNameFromTypeComment(String comment) {
+        if (!comment.startsWith(TYPE_COMMENT_PREFIX)) {
+            return Optional.empty();
+        }
+        var rest = comment.substring(TYPE_COMMENT_PREFIX.length()).trim();
+        int spaceIdx = rest.indexOf(' ');
+        var name = spaceIdx < 0 ? rest : rest.substring(0, spaceIdx);
+        return name.isEmpty() ? Optional.empty() : Optional.of(name);
     }
 
     private MetricSample parseLine(String line) {

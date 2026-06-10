@@ -20,9 +20,9 @@ class SglangMetricsNormalizerTest {
 
     @Test
     void shouldNormalizeSglangFixtureToUnifiedSchema() {
-        var index = new MetricSampleIndex(parser.parse(ResourceUtils.readResource("/metrics-fixtures/sglang.txt")));
+        var index = new MetricSampleIndex(parser.parse(ResourceUtils.readResource("/metrics-fixtures/sglang.txt")).samples());
 
-        var normalized = normalizer.normalize(index);
+        var normalized = normalizer.normalize(EngineScrapeContext.of(index));
 
         var serving = normalized.serving();
         assertThat(serving.queueDepth()).isEqualTo(1);

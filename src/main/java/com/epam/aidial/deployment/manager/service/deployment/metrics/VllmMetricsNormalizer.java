@@ -40,7 +40,8 @@ public class VllmMetricsNormalizer extends AbstractEngineMetricsNormalizer {
     }
 
     @Override
-    public NormalizedEngineMetrics normalize(MetricSampleIndex index) {
+    public NormalizedEngineMetrics normalize(EngineScrapeContext context) {
+        var index = context.predictor();
         var now = Instant.now();
 
         var interTokenLatency = HistogramSummaries.summarize(index, INTER_TOKEN_LATENCY_V0);
@@ -57,7 +58,9 @@ public class VllmMetricsNormalizer extends AbstractEngineMetricsNormalizer {
                 MetricSamples.asInteger(MetricSamples.sum(index, REQUESTS_RUNNING)),
                 MetricSamples.sum(index, KV_CACHE_USAGE_V0, KV_CACHE_USAGE_V1)
                         .map(MetricSamples::clampRatio)
-                        .orElse(null));
+                        .orElse(null),
+                null,
+                null);
 
         var operational = new OperationalMetrics(
                 requestErrorRatio(index),

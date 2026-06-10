@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
+import com.epam.aidial.deployment.manager.model.metrics.NormalizedEngineMetrics;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ class VllmMetricsNormalizerTest {
     void shouldNormalizeVllmV0FixtureToUnifiedSchema() {
         var samples = fixture("/metrics-fixtures/vllm-v0.txt");
 
-        var normalized = normalizer.normalize(samples);
+        var normalized = normalize(samples);
 
         var serving = normalized.serving();
         assertThat(serving.queueDepth()).isZero();
@@ -64,7 +65,7 @@ class VllmMetricsNormalizerTest {
     void shouldNormalizeRealV1Capture() {
         // vllm.txt is a real dev-cluster vLLM V1 capture: inter-token latency is exposed under
         // the renamed vllm:inter_token_latency_seconds, KV cache under vllm:kv_cache_usage_perc
-        var normalized = normalizer.normalize(fixture("/metrics-fixtures/vllm.txt"));
+        var normalized = normalize(fixture("/metrics-fixtures/vllm.txt"));
 
         var serving = normalized.serving();
         assertThat(serving.queueDepth()).isZero();
@@ -100,7 +101,7 @@ class VllmMetricsNormalizerTest {
     void shouldAcceptV1KvCacheRename() {
         var samples = fixture("/metrics-fixtures/vllm-v1.txt");
 
-        var serving = normalizer.normalize(samples).serving();
+        var serving = normalize(samples).serving();
 
         assertThat(serving.kvCacheUsage()).isEqualTo(0.42);
         assertThat(serving.runningRequests()).isEqualTo(2);
@@ -109,7 +110,7 @@ class VllmMetricsNormalizerTest {
 
     @Test
     void shouldLeaveFieldsNull_whenMetricsAbsent() {
-        var normalized = normalizer.normalize(new MetricSampleIndex(List.of()));
+        var normalized = normalize(new MetricSampleIndex(List.of()));
 
         var serving = normalized.serving();
         assertThat(serving.ttft()).isNull();
@@ -123,14 +124,18 @@ class VllmMetricsNormalizerTest {
     @Test
     void shouldLeaveRatesNull_whenProcessStartTimeAbsent() {
         // vllm-v1 fixture has counters but no process_start_time_seconds
-        var serving = normalizer.normalize(fixture("/metrics-fixtures/vllm-v1.txt")).serving();
+        var serving = normalize(fixture("/metrics-fixtures/vllm-v1.txt")).serving();
 
         assertThat(serving.promptTokensPerSecond()).isNull();
         assertThat(serving.generationTokensPerSecond()).isNull();
     }
 
+    private NormalizedEngineMetrics normalize(MetricSampleIndex index) {
+        return normalizer.normalize(EngineScrapeContext.of(index));
+    }
+
     private MetricSampleIndex fixture(String resource) {
-        return new MetricSampleIndex(parser.parse(ResourceUtils.readResource(resource)));
+        return new MetricSampleIndex(parser.parse(ResourceUtils.readResource(resource)).samples());
     }
 
 }

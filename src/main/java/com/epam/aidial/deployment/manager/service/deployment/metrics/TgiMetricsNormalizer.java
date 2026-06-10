@@ -35,7 +35,8 @@ public class TgiMetricsNormalizer extends AbstractEngineMetricsNormalizer {
     }
 
     @Override
-    public NormalizedEngineMetrics normalize(MetricSampleIndex index) {
+    public NormalizedEngineMetrics normalize(EngineScrapeContext context) {
+        var index = context.predictor();
         var now = Instant.now();
 
         var serving = new ServingMetrics(
@@ -45,6 +46,8 @@ public class TgiMetricsNormalizer extends AbstractEngineMetricsNormalizer {
                 MetricSamples.lifetimeRate(index, GENERATED_TOKENS + "_sum", now).orElse(null),
                 MetricSamples.asInteger(MetricSamples.sum(index, QUEUE_SIZE)),
                 MetricSamples.asInteger(MetricSamples.sum(index, BATCH_CURRENT_SIZE)),
+                null,
+                null,
                 null);
 
         var operational = new OperationalMetrics(

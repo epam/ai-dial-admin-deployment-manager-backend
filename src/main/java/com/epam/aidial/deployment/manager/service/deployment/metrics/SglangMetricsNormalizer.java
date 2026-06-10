@@ -35,7 +35,8 @@ public class SglangMetricsNormalizer extends AbstractEngineMetricsNormalizer {
     }
 
     @Override
-    public NormalizedEngineMetrics normalize(MetricSampleIndex index) {
+    public NormalizedEngineMetrics normalize(EngineScrapeContext context) {
+        var index = context.predictor();
         var now = Instant.now();
 
         var serving = new ServingMetrics(
@@ -47,7 +48,9 @@ public class SglangMetricsNormalizer extends AbstractEngineMetricsNormalizer {
                 MetricSamples.asInteger(MetricSamples.sum(index, RUNNING_REQS)),
                 MetricSamples.sum(index, TOKEN_USAGE)
                         .map(MetricSamples::clampRatio)
-                        .orElse(null));
+                        .orElse(null),
+                null,
+                null);
 
         var operational = new OperationalMetrics(
                 requestErrorRatio(index),

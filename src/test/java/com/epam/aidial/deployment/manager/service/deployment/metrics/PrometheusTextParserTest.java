@@ -14,7 +14,7 @@ class PrometheusTextParserTest {
 
     @Test
     void shouldParseVllmFixture() {
-        var samples = parser.parse(ResourceUtils.readResource("/metrics-fixtures/vllm-v0.txt"));
+        var samples = parse(ResourceUtils.readResource("/metrics-fixtures/vllm-v0.txt"));
 
         assertThat(samples).isNotEmpty();
         assertThat(findOne(samples, "vllm:num_requests_running").value()).isEqualTo(1.0);
@@ -31,7 +31,7 @@ class PrometheusTextParserTest {
     @Test
     void shouldParseRealVllmV1Capture() {
         // vllm.txt is a real dev-cluster vLLM V1 capture (KServe pod) — spike §3 verification
-        var samples = parser.parse(ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
+        var samples = parse(ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
 
         assertThat(samples).isNotEmpty();
         var kvCache = findOne(samples, "vllm:kv_cache_usage_perc");
@@ -48,7 +48,7 @@ class PrometheusTextParserTest {
 
     @Test
     void shouldParseInfNanAndScientificNotation() {
-        var samples = parser.parse(ResourceUtils.readResource("/metrics-fixtures/vllm-v0.txt"));
+        var samples = parse(ResourceUtils.readResource("/metrics-fixtures/vllm-v0.txt"));
 
         var infBucket = findAll(samples, "vllm:time_to_first_token_seconds_bucket").stream()
                 .filter(s -> "+Inf".equals(s.labels().get("le")))
@@ -60,14 +60,14 @@ class PrometheusTextParserTest {
         assertThat(findOne(samples, "process_start_time_seconds").value()).isEqualTo(1.7e9);
         assertThat(findOne(samples, "vllm:gpu_cache_usage_perc").value()).isEqualTo(0.27);
 
-        var infValues = parser.parse("pos_inf +Inf\nneg_inf -Inf\n");
+        var infValues = parse("pos_inf +Inf\nneg_inf -Inf\n");
         assertThat(findOne(infValues, "pos_inf").value()).isEqualTo(Double.POSITIVE_INFINITY);
         assertThat(findOne(infValues, "neg_inf").value()).isEqualTo(Double.NEGATIVE_INFINITY);
     }
 
     @Test
     void shouldParseHistogramSeries() {
-        var samples = parser.parse(ResourceUtils.readResource("/metrics-fixtures/tgi.txt"));
+        var samples = parse(ResourceUtils.readResource("/metrics-fixtures/tgi.txt"));
 
         assertThat(findAll(samples, "tgi_request_duration_bucket")).hasSize(4);
         assertThat(findOne(samples, "tgi_request_duration_sum").value()).isEqualTo(90.0);
@@ -76,7 +76,7 @@ class PrometheusTextParserTest {
 
     @Test
     void shouldParseSampleWithoutLabels() {
-        var samples = parser.parse("my_metric 42.5 1700000000000\n");
+        var samples = parse("my_metric 42.5 1700000000000\n");
 
         assertThat(samples).hasSize(1);
         assertThat(samples.getFirst().name()).isEqualTo("my_metric");
@@ -86,7 +86,7 @@ class PrometheusTextParserTest {
 
     @Test
     void shouldParseEscapedLabelValues() {
-        var samples = parser.parse("m{path="
+        var samples = parse("m{path="
                 + "\"C:\\\\dir\",msg=\"a \\\"quoted\\\" word\"} 1\n");
 
         assertThat(samples).hasSize(1);
@@ -104,7 +104,7 @@ class PrometheusTextParserTest {
                 something_total{a="b"} 5 # {trace_id="abc"} 0.5
                 """;
 
-        var samples = parser.parse(text);
+        var samples = parse(text);
 
         assertThat(samples).hasSize(1);
         assertThat(samples.getFirst().value()).isEqualTo(5.0);
@@ -112,15 +112,40 @@ class PrometheusTextParserTest {
 
     @Test
     void shouldSkipUnparseableLines_whenInputIsMalformed() {
-        var samples = parser.parse("valid_metric 1.0\ngarbage line without value x\nbroken{unclosed 2\n");
+        var samples = parse("valid_metric 1.0\ngarbage line without value x\nbroken{unclosed 2\n");
 
         assertThat(samples).extracting(MetricSample::name).containsExactly("valid_metric");
     }
 
     @Test
     void shouldReturnEmpty_whenInputIsBlank() {
-        assertThat(parser.parse(null)).isEmpty();
-        assertThat(parser.parse("  \n ")).isEmpty();
+        assertThat(parse(null)).isEmpty();
+        assertThat(parse("  \n ")).isEmpty();
+        assertThat(parser.parse(null).declaredMetricNames()).isEmpty();
+    }
+
+    @Test
+    void shouldCaptureDeclaredMetricNamesFromTypeComments() {
+        // KServe Python ModelServer idle exposition: histograms declared via # TYPE emit no samples
+        var text = """
+                # HELP request_predict_seconds predict request latency
+                # TYPE request_predict_seconds histogram
+                # TYPE request_preprocess_seconds histogram
+                # HELP process_cpu_seconds_total Total CPU time
+                # TYPE process_cpu_seconds_total counter
+                process_cpu_seconds_total 1.5
+                """;
+
+        var exposition = parser.parse(text);
+
+        assertThat(exposition.declaredMetricNames())
+                .containsExactlyInAnyOrder("request_predict_seconds", "request_preprocess_seconds", "process_cpu_seconds_total");
+        // The idle histograms contribute no value-bearing samples
+        assertThat(exposition.samples()).extracting(MetricSample::name).containsExactly("process_cpu_seconds_total");
+    }
+
+    private List<MetricSample> parse(String text) {
+        return parser.parse(text).samples();
     }
 
     private static MetricSample findOne(List<MetricSample> samples, String name) {

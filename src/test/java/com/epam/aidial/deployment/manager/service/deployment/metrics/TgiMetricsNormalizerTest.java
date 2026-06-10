@@ -20,9 +20,9 @@ class TgiMetricsNormalizerTest {
 
     @Test
     void shouldNormalizeTgiFixtureToUnifiedSchema() {
-        var index = new MetricSampleIndex(parser.parse(ResourceUtils.readResource("/metrics-fixtures/tgi.txt")));
+        var index = new MetricSampleIndex(parser.parse(ResourceUtils.readResource("/metrics-fixtures/tgi.txt")).samples());
 
-        var normalized = normalizer.normalize(index);
+        var normalized = normalizer.normalize(EngineScrapeContext.of(index));
 
         var serving = normalized.serving();
         // TGI exposes no TTFT and no KV-cache gauge — null by design, block still available

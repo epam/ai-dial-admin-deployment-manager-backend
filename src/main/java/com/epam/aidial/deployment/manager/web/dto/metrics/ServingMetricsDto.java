@@ -7,7 +7,9 @@ public record ServingMetricsDto(
         TokensPerSecondDto tokensPerSecond,
         Integer queueDepth,
         Integer runningRequests,
-        Double kvCacheUsage
+        Double kvCacheUsage,
+        DistributionSummaryDto requestLatency,
+        Double requestsPerSecond
 ) {
 
     /** Lifetime token throughput, tokens/second. */

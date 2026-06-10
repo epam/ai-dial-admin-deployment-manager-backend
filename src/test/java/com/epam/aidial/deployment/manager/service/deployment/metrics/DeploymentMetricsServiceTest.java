@@ -34,6 +34,7 @@ import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeployment
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_SERVING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -83,7 +84,8 @@ class DeploymentMetricsServiceTest {
                 k8sClient,
                 new PrometheusTextParser(),
                 new EngineDetector(),
-                List.of(new VllmMetricsNormalizer(), new TgiMetricsNormalizer(), new SglangMetricsNormalizer()),
+                List.of(new VllmMetricsNormalizer(), new TgiMetricsNormalizer(), new SglangMetricsNormalizer(),
+                        new KserveModelServerMetricsNormalizer()),
                 podResourceUsageReader,
                 properties);
 
@@ -274,6 +276,71 @@ class DeploymentMetricsServiceTest {
 
         assertThat(snapshot.engine()).isEqualTo(EngineFamily.SGLANG);
         assertThat(snapshot.serving()).isNotNull();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
+    }
+
+    @Test
+    void shouldReturnKserveModelServerSnapshot_combiningPredictorAndTransformer() {
+        givenDeployment(inferenceDeployment(null));
+        givenPods(List.of(podInfo("transformer-pod", "transformer"), podInfo("predictor-pod", "predictor")));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, "predictor-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/kserve-modelserver-predictor.txt")));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, "transformer-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/kserve-modelserver-transformer.txt")));
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.KSERVE_MODELSERVER);
+        assertThat(snapshot.scrapedPod()).isEqualTo("predictor-pod");
+
+        var serving = snapshot.serving();
+        assertThat(serving).isNotNull();
+        assertThat(serving.requestLatency()).isNotNull();
+        assertThat(serving.requestLatency().mean()).isCloseTo(0.2, within(1e-9));
+        assertThat(serving.requestsPerSecond()).isNotNull();
+        // generative fields do not apply to this engine family
+        assertThat(serving.ttft()).isNull();
+        assertThat(serving.kvCacheUsage()).isNull();
+        assertThat(serving.queueDepth()).isNull();
+
+        var operational = snapshot.operational();
+        // e2e mean combines transformer pre (0.05) + predictor predict (0.2) + transformer post (0.03)
+        assertThat(operational.e2eLatency()).isNotNull();
+        assertThat(operational.e2eLatency().mean()).isCloseTo(0.28, within(1e-9));
+        assertThat(operational.e2eLatency().count()).isEqualTo(100);
+        // cross-pod histogram percentiles are not additive
+        assertThat(operational.e2eLatency().p50()).isNull();
+        assertThat(operational.requestErrorRatio()).isNull();
+
+        assertThat(snapshot.rawCounters())
+                .containsEntry("request_predict_total", 100.0)
+                .containsEntry("request_preprocess_total", 100.0)
+                .containsEntry("request_postprocess_total", 100.0);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
+        assertThat(snapshot.availability().get(AVAILABILITY_OPERATIONAL).available()).isTrue();
+    }
+
+    @Test
+    void shouldReturnKserveModelServerSnapshot_predictorOnly_whenNoTransformer() {
+        givenDeployment(inferenceDeployment(null));
+        givenPods(podInfo("predictor-pod", "predictor"));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, "predictor-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/kserve-modelserver-predictor.txt")));
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.KSERVE_MODELSERVER);
+        var operational = snapshot.operational();
+        // without a transformer e2e is the predict histogram itself, percentiles included
+        assertThat(operational.e2eLatency().mean()).isCloseTo(0.2, within(1e-9));
+        assertThat(operational.e2eLatency().p50()).isNotNull();
+        // pre/post counters absent on the predictor-only fixture
+        assertThat(snapshot.rawCounters())
+                .containsEntry("request_predict_total", 100.0)
+                .doesNotContainKey("request_preprocess_total");
         assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
     }
 

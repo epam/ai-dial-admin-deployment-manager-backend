@@ -1,0 +1,25 @@
+# Synthetic KServe Python ModelServer transformer exposition (deberta-style chained pre/post).
+# The transformer does the real pre/post-processing: preprocess sum=5/count=100 -> mean 0.05,
+# postprocess sum=3/count=100 -> mean 0.03. Its request_predict_seconds measures the call out to
+# the predictor and is intentionally ignored by the normalizer (predictor inference is authoritative).
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.0
+# HELP request_preprocess_seconds pre-process request latency
+# TYPE request_preprocess_seconds histogram
+request_preprocess_seconds_bucket{model_name="deberta",le="0.05"} 60.0
+request_preprocess_seconds_bucket{model_name="deberta",le="0.1"} 100.0
+request_preprocess_seconds_bucket{model_name="deberta",le="+Inf"} 100.0
+request_preprocess_seconds_sum{model_name="deberta"} 5.0
+request_preprocess_seconds_count{model_name="deberta"} 100.0
+# HELP request_predict_seconds predict request latency
+# TYPE request_predict_seconds histogram
+request_predict_seconds_bucket{model_name="deberta",le="+Inf"} 100.0
+request_predict_seconds_sum{model_name="deberta"} 25.0
+request_predict_seconds_count{model_name="deberta"} 100.0
+# HELP request_postprocess_seconds post-process request latency
+# TYPE request_postprocess_seconds histogram
+request_postprocess_seconds_bucket{model_name="deberta",le="0.05"} 90.0
+request_postprocess_seconds_bucket{model_name="deberta",le="+Inf"} 100.0
+request_postprocess_seconds_sum{model_name="deberta"} 3.0
+request_postprocess_seconds_count{model_name="deberta"} 100.0

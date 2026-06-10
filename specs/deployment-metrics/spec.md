@@ -1,7 +1,7 @@
 # Model Metrics
 
 ## Purpose
-This spec describes the unified deployment metrics API — an on-demand live metrics snapshot for any deployment. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type. For INFERENCE deployments, engine-specific Prometheus metrics (vLLM, TGI, SGLang) are additionally scraped from one Ready pod through the Kubernetes API-server pod proxy and normalized to a single engine-neutral schema so clients never depend on a particular engine's vocabulary.
+This spec describes the unified deployment metrics API — an on-demand live metrics snapshot for any deployment. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type. For INFERENCE deployments, engine-specific Prometheus metrics (generative engines vLLM/TGI/SGLang, and the KServe Python ModelServer behind non-generative classification/embedding/custom predictors) are additionally scraped from the Ready predictor pod through the Kubernetes API-server pod proxy and normalized to a single engine-neutral schema so clients never depend on a particular engine's vocabulary. For a chained KServe InferenceService the transformer pod is also scraped so its pre/post-processing latency combines with the predictor's inference latency.
 
 Status: **Implemented** *(Implemented via 023-deployment-metrics-api — PoC scope: live snapshot only)*
 
@@ -9,7 +9,7 @@ Design source: `docs/deployment-metrics-api-spike.md` (issue #162 spike — ADR,
 
 ## Key Terms
 - **Unified schema**: engine-neutral metric names with explicit units, grouped into `serving`, `resources`, and `operational` blocks plus a `rawCounters` echo of directly-exposed cumulative counters.
-- **Engine family**: the recognized serving-engine vocabulary — `VLLM`, `TGI`, `SGLANG`, or `UNKNOWN` — identified by metric-name prefix sniffing (`vllm:` / `tgi_` / `sglang:`). Non-inference deployments are not scraped and report engine `UNKNOWN`.
+- **Engine family**: the recognized serving-engine vocabulary — `VLLM`, `TGI`, `SGLANG`, `KSERVE_MODELSERVER`, or `UNKNOWN`. The generative engines are identified by metric-name prefix sniffing (`vllm:` / `tgi_` / `sglang:`); `KSERVE_MODELSERVER` exposes unprefixed `request_*_seconds` histograms and is identified by the `request_predict_seconds` metric name declared in a `# TYPE` comment (so it is recognized even before the model serves its first request, when the label-gated histograms emit no samples). Non-inference deployments are not scraped and report engine `UNKNOWN`.
 - **Availability marker**: per-block `{available, reason}` entry; every response carries one entry per block key (`serving`, `operational`, `resources`, `resources.usage`, `resources.gpu`).
 - **Lifetime window**: counter-derived values are aggregates since engine process start, labelled `window: "lifetime"`. There is no time-series backend in the PoC.
 - **Pod proxy scrape**: `GET /api/v1/namespaces/{ns}/pods/http:{pod}:{port}/proxy/metrics` through the kube API server — no new infrastructure, works when the deployment manager runs outside the cluster. Used only for INFERENCE deployments (vLLM-class engines expose the standard `/metrics` exposition path).
@@ -17,13 +17,18 @@ Design source: `docs/deployment-metrics-api-spike.md` (issue #162 spike — ADR,
 ## Requirements
 
 ### Requirement: Live metrics snapshot endpoint
-The system SHALL expose `GET /api/v1/deployments/{id}/metrics` returning a live unified metrics snapshot for a deployment of any type. Resource metrics (replica counts and per-pod CPU/memory) are reported for every type; serving-quality metrics are scraped for INFERENCE deployments and marked unavailable for all others. An unknown id yields HTTP 404 (`ErrorView`, per `api-conventions`). For INFERENCE deployments exactly one Ready pod is scraped per request and named in `scrapedPod`.
+The system SHALL expose `GET /api/v1/deployments/{id}/metrics` returning a live unified metrics snapshot for a deployment of any type. Resource metrics (replica counts and per-pod CPU/memory) are reported for every type; serving-quality metrics are scraped for INFERENCE deployments and marked unavailable for all others. An unknown id yields HTTP 404 (`ErrorView`, per `api-conventions`). For INFERENCE deployments the Ready predictor pod is scraped per request and named in `scrapedPod`; for a chained KServe Python ModelServer deployment the Ready transformer pod is additionally scraped to combine pre/post-processing latency with predictor inference latency.
 
 Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: vLLM inference snapshot
 - **WHEN** the endpoint is called for a running vLLM-class inference deployment with at least one Ready pod
 - **THEN** the response contains serving-quality metrics (TTFT, inter-token latency, tokens/second, queue depth, running requests, KV-cache usage), operational metrics (request error ratio, e2e latency), the detected engine (`VLLM`), the scraped pod name, and a collection timestamp
+
+#### Scenario: KServe Python ModelServer inference snapshot
+- **WHEN** the endpoint is called for a running KServe Python ModelServer inference deployment (e.g. a text-classification predictor such as deberta) with at least one Ready predictor pod
+- **THEN** the detected engine is `KSERVE_MODELSERVER`, the `serving` block reports the engine-neutral signals (`requestLatency` distribution and `requestsPerSecond` throughput) while the generative-only fields stay null, and the `operational` block reports an end-to-end latency; for a chained deployment the end-to-end latency combines the transformer's pre/post-processing with the predictor's inference (its mean is the sum of the per-stage means; cross-pod percentiles are null), and the predictor pod is named in `scrapedPod`
+- **AND** when the model is idle (no requests served yet) the `serving`/`operational` blocks remain available with null fields rather than reporting engine `UNKNOWN`
 
 #### Scenario: Resource metrics for any deployment type
 - **WHEN** the endpoint is called for a non-inference deployment (MCP/adapter/application/interceptor/NIM) with at least one pod
@@ -47,7 +52,7 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 - **THEN** the response is 200 with the serving block unavailable and the reason recorded; the resource block is unaffected
 
 #### Scenario: Unknown engine
-- **WHEN** the scraped vocabulary matches no recognized engine prefix
+- **WHEN** the scraped vocabulary matches no recognized engine signal (no `vllm:`/`tgi_`/`sglang:` prefix and no `request_predict_seconds` marker)
 - **THEN** the response is 200 with engine `UNKNOWN`, serving metrics unavailable with that reason, and independently obtainable blocks still populated
 
 #### Scenario: Metrics-server absent
@@ -96,13 +101,13 @@ Status: **Implemented** *(placeholder behaviour; GPU telemetry itself is a follo
 
 ## Implementation Notes
 - Endpoint: `DeploymentController.getMetrics` → `service/deployment/metrics/DeploymentMetricsService` (`@Cacheable`, cache `DeploymentMetricsCache` registered by `configuration/MetricsCachingConfig`)
-- Scrape transport (INFERENCE only): `kubernetes/K8sClient.scrapePodMetrics(ns, pod, port, metricsPath, timeoutMs)` via Fabric8 `client.raw(...)` on the pod-proxy subresource; failures map to empty, never propagate. vLLM-class engines expose the standard `/metrics` path
-- Parsing: hand-rolled `PrometheusTextParser` (exposition format 0.0.4; no new dependency — nothing on the classpath parses this format)
-- Normalization: `EngineDetector` (prefix sniffing driven by `EngineFamily.metricNamePrefix()`) + `EngineMetricsNormalizer` implementations (`Vllm`/`Tgi`/`Sglang`, selected via `supports(EngineFamily)`); percentiles via `HistogramSummaries`; the vLLM normalizer accepts both V0 and V1 names where they drifted — KV cache `vllm:gpu_cache_usage_perc` → `vllm:kv_cache_usage_perc`, inter-token latency `vllm:time_per_output_token_seconds` → `vllm:inter_token_latency_seconds` — and counts both `abort` (V0) and `error` (V1) `finished_reason` values in the error ratio (verified against a live dev-cluster vLLM V1 capture)
+- Scrape transport (INFERENCE only): `kubernetes/K8sClient.scrapePodMetrics(ns, pod, port, metricsPath, timeoutMs)` via Fabric8 `client.raw(...)` on the pod-proxy subresource; failures map to empty, never propagate. All target engines expose the standard `/metrics` path. The predictor pod is selected by the `component=predictor` label; for `KSERVE_MODELSERVER` the `component=transformer` pod is additionally scraped and degrades gracefully to predictor-only when absent/unreachable
+- Parsing: hand-rolled `PrometheusTextParser` (exposition format 0.0.4; no new dependency — nothing on the classpath parses this format); returns `ParsedExposition` (value-bearing samples + the metric names declared in `# TYPE` comments) so detection can recognize label-gated histograms that emit no samples while idle
+- Normalization: `EngineDetector` (prefix sniffing for the generative engines via `EngineFamily.metricNamePrefix()`, plus a `request_predict_seconds` declared-name marker for `KSERVE_MODELSERVER`) + `EngineMetricsNormalizer` implementations (`Vllm`/`Tgi`/`Sglang`/`KserveModelServer`, selected via `supports(EngineFamily)` and fed an `EngineScrapeContext` carrying the predictor index and an optional transformer index); percentiles via `HistogramSummaries`. The vLLM normalizer accepts both V0 and V1 names where they drifted — KV cache `vllm:gpu_cache_usage_perc` → `vllm:kv_cache_usage_perc`, inter-token latency `vllm:time_per_output_token_seconds` → `vllm:inter_token_latency_seconds` — and counts both `abort` (V0) and `error` (V1) `finished_reason` values in the error ratio (verified against a live dev-cluster vLLM V1 capture). The KServe ModelServer normalizer maps the predictor's `request_predict_seconds` histogram to `serving.requestLatency` + `requestsPerSecond` (generative fields and `requestErrorRatio` stay null, as the framework exposes no token/KV-cache/queue or success counters) and combines transformer pre/post means with predictor predict mean into `operational.e2eLatency`
 - Pod CPU/memory (all types): `kubernetes/metrics/PodResourceUsageReader` via Fabric8 `top().pods()`; replica counts from the existing `getInstances`/`getActiveInstances`
 - Domain types: `model/metrics/*` (`UnifiedDeploymentMetrics`, `NormalizedEngineMetrics`, …); web DTOs in `web/dto/metrics/*` mapped by `DeploymentMetricsDtoMapper`
 - Ports: `deployment.containerPort` with fallback to the manager default exposed via `DeploymentManager.getDefaultContainerPort()` (8080 for KServe inference)
 - RBAC (runbook/Helm, read-only): `pods`, `pods/proxy` get/list; `metrics.k8s.io` pods get/list when the resource-usage block is enabled
-- Test fixtures: `src/test/resources/metrics-fixtures/*` — `vllm.txt` (real dev-cluster vLLM V1 capture, KServe pod) is a live capture; `vllm-v0.txt` preserves V0-vocabulary coverage with hand-computed percentile expectations; `tgi.txt`/`sglang.txt` remain synthetic per spike §3 until captured live
+- Test fixtures: `src/test/resources/metrics-fixtures/*` — `vllm.txt` (real dev-cluster vLLM V1 capture, KServe pod) is a live capture; `vllm-v0.txt` preserves V0-vocabulary coverage with hand-computed percentile expectations; `tgi.txt`/`sglang.txt` and the `kserve-modelserver-predictor.txt`/`kserve-modelserver-transformer.txt` pair (KServe Python ModelServer vocabulary, modelled on the live deberta exposition) remain synthetic until captured live
 - Live smoke: `PodMetricsScrapeFunctionalTest` in the env-gated `k8s-local` suite (`K8S_TEST_METRICS_POD_NAME`)
 - Related specs: `deployments` (pod introspection), `inference-deployments`, `nim-deployments`, `api-conventions` (ErrorView), `observability-and-logging` (trace pivot scenario), `kubernetes-events` (scale events are cross-referenced, not duplicated)

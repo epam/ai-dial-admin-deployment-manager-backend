@@ -40,8 +40,8 @@ public abstract class PodMetricsScrapeFunctionalTest {
         var body = k8sClient.scrapePodMetrics(namespace, podName, port, path, 10_000);
 
         assertThat(body).isPresent();
-        var samples = prometheusTextParser.parse(body.get());
-        assertThat(samples).isNotEmpty();
+        var exposition = prometheusTextParser.parse(body.get());
+        assertThat(exposition.samples()).isNotEmpty();
     }
 
 }

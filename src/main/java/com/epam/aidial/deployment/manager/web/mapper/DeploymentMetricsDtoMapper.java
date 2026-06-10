@@ -38,7 +38,9 @@ public interface DeploymentMetricsDtoMapper {
                 new ServingMetricsDto.TokensPerSecondDto(serving.promptTokensPerSecond(), serving.generationTokensPerSecond()),
                 serving.queueDepth(),
                 serving.runningRequests(),
-                serving.kvCacheUsage());
+                serving.kvCacheUsage(),
+                toDto(serving.requestLatency()),
+                serving.requestsPerSecond());
     }
 
     default ResourceMetricsDto toDto(ResourceMetrics resources) {
