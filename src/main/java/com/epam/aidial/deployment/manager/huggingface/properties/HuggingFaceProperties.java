@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.huggingface.properties;
 
+import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,7 +12,6 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
-import javax.annotation.PostConstruct;
 
 import static java.util.stream.Collectors.toList;
 

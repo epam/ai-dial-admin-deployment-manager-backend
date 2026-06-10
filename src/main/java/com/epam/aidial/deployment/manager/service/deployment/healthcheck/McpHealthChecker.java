@@ -10,7 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -43,7 +44,7 @@ public class McpHealthChecker implements HealthChecker {
 
         log.debug("Waiting for MCP service to be ready at URL: {} with timeout: {}s", serviceUrl, timeout.toSeconds());
         try {
-            retryTemplate.execute(context -> {
+            retryTemplate.execute(() -> {
                 try (var mcpClient = mcpClientFactory.create(serviceUrl, endpointPath, mcpDeployment.getTransport())) {
                     mcpClient.initialize();
                     log.debug("MCP client initialized successfully for URL: {}", serviceUrl);
@@ -59,8 +60,8 @@ public class McpHealthChecker implements HealthChecker {
                     throw new RuntimeException("MCP client initialization failed", e);
                 }
             });
-        } catch (RuntimeException e) {
-            throw new IllegalStateException("MCP service failed to become ready at URL: %s. Reason: %s".formatted(serviceUrl, e.getMessage()));
+        } catch (RetryException e) {
+            throw new IllegalStateException("MCP service failed to become ready at URL: %s. Reason: %s".formatted(serviceUrl, ExceptionUtils.getRootCauseMessage(e)), e);
         }
         log.debug("MCP service is ready at URL: {}", serviceUrl);
     }

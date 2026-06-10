@@ -5,8 +5,6 @@ import com.epam.aidial.deployment.manager.registry.mcp.properties.McpRegistryPro
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerListResponseDto;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServerResponseDto;
 import com.epam.aidial.deployment.manager.registry.mcp.web.dto.ServersRequestDto;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
@@ -16,6 +14,8 @@ import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.net.URLEncoder;

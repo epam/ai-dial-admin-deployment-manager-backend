@@ -1,8 +1,8 @@
 package db.migration.common;
 
-import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import db.migration.MigrationJsonMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
@@ -14,7 +14,7 @@ import java.util.UUID;
 @Slf4j
 public abstract class V1_37__PopulateSourceColumnInNimDeploymentBase extends BaseJavaMigration {
 
-    protected static final ObjectMapper MAPPER = JsonMapperConfiguration.createJsonMapper();
+    protected static final ObjectMapper MAPPER = MigrationJsonMapper.createJsonMapper();
     protected static final String DOCKER_TYPE = "docker";
     protected static final String NGC_REGISTRY_TYPE = "ngc_registry";
     protected static final String TYPE_FIELD = "$type";

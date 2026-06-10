@@ -15,7 +15,8 @@ import com.epam.aidial.deployment.manager.web.security.apikey.IntrospectionResul
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.cache.test.autoconfigure.AutoConfigureCache;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
@@ -64,6 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @ComponentScan(basePackageClasses = {SecurityPackage.class})
 @Import({JsonMapperConfiguration.class, TestSecurityConfig.class})
+@AutoConfigureCache
 class ApiKeyControllerSecurityTest {
 
     private static final UUID TEST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");

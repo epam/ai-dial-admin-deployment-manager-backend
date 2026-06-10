@@ -1,23 +1,14 @@
 <!-- Sync Impact Report
-Version change: 1.2.2 → 1.4.0 (MINOR: per-directory CLAUDE.md acknowledgment, Capability ↔ numbered cross-link rule, tech-stack reframe, inline enforcement tags, soften CONFIG_REST_SECURITY_MODE, expanded numbered-spec lifecycle, Out-of-Scope + Amendment History sections)
+Version change: 1.4.0 → 1.5.0 (MINOR: Spring Boot 4 platform upgrade — Tech Stack section rewritten for Boot 4.0.6 / Framework 7 / Jackson 3)
 Modified sections:
-  - Tech Stack (reframed: build.gradle is canonical for versions; this section pins only constitutionally-significant libs; added ArchUnit, Hibernate Envers, Commons Lang3/Collections4 since rules cite them; documented actuator 3.5.14 as a deliberate BOM override; corrected log4j-core to 2.25.4; corrected Lombok plugin wording; pinned base package)
-  - Architecture Principles II (separated `*JpaRepository` from `*Repository` `@Transactional` semantics)
-  - Architecture Principles III + Anti-pattern #9 (clarified "polling" = K8s-API polling; scheduled tasks operating on local state are out of scope)
-  - Architecture Principles IV (aligned `@LogExecution` Spring-component list with what ArchUnit actually enforces — added `@Repository`, dropped unused `@Controller`)
-  - Architecture Principles V (softened production CONFIG_REST_SECURITY_MODE to SHOULD with ops-policy framing; provider list moved to security capability spec)
-  - Naming Conventions, Code Style, API Conventions, Anti-Patterns, Patterns, Testing (added inline `(Checkstyle)` / `(ArchUnit)` / `(review)` enforcement tags)
-  - Anti-Patterns (deduped #4 to reference Principle II; reworded #5/#9 likewise)
-  - API Conventions (strengthened base-path uniqueness to invariants)
-  - spec-kit Workflow Rules (added Capability ↔ numbered cross-link rule; added Cancelled / Superseded numbered-spec statuses; added `/speckit.checklist` cleanup guidance)
-  - Tooling Commands (added `./gradlew bootRun`)
-  - Governance (added per-directory CLAUDE.md acknowledgment paragraph; added Out-of-Scope section, Amendment History footer, enforcement-mechanism legend)
+  - Tech Stack (Spring Boot 3.5.10 → 4.0.6; Gradle 8.13 → 8.14.5; removed the actuator 3.5.14 deliberate-override note — the Boot 4 BOM supersedes it; Jackson 2 → Jackson 3 (`tools.jackson`) as the application serialization stack, Jackson 2 retained only as a transitive dependency of third-party SDKs and for Hibernate JSON column mapping; spring-retry replaced by Spring Framework 7 core retry (`org.springframework.core.retry`); community `opentelemetry-spring-boot-starter` replaced by the official `spring-boot-starter-opentelemetry`; ShedLock 6.3.0 → 7.7.0; SpringDoc 2.8.5 → 3.0.3; MapStruct 1.6.0 → 1.6.3; ArchUnit 1.3.0 → 1.4.2; Flyway via `spring-boot-starter-flyway` (BOM-managed); Testcontainers 2.x (BOM-managed); log4j2 modules aligned to 2.25.4; the global `commons-logging` exclusion was removed because Spring Framework 7 depends on commons-logging 1.3 directly; jjwt (test-only) 0.9.1 → 0.13.0, which also removed the javax.xml.bind/jaxb 2.x dependencies)
+  - Tooling Commands (Docker build stage image gradle:8.13 → gradle:8.14.5, pinned to the exact wrapper version)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
   ✅ No [PLACEHOLDER] tokens remain
 Follow-up TODOs:
-  - jjwt 0.9.1 (test-only) is out-of-scope for constitution; track upgrade in dep backlog
+  - none — the previous jjwt 0.9.1 backlog item was resolved by this upgrade
 -->
 
 # DIAL Deployment Manager Backend Constitution
@@ -30,20 +21,21 @@ The base package for all production sources MUST be `com.epam.aidial.deployment.
 
 Constitutionally-significant libraries (any upgrade MUST go through a PR with a security or feature rationale):
 
-- **Runtime**: Java 21, Spring Boot 3.5.10, Gradle 8.13. `spring-boot-starter-actuator` is pinned to 3.5.14 as a **deliberate override** of the BOM; the rationale (security/feature) MUST be recorded in the build file at bump time.
-- **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.0
-- **Database migrations**: Flyway 11.14.0 (`flyway-core` for H2, `flyway-database-postgresql`, `flyway-sqlserver`)
+- **Runtime**: Java 21, Spring Boot 4.0.6 (Spring Framework 7), Gradle 8.14.5
+- **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.3
+- **Database migrations**: Flyway via `spring-boot-starter-flyway` (version BOM-managed) plus `flyway-database-postgresql` and `flyway-sqlserver`
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, `io.kubernetes:client-java` 22.0.0
-- **Serialization**: Jackson 2.21.1 (enforced via buildscript constraint)
-- **Logging**: Log4j2 — `log4j-core` 2.25.4, `log4j-slf4j2-impl` 2.24.3, `log4j-jul` 2.24.3; `spring-boot-starter-logging` MUST be excluded globally
-- **Observability**: OpenTelemetry SDK + OTLP exporter, `opentelemetry-spring-boot-starter` 2.12.0, Micrometer + Prometheus
+- **Serialization**: Jackson 3 (`tools.jackson`, BOM-managed) is the application serialization stack; `com.fasterxml.jackson.annotation` annotations are shared by both generations. Jackson 2 is retained deliberately for two frozen consumers — legacy Java Flyway migrations (`db.migration.MigrationJsonMapper`; see `src/main/java/db/migration/CLAUDE.md`) and Hibernate's JSON column mapping — plus transitively via third-party SDKs (Fabric8, MCP SDK, jib); its security floor is enforced via the `jackson-core` 2.21.1 constraint.
+- **Retry**: Spring Framework 7 core retry (`org.springframework.core.retry`); `spring-retry` MUST NOT be reintroduced
+- **Logging**: Log4j2 2.25.4 (`log4j-core`, `log4j-slf4j2-impl`, `log4j-jul`); `spring-boot-starter-logging` MUST be excluded globally. `commons-logging` MUST NOT be excluded — Spring Framework 7 depends on it directly.
+- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-log4j-appender-2.17` (version aligned with the OpenTelemetry API pinned via the `opentelemetry-bom` platform in build.gradle — a security floor over the Boot-BOM-managed version; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
 - **Caching**: Caffeine 3.2.3 via `spring-boot-starter-cache`
-- **Distributed locking**: ShedLock 6.3.0 (JDBC provider)
-- **API docs**: SpringDoc OpenAPI 2.8.5
-- **Security**: Spring Security + OAuth2 Resource Server; Azure Identity 1.18.0. The supported OIDC provider list lives in `specs/security/spec.md`.
-- **Databases supported**: H2 2.3.232 (dev/test), PostgreSQL 42.7.8, SQL Server 13.2.1 (`mssql-jdbc`)
-- **Auditing**: Hibernate Envers — anchors the `auditing` capability spec (numbered feature 014)
-- **Code quality**: Checkstyle 10.21.4 (Google Java Style profile), `-Werror` on all Java compilation, ArchUnit 1.3.0 (architectural rules in `ArchitectureTest`)
+- **Distributed locking**: ShedLock 7.7.0 (JDBC provider)
+- **API docs**: SpringDoc OpenAPI 3.0.3
+- **Security**: Spring Security + OAuth2 Resource Server (`spring-boot-starter-security-oauth2-resource-server`); Azure Identity 1.18.0. The supported OIDC provider list lives in `specs/security/spec.md`.
+- **Databases supported**: H2 2.3.232 (dev/test — pinned deliberately: existing encrypted H2 data files must stay readable), PostgreSQL 42.7.11, SQL Server 13.2.1 (`mssql-jdbc`)
+- **Auditing**: Hibernate Envers (Hibernate ORM 7, BOM-managed) — anchors the `auditing` capability spec (numbered feature 014)
+- **Code quality**: Checkstyle 10.21.4 (Google Java Style profile), `-Werror` on all Java compilation, ArchUnit 1.4.2 (architectural rules in `ArchitectureTest`)
 - **Style helpers**: Apache Commons Lang3 3.18.0 and Commons Collections4 4.5.0-M3 — Code Style mandates their `StringUtils` and `CollectionUtils` over inline null-and-empty checks
 
 ## Architecture Principles
@@ -266,7 +258,7 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
 | `./gradlew bootRun` | Run the service locally on the JVM |
 | `./gradlew generateDbSchema` | Regenerate `docs/db-schema.md` from H2 Flyway migrations — run after any migration change |
-| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.13-jdk21-alpine` → `amazoncorretto:21-alpine`) |
+| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.14.5-jdk21-alpine` → `amazoncorretto:21-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
 considering the task done. Use `./gradlew testFast` to run tests during development; a clean
@@ -310,8 +302,9 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 
 | Version | Date | Summary |
 |---|---|---|
+| 1.5.0 | 2026-06-03 | Spring Boot 4 platform upgrade: Boot 4.0.6 / Framework 7 / Hibernate ORM 7 / Jackson 3 (`tools.jackson`); Gradle 8.14.5; removed actuator BOM-override note; spring-retry → Framework 7 core retry; community OTel starter → official `spring-boot-starter-opentelemetry`; ShedLock 7.7.0; SpringDoc 3.0.3; ArchUnit 1.4.2; Testcontainers 2.x; jjwt 0.13.0 (test) and jaxb 2.x removal |
 | 1.4.0 | 2026-04-30 | Reframed Tech Stack (build.gradle canonical); added inline enforcement tags; softened CONFIG_REST_SECURITY_MODE to SHOULD; aligned `@LogExecution` Spring-component list with ArchUnit; deduped Anti-pattern #4; clarified K8s-API polling vs scheduled tasks; expanded numbered-spec lifecycle (Cancelled, Superseded); added Out of Scope and Amendment History sections |
 | 1.3.0 | 2026-04-29 | Per-directory CLAUDE.md acknowledgment; added Capability ↔ numbered-spec cross-link rule |
 | ≤1.2.2 | — | See `git log .specify/memory/constitution.md` |
 
-**Version**: 1.4.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-04-30
+**Version**: 1.5.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-06-03

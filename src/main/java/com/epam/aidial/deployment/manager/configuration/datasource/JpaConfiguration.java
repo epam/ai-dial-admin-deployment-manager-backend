@@ -6,7 +6,7 @@ import com.epam.aidial.deployment.manager.dao.jpa.JpaPackage;
 import com.epam.aidial.deployment.manager.transaction.timestamp.TransactionTimestampContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;

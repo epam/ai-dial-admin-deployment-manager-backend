@@ -478,22 +478,36 @@ management:
       show-details: always
   server:
     port: 9464
-
-otel:
-  sdk:
-    disabled: ${OTEL_SDK_DISABLED:true}
-  service:
-    name: dial-deployment-manager-backend
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-      protocol: ${OTEL_EXPORTER_OTLP_PROTOCOL}
-  logs:
-    exporter: ${OTEL_LOGS_EXPORTER:otlp}
-  traces:
-    exporter: ${OTEL_TRACES_EXPORTER:otlp}
-  metrics:
-    exporter: ${OTEL_METRICS_EXPORTER:otlp}
+  opentelemetry:
+    resource-attributes:
+      "service.name": ${OTEL_SERVICE_NAME:dial-deployment-manager-backend}
+    tracing:
+      export:
+        otlp:
+          # the base endpoint default must stay: Spring evaluates these properties even with export disabled,
+          # and http://localhost:4318 is the OpenTelemetry spec default for OTLP over HTTP
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces}
+          transport: ${OTEL_EXPORTER_OTLP_TRANSPORT:http}
+    logging:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/logs}
+          transport: ${OTEL_EXPORTER_OTLP_TRANSPORT:http}
+  tracing:
+    export:
+      enabled: ${OTEL_TRACES_EXPORT_ENABLED:${OTEL_EXPORT_ENABLED:false}}
+    sampling:
+      # parent-based ratio sampler; 1.0 mirrors the always-on default the OpenTelemetry SDK used before Spring Boot 4
+      probability: ${OTEL_TRACES_SAMPLING_PROBABILITY:1.0}
+  logging:
+    export:
+      otlp:
+        enabled: ${OTEL_LOGS_EXPORT_ENABLED:${OTEL_EXPORT_ENABLED:false}}
+  otlp:
+    metrics:
+      export:
+        enabled: ${OTEL_METRICS_EXPORT_ENABLED:${OTEL_EXPORT_ENABLED:false}}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics}
 
 server:
   tomcat:

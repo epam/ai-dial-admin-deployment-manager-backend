@@ -12,7 +12,6 @@ import com.epam.aidial.deployment.manager.model.McpImageDefinition;
 import com.epam.aidial.deployment.manager.model.McpTransportType;
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -20,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -51,9 +51,9 @@ class ImageDefinitionImporterTest {
     private ImageDefinitionImporter imageDefinitionImporter;
 
     private static JsonMapper createExportJsonMapper() {
-        JsonMapper mapper = JsonMapperConfiguration.createPrettyJsonMapper();
-        mapper.addMixIn(ImageDefinition.class, ImageDefinitionExportMixIn.class);
-        return mapper;
+        return JsonMapperConfiguration.createPrettyJsonMapper().rebuild()
+                .addMixIn(ImageDefinition.class, ImageDefinitionExportMixIn.class)
+                .build();
     }
 
     @Test

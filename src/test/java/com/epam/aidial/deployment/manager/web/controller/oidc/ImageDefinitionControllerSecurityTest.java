@@ -7,7 +7,7 @@ import com.epam.aidial.deployment.manager.web.mapper.ImageDefinitionViewDtoMappe
 import com.epam.aidial.deployment.manager.web.security.UserSecurityDetails;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;

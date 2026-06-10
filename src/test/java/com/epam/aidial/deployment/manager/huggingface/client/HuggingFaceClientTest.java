@@ -5,8 +5,6 @@ import com.epam.aidial.deployment.manager.huggingface.model.Model;
 import com.epam.aidial.deployment.manager.huggingface.model.ModelsRequest;
 import com.epam.aidial.deployment.manager.huggingface.model.TagsInfo;
 import com.epam.aidial.deployment.manager.huggingface.properties.HuggingFaceProperties;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import okhttp3.Call;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -19,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 import java.util.List;

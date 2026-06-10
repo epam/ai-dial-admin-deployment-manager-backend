@@ -6,7 +6,7 @@ import com.epam.aidial.deployment.manager.functional.tests.K8sClientFunctionalTe
 import com.epam.aidial.deployment.manager.functional.tests.K8sKnativeClientFunctionalTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
