@@ -31,8 +31,8 @@ Represents a single validation violation found during import config validation.
 
 | Field | Type | Description |
 |---|---|---|
-| `entityType` | String | Component type (e.g., "MCP_DEPLOYMENT", "ADAPTER_IMAGE_DEFINITION") |
-| `entityIdentifier` | String | Entity name/id for identification |
+| `entityType` | String | Component type (e.g., "MCP_DEPLOYMENT", "ADAPTER_IMAGE_DEFINITION", "GLOBAL_DOMAIN_WHITELIST") |
+| `entityIdentifier` | String | Entity name/id for identification. For `GLOBAL_DOMAIN_WHITELIST` errors this is the offending domain entry itself, so each invalid domain is a separately keyed error rather than one error for the whole whitelist (empty when the offending entry is `null`). |
 | `fieldPath` | String | Dot-delimited path to the invalid field (e.g., "name", "metadata.envs") |
 | `message` | String | Human-readable violation description |
 
