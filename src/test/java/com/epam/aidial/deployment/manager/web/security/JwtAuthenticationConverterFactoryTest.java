@@ -2,12 +2,12 @@ package com.epam.aidial.deployment.manager.web.security;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.utils.IdentityProviderTestHelper;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.Collection;

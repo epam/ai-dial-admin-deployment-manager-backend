@@ -5,7 +5,6 @@ import com.epam.aidial.deployment.manager.configuration.RegistryProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.docker.dto.ContainerConfigurationTemplateDto;
 import com.epam.aidial.deployment.manager.model.ImageEntrypoint;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.tools.jib.api.Credential;
 import com.google.cloud.tools.jib.api.DescriptorDigest;
 import com.google.cloud.tools.jib.api.ImageReference;
@@ -25,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.slf4j.event.Level;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.HttpURLConnection;
 import java.net.URL;

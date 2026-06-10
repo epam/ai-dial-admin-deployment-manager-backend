@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.io.IOException;
 
@@ -28,7 +28,7 @@ public class PostgresTestPersistenceService implements TestPersistenceService {
 
     @Override
     public void dumpDb() {
-        PostgreSQLContainer<?> postgres = PostgresFunctionalTests.getContainer();
+        PostgreSQLContainer postgres = PostgresFunctionalTests.getContainer();
         runContainerCommand(
                 String.format(
                         "pg_dump -Ft -U %s -f %s %s",
@@ -41,7 +41,7 @@ public class PostgresTestPersistenceService implements TestPersistenceService {
     @Override
     public void restoreDb() {
         self.dropAndCreatePublicSchema();
-        PostgreSQLContainer<?> postgres = PostgresFunctionalTests.getContainer();
+        PostgreSQLContainer postgres = PostgresFunctionalTests.getContainer();
         runContainerCommand(
                 String.format(
                         "pg_restore -Ft -U %s -d %s %s",
@@ -63,7 +63,7 @@ public class PostgresTestPersistenceService implements TestPersistenceService {
     }
 
     private void runContainerCommand(String command, String description) {
-        PostgreSQLContainer<?> postgres = PostgresFunctionalTests.getContainer();
+        PostgreSQLContainer postgres = PostgresFunctionalTests.getContainer();
         try {
             var result = postgres.execInContainer("sh", "-c", command);
 

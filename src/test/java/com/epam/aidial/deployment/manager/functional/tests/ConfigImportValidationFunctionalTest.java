@@ -18,10 +18,10 @@ import com.epam.aidial.deployment.manager.service.config.ConfigExportImportTestH
 import com.epam.aidial.deployment.manager.service.config.ConfigTransferService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.web.validation.ImportConfigValidator;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.LinkedHashMap;
 import java.util.List;

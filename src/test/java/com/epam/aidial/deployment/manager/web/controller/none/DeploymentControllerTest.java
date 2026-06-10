@@ -41,18 +41,20 @@ import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -78,6 +80,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Spring Boot 4 removed MockitoTestExecutionListener (deprecated since 3.4), so @Mock/@Captor fields are no
+// longer auto-initialized in any Spring test — use Mockito's own extension instead, per the 4.0 migration guide
+@ExtendWith(MockitoExtension.class)
 @WebMvcTest(value = DeploymentController.class)
 @Import({
         JsonMapperConfiguration.class,

@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.web.dto.audit;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.InvalidTypeIdException;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.exc.InvalidTypeIdException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

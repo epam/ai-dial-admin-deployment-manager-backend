@@ -3,7 +3,7 @@ package com.epam.aidial.deployment.manager.web.controller.none;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import com.epam.aidial.deployment.manager.web.controller.SecurityInfoController;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 

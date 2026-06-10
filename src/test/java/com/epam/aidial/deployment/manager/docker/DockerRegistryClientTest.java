@@ -4,7 +4,6 @@ import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
 import com.epam.aidial.deployment.manager.configuration.RegistryProperties;
 import com.epam.aidial.deployment.manager.docker.dto.ContainerConfigurationTemplateDto;
 import com.epam.aidial.deployment.manager.model.ImageEntrypoint;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.tools.jib.api.DescriptorDigest;
 import com.google.cloud.tools.jib.api.ImageReference;
 import com.google.cloud.tools.jib.api.LogEvent;
@@ -24,6 +23,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.event.Level;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.ByteArrayInputStream;
 import java.net.HttpURLConnection;

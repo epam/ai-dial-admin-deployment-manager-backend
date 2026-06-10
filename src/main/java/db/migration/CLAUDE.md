@@ -18,3 +18,11 @@ Flyway Java callbacks for migrations that need Java logic — e.g. parsing or tr
 ## When to choose Java over SQL
 
 Default to SQL (`src/main/resources/db/migration/`). Reach for Java only when the migration involves reading existing data, deserializing it, transforming, and writing it back — and SQL alone can't express the transformation cleanly.
+
+## Applied migrations are immutable
+
+Once a migration has shipped, its **behaviour** must never change — fresh databases must end up byte-identical to databases migrated by older releases. Concretely:
+
+- Java migrations stay on **Jackson 2** (`com.fasterxml.jackson.*`) via `db.migration.MigrationJsonMapper` — do NOT migrate them to `tools.jackson` or point them at the application's `JsonMapperConfiguration`, whose semantics evolve with the app.
+- Flyway stores a `null` checksum for Java (`JDBC`-type) migrations — only `.sql` files get content checksums — so `validate` will NOT catch behavioural drift in Java migrations. Discipline is the only guard.
+- Editing an applied `.sql` migration DOES change its checksum and crashes every existing installation at startup validation. Never edit applied SQL files; add a new version instead.

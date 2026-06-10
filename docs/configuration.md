@@ -645,17 +645,28 @@ ai-dial-admin-backend/secrets-utils/generate_h2_secrets.sh can help to generate 
 
 ## OpenTelemetry Configuration
 
+Telemetry is provided by the official `spring-boot-starter-opentelemetry` (Spring Boot 4). OTLP export is **disabled by default**; enable it globally with `OTEL_EXPORT_ENABLED=true` or per signal with the dedicated variables. `OTEL_EXPORTER_OTLP_ENDPOINT` is the collector base URL **without a trailing slash** — `application.yml` appends the standard signal paths (`/v1/traces`, `/v1/logs`, `/v1/metrics`) to it. If export is enabled without setting an endpoint, the OpenTelemetry spec default `http://localhost:4318` is used; with no collector there, export failures show up as connection errors in the application log.
 
-| Setting                     | Environment Variable        | Default                         | Required | Applied when            | Description                                       |
-| --------------------------- | --------------------------- | ------------------------------- | -------- | ----------------------- | ------------------------------------------------- |
-| otel.sdk.disabled           | OTEL_SDK_DISABLED           | true                            | No       | -                       | Disable OpenTelemetry SDK                         |
-| otel.service.name           | OTEL_SERVICE_NAME           | dial-deployment-manager-backend | No       | -                       | Service name                                      |
-| otel.exporter.otlp.endpoint | OTEL_EXPORTER_OTLP_ENDPOINT |                                 | Yes      | otel.sdk.disabled=false | OpenTelemetry collector endpoint                  |
-| otel.exporter.otlp.protocol | OTEL_EXPORTER_OTLP_PROTOCOL |                                 | Yes      | otel.sdk.disabled=false | Protocol for OpenTelemetry data export            |
-| otel.logs.exporter          | OTEL_LOGS_EXPORTER          | otlp                            | No       | -                       | Exporter for application logs                     |
-| otel.traces.exporter        | OTEL_TRACES_EXPORTER        | otlp                            | No       | -                       | Exporter for distributed traces                   |
-| otel.metrics.exporter       | OTEL_METRICS_EXPORTER       | otlp                            | No       | -                       | Exporter for application metrics                  |
-| otel.resource.attributes    | OTEL_RESOURCE_ATTRIBUTES    |                                 | No       | -                       | Key-value pairs to be used as resource attributes |
+| Setting                                                   | Environment Variable           | Default                              | Required | Applied when               | Description                                                                                  |
+|-----------------------------------------------------------| ------------------------------ | ------------------------------------ | -------- | -------------------------- | -------------------------------------------------------------------------------------------- |
+| (fallback default for the per-signal flags below)         | OTEL_EXPORT_ENABLED            | false                                | No       | -                          | Master switch for OTLP export of traces, logs and metrics                                    |
+| management.tracing.export.enabled                         | OTEL_TRACES_EXPORT_ENABLED     | value of OTEL_EXPORT_ENABLED         | No       | -                          | Enable distributed tracing (span creation + propagation) and OTLP trace export               |
+| management.logging.export.otlp.enabled                    | OTEL_LOGS_EXPORT_ENABLED       | value of OTEL_EXPORT_ENABLED         | No       | -                          | Enable OTLP export of application logs                                                       |
+| management.otlp.metrics.export.enabled                    | OTEL_METRICS_EXPORT_ENABLED    | value of OTEL_EXPORT_ENABLED         | No       | -                          | Enable OTLP export of application metrics                                                    |
+| management.opentelemetry.*.export.otlp.endpoint, management.otlp.metrics.export.url | OTEL_EXPORTER_OTLP_ENDPOINT | http://localhost:4318 | No  | any OTLP export enabled    | OpenTelemetry collector base URL, no trailing slash (signal paths appended)                  |
+| management.opentelemetry.tracing.export.otlp.endpoint     | OTEL_EXPORTER_OTLP_TRACES_ENDPOINT  | base endpoint + `/v1/traces`    | No       | -                          | Full OTLP traces URL; overrides the base endpoint for this signal                            |
+| management.opentelemetry.logging.export.otlp.endpoint     | OTEL_EXPORTER_OTLP_LOGS_ENDPOINT    | base endpoint + `/v1/logs`      | No       | -                          | Full OTLP logs URL; overrides the base endpoint for this signal                              |
+| management.otlp.metrics.export.url                        | OTEL_EXPORTER_OTLP_METRICS_ENDPOINT | base endpoint + `/v1/metrics`   | No       | -                          | Full OTLP metrics URL; overrides the base endpoint for this signal                           |
+| management.opentelemetry.*.export.otlp.transport          | OTEL_EXPORTER_OTLP_TRANSPORT   | http                                 | No       | -                          | OTLP transport for traces and logs: `http` or `grpc` (see gRPC note); metrics are always sent over HTTP |
+| management.tracing.sampling.probability                   | OTEL_TRACES_SAMPLING_PROBABILITY | 1.0                                | No       | -                          | Probability (0.0–1.0) that a new trace is sampled; parent-based, so upstream sampling decisions are honoured |
+| management.opentelemetry.resource-attributes.service.name | OTEL_SERVICE_NAME              | dial-deployment-manager-backend      | No       | -                          | Service name resource attribute                                                              |
+| management.opentelemetry.resource-attributes              | OTEL_RESOURCE_ATTRIBUTES       |                                      | No       | -                          | Extra resource attributes as `key=value,key=value` (read natively by Spring Boot); a `service.name` entry here is overridden — use OTEL_SERVICE_NAME instead |
+
+> **gRPC transport**: with `OTEL_EXPORTER_OTLP_TRANSPORT=grpc`, set `OTEL_EXPORTER_OTLP_ENDPOINT` to the collector's gRPC URL (typically port `4317`, not the HTTP port `4318`). The `/v1/traces` and `/v1/logs` path suffixes are ignored by the gRPC exporters, which substitute their own gRPC service paths. Metrics are always exported over HTTP — when using gRPC for traces/logs, point `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` at the collector's full HTTP metrics URL (e.g. `http://collector:4318/v1/metrics`) or disable metrics export.
+
+> **Prometheus and OTLP metrics coexist**: the Prometheus scrape endpoint on the management port (`9464`) stays active regardless of these flags; enabling OTLP metrics export is additive, so the same metrics are then published both ways.
+
+> Migration note (Spring Boot 4): `OTEL_SDK_DISABLED` was replaced by `OTEL_EXPORT_ENABLED` (inverted meaning), and the per-signal `OTEL_{LOGS,TRACES,METRICS}_EXPORTER=otlp|none` selectors were replaced by the boolean `OTEL_*_EXPORT_ENABLED` flags. `OTEL_EXPORTER_OTLP_PROTOCOL` was replaced by `OTEL_EXPORTER_OTLP_TRANSPORT` with values `http` (formerly `http/protobuf`) or `grpc`. `OTEL_EXPORTER_OTLP_HEADERS` (collector auth headers) is **no longer honoured**; if your collector requires auth headers, set the Spring properties `management.opentelemetry.tracing.export.otlp.headers.*`, `management.opentelemetry.logging.export.otlp.headers.*` and `management.otlp.metrics.export.headers.*` instead. `OTEL_RESOURCE_ATTRIBUTES` continues to work (Spring Boot reads it natively).
 
 
 ### Distributed Tracing
@@ -712,7 +723,7 @@ The service will automatically extract and propagate the trace context. If no tr
 #### Trace ID Generation
 
 - Trace IDs are extracted exclusively from OpenTelemetry span context
-- If OpenTelemetry is disabled (`otel.sdk.disabled=true`) or trace context is unavailable, headers may not be set
+- If tracing is disabled (`OTEL_TRACES_EXPORT_ENABLED=false`, the default) or trace context is unavailable, headers may not be set
 - The service relies solely on OpenTelemetry for trace ID generation - no custom correlation ID logic
 
 ## Required Kubernetes RBAC

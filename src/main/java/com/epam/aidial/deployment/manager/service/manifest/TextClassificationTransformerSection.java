@@ -5,8 +5,6 @@ import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.MissingTransformerImageException;
 import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import io.fabric8.kubernetes.api.model.Container;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.inferenceservicespec.transformer.Containers;
@@ -14,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -103,7 +103,7 @@ public class TextClassificationTransformerSection {
         id2Label.forEach((k, v) -> ordered.put(String.valueOf(k), v));
         try {
             return jsonMapper.writeValueAsString(ordered);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException(
                     "Failed to serialize id2Label for deployment '%s'".formatted(deploymentName), e);
         }
@@ -124,7 +124,7 @@ public class TextClassificationTransformerSection {
         try {
             var json = jsonMapper.writeValueAsString(source);
             return jsonMapper.readValue(json, Containers.class);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException(
                     "Failed to convert transformer container template for deployment '%s'".formatted(deploymentName), e);
         }

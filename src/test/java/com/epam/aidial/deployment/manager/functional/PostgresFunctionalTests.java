@@ -14,13 +14,15 @@ import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionRollba
 import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import org.junit.jupiter.api.Nested;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @DataJpaTest
 @TestPropertySource(properties = {
@@ -43,9 +45,15 @@ public class PostgresFunctionalTests extends FunctionalTestSuite {
 
     @Container
     @ServiceConnection
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17.4");
+    private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17.4")
+            // Testcontainers 2.x dropped the host-side JDBC retry loop of 1.x, so also wait for the mapped
+            // port to be reachable from the host — Docker setups with asynchronous port forwarding
+            // (e.g. Rancher Desktop QEMU) otherwise report "started" before connections succeed.
+            .waitingFor(new WaitAllStrategy(WaitAllStrategy.Mode.WITH_INDIVIDUAL_TIMEOUTS_ONLY)
+                    .withStrategy(Wait.forLogMessage(".*database system is ready to accept connections.*\\s", 2))
+                    .withStrategy(Wait.forListeningPort()));
 
-    public static PostgreSQLContainer<?> getContainer() {
+    public static PostgreSQLContainer getContainer() {
         return POSTGRES;
     }
 

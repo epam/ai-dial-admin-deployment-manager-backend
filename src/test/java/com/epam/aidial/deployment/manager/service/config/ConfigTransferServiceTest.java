@@ -8,7 +8,6 @@ import com.epam.aidial.deployment.manager.model.config.ExportRequest;
 import com.epam.aidial.deployment.manager.model.config.ImportConfigPreview;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
 import com.epam.aidial.deployment.manager.service.config.previews.ConfigImportPreviewer;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

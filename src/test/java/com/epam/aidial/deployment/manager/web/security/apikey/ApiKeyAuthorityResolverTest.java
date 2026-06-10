@@ -1,8 +1,8 @@
 package com.epam.aidial.deployment.manager.web.security.apikey;
 
 import com.epam.aidial.deployment.manager.web.security.UserRole;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 

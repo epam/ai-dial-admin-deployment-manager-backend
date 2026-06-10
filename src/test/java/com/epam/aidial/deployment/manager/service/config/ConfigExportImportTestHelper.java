@@ -1,9 +1,9 @@
 package com.epam.aidial.deployment.manager.service.config;
 
 import com.epam.aidial.deployment.manager.model.config.ExportConfig;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

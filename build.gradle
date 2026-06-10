@@ -4,9 +4,6 @@ buildscript {
             classpath ('org.apache.commons:commons-lang3:3.18.0') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('org.springframework:spring-core:6.2.11') {
-                because("previous versions have vulnerabilities")
-            }
             classpath ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
                 because("previous versions have vulnerabilities")
             }
@@ -24,7 +21,7 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '3.5.10'
+    id 'org.springframework.boot' version '4.0.6'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
@@ -47,7 +44,6 @@ configurations {
         extendsFrom annotationProcessor
     }
     configureEach {
-        exclude group: 'commons-logging', module: 'commons-logging'
         exclude group: "org.springframework.boot", module: "spring-boot-starter-logging"
         resolutionStrategy {
             force 'com.google.code.gson:gson:2.8.9'
@@ -70,44 +66,43 @@ repositories {
 
 dependencies {
     implementation platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+    // overrides the Boot-BOM-managed OpenTelemetry 1.55.0 — unbounded memory allocation in W3C baggage propagation, patched in 1.62.0
+    implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
 
-    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.springframework.boot:spring-boot-starter-jackson'
+    implementation 'tools.jackson.dataformat:jackson-dataformat-yaml'
 
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
 
     implementation 'com.azure:azure-identity:1.18.0'
     implementation 'com.azure:azure-identity-extensions:1.2.7'
 
-    implementation 'net.javacrumbs.shedlock:shedlock-spring:6.3.0'
-    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:6.3.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.7.0'
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'com.h2database:h2:2.3.232'
     implementation 'org.postgresql:postgresql:42.7.11'
     implementation 'com.microsoft.sqlserver:mssql-jdbc:13.2.1.jre11'
-    implementation 'org.flywaydb:flyway-core:11.14.0'
-    implementation 'org.flywaydb:flyway-database-postgresql:11.14.0'
-    implementation 'org.flywaydb:flyway-sqlserver:11.14.0'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'org.flywaydb:flyway-sqlserver'
     implementation 'com.google.cloud.sql:postgres-socket-factory:1.28.0'
 
     implementation 'io.modelcontextprotocol.sdk:mcp:1.1.1'
     implementation 'com.google.cloud.tools:jib-core:0.27.3'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
-
-    // https://issues.apache.org/jira/browse/JCLOUDS-1637
-    implementation 'javax.xml.bind:jaxb-api:2.3.1'
-    runtimeOnly 'org.glassfish.jaxb:jaxb-runtime:2.3.1'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 
     implementation 'commons-io:commons-io:2.18.0'
     implementation 'org.apache.commons:commons-lang3:3.18.0'
     implementation 'org.apache.commons:commons-collections4:4.5.0-M3'
-    implementation 'org.springframework.retry:spring-retry'
 
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.2.3'
 
-    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
-    implementation 'org.hibernate.validator:hibernate-validator:8.0.2.Final'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     implementation "io.fabric8:kubernetes-client:${fabric8_kubernetes_client_version}"
     implementation "io.fabric8:knative-client:${fabric8_kubernetes_client_version}"
@@ -117,36 +112,48 @@ dependencies {
     implementation('org.springframework.boot:spring-boot-starter-log4j2') {
         exclude group: 'org.apache.logging.log4j'
     }
-    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4'
     implementation 'org.apache.logging.log4j:log4j-core:2.25.4'
-    implementation 'org.apache.logging.log4j:log4j-jul:2.24.3'
+    implementation 'org.apache.logging.log4j:log4j-jul:2.25.4'
 
-    implementation 'org.springframework.boot:spring-boot-starter-actuator:3.5.14' // security fix — pinned above Spring Boot 3.5.10 BOM
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
-    implementation 'io.opentelemetry:opentelemetry-sdk'
-    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
-    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:1.33.6-alpha'
-
-    implementation platform('io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.12.0')
-    implementation 'io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter:2.12.0'
+    implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
+    // version aligned with the OpenTelemetry API 1.62.0 pinned via opentelemetry-bom above (instrumentation 2.28.x <-> SDK 1.62.x)
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.28.1-alpha'
 
     implementation 'org.hibernate.orm:hibernate-envers'
+    // Jackson 2 is intentionally kept: legacy Java Flyway migrations are pinned to it so they keep
+    // executing the exact code they shipped with (db.migration.MigrationJsonMapper), and Hibernate's
+    // JSON column mapping (@JdbcTypeCode(SqlTypes.JSON)) still uses Jackson 2 with
+    // constructor-parameter-name detection, which spring-boot-starter-json used to provide before Jackson 3
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.2'
+    runtimeOnly 'com.fasterxml.jackson.module:jackson-module-parameter-names:2.21.2'
     implementation 'com.github.f4b6a3:uuid-creator:6.0.0'
 
-    implementation 'org.mapstruct:mapstruct:1.6.0'
-    annotationProcessor "org.mapstruct:mapstruct-processor:1.6.0"
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor "org.mapstruct:mapstruct-processor:1.6.3"
 
-    testImplementation 'com.tngtech.archunit:archunit-junit5:1.3.0'
-    testImplementation 'io.jsonwebtoken:jjwt:0.9.1'
+    testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.2'
+    // runtime-only via spring-boot-starter-opentelemetry; needed at compile time by OpenTelemetryExportConfigurationTest
+    testImplementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    testImplementation 'io.micrometer:micrometer-registry-otlp'
+    testImplementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+    testRuntimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
+    testRuntimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
     testImplementation 'org.assertj:assertj-core:3.27.7'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-cache-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation "org.testcontainers:junit-jupiter:${testcontainers_version}"
-    testImplementation "org.testcontainers:testcontainers:${testcontainers_version}"
-    testImplementation "org.testcontainers:jdbc:${testcontainers_version}"
-    testImplementation "org.testcontainers:postgresql:${testcontainers_version}"
-    testImplementation "org.testcontainers:mssqlserver:${testcontainers_version}"
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-jdbc'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:testcontainers-mssqlserver'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
@@ -163,37 +170,22 @@ dependencies {
             because("previous versions have vulnerabilities")
         }
         implementation("io.grpc:grpc-netty-shaded:1.75.0") {
-            because("previous versions have vulnerabilities)")
-        }
-        implementation ('io.netty:netty-codec:4.2.8.Final') {
-            because("previous versions have vulnerabilities")
-        }
-        implementation ('io.netty:netty-codec-http:4.2.10.Final') {
             because("previous versions have vulnerabilities")
         }
         implementation ('io.netty:netty-codec-dns:4.2.13.Final') {
             because("previous versions have vulnerabilities")
         }
+        implementation ('io.netty:netty-codec-http3:4.2.13.Final') {
+            because("previous versions have vulnerabilities")
+        }
+        implementation ('io.netty:netty-handler-proxy:4.2.13.Final') {
+            because("previous versions have vulnerabilities")
+        }
         implementation ('io.netty:netty-transport-native-epoll:4.2.13.Final') {
             because("previous versions have vulnerabilities")
         }
-        implementation ('org.springframework:spring-webmvc:6.2.17') {
-            because("previous versions have vulnerabilities")
-        }
-        implementation ('org.springframework.security:spring-security-core:6.5.4') {
-            because("previous versions have vulnerabilities")
-        }
-        implementation ('org.springframework.security:spring-security-web:6.5.9') {
-            because("previous versions have vulnerabilities")
-        }
-        implementation ('org.springframework:spring-core:6.2.11') {
-            because("previous versions have vulnerabilities")
-        }
         implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
-            because("previous versions have vulnerabilities")
-        }
-        implementation ('tools.jackson.core:jackson-core:3.1.1') {
-            because("previous versions have vulnerabilities")
+            because("transitive Jackson 2 from fabric8/MCP/jib — previous versions have vulnerabilities")
         }
         implementation("org.bouncycastle:bcprov-jdk18on:1.84") {
             because("previous versions have vulnerabilities")
