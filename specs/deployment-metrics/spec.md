@@ -5,7 +5,7 @@ This spec describes the unified deployment metrics API — an on-demand live met
 
 Status: **Implemented** *(Implemented via 023-deployment-metrics-api — PoC scope: live snapshot only)*
 
-Design source: `docs/deployment-metrics-api-spike.md` (issue #162 spike — ADR, engine-availability matrix, follow-up tickets). OpenAPI contract: `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml`.
+Origin: [issue #162](https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/162). This spec is the design source of record — the telemetry-foundation ADR, the engine-availability matrix, and the sized follow-up tickets are captured below. OpenAPI contract: `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml`.
 
 ## Key Terms
 - **Unified schema**: engine-neutral metric names with explicit units, grouped into `serving`, `resources`, and `operational` blocks plus a `rawCounters` echo of directly-exposed cumulative counters.
@@ -91,13 +91,63 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 - **THEN** the response is HTTP 400 with an `ErrorView` stating metrics collection is disabled by configuration
 
 ### Requirement: GPU fields are contract placeholders in the PoC
-The schema SHALL carry per-pod `gpuUtilization`/`gpuMemoryUsedBytes` fields, reported unavailable (`resources.gpu` reason) until the DCGM exporter cluster prerequisite ships (spike follow-up (b)). KV-cache usage is the engine-level GPU-pressure proxy available today.
+The schema SHALL carry per-pod `gpuUtilization`/`gpuMemoryUsedBytes` fields, reported unavailable (`resources.gpu` reason) until the DCGM exporter cluster prerequisite ships (follow-up (b) below). KV-cache usage is the engine-level GPU-pressure proxy available today.
 
 Status: **Implemented** *(placeholder behaviour; GPU telemetry itself is a follow-up)*
 
-## Out of Scope (designed follow-ups, spike §7)
-- **Time-range API** (`?start&end&step&metrics`) — designed in spike §4.2; requires the OTel Collector pipeline (ADR Option C). The snapshot contract is forward-compatible: unified names and availability semantics are identical.
-- **GPU metrics via DCGM**, **persisted serving runtime** (replaces prefix sniffing), **metrics-driven autoscaling**, **UI panel**, multi-pod aggregation, long-term retention, alerting.
+## Design Rationale (Telemetry Foundation ADR)
+All target engines natively expose the **Prometheus exposition format** over HTTP (`/metrics`); none speaks OTLP. Three transports were weighed:
+
+- **Option A — DM scrapes engine `/metrics` directly (chosen for the PoC).** DM reaches each pod's `/metrics` through the Kubernetes API-server pod-proxy subresource and normalizes in-process. Zero new infrastructure, reuses existing kube auth/TLS, works when DM runs outside the cluster (pod IPs are not routable there, the API server is), always-fresh values. Trade-off: no history — counter-derived values are lifetime aggregates, not windowed rates.
+- **Option B — cluster Prometheus + PromQL.** True windowed rates and history, but new stateful infrastructure per cluster and a second observability stack alongside the existing OTLP pipeline.
+- **Option C — OTel Collector (Prometheus receiver) → OTLP backend (chosen direction for the time-range follow-up).** Aligns with the existing OTel investment so engine metrics, DM logs, and traces share one backend (preserving the trace↔metric pivot); the collector is stateless. Trade-off: still new cluster infrastructure, and the time-range query surface is backend-specific.
+
+**Decision**: ship the snapshot path on Option A (no infra, no manifest changes); implement the time-range follow-up on Option C, with Option B an acceptable per-cluster fallback where a managed Prometheus already exists. The unified schema is the stable contract that survives whichever transport wins — the PoC normalizers are reused as the collector's relabel/mapping rules later.
+
+## Engine-Availability Matrix
+Per-engine source metric for each unified field (`✓` exposed directly · `D` derived by DM · `✗` not exposed). Names verified against live dev-cluster captures where marked; upstream names drift between engine versions (e.g. vLLM V1 renamed `vllm:gpu_cache_usage_perc` → `vllm:kv_cache_usage_perc` and `vllm:time_per_output_token_seconds` → `vllm:inter_token_latency_seconds`), so normalizers accept both vocabularies.
+
+### Serving-quality
+| Unified field | Unit | vLLM | TGI | SGLang | KServe ModelServer |
+|---|---|---|---|---|---|
+| `ttft` | s | ✓ `vllm:time_to_first_token_seconds` | ✗ | ✓ `sglang:time_to_first_token_seconds` | ✗ |
+| `interTokenLatency` | s | ✓ `vllm:time_per_output_token_seconds` (V1: `vllm:inter_token_latency_seconds`) | ✓ `tgi_request_mean_time_per_token_duration` | ✓ `sglang:inter_token_latency_seconds` | ✗ |
+| `tokensPerSecond.prompt` | tok/s | D `vllm:prompt_tokens_total` | D `tgi_request_input_length` | D `sglang:prompt_tokens_total` | ✗ |
+| `tokensPerSecond.generation` | tok/s | D `vllm:generation_tokens_total` | D `tgi_request_generated_tokens` | D `sglang:generation_tokens_total` | ✗ |
+| `queueDepth` | requests | ✓ `vllm:num_requests_waiting` | ✓ `tgi_queue_size` | ✓ `sglang:num_queue_reqs` | ✗ |
+| `runningRequests` | requests | ✓ `vllm:num_requests_running` | ✓ `tgi_batch_current_size` | ✓ `sglang:num_running_reqs` | ✗ |
+| `kvCacheUsage` | ratio 0–1 | ✓ `vllm:gpu_cache_usage_perc` (V1: `vllm:kv_cache_usage_perc`) | ✗ | ✓ `sglang:token_usage` | ✗ |
+| `requestLatency` | s | ✗ (e2e only) | ✗ | ✗ | ✓ `request_predict_seconds` |
+| `requestsPerSecond` | req/s | ✗ | ✗ | ✗ | D `request_predict_seconds` count |
+
+### Operational
+| Unified field | Unit | vLLM | TGI | SGLang | KServe ModelServer |
+|---|---|---|---|---|---|
+| `requestErrorRatio` | ratio 0–1 | D `vllm:request_success_total` by `finished_reason` (`abort` V0 + `error` V1) | D `tgi_request_count` vs `tgi_request_success` | D `sglang:num_aborted_requests_total` | ✗ (no success counter) |
+| `e2eLatency` (p50/p95/p99) | s | ✓ `vllm:e2e_request_latency_seconds` | ✓ `tgi_request_duration` | ✓ `sglang:e2e_request_latency_seconds` | ✓ `request_predict_seconds` (+ transformer pre/post means for chained deployments) |
+
+### Resource (engine-independent)
+| Unified field | Unit | Source | Notes |
+|---|---|---|---|
+| `cpuMillicores` / `memoryBytes` | millicores / bytes | `metrics.k8s.io` (Fabric8 `top().pods()`) | per pod; requires metrics-server (present in managed clusters) |
+| `replicas.total` / `replicas.ready` | pods | existing pod listing | reported for every deployment type |
+| `gpuUtilization` / `gpuMemoryUsedBytes` | ratio 0–1 / bytes | DCGM exporter (`DCGM_FI_DEV_*`) | contract placeholder — cluster prerequisite, follow-up (b); `kvCacheUsage` is today's engine-level proxy |
+
+Scale events are not duplicated here — they are served by the existing k8s events stream (see `specs/kubernetes-events/spec.md`).
+
+## Out of Scope (designed follow-ups)
+- **Time-range API** (`?start&end&step&metrics`) — see `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml` (documented as not-implemented); requires the OTel Collector pipeline (ADR Option C above). The snapshot contract is forward-compatible: unified names and availability semantics are identical.
+- Multi-pod aggregation, long-term retention, alerting, access-control specifics.
+
+Sized follow-up tickets:
+
+| # | Ticket | Size | Depends on |
+|---|---|---|---|
+| (a) | **Time-range metrics API** — OTel Collector (Prometheus receiver) pipeline per ADR Option C, backend query adapter, `?start&end&step` implementation | L | PoC schema; per-cluster backend decision |
+| (b) | **GPU metrics via DCGM** — DCGM exporter as cluster prerequisite, join `DCGM_FI_DEV_*` series to pods, fill `gpuUtilization`/`gpuMemory*` in the resource block | M | (a) for history; snapshot-only join possible standalone |
+| (c) | **Persist serving runtime on `InferenceDeployment`** — record the engine at deploy time (DB column + DTOs + manifest plumbing), replacing prefix sniffing | S/M | none |
+| (d) | **Metrics-driven autoscaling** — implement `HARDWARE_USAGE` / `PENDING_REQUESTS` strategies (currently throw in `InferenceManifestGenerator`) on top of the unified feed | L | (a) or (b) for the metric source |
+| (e) | **UI metrics panel** — deployment-page panel consuming the snapshot, later the time-range variant | M (FE) | PoC endpoint |
 
 ## Implementation Notes
 - Endpoint: `DeploymentController.getMetrics` → `service/deployment/metrics/DeploymentMetricsService` (`@Cacheable`, cache `DeploymentMetricsCache` registered by `configuration/MetricsCachingConfig`)

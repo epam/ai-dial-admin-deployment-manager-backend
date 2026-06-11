@@ -4,11 +4,12 @@
 **Created**: 2026-06-05
 **Status**: Implemented — code, tests, docs, and the capability spec (`specs/deployment-metrics/spec.md`) shipped. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type; serving-quality metrics are scraped for INFERENCE deployments. Dev-cluster PoC acceptance performed live against a KServe vLLM (V1) deployment, with real `/metrics` fixtures captured and engine-drift corrections folded back in (vLLM V1 ITL rename, `error` finished_reason)
 **Capability**: N/A — creates new capability deployment-metrics
-**Input**: User description: "Implement PoC of unified model metrics API feature described in docs/deployment-metrics-api-spike.md document."
+**Input**: User description: "Implement PoC of unified model metrics API feature" — design investigation for [issue #162](https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/162).
 
-> Source design: `docs/deployment-metrics-api-spike.md` (spike for issue #162). The spike's §3 unified
-> metric schema and §4.1 snapshot contract are the authoritative field-level references for this
-> feature; this spec defines the user-facing behaviour the PoC must deliver.
+> Design source of record: the capability spec `specs/deployment-metrics/spec.md` — its
+> engine-availability matrix is the authoritative field-level reference, and the OpenAPI contract
+> `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml` is the authoritative
+> snapshot contract. This spec defines the user-facing behaviour the PoC must deliver.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -137,7 +138,7 @@ a reason while serving metrics remain.
 - **Engine restart resets lifetime counters**: counter-derived values silently restart from zero; the
   explicit `window: "lifetime"` label and collection timestamp let consumers detect and tolerate this.
 - **Multiple Ready pods**: the PoC reads exactly one Ready pod for serving metrics and names it in the
-  payload; cross-pod aggregation is explicitly out of scope (spike §7 open item). When the Ready pods
+  payload; cross-pod aggregation is explicitly out of scope (see `specs/deployment-metrics/spec.md`). When the Ready pods
   span KServe components (a chained `TEXT_CLASSIFICATION` deployment has both a `predictor` and a
   `transformer` pod under one InferenceService), the `predictor` pod is selected — the engine runs there,
   while the transformer exposes no engine metrics. Absent component labels (KNative/raw inference,
@@ -165,7 +166,7 @@ a reason while serving metrics remain.
   units, covering: serving quality (time-to-first-token, inter-token latency, prompt and generation
   tokens/second, queue depth, running requests, KV-cache utilization), resources (replica totals and
   readiness, per-pod CPU and memory, GPU fields), and operational signals (request error ratio,
-  end-to-end latency distribution) — per the spike §3 schema and engine-availability matrix.
+  end-to-end latency distribution) — per the engine-availability matrix in `specs/deployment-metrics/spec.md`.
 - **FR-004**: Every metric block MUST carry an availability marker; when a block is degraded or absent
   the marker MUST include a human-readable reason.
 - **FR-005**: Missing telemetry MUST NOT produce a server error: no Ready pods, unreachable metrics
@@ -227,17 +228,18 @@ a reason while serving metrics remain.
 - **SC-004**: Every numeric value in the response is interpretable without out-of-band knowledge: it
   carries an explicit unit and, where counter-derived, an explicit window label.
 - **SC-005**: Real captured engine metric outputs from the dev-cluster verification (vLLM) are checked
-  in as test fixtures, and the engine-name mappings in the spike §3 matrix are confirmed or corrected
+  in as test fixtures, and the engine-name mappings in the engine-availability matrix (`specs/deployment-metrics/spec.md`) are confirmed or corrected
   against them.
 
 ## Assumptions
 
-- **PoC scope is snapshot-only**: the time-range API is designed in the spike (§4.2) but explicitly not
-  implemented; long-term retention, alerting, UI implementation, GPU telemetry rollout, multi-pod
-  aggregation, and metrics-driven autoscaling are follow-ups (spike §7).
+- **PoC scope is snapshot-only**: the time-range API is designed but explicitly not implemented (see
+  the OpenAPI contract `contracts/deployment-metrics-api.yaml`); long-term retention, alerting, UI
+  implementation, GPU telemetry rollout, multi-pod aggregation, and metrics-driven autoscaling are
+  follow-ups (see the sized tickets in `specs/deployment-metrics/spec.md`).
 - **Engines already expose metrics**: target serving engines publish standard-format metrics on their
   existing serving port; no deployment-manifest changes are needed to enable collection.
-- **Direct read, no new infrastructure**: per the spike ADR, the PoC reads engine metrics live through
+- **Direct read, no new infrastructure**: per the telemetry-foundation ADR (`specs/deployment-metrics/spec.md`), the PoC reads engine metrics live through
   the cluster's existing management API path with existing credentials; no metrics-storage stack is
   installed.
 - **Lifetime windows are acceptable for the PoC**: without a time-series backend, counter-derived rates
@@ -247,6 +249,7 @@ a reason while serving metrics remain.
 - **Access control**: the endpoint inherits the existing deployment-API authorization model; no new
   roles or permissions are introduced for callers.
 - **Engine detection by exposed vocabulary is sufficient for the PoC**; persisting the serving runtime
-  at deploy time is a recorded follow-up (spike §7(c)).
+  at deploy time is a recorded follow-up ((c) in `specs/deployment-metrics/spec.md`).
 - **Verification against live engines is part of the PoC**: exact upstream metric names drift between
-  engine versions, so dev-cluster captures are required before the mappings are trusted (spike §3 note).
+  engine versions, so dev-cluster captures are required before the mappings are trusted (see the
+  engine-availability matrix note in `specs/deployment-metrics/spec.md`).

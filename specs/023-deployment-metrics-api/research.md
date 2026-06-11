@@ -1,14 +1,15 @@
 # Phase 0 Research: Unified Model Metrics API (PoC)
 
-**Date**: 2026-06-05 · **Inputs**: `docs/deployment-metrics-api-spike.md` (the spike already performed the
-heavy research — ADR, schema, engine matrix); this document records the decisions, the codebase
+**Date**: 2026-06-05 · **Inputs**: the [#162](https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/162)
+design investigation (ADR, schema, engine matrix — now captured in the capability spec
+`specs/deployment-metrics/spec.md`); this document records the decisions, the codebase
 verification performed for this plan, and the resolution of every remaining unknown. No
 NEEDS CLARIFICATION markers remain.
 
 ## R-1. Telemetry foundation
 
 - **Decision**: Direct scrape of engine `/metrics` through the Kubernetes API-server pod-proxy
-  subresource, normalized in-process (spike §2 ADR, Option A).
+  subresource, normalized in-process (ADR Option A — see `specs/deployment-metrics/spec.md`).
 - **Rationale**: zero new infrastructure; works when DM runs outside the cluster (pod IPs not
   routable, API server is); rides existing kube auth/TLS; always-fresh values. Snapshot-only
   semantics are acceptable for the PoC and are honestly labelled (`window: "lifetime"`).
@@ -29,7 +30,7 @@ NEEDS CLARIFICATION markers remain.
   `Client.raw(String)` (returns body or null on 404-class failures; throws `KubernetesClientException`
   on others — both paths handled). No `PodResource.proxy()` exists in 7.5.2, confirming the spike's
   transport choice.
-- **Open check carried into implementation** (flagged in spike §6): confirm the `http:{pod}:{port}`
+- **Open check carried into implementation** (flagged during the #162 investigation): confirm the `http:{pod}:{port}`
   proxy URL scheme form against the target clusters during the k8s-local smoke test.
   **Resolved (2026-06-05, live on the dev cluster)**: the URL scheme form works as designed for both
   a KServe vLLM pod and an LLM NIM pod. One correction found: LLM NIMs serve their metrics at
@@ -59,7 +60,7 @@ NEEDS CLARIFICATION markers remain.
   `InferenceDeploymentManager.DEFAULT_KSERVE_SERVICE_PORT = 8080` and
   `NimDeploymentManager.DEFAULT_NIM_SERVICE_PORT = 8000` are **currently `private static final`** —
   the plan exposes them through the managers (small accessor or widened visibility) rather than
-  re-hardcoding values in the metrics service, per spike §5.
+  re-hardcoding values in the metrics service, per the PoC architecture design.
 
 ## R-5. Prometheus exposition parsing
 
@@ -68,7 +69,7 @@ NEEDS CLARIFICATION markers remain.
   `+Inf`, `NaN`, scientific notation; ignores comments and exemplars.
 - **Rationale / verified**: nothing on the classpath parses this format — Micrometer and the OTel
   SDK only *produce* it; `io.prometheus:simpleclient_common` et al. are not dependencies and adding
-  one violates the "no new Gradle dependencies" constraint (spike §5 explicit non-change).
+  one violates the "no new Gradle dependencies" constraint (an explicit non-change of the design).
 - **Alternatives considered**: `io.prometheus.metrics:prometheus-metrics-exposition-textformats`
   (new dependency for ~100 LOC of stable grammar — rejected); regex-only ad-hoc parsing (too fragile
   for histogram grouping — rejected).
@@ -80,7 +81,7 @@ NEEDS CLARIFICATION markers remain.
   otherwise `UNKNOWN` (serving block unavailable with reason, no error).
 - **Rationale**: stable, distinctive namespaces; no extra network call beyond the scrape already in
   hand. Durable fix (persisting serving runtime on `InferenceDeployment` at deploy time) is recorded
-  follow-up (c) in spike §7 — explicitly out of PoC scope.
+  follow-up (c) in `specs/deployment-metrics/spec.md` — explicitly out of PoC scope.
 - **NIM nuance**: LLM NIMs expose vLLM-style names → the NIM path reuses the vLLM normalizer rules;
   Triton-based NIMs (`nv_*`) get partial availability (most serving-quality metrics flagged
   unavailable). PoC acceptance targets an LLM NIM.
@@ -95,7 +96,8 @@ NEEDS CLARIFICATION markers remain.
 - **Percentiles**: approximated from cumulative `le` histogram buckets in a single snapshot (linear
   interpolation within the bucket containing the target rank; `+Inf` bucket → upper-bound clamp to
   the last finite bucket boundary). vLLM/TGI/SGLang all export native histograms (verified in
-  upstream docs; to be re-verified against captured fixtures — spike §3 warning). Shared helper
+  upstream docs; to be re-verified against captured fixtures — see the engine-availability matrix
+  note in `specs/deployment-metrics/spec.md`). Shared helper
   `HistogramSummaries` keeps this logic out of individual normalizers.
 
 ## R-8. Pod CPU/memory (resource block)
@@ -114,7 +116,7 @@ NEEDS CLARIFICATION markers remain.
 - **Decision**: short-TTL Caffeine response cache keyed by deployment id, default 5 s, in a new
   `MetricsCachingConfig` mirroring the verified `HuggingFaceCachingConfig` pattern (named cache,
   `expireAfterWrite` from properties, `@Cacheable` on the service method). Request-triggered only —
-  no scheduler. The stretch "windowed rates via cached previous sample" (spike §5) stays **out of
+  no scheduler. The stretch "windowed rates via cached previous sample" (a designed stretch goal) stays **out of
   the PoC critical path**: `app.metrics.scrape.rate-window.enabled=false` reserved in config but the
   PoC may ship without the implementation behind it.
 - **Cache + degradation interaction**: degraded (partial) payloads are cacheable like any other —
@@ -125,7 +127,7 @@ NEEDS CLARIFICATION markers remain.
 - **Decision**: `MetricsScrapeProperties` (`@ConfigurationProperties(prefix = "app.metrics.scrape")`)
   in `configuration/`, fields **without initializers**; defaults exclusively in `application.yml`
   via `${ENV_VAR:default}` (constitution Key Patterns rule, verified against `AppProperties` and the
-  existing `app.*` block layout — new block fits after `app.kserve`). Properties per spike §5:
+  existing `app.*` block layout — new block fits after `app.kserve`). Properties:
   `enabled` (master switch, default true), `timeout-ms` (3000), `cache-ttl-ms` (5000),
   `resource-usage.enabled` (true), `rate-window.enabled` (false) + `rate-window.ttl-seconds` (60).
   `docs/configuration.md` (manually maintained env-var table — verified format) gains matching rows;
