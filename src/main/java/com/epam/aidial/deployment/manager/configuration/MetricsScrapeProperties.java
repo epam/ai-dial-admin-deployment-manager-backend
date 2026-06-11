@@ -13,11 +13,9 @@ import org.springframework.validation.annotation.Validated;
 public class MetricsScrapeProperties {
     private boolean enabled;
 
-    /** Per-scrape wait bound; must be positive so {@code CompletableFuture.get(timeout)} is well-defined. */
     @Positive(message = "app.metrics.scrape.timeout-ms must be positive")
     private long timeoutMs;
 
-    /** Response-cache TTL; must be positive — a non-positive value would disable the cache or fail Caffeine at startup. */
     @Positive(message = "app.metrics.scrape.cache-ttl-ms must be positive")
     private long cacheTtlMs;
 

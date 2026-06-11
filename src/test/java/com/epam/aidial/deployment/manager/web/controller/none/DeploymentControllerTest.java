@@ -82,8 +82,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Spring Boot 4 removed MockitoTestExecutionListener (deprecated since 3.4), so @Mock/@Captor fields are no
-// longer auto-initialized in any Spring test — use Mockito's own extension instead, per the 4.0 migration guide
 @ExtendWith(MockitoExtension.class)
 @WebMvcTest(value = DeploymentController.class)
 @Import({
@@ -117,11 +115,14 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     @MockitoBean
     private DeploymentMetricsDtoMapper deploymentMetricsDtoMapper;
 
-    // Spring Boot 4 no longer processes Mockito's @Captor in slice tests — initialize captors directly
-    private final ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor = ArgumentCaptor.captor();
-    private final ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor = ArgumentCaptor.captor();
-    private final ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor = ArgumentCaptor.captor();
-    private final ArgumentCaptor<CreateDeployment> createDeploymentCaptor = ArgumentCaptor.captor();
+    @Captor
+    private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;
+    @Captor
+    private ArgumentCaptor<EventStreamerConfiguration> eventCfgCaptor;
+    @Captor
+    private ArgumentCaptor<CreateInferenceDeployment> createInferenceDeploymentCaptor;
+    @Captor
+    private ArgumentCaptor<CreateDeployment> createDeploymentCaptor;
 
     @Test
     void testGetAllDeployments() throws Exception {

@@ -11,14 +11,7 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class ExecutorServiceConfiguration {
 
-    /**
-     * Upper bound on concurrent in-flight metric scrapes. The pod-proxy read is blocking and not
-     * interruptible, so the per-scrape timeout bounds only the wait — abandoned reads keep running
-     * until the underlying HTTP client gives up. Capping concurrency on a dedicated daemon pool keeps
-     * that work off the shared {@link java.util.concurrent.ForkJoinPool#commonPool()}.
-     */
     private static final int METRICS_SCRAPE_POOL_SIZE = 8;
-
     private static final int METRICS_SCRAPE_QUEUE_CAPACITY = 64;
 
     @Bean(name = "metrics-scrape", destroyMethod = "shutdown")
