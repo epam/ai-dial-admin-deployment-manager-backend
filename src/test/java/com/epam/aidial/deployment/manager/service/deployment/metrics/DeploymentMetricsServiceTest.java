@@ -153,10 +153,10 @@ class DeploymentMetricsServiceTest {
     @Test
     void shouldScrapeFirstReadyPod_whenMultiplePodsExist() {
         givenDeployment(inferenceDeployment(null));
-        when(deploymentManager.getInstances(DEPLOYMENT_ID))
-                .thenReturn(List.of(podInfo("pod-a"), podInfo("pod-b"), podInfo("pod-c")));
-        when(deploymentManager.getActiveInstances(DEPLOYMENT_ID))
-                .thenReturn(List.of(podInfo("pod-b"), podInfo("pod-c")));
+        when(deploymentManager.getInstancesWithReadiness(DEPLOYMENT_ID))
+                .thenReturn(new DeploymentManager.PodInstances(
+                        List.of(podInfo("pod-a"), podInfo("pod-b"), podInfo("pod-c")),
+                        List.of(podInfo("pod-b"), podInfo("pod-c"))));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
         when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
@@ -185,8 +185,8 @@ class DeploymentMetricsServiceTest {
     @Test
     void shouldDegradeServing_whenNoReadyPods() {
         givenDeployment(inferenceDeployment(null));
-        when(deploymentManager.getInstances(DEPLOYMENT_ID)).thenReturn(List.of());
-        when(deploymentManager.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of());
+        when(deploymentManager.getInstancesWithReadiness(DEPLOYMENT_ID))
+                .thenReturn(new DeploymentManager.PodInstances(List.of(), List.of()));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -202,9 +202,7 @@ class DeploymentMetricsServiceTest {
     @Test
     void shouldDegradeServing_whenDeploymentHasNoServiceYet() {
         givenDeployment(inferenceDeployment(null));
-        when(deploymentManager.getInstances(DEPLOYMENT_ID))
-                .thenThrow(new EntityNotFoundException("Service name not found for deployment: " + DEPLOYMENT_ID));
-        when(deploymentManager.getActiveInstances(DEPLOYMENT_ID))
+        when(deploymentManager.getInstancesWithReadiness(DEPLOYMENT_ID))
                 .thenThrow(new EntityNotFoundException("Service name not found for deployment: " + DEPLOYMENT_ID));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
@@ -428,8 +426,8 @@ class DeploymentMetricsServiceTest {
     }
 
     private void givenPods(List<PodInfo> pods) {
-        when(deploymentManager.getInstances(DEPLOYMENT_ID)).thenReturn(pods);
-        when(deploymentManager.getActiveInstances(DEPLOYMENT_ID)).thenReturn(pods);
+        when(deploymentManager.getInstancesWithReadiness(DEPLOYMENT_ID))
+                .thenReturn(new DeploymentManager.PodInstances(pods, pods));
     }
 
     private static InferenceDeployment inferenceDeployment(Integer containerPort) {

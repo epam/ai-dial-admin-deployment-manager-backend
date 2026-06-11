@@ -35,6 +35,19 @@ public interface DeploymentManager<S> {
 
     List<PodInfo> getInstances(String id);
 
+    /**
+     * All instances of a deployment together with the Ready subset, resolved from a single pod
+     * listing. A caller that needs both (e.g. replica counts plus a Ready pod to read from) would
+     * otherwise pay two pod-list round-trips by calling {@link #getInstances(String)} and
+     * {@link #getActiveInstances(String)} separately; this folds them into one. {@code ready}
+     * carries the same readiness semantics as {@link #getActiveInstances(String)}.
+     */
+    PodInstances getInstancesWithReadiness(String id);
+
+    /** All instances of a deployment plus the Ready subset, from one pod listing. */
+    record PodInstances(List<PodInfo> all, List<PodInfo> ready) {
+    }
+
     String getNamespace();
 
     int getDefaultContainerPort();

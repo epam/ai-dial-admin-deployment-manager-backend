@@ -489,6 +489,22 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return podsStream.map(this::toPodInfo).toList();
     }
 
+    @Override
+    public PodInstances getInstancesWithReadiness(String id) {
+        var serviceName = getServiceName(id);
+        var podList = getServicePods(namespace, serviceName);
+        var all = new ArrayList<PodInfo>(podList.size());
+        var ready = new ArrayList<PodInfo>();
+        for (var pod : podList) {
+            var info = toPodInfo(pod);
+            all.add(info);
+            if (isPodReady(pod.getStatus())) {
+                ready.add(info);
+            }
+        }
+        return new PodInstances(List.copyOf(all), List.copyOf(ready));
+    }
+
     private PodInfo toPodInfo(Pod pod) {
         var containerStatuses = pod.getStatus() != null
                 ? pod.getStatus().getContainerStatuses()

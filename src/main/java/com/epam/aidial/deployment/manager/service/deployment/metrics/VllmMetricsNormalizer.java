@@ -78,6 +78,11 @@ public class VllmMetricsNormalizer extends AbstractEngineMetricsNormalizer {
      * Lifetime error ratio derived from {@code vllm:request_success_total} broken down by
      * {@code finished_reason}: aborted/errored finishes over all finishes (vLLM V1 added the
      * explicit {@code error} reason alongside V0's {@code abort}).
+     *
+     * <p>Note the denominator is <em>finished</em> requests, not all requests: {@code request_success_total}
+     * counts only requests that reached a terminal {@code finished_reason}, so a request that errors
+     * before finishing may never be counted. The ratio can therefore understate the true error rate —
+     * a reasonable approximation given vLLM's exposed vocabulary.</p>
      */
     private static Double requestErrorRatio(MetricSampleIndex index) {
         var total = MetricSamples.sum(index, REQUEST_SUCCESS);

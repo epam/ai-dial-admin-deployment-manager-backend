@@ -99,8 +99,8 @@ class InferenceManifestGeneratorTest {
         var deploymentName = "resource-inference-app";
         var storageUri = "s3://my-bucket/resource-model";
 
-        var limits = Map.of("cpu", "2000m", "memory", "8Gi");
-        var requests = Map.of("memory", "2Gi");
+        var limits = Map.of("cpu", "2000m", "memory", "8Gi", "nvidia.com/gpu", "1");
+        var requests = Map.of("memory", "2Gi", "nvidia.com/gpu", "1");
         var resources = new Resources(limits, requests);
 
         // When
@@ -380,7 +380,7 @@ class InferenceManifestGeneratorTest {
         assertThat(predictor.getNodeSelector()).containsEntry("workload", "gpu");
         assertThat(predictor.getAffinity()).isNotNull();
         assertThat(predictor.getTolerations()).hasSize(1);
-        assertThat(predictor.getTolerations().get(0).getKey()).isEqualTo("dedicated");
+        assertThat(predictor.getTolerations().getFirst().getKey()).isEqualTo("dedicated");
     }
 
     @Test
