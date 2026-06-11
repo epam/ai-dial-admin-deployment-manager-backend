@@ -50,6 +50,31 @@ The preview response (`ImportConfigPreviewDto`) gains an optional `validationErr
 
 When no validation errors exist, the field is either absent or an empty list.
 
+### Global domain whitelist errors
+
+Each invalid entry in `globalImageBuildDomainWhitelist` produces its own error, keyed by the offending domain in `entityIdentifier` (rather than a single whitelist-wide error). This lets consumers group and surface failures per domain:
+
+```json
+{
+  "validationErrors": [
+    {
+      "entityType": "GLOBAL_DOMAIN_WHITELIST",
+      "entityIdentifier": "bad!",
+      "fieldPath": "globalImageBuildDomainWhitelist",
+      "message": "domain 'bad!' is not a valid domain name"
+    },
+    {
+      "entityType": "GLOBAL_DOMAIN_WHITELIST",
+      "entityIdentifier": "also bad!!",
+      "fieldPath": "globalImageBuildDomainWhitelist",
+      "message": "domain 'also bad!!' is not a valid domain name"
+    }
+  ]
+}
+```
+
+A `null` entry yields an error with an empty `entityIdentifier` and the message `domain must not be null`.
+
 ## Backward Compatibility
 
 - Valid imports: No change in behavior or response format
