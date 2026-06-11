@@ -159,5 +159,4 @@ Sized follow-up tickets:
 - Ports: `deployment.containerPort` with fallback to the manager default exposed via `DeploymentManager.getDefaultContainerPort()` (8080 for KServe inference)
 - RBAC (runbook/Helm, read-only): `pods`, `pods/proxy` get/list; `metrics.k8s.io` pods get/list when the resource-usage block is enabled
 - Test fixtures: `src/test/resources/metrics-fixtures/*` — `vllm.txt` (real dev-cluster vLLM V1 capture, KServe pod) is a live capture; `vllm-v0.txt` preserves V0-vocabulary coverage with hand-computed percentile expectations; `tgi.txt`/`sglang.txt` and the `kserve-modelserver-predictor.txt`/`kserve-modelserver-transformer.txt` pair (KServe Python ModelServer vocabulary, modelled on the live deberta exposition) remain synthetic until captured live
-- Live smoke: `PodMetricsScrapeFunctionalTest` in the env-gated `k8s-local` suite (`K8S_TEST_METRICS_POD_NAME`)
 - Related specs: `deployments` (pod introspection), `inference-deployments`, `nim-deployments`, `api-conventions` (ErrorView), `observability-and-logging` (trace pivot scenario), `kubernetes-events` (scale events are cross-referenced, not duplicated)

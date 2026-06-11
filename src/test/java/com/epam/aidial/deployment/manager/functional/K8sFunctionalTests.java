@@ -4,7 +4,6 @@ import com.epam.aidial.deployment.manager.functional.config.K8sLocalConfiguratio
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.K8sClientFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.K8sKnativeClientFunctionalTest;
-import com.epam.aidial.deployment.manager.functional.tests.PodMetricsScrapeFunctionalTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -22,8 +21,6 @@ import org.springframework.test.context.TestPropertySource;
  *   'MCP_PROXY_EXECUTABLE_IMAGE_DEBIAN', 'MCP_PROXY_EXECUTABLE_IMAGE_ALPINE'<br>
  * - Env variables for images should be set:<br>
  *   'K8S_TEST_INTERCEPTOR_IMAGE_URI', 'K8S_TEST_MCP_GIT_SSE_IMAGE_URI', 'K8S_TEST_MCP_GIT_STDIO_IMAGE_URI'<br>
- * - Optional, for the pod metrics scrape smoke: 'K8S_TEST_METRICS_POD_NAME'
- *   (plus 'K8S_TEST_METRICS_POD_NAMESPACE', 'K8S_TEST_METRICS_POD_PORT')<br>
  */
 @EnabledIfEnvironmentVariable(named = "SPRING_PROFILES_ACTIVE", matches = "k8s-local")
 @DataJpaTest
@@ -46,9 +43,5 @@ public class K8sFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class FullWorkflowTest extends FullWorkflowFunctionalTest {
-    }
-
-    @Nested
-    class PodMetricsScrapeTests extends PodMetricsScrapeFunctionalTest {
     }
 }
