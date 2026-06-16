@@ -68,7 +68,7 @@ public abstract class DeploymentMetricsFunctionalTest {
         // Given
         var id = "metrics-vllm-deployment";
         createInferenceDeployment(id, "metrics-vllm-svc");
-        stubPods(KSERVE_SERVICE_LABEL, "metrics-vllm-svc", readyPod("metrics-vllm-pod-0"));
+        stubPods(KSERVE_SERVICE_LABEL, "metrics-vllm-svc", readyPredictorPod("metrics-vllm-pod-0"));
         stubScrape("metrics-vllm-pod-0", 8080, "/metrics", ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
         stubPodUsage("metrics-vllm-pod-0", "250m", "1Gi");
 
@@ -158,7 +158,7 @@ public abstract class DeploymentMetricsFunctionalTest {
         // Given — Ready pod but the metrics endpoint is unreachable
         var id = "metrics-scrape-fail-deployment";
         createInferenceDeployment(id, "metrics-scrape-fail-svc");
-        stubPods(KSERVE_SERVICE_LABEL, "metrics-scrape-fail-svc", readyPod("metrics-fail-pod-0"));
+        stubPods(KSERVE_SERVICE_LABEL, "metrics-scrape-fail-svc", readyPredictorPod("metrics-fail-pod-0"));
         when(kubernetesClient.raw(anyString())).thenReturn(null);
         stubPodUsage("metrics-fail-pod-0", "100m", "256Mi");
 
@@ -273,6 +273,15 @@ public abstract class DeploymentMetricsFunctionalTest {
         when(kubernetesClient.top()).thenReturn(metricsDsl);
         when(metricsDsl.pods()).thenReturn(podMetricOperation);
         when(podMetricOperation.metrics(NAMESPACE)).thenReturn(podMetricsList);
+    }
+
+    /** A Ready KServe predictor pod — carries the {@code component=predictor} label KServe always stamps. */
+    private static Pod readyPredictorPod(String name) {
+        return new PodBuilder(readyPod(name))
+                .editMetadata()
+                .addToLabels("component", "predictor")
+                .endMetadata()
+                .build();
     }
 
     private static Pod readyPod(String name) {
