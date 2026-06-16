@@ -10,7 +10,7 @@ import com.epam.aidial.deployment.manager.kubernetes.metrics.PodResourceUsageRea
 import com.epam.aidial.deployment.manager.model.PodInfo;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
-import com.epam.aidial.deployment.manager.model.metrics.BlockAvailability;
+import com.epam.aidial.deployment.manager.model.metrics.AvailabilityStatus;
 import com.epam.aidial.deployment.manager.model.metrics.EngineFamily;
 import com.epam.aidial.deployment.manager.model.metrics.NormalizedEngineMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.ParsedExposition;
@@ -28,6 +28,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,7 @@ public class DeploymentMetricsService {
 
     private static final String REASON_SERVING_UNSUPPORTED = "serving metrics are available only for inference deployments";
     private static final String REASON_NO_READY_PODS = "no ready pods to read metrics from";
+    private static final String REASON_NO_READY_PREDICTOR = "no ready predictor pod to scrape serving metrics from";
     private static final String REASON_NO_PODS = "no pods to read resource usage from";
     private static final String REASON_SCRAPE_FAILED = "metrics endpoint unreachable or returned an error";
     private static final String REASON_UNKNOWN_ENGINE = "engine not recognized from exposed metrics";
@@ -106,7 +108,7 @@ public class DeploymentMetricsService {
                 .orElseThrow(() -> new EntityNotFoundException("Deployment not found: %s".formatted(id)));
 
         var manager = deploymentManagerProvider.provide(id);
-        var availability = new HashMap<String, BlockAvailability>();
+        var availability = new HashMap<String, AvailabilityStatus>();
 
         var instances = listInstances(manager, id);
         var allPods = instances.all();
@@ -114,8 +116,8 @@ public class DeploymentMetricsService {
 
         var engineMetrics = collectServingMetrics(deployment, manager, readyPods, availability);
         var resources = collectResources(manager, allPods, readyPods, availability);
-        availability.put(AVAILABILITY_RESOURCES, BlockAvailability.AVAILABLE);
-        availability.put(AVAILABILITY_RESOURCES_GPU, BlockAvailability.unavailable(REASON_GPU_REQUIRES_DCGM));
+        availability.put(AVAILABILITY_RESOURCES, AvailabilityStatus.AVAILABLE);
+        availability.put(AVAILABILITY_RESOURCES_GPU, AvailabilityStatus.unavailable(REASON_GPU_REQUIRES_DCGM));
 
         return UnifiedDeploymentMetrics.builder()
                 .collectedAt(Instant.now())
@@ -149,7 +151,7 @@ public class DeploymentMetricsService {
      * the serving/operational blocks as unavailable (resource metrics still apply to all types).
      */
     private EngineScrapeResult collectServingMetrics(Deployment deployment, DeploymentManager<?> manager,
-                                                     List<PodInfo> readyPods, Map<String, BlockAvailability> availability) {
+                                                     List<PodInfo> readyPods, Map<String, AvailabilityStatus> availability) {
         if (!(deployment instanceof InferenceDeployment)) {
             markEngineBlocksUnavailable(availability, REASON_SERVING_UNSUPPORTED);
             return new EngineScrapeResult(EngineFamily.UNKNOWN, null, null);
@@ -160,6 +162,14 @@ public class DeploymentMetricsService {
         }
 
         var predictorPod = selectServingPod(readyPods);
+        if (predictorPod == null) {
+            // Component-labelled pods exist but none is a Ready predictor (e.g. a chained KServe
+            // InferenceService whose predictor is still starting while the transformer is Ready).
+            // Degrade with a truthful reason rather than scraping the transformer, which carries
+            // no engine metrics and would be misreported as an unrecognized engine.
+            markEngineBlocksUnavailable(availability, REASON_NO_READY_PREDICTOR);
+            return new EngineScrapeResult(EngineFamily.UNKNOWN, null, null);
+        }
         var pod = predictorPod.getName();
         // Assumption: the engine exposes Prometheus on its container/traffic port over plain HTTP
         // (true for vLLM/TGI/SGLang/KServe ModelServer), and the transformer pod serves on the same
@@ -190,8 +200,8 @@ public class DeploymentMetricsService {
             return new EngineScrapeResult(engine, pod, null);
         }
 
-        availability.put(AVAILABILITY_SERVING, BlockAvailability.AVAILABLE);
-        availability.put(AVAILABILITY_OPERATIONAL, BlockAvailability.AVAILABLE);
+        availability.put(AVAILABILITY_SERVING, AvailabilityStatus.AVAILABLE);
+        availability.put(AVAILABILITY_OPERATIONAL, AvailabilityStatus.AVAILABLE);
         return new EngineScrapeResult(engine, pod, normalized);
     }
 
@@ -234,44 +244,58 @@ public class DeploymentMetricsService {
                 .orElseGet(() -> EngineScrapeContext.of(predictorIndex));
     }
 
-    /** The Ready {@code transformer} pod of a chained InferenceService, other than the predictor. */
+    /**
+     * The Ready {@code transformer} pod of a chained InferenceService, other than the predictor.
+     * Deterministic (lowest pod name) for the same cross-poll stability reason as the predictor — its
+     * pre/post-processing {@code rawCounters} would otherwise jump when the sampled replica switches.
+     */
     private static Optional<PodInfo> selectTransformerPod(List<PodInfo> readyPods, PodInfo predictorPod) {
         return readyPods.stream()
                 .filter(pod -> COMPONENT_TRANSFORMER.equalsIgnoreCase(pod.getComponent()))
                 .filter(pod -> !pod.getName().equals(predictorPod.getName()))
-                .findFirst();
+                .min(Comparator.comparing(PodInfo::getName));
     }
 
     /**
      * Chooses which Ready pod to scrape for serving metrics. A KServe InferenceService with a
      * transformer carries the engine on its {@code predictor} pod while the {@code transformer} pod
      * exposes no engine metrics; both share the InferenceService label, so the pod listing returns
-     * both in an undefined order. Prefer the predictor when present; otherwise (KNative/raw
-     * inference, single-pod, or no component labels) fall back to the first Ready pod.
+     * both in an undefined order. Selection is deterministic — the lowest predictor pod name — so the
+     * same replica is sampled across polls (the pod listing order is undefined; switching replicas
+     * between polls would make {@code rawCounters} appear to go backwards, indistinguishable from a
+     * counter reset). When component labels are present but no predictor is Ready, returns
+     * {@code null} so the caller can degrade with a truthful "no ready predictor" reason; only when
+     * there are no component labels at all (KNative/raw inference, single-pod, NIM) does it fall back
+     * to the first Ready pod.
      */
     private static PodInfo selectServingPod(List<PodInfo> readyPods) {
-        return readyPods.stream()
+        var predictor = readyPods.stream()
                 .filter(pod -> COMPONENT_PREDICTOR.equalsIgnoreCase(pod.getComponent()))
-                .findFirst()
-                .orElseGet(readyPods::getFirst);
+                .min(Comparator.comparing(PodInfo::getName))
+                .orElse(null);
+        if (predictor != null) {
+            return predictor;
+        }
+        boolean componentLabelled = readyPods.stream().anyMatch(pod -> pod.getComponent() != null);
+        return componentLabelled ? null : readyPods.getFirst();
     }
 
     private ResourceMetrics collectResources(DeploymentManager<?> manager, List<PodInfo> allPods,
-                                             List<PodInfo> readyPods, Map<String, BlockAvailability> availability) {
+                                             List<PodInfo> readyPods, Map<String, AvailabilityStatus> availability) {
         List<PodResourceUsage> podUsages = List.of();
 
         if (!resourceUsageEnabled()) {
-            availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_USAGE_DISABLED));
+            availability.put(AVAILABILITY_RESOURCES_USAGE, AvailabilityStatus.unavailable(REASON_USAGE_DISABLED));
         } else if (allPods.isEmpty()) {
-            availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_NO_PODS));
+            availability.put(AVAILABILITY_RESOURCES_USAGE, AvailabilityStatus.unavailable(REASON_NO_PODS));
         } else {
             var podToPrimaryContainer = new HashMap<String, String>();
             allPods.forEach(pod -> podToPrimaryContainer.put(pod.getName(), pod.getMainContainerName()));
             podUsages = podResourceUsageReader.readAll(manager.getNamespace(), podToPrimaryContainer);
             if (podUsages.isEmpty()) {
-                availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_USAGE_UNAVAILABLE));
+                availability.put(AVAILABILITY_RESOURCES_USAGE, AvailabilityStatus.unavailable(REASON_USAGE_UNAVAILABLE));
             } else {
-                availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.AVAILABLE);
+                availability.put(AVAILABILITY_RESOURCES_USAGE, AvailabilityStatus.AVAILABLE);
             }
         }
 
@@ -283,9 +307,9 @@ public class DeploymentMetricsService {
         return properties.getResourceUsage() != null && properties.getResourceUsage().isEnabled();
     }
 
-    private static void markEngineBlocksUnavailable(Map<String, BlockAvailability> availability, String reason) {
-        availability.put(AVAILABILITY_SERVING, BlockAvailability.unavailable(reason));
-        availability.put(AVAILABILITY_OPERATIONAL, BlockAvailability.unavailable(reason));
+    private static void markEngineBlocksUnavailable(Map<String, AvailabilityStatus> availability, String reason) {
+        availability.put(AVAILABILITY_SERVING, AvailabilityStatus.unavailable(reason));
+        availability.put(AVAILABILITY_OPERATIONAL, AvailabilityStatus.unavailable(reason));
     }
 
     private record EngineScrapeResult(EngineFamily engine, String scrapedPod, NormalizedEngineMetrics normalized) {

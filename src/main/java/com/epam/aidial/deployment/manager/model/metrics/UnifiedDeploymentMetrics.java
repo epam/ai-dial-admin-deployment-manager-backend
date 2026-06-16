@@ -21,7 +21,7 @@ public record UnifiedDeploymentMetrics(
         EngineFamily engine,
         String scrapedPod,
         String window,
-        Map<String, BlockAvailability> availability,
+        Map<String, AvailabilityStatus> availability,
         ServingMetrics serving,
         ResourceMetrics resources,
         OperationalMetrics operational,

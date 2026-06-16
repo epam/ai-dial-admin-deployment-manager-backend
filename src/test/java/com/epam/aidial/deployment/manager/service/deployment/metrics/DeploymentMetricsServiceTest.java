@@ -186,6 +186,41 @@ class DeploymentMetricsServiceTest {
     }
 
     @Test
+    void shouldScrapeLowestNamedPredictor_whenMultipleReplicas() {
+        givenDeployment(inferenceDeployment(null));
+        // KServe returns predictor replicas in undefined order; selection must be deterministic
+        // (lowest pod name) so the same replica is sampled across polls.
+        givenPods(List.of(podInfo("predictor-b", "predictor"), podInfo("predictor-a", "predictor")));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, "predictor-a", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/vllm.txt")));
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.scrapedPod()).isEqualTo("predictor-a");
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.VLLM);
+        verify(k8sClient).scrapePodMetrics(NAMESPACE, "predictor-a", DEFAULT_PORT, "/metrics", TIMEOUT_MS);
+    }
+
+    @Test
+    void shouldDegradeServing_whenComponentLabelledButNoReadyPredictor() {
+        givenDeployment(inferenceDeployment(null));
+        // Chained InferenceService whose predictor is still starting: only the transformer is Ready.
+        // The transformer carries no engine metrics, so this must degrade as "no ready predictor"
+        // rather than scraping it and misreporting an unrecognized engine.
+        givenPods(podInfo("transformer-pod", "transformer"));
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.UNKNOWN);
+        assertThat(snapshot.serving()).isNull();
+        assertThat(snapshot.scrapedPod()).isNull();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).reason()).contains("no ready predictor");
+        verify(k8sClient, never()).scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong());
+    }
+
+    @Test
     void shouldDegradeServing_whenNoReadyPods() {
         givenDeployment(inferenceDeployment(null));
         when(deploymentManager.getInstancesWithReadiness(DEPLOYMENT_ID))

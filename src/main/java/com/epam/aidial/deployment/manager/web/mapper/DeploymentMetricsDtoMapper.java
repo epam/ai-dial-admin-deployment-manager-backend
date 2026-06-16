@@ -1,6 +1,6 @@
 package com.epam.aidial.deployment.manager.web.mapper;
 
-import com.epam.aidial.deployment.manager.model.metrics.BlockAvailability;
+import com.epam.aidial.deployment.manager.model.metrics.AvailabilityStatus;
 import com.epam.aidial.deployment.manager.model.metrics.DistributionSummary;
 import com.epam.aidial.deployment.manager.model.metrics.OperationalMetrics;
 import com.epam.aidial.deployment.manager.model.metrics.PodResourceUsage;
@@ -14,8 +14,7 @@ import com.epam.aidial.deployment.manager.web.dto.metrics.OperationalMetricsDto;
 import com.epam.aidial.deployment.manager.web.dto.metrics.ResourceMetricsDto;
 import com.epam.aidial.deployment.manager.web.dto.metrics.ServingMetricsDto;
 import org.mapstruct.Mapper;
-
-import java.util.List;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface DeploymentMetricsDtoMapper {
@@ -24,36 +23,17 @@ public interface DeploymentMetricsDtoMapper {
 
     DistributionSummaryDto toDto(DistributionSummary summary);
 
-    MetricsAvailabilityDto toDto(BlockAvailability availability);
+    MetricsAvailabilityDto toDto(AvailabilityStatus availability);
 
     OperationalMetricsDto toDto(OperationalMetrics operational);
 
-    default ServingMetricsDto toDto(ServingMetrics serving) {
-        if (serving == null) {
-            return null;
-        }
-        return new ServingMetricsDto(
-                toDto(serving.ttft()),
-                toDto(serving.interTokenLatency()),
-                new ServingMetricsDto.TokensPerSecondDto(serving.promptTokensPerSecond(), serving.generationTokensPerSecond()),
-                serving.queueDepth(),
-                serving.runningRequests(),
-                serving.kvCacheUsage(),
-                toDto(serving.requestLatency()),
-                serving.requestsPerSecond());
-    }
+    @Mapping(target = "tokensPerSecond.prompt", source = "promptTokensPerSecond")
+    @Mapping(target = "tokensPerSecond.generation", source = "generationTokensPerSecond")
+    ServingMetricsDto toDto(ServingMetrics serving);
 
-    default ResourceMetricsDto toDto(ResourceMetrics resources) {
-        if (resources == null) {
-            return null;
-        }
-        List<ResourceMetricsDto.PodResourceUsageDto> pods = resources.pods().stream()
-                .map(this::toDto)
-                .toList();
-        return new ResourceMetricsDto(
-                new ResourceMetricsDto.ReplicasDto(resources.replicasTotal(), resources.replicasReady()),
-                pods);
-    }
+    @Mapping(target = "replicas.total", source = "replicasTotal")
+    @Mapping(target = "replicas.ready", source = "replicasReady")
+    ResourceMetricsDto toDto(ResourceMetrics resources);
 
     ResourceMetricsDto.PodResourceUsageDto toDto(PodResourceUsage usage);
 
