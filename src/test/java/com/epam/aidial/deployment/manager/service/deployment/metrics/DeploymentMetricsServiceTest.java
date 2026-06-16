@@ -81,14 +81,18 @@ class DeploymentMetricsServiceTest {
         resourceUsage.setEnabled(true);
         properties.setResourceUsage(resourceUsage);
 
-        service = new DeploymentMetricsService(
-                deploymentService,
-                deploymentManagerProvider,
+        var inferenceCollector = new InferenceServingMetricsCollector(
                 k8sClient,
                 new PrometheusTextParser(),
                 new EngineDetector(),
                 List.of(new VllmMetricsNormalizer(), new TgiMetricsNormalizer(), new SglangMetricsNormalizer(),
                         new KserveModelServerMetricsNormalizer()),
+                properties);
+
+        service = new DeploymentMetricsService(
+                deploymentService,
+                deploymentManagerProvider,
+                List.of(inferenceCollector),
                 podResourceUsageReader,
                 properties);
 
