@@ -141,8 +141,10 @@ a reason while serving metrics remain.
   payload; cross-pod aggregation is explicitly out of scope (see `specs/deployment-metrics/spec.md`). When the Ready pods
   span KServe components (a chained `TEXT_CLASSIFICATION` deployment has both a `predictor` and a
   `transformer` pod under one InferenceService), the `predictor` pod is selected — the engine runs there,
-  while the transformer exposes no engine metrics. Absent component labels (KNative/raw inference,
-  single-pod), the first Ready pod is used.
+  while the transformer exposes no engine metrics. Selection is deterministic (lowest predictor pod name)
+  so the same replica is sampled across polls. When no Ready pod is a `predictor` (e.g. a chained
+  deployment whose predictor is still starting), serving degrades with a truthful "no ready predictor"
+  reason rather than scraping the transformer.
 - **Deployment exists but is undeployed/stopped**: behaves as the "no Ready pods" degradation, not an
   error.
 - **Rapid repeated polling** (e.g. an auto-refreshing UI): responses may be served from a short-lived

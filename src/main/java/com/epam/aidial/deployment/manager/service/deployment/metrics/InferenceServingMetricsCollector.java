@@ -163,26 +163,24 @@ public class InferenceServingMetricsCollector implements ServingMetricsCollector
     }
 
     /**
-     * Chooses which Ready pod to scrape for serving metrics. A KServe InferenceService with a
-     * transformer carries the engine on its {@code predictor} pod while the {@code transformer} pod
-     * exposes no engine metrics; both share the InferenceService label, so the pod listing returns
-     * both in an undefined order. Selection is deterministic — the lowest predictor pod name — so the
-     * same replica is sampled across polls (the pod listing order is undefined; switching replicas
-     * between polls would make {@code rawCounters} appear to go backwards, indistinguishable from a
-     * counter reset). When component labels are present but no predictor is Ready, returns
-     * {@code null} so the caller can degrade with a truthful "no ready predictor" reason; only when
-     * there are no component labels at all (KNative/raw inference, single-pod, NIM) does it fall back
-     * to the first Ready pod.
+     * Chooses which Ready pod to scrape for serving metrics, or {@code null} when none is a predictor.
+     * A KServe InferenceService with a transformer carries the engine on its {@code predictor} pod while
+     * the {@code transformer} pod exposes no engine metrics; both share the InferenceService label, so
+     * the pod listing returns both in an undefined order. Selection is deterministic — the lowest
+     * predictor pod name — so the same replica is sampled across polls (switching replicas between polls
+     * would make {@code rawCounters} appear to go backwards, indistinguishable from a counter reset).
+     *
+     * <p>This collector only ever sees KServe pods ({@code supports()} is {@code InferenceDeployment}),
+     * and KServe stamps {@code component=predictor}/{@code transformer} on every pod it manages —
+     * single-pod predictors included, in both Serverless and RawDeployment modes — so a missing
+     * predictor always means none is Ready yet, not an unlabelled pod. Returning {@code null} lets the
+     * caller degrade with a truthful "no ready predictor" reason rather than scraping whichever pod
+     * sorts first.</p>
      */
     private static PodInfo selectServingPod(List<PodInfo> readyPods) {
-        var predictor = readyPods.stream()
+        return readyPods.stream()
                 .filter(pod -> COMPONENT_PREDICTOR.equalsIgnoreCase(pod.getComponent()))
                 .min(Comparator.comparing(PodInfo::getName))
                 .orElse(null);
-        if (predictor != null) {
-            return predictor;
-        }
-        boolean componentLabelled = readyPods.stream().anyMatch(pod -> pod.getComponent() != null);
-        return componentLabelled ? null : readyPods.getFirst();
     }
 }

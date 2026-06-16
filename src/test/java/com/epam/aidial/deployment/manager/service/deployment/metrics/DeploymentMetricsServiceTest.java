@@ -158,20 +158,25 @@ class DeploymentMetricsServiceTest {
     }
 
     @Test
-    void shouldScrapeFirstReadyPod_whenMultiplePodsExist() {
+    void shouldDegradeServing_whenReadyPodsHaveNoComponentLabel() {
+        // KServe stamps component=predictor/transformer on every pod it manages, so unlabelled Ready
+        // pods can't occur for this KServe-only collector; if they ever did, degrade with a truthful
+        // reason rather than scraping whichever pod sorts first. Resource metrics still count replicas.
         givenDeployment(inferenceDeployment(null));
         when(deploymentManager.getInstancesWithReadiness(DEPLOYMENT_ID))
                 .thenReturn(new DeploymentManager.PodInstances(
-                        List.of(podInfo("pod-a"), podInfo("pod-b"), podInfo("pod-c")),
-                        List.of(podInfo("pod-b"), podInfo("pod-c"))));
-        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+                        List.of(podInfo("pod-a", null), podInfo("pod-b", null), podInfo("pod-c", null)),
+                        List.of(podInfo("pod-b", null), podInfo("pod-c", null))));
         when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
-        assertThat(snapshot.scrapedPod()).isEqualTo("pod-b");
+        assertThat(snapshot.scrapedPod()).isNull();
+        assertThat(snapshot.serving()).isNull();
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).reason()).contains("no ready predictor");
         assertThat(snapshot.resources().replicasTotal()).isEqualTo(3);
         assertThat(snapshot.resources().replicasReady()).isEqualTo(2);
+        verify(k8sClient, never()).scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong());
     }
 
     @Test
@@ -480,7 +485,9 @@ class DeploymentMetricsServiceTest {
     }
 
     private static PodInfo podInfo(String name) {
-        return podInfo(name, null);
+        // KServe stamps component=predictor on the model-serving pod, so the realistic single-pod case
+        // for this KServe-only collector is a labelled predictor.
+        return podInfo(name, "predictor");
     }
 
     private static PodInfo podInfo(String name, String component) {
