@@ -91,9 +91,10 @@ public class KserveModelServerMetricsNormalizer extends AbstractEngineMetricsNor
     }
 
     /**
-     * Echoes the lifetime request counts so clients can derive their own rates: predict from the
-     * predictor, pre/post from the transformer when present (the predictor's own pre/post are
-     * near-zero passthroughs), otherwise from the predictor.
+     * Echoes the lifetime request counts so clients can derive their own rates over the interval
+     * between their polls (subject to counter resets): predict from the predictor, pre/post from the
+     * transformer when present (the predictor's own pre/post are near-zero passthroughs), otherwise
+     * from the predictor.
      */
     private Map<String, Double> rawCounters(EngineScrapeContext context) {
         var rawCounters = new LinkedHashMap<String, Double>();

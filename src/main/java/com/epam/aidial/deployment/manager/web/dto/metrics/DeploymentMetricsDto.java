@@ -7,7 +7,8 @@ import java.util.Map;
  * Live metrics snapshot for a model deployment — the unified, engine-neutral contract.
  * Degraded blocks are {@code null} with the reason recorded in {@code availability};
  * counter-derived values are lifetime aggregates ({@code window: "lifetime"}) and the raw
- * cumulative counters are echoed in {@code rawCounters} for client-side rate derivation.
+ * cumulative counters are echoed in {@code rawCounters} for client-side rate derivation over the
+ * polling interval (subject to counter resets).
  */
 public record DeploymentMetricsDto(
         Instant collectedAt,

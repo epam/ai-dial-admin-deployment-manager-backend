@@ -25,6 +25,7 @@ import org.mockito.quality.Strictness;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_OPERATIONAL;
@@ -39,6 +40,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -100,7 +102,7 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/vllm.txt")));
-        when(podResourceUsageReader.readAll(NAMESPACE, List.of(POD_NAME)))
+        when(podResourceUsageReader.readAll(eq(NAMESPACE), eq(Map.of(POD_NAME, "kserve-container"))))
                 .thenReturn(List.of(new PodResourceUsage(POD_NAME, 250.0, 1073741824.0, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
@@ -217,7 +219,7 @@ class DeploymentMetricsServiceTest {
         givenDeployment(inferenceDeployment(null));
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
-        when(podResourceUsageReader.readAll(NAMESPACE, List.of(POD_NAME)))
+        when(podResourceUsageReader.readAll(eq(NAMESPACE), eq(Map.of(POD_NAME, "kserve-container"))))
                 .thenReturn(List.of(new PodResourceUsage(POD_NAME, 100.0, 1000.0, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
@@ -386,7 +388,7 @@ class DeploymentMetricsServiceTest {
     void shouldReturnResourceOnlySnapshot_forNonInferenceDeployment() {
         givenDeployment(McpDeployment.builder().id(DEPLOYMENT_ID).build());
         givenPods(podInfo(POD_NAME));
-        when(podResourceUsageReader.readAll(NAMESPACE, List.of(POD_NAME)))
+        when(podResourceUsageReader.readAll(eq(NAMESPACE), eq(Map.of(POD_NAME, "kserve-container"))))
                 .thenReturn(List.of(new PodResourceUsage(POD_NAME, 50.0, 2000.0, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
@@ -442,7 +444,7 @@ class DeploymentMetricsServiceTest {
     }
 
     private static PodInfo podInfo(String name, String component) {
-        return new PodInfo(name, component, Instant.now(), 0, null, null, null, null, null);
+        return new PodInfo(name, component, "kserve-container", Instant.now(), 0, null, null, null, null, null);
     }
 
 }

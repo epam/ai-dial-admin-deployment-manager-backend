@@ -56,7 +56,7 @@ public class VllmMetricsNormalizer extends AbstractEngineMetricsNormalizer {
                 MetricSamples.lifetimeRate(index, GENERATION_TOKENS, now).orElse(null),
                 MetricSamples.asInteger(MetricSamples.sum(index, REQUESTS_WAITING)),
                 MetricSamples.asInteger(MetricSamples.sum(index, REQUESTS_RUNNING)),
-                MetricSamples.sum(index, KV_CACHE_USAGE_V0, KV_CACHE_USAGE_V1)
+                MetricSamples.avg(index, KV_CACHE_USAGE_V0, KV_CACHE_USAGE_V1)
                         .map(MetricSamples::clampRatio)
                         .orElse(null),
                 null,

@@ -8,8 +8,9 @@ import java.util.Map;
 /**
  * Layer-neutral live metrics snapshot for a model deployment — the unified, engine-neutral
  * schema. Counter-derived values are lifetime aggregates (since engine process start),
- * labelled via {@code window}; raw cumulative counters are echoed in {@code rawCounters}
- * so clients can derive their own windowed rates.
+ * labelled via {@code window}; raw cumulative counters are echoed in {@code rawCounters} so
+ * clients can derive their own rates over the interval between their polls (subject to counter
+ * resets). Arbitrary historical windows require the time-series backend (ADR Option C).
  */
 @Builder
 public record UnifiedDeploymentMetrics(

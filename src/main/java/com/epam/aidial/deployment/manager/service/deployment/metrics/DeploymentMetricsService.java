@@ -31,8 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_OPERATIONAL;
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_RESOURCES;
@@ -167,10 +165,6 @@ public class DeploymentMetricsService {
         // port. Sidecar exporters on other ports (e.g. the KServe queue-proxy on 8012) are not read.
         var port = deployment.getContainerPort() != null ? deployment.getContainerPort() : manager.getDefaultContainerPort();
 
-        var transformerFuture = selectTransformerPod(readyPods, predictorPod)
-                .map(transformerPod -> scrapeAndParseAsync(manager, transformerPod.getName(), port))
-                .orElseGet(() -> CompletableFuture.completedFuture(Optional.empty()));
-
         var exposition = scrapeAndParse(manager, pod, port);
         if (exposition.isEmpty()) {
             markEngineBlocksUnavailable(availability, REASON_SCRAPE_FAILED);
@@ -183,7 +177,8 @@ public class DeploymentMetricsService {
             return new EngineScrapeResult(engine, pod, null);
         }
 
-        var context = buildScrapeContext(engine, exposition.get(), transformerFuture);
+        var context = buildScrapeContext(exposition.get(),
+                scrapeTransformerIfChained(engine, manager, readyPods, predictorPod, port));
         var normalized = normalizers.stream()
                 .filter(normalizer -> normalizer.supports(engine))
                 .findFirst()
@@ -207,44 +202,35 @@ public class DeploymentMetricsService {
     }
 
     /**
-     * Runs {@link #scrapeAndParse} off the request thread so the predictor and transformer scrapes
-     * overlap. The blocking, timeout-bounded {@code .get()} inside {@code scrapePodMetrics} runs on
-     * the common pool while the actual pod-proxy read still runs on the dedicated {@code metrics-scrape}
-     * pool — the two never share a thread, so there is no risk of the scrape pool deadlocking on itself.
+     * Scrapes the transformer pod only for a chained KServe Python ModelServer deployment — the sole
+     * engine that consumes it. Gated on the detected engine (known only after the predictor scrape),
+     * so other engines never pay the extra pod-proxy round-trip. Returns empty when the engine isn't
+     * KSERVE_MODELSERVER, no transformer pod is Ready, or the scrape fails — the context then degrades
+     * gracefully to predictor-only.
      */
-    private CompletableFuture<Optional<ParsedExposition>> scrapeAndParseAsync(DeploymentManager<?> manager, String pod, int port) {
-        return CompletableFuture.supplyAsync(() -> scrapeAndParse(manager, pod, port));
+    private Optional<ParsedExposition> scrapeTransformerIfChained(EngineFamily engine, DeploymentManager<?> manager,
+                                                                  List<PodInfo> readyPods, PodInfo predictorPod, int port) {
+        if (engine != EngineFamily.KSERVE_MODELSERVER) {
+            return Optional.empty();
+        }
+        return selectTransformerPod(readyPods, predictorPod)
+                .flatMap(transformerPod -> scrapeAndParse(manager, transformerPod.getName(), port));
     }
 
     /**
      * Builds the normalizer input. Generative engines (vLLM/TGI/SGLang) run on a single pod and use
      * the predictor index alone. For a chained KServe Python ModelServer deployment the transformer
-     * pod was scraped concurrently with the predictor; its result is joined here so pre/post-processing
-     * latency can be combined with predictor inference latency. If the transformer is absent or
-     * unreachable the context degrades gracefully to predictor-only (pre/post stay null), the serving
-     * block stays available.
+     * pod's exposition is supplied so its pre/post-processing latency can be combined with predictor
+     * inference latency. When the transformer is absent or unreachable the context degrades gracefully
+     * to predictor-only (pre/post stay null) and the serving block stays available.
      */
-    private static EngineScrapeContext buildScrapeContext(EngineFamily engine, ParsedExposition predictorExposition,
-                                                          CompletableFuture<Optional<ParsedExposition>> transformerFuture) {
+    private static EngineScrapeContext buildScrapeContext(ParsedExposition predictorExposition,
+                                                          Optional<ParsedExposition> transformerExposition) {
         var predictorIndex = new MetricSampleIndex(predictorExposition.samples());
-        if (engine != EngineFamily.KSERVE_MODELSERVER) {
-            return EngineScrapeContext.of(predictorIndex);
-        }
-        return joinTransformer(transformerFuture)
-                .map(transformerExposition -> new EngineScrapeContext(
-                        predictorIndex, new MetricSampleIndex(transformerExposition.samples())))
+        return transformerExposition
+                .map(transformer -> new EngineScrapeContext(
+                        predictorIndex, new MetricSampleIndex(transformer.samples())))
                 .orElseGet(() -> EngineScrapeContext.of(predictorIndex));
-    }
-
-    /** Awaits the speculative transformer scrape; any failure degrades to predictor-only. */
-    private static Optional<ParsedExposition> joinTransformer(CompletableFuture<Optional<ParsedExposition>> transformerFuture) {
-        try {
-            return transformerFuture.join();
-        } catch (CompletionException e) {
-            var cause = e.getCause() != null ? e.getCause() : e;
-            log.warn("Transformer metrics scrape failed; using predictor-only context: {}", cause.getMessage());
-            return Optional.empty();
-        }
     }
 
     /** The Ready {@code transformer} pod of a chained InferenceService, other than the predictor. */
@@ -278,8 +264,9 @@ public class DeploymentMetricsService {
         } else if (allPods.isEmpty()) {
             availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_NO_PODS));
         } else {
-            var podNames = allPods.stream().map(PodInfo::getName).toList();
-            podUsages = podResourceUsageReader.readAll(manager.getNamespace(), podNames);
+            var podToPrimaryContainer = new HashMap<String, String>();
+            allPods.forEach(pod -> podToPrimaryContainer.put(pod.getName(), pod.getMainContainerName()));
+            podUsages = podResourceUsageReader.readAll(manager.getNamespace(), podToPrimaryContainer);
             if (podUsages.isEmpty()) {
                 availability.put(AVAILABILITY_RESOURCES_USAGE, BlockAvailability.unavailable(REASON_USAGE_UNAVAILABLE));
             } else {

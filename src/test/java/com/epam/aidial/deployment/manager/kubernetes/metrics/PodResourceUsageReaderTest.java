@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -98,7 +99,7 @@ class PodResourceUsageReaderTest {
                 podMetrics("pod-c", "50m", "256Mi")));
 
         // When
-        var result = reader.readAll(NAMESPACE, List.of("pod-a", "pod-c"));
+        var result = reader.readAll(NAMESPACE, wanted("pod-a", "pod-c"));
 
         // Then — filtered to the wanted pods via a single namespace-wide call (no per-pod calls)
         assertThat(result).extracting(PodResourceUsage::name).containsExactlyInAnyOrder("pod-a", "pod-c");
@@ -107,11 +108,59 @@ class PodResourceUsageReaderTest {
     }
 
     @Test
+    void shouldSumOnlyPrimaryContainer_droppingSidecars() {
+        // Given — a workload container plus injected sidecars in the same pod
+        var podMetrics = new PodMetrics();
+        podMetrics.setMetadata(new ObjectMetaBuilder().withName("pod-a").build());
+        podMetrics.setContainers(List.of(
+                namedContainerMetrics("kserve-container", "250m", "1Gi"),
+                namedContainerMetrics("queue-proxy", "100m", "512Mi"),
+                namedContainerMetrics("istio-proxy", "50m", "256Mi")));
+        when(podMetricOperation.metrics(NAMESPACE)).thenReturn(podMetricsList(podMetrics));
+
+        // When — the primary container is named for the pod
+        var result = reader.readAll(NAMESPACE, Map.of("pod-a", "kserve-container"));
+
+        // Then — only the primary container's usage is reported, sidecars excluded
+        assertThat(result).singleElement().satisfies(usage -> {
+            assertThat(usage.cpuMillicores()).isCloseTo(250.0, within(1e-6));
+            assertThat(usage.memoryBytes()).isCloseTo(1073741824.0, within(1e-6));
+        });
+    }
+
+    @Test
+    void shouldSumAllContainers_whenPrimaryContainerAbsentFromMetrics() {
+        // Given — the named primary container isn't present in the metrics
+        var podMetrics = new PodMetrics();
+        podMetrics.setMetadata(new ObjectMetaBuilder().withName("pod-a").build());
+        podMetrics.setContainers(List.of(
+                namedContainerMetrics("queue-proxy", "100m", "512Mi"),
+                namedContainerMetrics("istio-proxy", "50m", "256Mi")));
+        when(podMetricOperation.metrics(NAMESPACE)).thenReturn(podMetricsList(podMetrics));
+
+        // When
+        var result = reader.readAll(NAMESPACE, Map.of("pod-a", "kserve-container"));
+
+        // Then — falls back to summing all containers
+        assertThat(result).singleElement().satisfies(usage ->
+                assertThat(usage.cpuMillicores()).isCloseTo(150.0, within(1e-6)));
+    }
+
+    @Test
     void shouldReadAllToEmpty_whenMetricsServerAbsent() {
         when(podMetricOperation.metrics(NAMESPACE))
                 .thenThrow(new KubernetesClientException("the server could not find the requested resource", 404, null));
 
-        assertThat(reader.readAll(NAMESPACE, List.of("pod-a"))).isEmpty();
+        assertThat(reader.readAll(NAMESPACE, wanted("pod-a"))).isEmpty();
+    }
+
+    /** Wanted pods with no primary-container hint — usage sums all containers. */
+    private static Map<String, String> wanted(String... podNames) {
+        var map = new HashMap<String, String>();
+        for (var name : podNames) {
+            map.put(name, null);
+        }
+        return map;
     }
 
     private static PodMetricsList podMetricsList(PodMetrics... items) {
@@ -130,6 +179,12 @@ class PodResourceUsageReaderTest {
     private static ContainerMetrics containerMetrics(String cpu, String memory) {
         var containerMetrics = new ContainerMetrics();
         containerMetrics.setUsage(Map.of("cpu", new Quantity(cpu), "memory", new Quantity(memory)));
+        return containerMetrics;
+    }
+
+    private static ContainerMetrics namedContainerMetrics(String name, String cpu, String memory) {
+        var containerMetrics = containerMetrics(cpu, memory);
+        containerMetrics.setName(name);
         return containerMetrics;
     }
 

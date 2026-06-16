@@ -46,7 +46,7 @@ public class SglangMetricsNormalizer extends AbstractEngineMetricsNormalizer {
                 MetricSamples.lifetimeRate(index, GENERATION_TOKENS, now).orElse(null),
                 MetricSamples.asInteger(MetricSamples.sum(index, QUEUE_REQS)),
                 MetricSamples.asInteger(MetricSamples.sum(index, RUNNING_REQS)),
-                MetricSamples.sum(index, TOKEN_USAGE)
+                MetricSamples.avg(index, TOKEN_USAGE)
                         .map(MetricSamples::clampRatio)
                         .orElse(null),
                 null,
