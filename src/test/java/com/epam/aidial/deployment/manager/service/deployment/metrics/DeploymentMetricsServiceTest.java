@@ -2,6 +2,7 @@ package com.epam.aidial.deployment.manager.service.deployment.metrics;
 
 import com.epam.aidial.deployment.manager.configuration.MetricsScrapeProperties;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.MetricsCollectionDisabledException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.metrics.PodResourceUsageReader;
 import com.epam.aidial.deployment.manager.model.PodInfo;
@@ -380,7 +381,7 @@ class DeploymentMetricsServiceTest {
         properties.setEnabled(false);
 
         assertThatThrownBy(() -> service.getSnapshot(DEPLOYMENT_ID))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(MetricsCollectionDisabledException.class)
                 .hasMessageContaining("disabled");
     }
 

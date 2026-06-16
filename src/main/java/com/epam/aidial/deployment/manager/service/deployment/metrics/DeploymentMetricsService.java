@@ -4,6 +4,7 @@ import com.epam.aidial.deployment.manager.configuration.MetricsCachingConfig;
 import com.epam.aidial.deployment.manager.configuration.MetricsScrapeProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
+import com.epam.aidial.deployment.manager.exception.MetricsCollectionDisabledException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.metrics.PodResourceUsageReader;
 import com.epam.aidial.deployment.manager.model.PodInfo;
@@ -98,7 +99,7 @@ public class DeploymentMetricsService {
     @Cacheable(cacheNames = MetricsCachingConfig.DEPLOYMENT_METRICS_CACHE_NAME, sync = true)
     public UnifiedDeploymentMetrics getSnapshot(String id) {
         if (!properties.isEnabled()) {
-            throw new IllegalArgumentException("Metrics collection is disabled by configuration (app.metrics.scrape.enabled=false)");
+            throw new MetricsCollectionDisabledException("Metrics collection is disabled by configuration (app.metrics.scrape.enabled=false)");
         }
 
         var deployment = deploymentService.getDeployment(id, false)

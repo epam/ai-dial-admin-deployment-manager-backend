@@ -62,6 +62,8 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 ### Requirement: Lifetime window labelling and raw counters
 Counter-derived values (tokens/second, request error ratio) SHALL be lifetime aggregates labelled via `window: "lifetime"`, and directly-exposed cumulative counters SHALL be echoed under unified names in `rawCounters` so clients (or a future TSDB) can derive their own rates over the interval between their polls (subject to counter resets); arbitrary historical windows require the time-series backend (ADR Option C). Latency metrics are distribution summaries (mean, p50, p95, p99, count) approximated from cumulative Prometheus histogram buckets in a single snapshot. Token rates require the engine to expose `process_start_time_seconds`; otherwise the rate is null while the raw counter remains.
 
+Client-side rate derivation MUST use `collectedAt` as the time base, not the client's request time, and MUST dedupe identical snapshots: because responses are served from the bounded-staleness cache (see *Request-triggered collection with bounded staleness*), consecutive responses within the cache TTL are byte-identical (same `collectedAt`, same counters) and represent a single data point. Differencing two such snapshots on the client's own wall-clock yields a spuriously-low rate (Δcounter = 0 over Δt > 0). Effective rate resolution is therefore bounded by the cache TTL, not the client's poll interval.
+
 Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
 #### Scenario: Raw counters echoed
@@ -91,7 +93,7 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 - **THEN** the response is HTTP 400 with an `ErrorView` stating metrics collection is disabled by configuration
 
 ### Requirement: GPU fields are contract placeholders in the PoC
-The schema SHALL carry per-pod `gpuUtilization`/`gpuMemoryUsedBytes` fields, reported unavailable (`resources.gpu` reason) until the DCGM exporter cluster prerequisite ships (follow-up (b) below). KV-cache usage is the engine-level GPU-pressure proxy available today.
+The schema SHALL carry per-pod `gpuUtilization`/`gpuMemoryBytes` fields, reported unavailable (`resources.gpu` reason) until the DCGM exporter cluster prerequisite ships (follow-up (b) below). KV-cache usage is the engine-level GPU-pressure proxy available today.
 
 Status: **Implemented** *(placeholder behaviour; GPU telemetry itself is a follow-up)*
 
@@ -131,7 +133,7 @@ Per-engine source metric for each unified field (`✓` exposed directly · `D` d
 |---|---|---|---|
 | `cpuMillicores` / `memoryBytes` | millicores / bytes | `metrics.k8s.io` (Fabric8 `top().pods()`) | per pod, attributed to the primary workload container (injected sidecars such as `queue-proxy`/`istio-proxy` excluded); requires metrics-server (present in managed clusters) |
 | `replicas.total` / `replicas.ready` | pods | existing pod listing | reported for every deployment type |
-| `gpuUtilization` / `gpuMemoryUsedBytes` | ratio 0–1 / bytes | DCGM exporter (`DCGM_FI_DEV_*`) | contract placeholder — cluster prerequisite, follow-up (b); `kvCacheUsage` is today's engine-level proxy |
+| `gpuUtilization` / `gpuMemoryBytes` | ratio 0–1 / bytes | DCGM exporter (`DCGM_FI_DEV_*`) | contract placeholder — cluster prerequisite, follow-up (b); `kvCacheUsage` is today's engine-level proxy |
 
 Scale events are not duplicated here — they are served by the existing k8s events stream (see `specs/kubernetes-events/spec.md`).
 

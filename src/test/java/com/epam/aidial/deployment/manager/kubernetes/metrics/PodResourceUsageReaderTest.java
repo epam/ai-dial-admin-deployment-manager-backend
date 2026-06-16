@@ -70,7 +70,7 @@ class PodResourceUsageReaderTest {
         assertThat(usage.memoryBytes()).isCloseTo(1073741824.0 + 536870912.0, within(1e-6));
         // GPU fields require DCGM (follow-up) — always null in the PoC
         assertThat(usage.gpuUtilization()).isNull();
-        assertThat(usage.gpuMemoryUsedBytes()).isNull();
+        assertThat(usage.gpuMemoryBytes()).isNull();
     }
 
     @Test

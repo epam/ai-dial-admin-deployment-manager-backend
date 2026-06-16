@@ -230,8 +230,9 @@ public class DeploymentController {
                     + "telemetry never fails the request: affected blocks are null with the reason recorded in "
                     + "'availability' and the response is still 200. Counter-derived values are lifetime aggregates "
                     + "(window=lifetime); raw cumulative counters are echoed in 'rawCounters' for client-side rate "
-                    + "derivation over the polling interval (subject to counter resets). Exactly one Ready pod is "
-                    + "scraped for serving metrics and named in 'scrapedPod'.")
+                    + "derivation over the polling interval (subject to counter resets). The Ready predictor pod is "
+                    + "scraped for serving metrics and named in 'scrapedPod'; a chained KServe Python ModelServer "
+                    + "deployment additionally scrapes the transformer pod.")
     @ApiResponse(responseCode = "200", description = "Live metrics snapshot (possibly partial — see availability)")
     @ApiResponse(responseCode = "400", description = "Metrics collection is disabled by configuration")
     @ApiResponse(responseCode = "404", description = "Deployment not found")

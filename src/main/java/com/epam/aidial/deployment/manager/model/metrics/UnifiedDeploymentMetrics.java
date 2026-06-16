@@ -10,7 +10,10 @@ import java.util.Map;
  * schema. Counter-derived values are lifetime aggregates (since engine process start),
  * labelled via {@code window}; raw cumulative counters are echoed in {@code rawCounters} so
  * clients can derive their own rates over the interval between their polls (subject to counter
- * resets). Arbitrary historical windows require the time-series backend (ADR Option C).
+ * resets). Arbitrary historical windows require the time-series backend (ADR Option C). Because
+ * responses are served from a short-TTL cache, clients must use {@code collectedAt} as the rate
+ * time base and dedupe identical snapshots: consecutive responses within the TTL are byte-identical
+ * and represent a single data point, so effective rate resolution is bounded by the cache TTL.
  */
 @Builder
 public record UnifiedDeploymentMetrics(

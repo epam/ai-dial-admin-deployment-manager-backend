@@ -14,7 +14,7 @@ public record ResourceMetricsDto(ReplicasDto replicas, List<PodResourceUsageDto>
             Double cpuMillicores,
             Double memoryBytes,
             Double gpuUtilization,
-            Double gpuMemoryUsedBytes
+            Double gpuMemoryBytes
     ) {
     }
 }
