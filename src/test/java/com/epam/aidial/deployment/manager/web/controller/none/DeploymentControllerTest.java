@@ -27,6 +27,7 @@ import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentLogsService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
+import com.epam.aidial.deployment.manager.service.deployment.metrics.DeploymentMetricsService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
@@ -37,6 +38,7 @@ import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenceDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.DeploymentMetricsDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
@@ -80,8 +82,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Spring Boot 4 removed MockitoTestExecutionListener (deprecated since 3.4), so @Mock/@Captor fields are no
-// longer auto-initialized in any Spring test — use Mockito's own extension instead, per the 4.0 migration guide
 @ExtendWith(MockitoExtension.class)
 @WebMvcTest(value = DeploymentController.class)
 @Import({
@@ -110,6 +110,10 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private EventStreamingService eventStreamingService;
     @MockitoBean
     private NodePoolService nodePoolService;
+    @MockitoBean
+    private DeploymentMetricsService deploymentMetricsService;
+    @MockitoBean
+    private DeploymentMetricsDtoMapper deploymentMetricsDtoMapper;
 
     @Captor
     private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;
@@ -712,7 +716,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_with_restart_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled",
+        var podInfo = new PodInfo("pod-1", null, null, createdAt, 5, "OOMKilled",
                 "Container exceeded its memory limit", 137, 9, finishedAt);
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
@@ -729,7 +733,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, null, finishedAt);
+        var podInfo = new PodInfo("pod-2", null, null, createdAt, 0, null, null, null, null, finishedAt);
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -745,7 +749,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", null, 1, null, finishedAt);
+        var podInfo = new PodInfo("pod-3", null, null, createdAt, 2, "Error", null, 1, null, finishedAt);
 
         when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 

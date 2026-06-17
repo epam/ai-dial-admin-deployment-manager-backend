@@ -486,6 +486,22 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return podsStream.map(this::toPodInfo).toList();
     }
 
+    @Override
+    public PodInstances getInstancesWithReadiness(String id) {
+        var serviceName = getServiceName(id);
+        var podList = getServicePods(namespace, serviceName);
+        var all = new ArrayList<PodInfo>(podList.size());
+        var ready = new ArrayList<PodInfo>();
+        for (var pod : podList) {
+            var info = toPodInfo(pod);
+            all.add(info);
+            if (isPodReady(pod.getStatus())) {
+                ready.add(info);
+            }
+        }
+        return new PodInstances(List.copyOf(all), List.copyOf(ready));
+    }
+
     private PodInfo toPodInfo(Pod pod) {
         var containerStatuses = pod.getStatus() != null
                 ? pod.getStatus().getContainerStatuses()
@@ -495,6 +511,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
 
         return new PodInfo(
                 pod.getMetadata().getName(),
+                resolveComponent(pod),
+                getContainerName(pod),
                 Instant.parse(pod.getMetadata().getCreationTimestamp()),
                 containerInfo.restartCount(),
                 containerInfo.lastTerminationReason(),
@@ -667,6 +685,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return k8sClient.getAllEventsBase(namespace);
     }
 
+    @Override
+    public String getNamespace() {
+        return namespace;
+    }
+
+    @Override
+    public int getDefaultContainerPort() {
+        return defaultContainerPort;
+    }
+
     protected String getServiceName(String id) {
         return getDeploymentOptional(id)
                 .map(Deployment::getServiceName)
@@ -697,6 +725,15 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     protected abstract boolean isPodReady(PodStatus status);
 
     protected abstract String getContainerName(Pod pod);
+
+    /**
+     * Resolves the {@link PodInfo#getComponent() component} marker for a pod. The base reports none;
+     * deployment types whose pods carry a component identity (e.g. KServe's
+     * {@code predictor}/{@code transformer} label) override this.
+     */
+    protected String resolveComponent(Pod pod) {
+        return null;
+    }
 
     protected abstract String getServiceNameLabel();
 

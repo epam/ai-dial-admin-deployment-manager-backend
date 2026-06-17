@@ -36,6 +36,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [020-revision-rollback](020-revision-rollback/spec.md) | Implemented | auditing, deployments, image-definitions, domain-whitelist | Per-resource rollback to a past audit revision for deployments (inactive states only), image definitions (non-built states only), and the global image-build whitelist |
 | [021-inference-task-transformer](021-inference-task-transformer/spec.md) | Implemented | inference-deployments, kubernetes-manifests | Auto-detect HuggingFace text-classification at deploy time; chain a KServe predictor + transformer with operator-controlled image/resources |
 | [022-transformer-cilium-policies](022-transformer-cilium-policies/spec.md) | Implemented | inference-deployments, kubernetes-manifests | Augment per-deployment `CiliumNetworkPolicy` for chained predictor + transformer (intra-cluster egress, same-`InferenceService` ingress, `8080/TCP`); baseline preserved for predictor-only and non-inference deployments |
+| [023-deployment-metrics-api](023-deployment-metrics-api/spec.md) | Implemented | N/A — creates new capability deployment-metrics | Unified deployment metrics API (PoC): live snapshot endpoint reporting replica counts and per-pod CPU/memory for any deployment type, plus vLLM/TGI/SGLang serving metrics scraped via the kube API-server pod proxy for inference deployments, normalized to an engine-neutral schema with graceful degradation |
 
 ---
 
@@ -56,6 +57,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [application-deployments](application-deployments/spec.md) | Implemented | Application deployment — extends image-based deployments with type APPLICATION as the sole distinction |
 | [inference-deployments](inference-deployments/spec.md) | Implemented | Inference model deployment — KServe-backed, HuggingFace model source, scaling configuration (PENDING_REQUESTS / ACTIVE_REQUESTS / HARDWARE_USAGE) |
 | [nim-deployments](nim-deployments/spec.md) | Implemented | NVIDIA NIM model deployment — NIM-backed, NGC registry source, GPU configuration, optional gRPC port |
+| [deployment-metrics](deployment-metrics/spec.md) | Implemented | Unified deployment metrics API — live snapshot of replica counts and per-pod CPU/memory for any deployment type, plus engine serving/operational metrics (vLLM/TGI/SGLang) for inference deployments normalized to one schema; pod-proxy scrape, lifetime window, graceful degradation |
 | [mcp-servers](mcp-servers/spec.md) | Implemented | MCP server management — list tools, resources, and prompts from running MCP deployments |
 | [topics](topics/spec.md) | Implemented | Topic listing — read-only enumeration of distinct topics across image definitions |
 | [domain-whitelist](domain-whitelist/spec.md) | Implemented | Global domain whitelist CRUD for deployment network access control |

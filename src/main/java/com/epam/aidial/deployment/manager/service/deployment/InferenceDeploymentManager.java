@@ -43,6 +43,7 @@ import java.util.stream.Stream;
 public class InferenceDeploymentManager extends AbstractModelDeploymentManager<InferenceDeployment, InferenceService> {
 
     private static final String SERVICE_NAME_LABEL = "serving.kserve.io/inferenceservice";
+    private static final String COMPONENT_LABEL = "component";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
@@ -322,6 +323,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     @Override
     protected String getServiceNameLabel() {
         return SERVICE_NAME_LABEL;
+    }
+
+    /** KServe pods carry a {@code component} label ({@code predictor}/{@code transformer}); other types don't. */
+    @Override
+    protected String resolveComponent(Pod pod) {
+        var labels = pod.getMetadata().getLabels();
+        return labels != null ? labels.get(COMPONENT_LABEL) : null;
     }
 
     @Override

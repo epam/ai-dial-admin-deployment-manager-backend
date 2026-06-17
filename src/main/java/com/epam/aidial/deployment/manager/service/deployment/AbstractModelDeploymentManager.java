@@ -42,7 +42,13 @@ public abstract class AbstractModelDeploymentManager<D extends Deployment, S ext
 
     @Override
     protected String getContainerName(Pod pod) {
-        return pod.getSpec().getContainers().stream().findFirst()
+        // A status-only listing projection (e.g. the pod-info used for metrics) carries no spec —
+        // yield null rather than NPE; callers treat a null container name as "unresolved".
+        var spec = pod.getSpec();
+        if (spec == null) {
+            return null;
+        }
+        return spec.getContainers().stream().findFirst()
                 .map(Container::getName)
                 .orElseThrow(() -> new IllegalStateException(
                         "Container not found for pod " + pod.getMetadata().getName()));
