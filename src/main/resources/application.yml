@@ -118,7 +118,7 @@ app:
   metrics:
     scrape:
       enabled: ${METRICS_SCRAPE_ENABLED:true}
-      timeout-ms: ${METRICS_SCRAPE_TIMEOUT_MS:3000}
+      timeout-ms: ${METRICS_SCRAPE_TIMEOUT_MS:10000}
       cache-ttl-ms: ${METRICS_SCRAPE_CACHE_TTL_MS:5000}
       resource-usage:
         enabled: ${METRICS_SCRAPE_RESOURCE_USAGE_ENABLED:true}
