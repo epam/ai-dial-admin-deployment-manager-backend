@@ -1,0 +1,229 @@
+schema: spec-driven
+
+context: |
+  # AI DIAL Admin Deployment Manager Backend
+
+  ## Tech Stack
+
+  - **Language**: Java 21
+  - **Framework**: Spring Boot 3.5.10
+  - **Build**: Gradle 8.13 (`./gradlew`), Lombok plugin 8.10
+  - **Persistence**: Spring Data JPA / Hibernate (ddl-auto: validate), Flyway 11.14.0
+  - **Databases**: H2 (tests), PostgreSQL 42.7.8 (production), SQL Server 13.2.1.jre11 (alternative)
+  - **Kubernetes**: Fabric8 K8s client 7.5.2, KNative, KServe, NIM
+  - **Container builds**: BuildKit (replaced Kaniko), Skopeo for image copy
+  - **AI/MCP**: MCP SDK 0.15.0
+  - **Logging**: Log4j2 2.24.3 / 2.25.3, OpenTelemetry 2.12.0 (instrumentation BOM)
+  - **API docs**: SpringDoc OpenAPI 2.8.5
+  - **Mapping**: MapStruct 1.6.0
+  - **Caching**: Caffeine 3.2.3
+  - **Scheduling**: ShedLock 6.3.0 (shedlock-spring + shedlock-provider-jdbc-template)
+  - **Security**: Spring Security OAuth2 Resource Server, Azure Identity SDK 1.18.0
+  - **Code quality**: Checkstyle 10.21.4 (Google Java Style), compilation with `-Werror`
+  - **Testing**: JUnit 5, AssertJ 3.27.7, Mockito, Testcontainers 1.21.3
+  - **Metrics**: Micrometer + Prometheus (actuator on port 9464)
+
+  ## Layered Architecture
+
+  Base package: `com.epam.aidial.deployment.manager`
+
+  | Layer | Package | Responsibility |
+  |---|---|---|
+  | **web** | `web/controller/`, `web/dto/`, `web/mapper/`, `web/handler/` | REST controllers, DTOs, request/response mapping, OpenAPI annotations, validation, exception handling |
+  | **service** | `service/` | Domain logic, `@Transactional` boundaries, orchestration |
+  | **dao** | `dao/entity/`, `dao/jpa/`, `dao/repository/`, `dao/mapper/` | Persistence only — JPA entities, JPA repository interfaces (`JpaRepository`), custom repository wrappers with domain mapping, entity-to-domain MapStruct mappers |
+  | **kubernetes** | `kubernetes/` | K8s client operations, informers, manifest generation (KNative/KServe/NIM) |
+  | **configuration** | `configuration/` | Spring config, security, datasource, logging, properties |
+
+  Additional packages: `exception/` (custom exceptions), `model/` (domain models), `logger/` (logging utilities), `utils/` (TraceContextUtils, mapping), `huggingface/` (HuggingFace integration with its own controller at `huggingface/web/controller/`), `docker/` (Docker registry client), `cleanup/` (disposable resource lifecycle)
+
+  **Layering rules:**
+  - `web`/`service` layers parse and validate; `dao` entities are pure data carriers
+  - `dao/repository/` wrappers own all persistence; `dao/entity/` has no business logic
+  - `kubernetes/` package owns all K8s client usage — no K8s calls from `service`
+  - `@Transactional` lives at the `service` layer only
+  - Controllers never call `dao` directly
+
+  ## Naming Conventions
+
+  | Kind | Convention | Example |
+  |---|---|---|
+  | DTO | `*Dto`, `*RequestDto`, `*ResponseDto` | `DeploymentDto`, `CreateDeploymentRequestDto` |
+  | Internal DTO | `*InternalDto` in `web/dto/internal/` | `DeploymentInternalDto` |
+  | Type enum | `*TypeDto` | `DeploymentTypeDto`, `ImageTypeDto` |
+  | Web mapper | `*DtoMapper` in `web/mapper/` | `DeploymentDtoMapper` |
+  | DAO mapper | `Persistence*Mapper` in `dao/mapper/` | `PersistenceDeploymentMapper` |
+  | Service mapper | `*Mapper` in `mapper/` | `DeploymentMapper` |
+  | JPA repository | `*JpaRepository` in `dao/jpa/` | extends `JpaRepository<Entity, UUID>` |
+  | Custom repository | `*Repository` in `dao/repository/` | `DeploymentRepository` |
+  | Entity | `*Entity` in `dao/entity/` | `DeploymentEntity` |
+  | Service | `*Service` in `service/` | `ImageDefinitionService` |
+  | Controller | `*Controller` in `web/controller/` | `DeploymentController` |
+  | Functional test | `*FunctionalTest` | `DeploymentFunctionalTest` |
+  | Unit test | `*Test` | `DockerRegistryClientTest` |
+
+  - **Variables**: `var` for local variables; `camelCase` for fields and methods
+  - **Constants**: `UPPER_SNAKE_CASE` in a constants class per bounded context
+  - **Packages**: all lowercase, singular nouns (`service`, `entity`, not `services`, `entities`)
+
+  ## Code Style
+
+  - **Standard**: Google Java Style Guide enforced by Checkstyle 10.21.4
+  - **Max line length**: 180 characters
+  - **Indentation**: 4 spaces (tabs forbidden)
+  - **Imports**: no star imports; no FQNs in method bodies, signatures, or annotation attributes
+  - **Compilation**: `-Werror` flag — all warnings are errors
+  - **Boilerplate**: Lombok for getters, setters, builders, constructors, logging (`@Slf4j`)
+  - **Mapping**: MapStruct 1.6.0 with `componentModel = "spring"` and `subclassExhaustiveStrategy = SubclassExhaustiveStrategy.RUNTIME_EXCEPTION`
+
+  ## API Conventions
+
+  - **Base path**: `/api/v1/` (public), `/api/internal/v1/` (internal)
+  - **Error response** (`ErrorView`):
+    ```json
+    {
+      "path": "/api/v1/deployments",
+      "method": "POST",
+      "status": 400,
+      "error": "Bad Request",
+      "message": "Validation failed",
+      "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+    }
+    ```
+    - `traceparent`: W3C Trace Context value for distributed tracing correlation
+    - `message`: sanitized (max 2000 chars, stack trace lines stripped)
+  - **Pagination**: Spring Data `Page<T>` / `PageResponse` for most endpoints; cursor-based for HuggingFace
+  - **OpenAPI**: SpringDoc 2.8.5 — `@Schema`, `@Operation`, `@ApiResponse` annotations on all endpoints
+
+  ## Testing Conventions
+
+  - **Integration tests**: Testcontainers 1.21.3 for PostgreSQL/SQL Server; H2 for lightweight tests
+  - **Test naming**: `shouldDoX()` for happy paths, `shouldFailDoX_whenY()` for error cases
+  - **File naming**: `*FunctionalTest.java` for integration tests, `*Test.java` for unit tests
+  - **Multi-vendor DB tests**: `DATASOURCE_VENDOR` env var selects H2 / POSTGRES / MS_SQL_SERVER
+  - **Run all tests**: `./gradlew test`
+  - **Assertions**: AssertJ 3.27.7 preferred, JUnit 5 assertions also used
+
+  ## Multi-Vendor Database Pattern
+
+  - **Vendor selection**: `DATASOURCE_VENDOR` environment variable → H2 (default for tests) / POSTGRES / MS_SQL_SERVER
+  - **Flyway migration paths** (vendor-specific):
+    - `src/main/resources/db/migration/H2/`
+    - `src/main/resources/db/migration/POSTGRES/`
+    - `src/main/resources/db/migration/MS_SQL_SERVER/`
+  - **Migration naming**: `V{major}.{minor}__{Description}.sql` (e.g., `V1.25__AddAuthorColumnToTables.sql`)
+  - **Flyway config**: baseline-on-migrate true, baseline-version 1.1
+  - **JPA**: `ddl-auto: validate` — schema is managed by Flyway, not Hibernate
+
+  ## Key Patterns
+
+  - **`@Transactional`**: service layer only; never on controllers or DAOs
+  - **`@LogExecution`**: class-level annotation on all Spring components (`@RestController`, `@Service`, `@Repository`, `@Component`, `@Configuration`). Import: `com.epam.aidial.deployment.manager.configuration.logging.LogExecution`. Wired via `CustomizableTraceInterceptor` with configurable ENTER/EXIT/EXCEPTION messages. **Known gaps**: `TopicController`, `GlobalDomainWhitelistController`, `HealthController`, `McpController`, `DisposableResourceController` lack it — all new code MUST include it.
+  - **MapStruct**: DTO↔entity mapping via annotated interfaces. Web mappers in `web/mapper/`, DAO mappers in `dao/mapper/`, service mappers in `mapper/`.
+  - **Lombok**: `@Data`, `@Builder`, `@AllArgsConstructor`, `@NoArgsConstructor`, `@Slf4j` — minimize boilerplate
+  - **Caffeine**: in-memory caching (e.g., HuggingFace tag cache with configurable TTL)
+  - **ShedLock**: distributed scheduler locks for cleanup jobs (JDBC-backed)
+  - **Kubernetes informers**: cluster state observation via Fabric8 informers
+  - **Records**: used for simple immutable DTOs (e.g., `CreateBuildImageRequestDto`)
+
+  ## Anti-Patterns to Avoid
+
+  - Parsing or business logic in `dao/entity/` classes — entities are pure data carriers
+  - Silent exception swallowing — always log at WARN+ with full exception: `log.error("msg: {}", e.getMessage(), e)`
+  - Catching generic `Exception` or `Throwable` — catch specific exceptions
+  - Magic numbers in annotations — extract to named constants
+  - Defaults in `@ConfigurationProperties` Java fields — define defaults in `application.yml`
+  - FQNs in method bodies, signatures, or annotation attributes (Checkstyle-enforced)
+  - Star imports (Checkstyle-enforced)
+  - `@Transactional` on controllers or DAOs
+  - K8s client calls outside the `kubernetes/` package
+  - Business logic in `dao/repository/` — repositories do persistence and domain mapping only
+
+  ## Tooling Commands
+
+  | Command | Purpose |
+  |---|---|
+  | `./gradlew test` | Run all tests |
+  | `./gradlew checkstyleMain checkstyleTest` | Run Checkstyle on main and test sources |
+  | `./gradlew clean build` | Full clean build (includes tests + Checkstyle) |
+  | `./gradlew clean bootJar` | Build executable JAR without tests |
+  | `docker build -t deployment-manager .` | Build Docker image (two-stage: gradle:8.13-jdk21-alpine → amazoncorretto:21-alpine) |
+
+  ## Feature Surface
+
+  All implemented capabilities are documented in `openspec/specs/README.md`.
+
+  ## Config Maintenance Policy
+
+  Update this `config.yaml` when a change:
+  - Introduces a new architectural layer, package, or cross-cutting convention
+  - Adds or upgrades a major framework/library that affects how code is written
+  - Changes naming conventions, code style rules, or testing patterns
+  - Adds new tooling commands or modifies the build pipeline
+
+  **Litmus test**: "Would an AI tool generate incorrect code if it didn't know about this change?" If yes → update config.
+
+  Do NOT update config for:
+  - New features that follow existing patterns
+  - Bug fixes within existing architecture
+  - Dependency patch/minor version bumps with no API changes
+
+  ## Spec Index Maintenance Policy
+
+  Update `openspec/specs/README.md` when a change:
+  - Creates a new spec folder under `openspec/specs/`
+  - Changes the status of an existing capability (e.g., Planned → Implemented)
+  - Modifies the summary of an existing capability to the point where the index entry is inaccurate
+  - Removes or renames a capability
+
+  Do NOT update the index for:
+  - Internal spec content changes that don't affect the summary
+  - Adding scenarios or requirements within an existing spec
+
+rules:
+  global:
+    - All new Spring components (`@RestController`, `@Service`, `@Repository`, `@Component`, `@Configuration`) MUST have `@LogExecution` at the class level. Import: `com.epam.aidial.deployment.manager.configuration.logging.LogExecution`. Note: some older controllers lack this annotation — new code must always include it.
+    - Never silently swallow exceptions; at minimum log at WARN+ with full exception — `log.error("msg: {}", e.getMessage(), e)`. Pass exception as last SLF4J argument.
+    - Use fail-fast (throw) for serialization/data integrity errors. Use graceful degradation (log + fallback) only for regenerable data.
+    - Catch specific exceptions, not generic `Exception`/`Throwable`.
+    - No code duplication; extract shared patterns to utility classes.
+    - No FQNs in method bodies, signatures, or annotation attributes (Checkstyle-enforced).
+    - All `@ConfigurationProperties` defaults MUST be defined in `application.yml`, not as Java field initializers.
+    - Non-configurable constants MUST be defined once in a constants class per bounded context. No duplicate definitions.
+    - "Follow the layering principle: `web`/`service` parse and validate; `dao` entities are pure carriers; `dao` repositories own all persistence; `kubernetes` package owns all K8s client usage. No business logic in `dao` entities, no K8s calls from `service`."
+    - When changing API endpoints or DTOs, update OpenAPI annotations (`@Schema`, `@Operation`, `@ApiResponse`).
+    - When adding Flyway migrations, update `docs/configuration.md` if schema changes affect configuration docs.
+    - "Implementation scope limit: do NOT implement more than 5 tasks or more than 1 task group per iteration. Stop and ask for confirmation before the next group. Exception: user explicitly asks to implement everything."
+    - After implementation, check whether the change alters project-wide conventions or architecture per the Config Maintenance Policy. If yes, update `config.yaml`. If the change only adds features following existing patterns, do NOT update `config.yaml`.
+    - After implementation, check whether `openspec/specs/README.md` needs updating per the Spec Index Maintenance Policy (new spec folder, status change, summary inaccurate). Update as part of the same change.
+
+  proposal:
+    - "Use sections: Why, What Changes, Capabilities (New / Modified), Impact."
+    - Explicitly list which specs will be created (New Capabilities) or modified (Modified Capabilities). Each capability name must match the kebab-case folder name.
+    - Call out breaking changes, new packages/classes, DB migration requirements, and config property changes.
+
+  specs:
+    - Each requirement MUST start with `### Requirement: <name>`.
+    - Each scenario MUST start with `#### Scenario: <name>` with WHEN/THEN bullets (exactly 4 hashtags).
+    - Every requirement MUST have at least one scenario. Mark status per requirement: `Status: **Implemented**` or `Status: **Planned**`.
+    - Keep requirements testable and non-ambiguous. Include an Implementation Notes section linking to relevant code paths.
+    - "For new full specs (not deltas): use `## Requirements` header (not `## ADDED Requirements`)."
+
+  design:
+    - Align with the layered architecture defined in context.
+    - "Include: data model changes, API contract details, transaction boundaries, error handling approach, component interaction."
+    - "For each key decision: state the decision, rationale, alternatives considered, and impact."
+
+  tasks:
+    - Write tasks as checkbox list (`- [ ]`) with small, independently completable items referencing specific file/package and a clear done condition.
+    - "Include cross-cutting tasks when applicable: tests, Checkstyle (`./gradlew checkstyleMain checkstyleTest`), Flyway migrations, `docs/configuration.md` update, OpenAPI annotations."
+    - Always include a Verification section as the last task group.
+    - "If the change introduces new architecture, cross-cutting convention, or tooling, include: `- [ ] Update openspec/config.yaml per Config Maintenance Policy`."
+    - "For feature work, include: `- [ ] Update openspec/specs/README.md per Spec Index Maintenance Policy`."
+
+  archive:
+    - "Before archiving, verify: all tasks completed, `./gradlew clean build` passes, Checkstyle passes, docs updated."
+    - Ensure all implementation notes in specs point to code that actually exists.
+    - Verify specs are up to date with implemented requirements.
+    - "specs/README.md auto-sync (ALWAYS perform): list all folders under `openspec/specs/`; add missing entries; remove phantom entries."
+    - "config.yaml review: if the change introduced new packages, layers, conventions, or tooling, update the relevant sections per Config Maintenance Policy."
