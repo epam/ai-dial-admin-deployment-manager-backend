@@ -84,7 +84,7 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 - **THEN** cached responses are returned and the API server is not re-queried until the TTL expires
 
 ### Requirement: Operator configuration
-Operators SHALL be able to disable the capability, tune the per-scrape time budget and cache TTL, and independently toggle the per-pod resource-usage block via `app.metrics.scrape.*` properties (see `docs/configuration.md` § Model Metrics Scrape Configuration). When disabled, requests are rejected with HTTP 400 and a clear message.
+Operators SHALL be able to disable the capability, tune the per-scrape time budget and cache TTL, and independently toggle the per-pod resource-usage block via `app.metrics.scrape.*` properties (see `docs/configuration.md` § Deployment Metrics Scrape Configuration). When disabled, requests are rejected with HTTP 400 and a clear message.
 
 Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 
