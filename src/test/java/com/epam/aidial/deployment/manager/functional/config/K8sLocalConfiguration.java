@@ -17,12 +17,17 @@ import io.fabric8.knative.client.DefaultKnativeClient;
 import io.fabric8.knative.client.KnativeClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Profile;
+
+import java.util.concurrent.ExecutorService;
 
 @Profile("k8s-local")
 @TestConfiguration
@@ -31,6 +36,7 @@ import org.springframework.context.annotation.Profile;
     "com.epam.aidial.deployment.manager.configuration",
     "com.epam.aidial.deployment.manager.dao",
     "com.epam.aidial.deployment.manager.docker",
+    "com.epam.aidial.deployment.manager.huggingface",
     "com.epam.aidial.deployment.manager.kubernetes",
     "com.epam.aidial.deployment.manager.mapper",
     "com.epam.aidial.deployment.manager.model",
@@ -48,8 +54,9 @@ public class K8sLocalConfiguration {
     }
 
     @Bean
-    public K8sClient k8sClient(KubernetesClient kubernetesClient) {
-        return new K8sClient(kubernetesClient);
+    public K8sClient k8sClient(KubernetesClient kubernetesClient,
+                               @Qualifier("metrics-scrape") ExecutorService metricsScrapeExecutor) {
+        return new K8sClient(kubernetesClient, metricsScrapeExecutor);
     }
 
     @Bean
@@ -89,5 +96,10 @@ public class K8sLocalConfiguration {
     @Bean
     public SecurityClaimsExtractor securityClaimsExtractor() {
         return Mockito.mock(SecurityClaimsExtractor.class);
+    }
+
+    @Bean
+    public Validator validator() {
+        return Validation.buildDefaultValidatorFactory().getValidator();
     }
 }

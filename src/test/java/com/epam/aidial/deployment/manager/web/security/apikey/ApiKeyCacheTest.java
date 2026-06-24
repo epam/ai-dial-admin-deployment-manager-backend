@@ -1,8 +1,8 @@
 package com.epam.aidial.deployment.manager.web.security.apikey;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;

@@ -1,0 +1,26 @@
+# Synthetic KServe Python ModelServer predictor exposition (deberta-style text classification).
+# Mirrors the live dm-deberta-v3 predictor vocabulary: unprefixed request_*_seconds histograms
+# labelled model_name, plus python_*/process_* collectors. predict count=100, sum=20 -> mean 0.2.
+# HELP python_info Python platform information
+# TYPE python_info gauge
+python_info{implementation="CPython",version="3.11.9"} 1.0
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.0
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 1.084895232e+09
+# HELP request_preprocess_seconds pre-process request latency
+# TYPE request_preprocess_seconds histogram
+# HELP request_predict_seconds predict request latency
+# TYPE request_predict_seconds histogram
+request_predict_seconds_bucket{model_name="deberta",le="0.1"} 40.0
+request_predict_seconds_bucket{model_name="deberta",le="0.25"} 80.0
+request_predict_seconds_bucket{model_name="deberta",le="0.5"} 100.0
+request_predict_seconds_bucket{model_name="deberta",le="+Inf"} 100.0
+request_predict_seconds_sum{model_name="deberta"} 20.0
+request_predict_seconds_count{model_name="deberta"} 100.0
+# HELP request_postprocess_seconds post-process request latency
+# TYPE request_postprocess_seconds histogram
+# HELP request_explain_seconds explain request latency
+# TYPE request_explain_seconds histogram

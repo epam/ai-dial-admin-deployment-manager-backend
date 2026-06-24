@@ -27,6 +27,7 @@ import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentLogsService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
+import com.epam.aidial.deployment.manager.service.deployment.metrics.DeploymentMetricsService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
 import com.epam.aidial.deployment.manager.web.controller.DeploymentController;
@@ -37,22 +38,25 @@ import com.epam.aidial.deployment.manager.web.dto.ResourcesDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateImageReferenceDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapperImpl;
+import com.epam.aidial.deployment.manager.web.mapper.DeploymentMetricsDtoMapper;
 import com.epam.aidial.deployment.manager.web.mapper.EnvVarValueDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ExternalRegistryRefDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ProbePropertiesDtoMapperImpl;
 import com.epam.aidial.deployment.manager.web.mapper.ScalingDtoMapperImpl;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -78,6 +82,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ExtendWith(MockitoExtension.class)
 @WebMvcTest(value = DeploymentController.class)
 @Import({
         JsonMapperConfiguration.class,
@@ -105,6 +110,10 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     private EventStreamingService eventStreamingService;
     @MockitoBean
     private NodePoolService nodePoolService;
+    @MockitoBean
+    private DeploymentMetricsService deploymentMetricsService;
+    @MockitoBean
+    private DeploymentMetricsDtoMapper deploymentMetricsDtoMapper;
 
     @Captor
     private ArgumentCaptor<PodLogReaderConfiguration> cfgCaptor;
@@ -707,7 +716,8 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_with_restart_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-1", createdAt, 5, "OOMKilled", 137, 9, finishedAt);
+        var podInfo = new PodInfo("pod-1", null, null, createdAt, 5, "OOMKilled",
+                "Container exceeded its memory limit", 137, 9, finishedAt);
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -723,7 +733,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-2", createdAt, 0, null, null, null, finishedAt);
+        var podInfo = new PodInfo("pod-2", null, null, createdAt, 0, null, null, null, null, finishedAt);
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -739,7 +749,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-3", createdAt, 2, "Error", 1, null, finishedAt);
+        var podInfo = new PodInfo("pod-3", null, null, createdAt, 2, "Error", null, 1, null, finishedAt);
 
         when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 

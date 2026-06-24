@@ -101,11 +101,14 @@ public class ImageDefinitionController {
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Roll back an image definition to a past revision",
             description = "Restores the image definition's stored configuration to its snapshot at the given audit revision. "
-                    + "Allowed only when current build status is NOT_BUILT, BUILD_FAILED, or BUILD_STOPPED.")
-    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+                    + "Allowed only when current build status is NOT_BUILT, BUILD_FAILED, or BUILD_STOPPED. "
+                    + "If the image definition was deleted but existed at the revision, it is re-created in NOT_BUILT "
+                    + "under a NEW id (image-definition ids are server-generated) — read the returned DTO for the new id.")
+    @ApiResponse(responseCode = "200", description = "Rollback applied, image definition re-created, or identical-state no-op")
     @ApiResponse(responseCode = "400", description = "Built/building state, validation, or uniqueness rejection")
     @ApiResponse(responseCode = "403", description = "Read-only role")
-    @ApiResponse(responseCode = "404", description = "Image definition or revision not found")
+    @ApiResponse(responseCode = "404", description = "Revision not found, or image definition never existed at the revision")
+    @ApiResponse(responseCode = "409", description = "Re-creating the deleted image definition would collide with an existing name + version")
     public ImageDefinitionDto rollbackImageDefinition(@PathVariable UUID id, @PathVariable Integer revision) {
         var rolledBack = imageDefinitionService.rollback(id, revision);
         return dtoMapper.toImageDefinitionDto(rolledBack);

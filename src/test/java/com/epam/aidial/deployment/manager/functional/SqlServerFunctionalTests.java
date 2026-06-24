@@ -16,15 +16,15 @@ import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.Nested;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
-import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.mssqlserver.MSSQLServerContainer;
 
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -52,7 +52,7 @@ public class SqlServerFunctionalTests extends FunctionalTestSuite {
 
     @Container
     @ServiceConnection
-    private static final MSSQLServerContainer<?> MS_SQL_SERVER = new MSSQLServerContainer<>("mcr.microsoft.com/mssql/server:2022-CU18-ubuntu-22.04");
+    private static final MSSQLServerContainer MS_SQL_SERVER = new MSSQLServerContainer("mcr.microsoft.com/mssql/server:2022-CU18-ubuntu-22.04");
 
     static {
         MS_SQL_SERVER.acceptLicense();

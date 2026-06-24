@@ -1,5 +1,56 @@
 # Infra Changelog
 
+## 0.18.0
+
+### Added
+
+#### Observability
+- **[Preview] Deployment Metrics Scrape** — on-demand live metrics snapshot for any deployment type via `GET /api/v1/deployments/{id}/metrics`; resource metrics (replica counts and per-pod CPU/memory) for all types; engine serving and operational metrics scraped only for **INFERENCE** deployments (NIM and other types report those blocks as unavailable); INFERENCE engine Prometheus `/metrics` read from the Ready predictor pod via API-server pod proxy (request-triggered only, no background polling)
+  - `METRICS_SCRAPE_ENABLED` — master switch for the metrics snapshot endpoint (default: `true`)
+  - `METRICS_SCRAPE_TIMEOUT_MS` — per-scrape timeout (ms) for reading pod `/metrics` via API-server proxy (default: `10000`)
+  - `METRICS_SCRAPE_CACHE_TTL_MS` — response cache TTL (ms) per deployment id (default: `5000`)
+  - `METRICS_SCRAPE_RESOURCE_USAGE_ENABLED` — enables per-pod CPU/memory block from `metrics.k8s.io` (default: `true`)
+- `OTEL_EXPORT_ENABLED` — master switch for OTLP export of traces, logs, and metrics (default: `false`)
+- `OTEL_TRACES_EXPORT_ENABLED` — enables distributed tracing and OTLP trace export (defaults to `OTEL_EXPORT_ENABLED`)
+- `OTEL_LOGS_EXPORT_ENABLED` — enables OTLP log export (defaults to `OTEL_EXPORT_ENABLED`)
+- `OTEL_METRICS_EXPORT_ENABLED` — enables OTLP metrics export (defaults to `OTEL_EXPORT_ENABLED`)
+- `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` — full OTLP traces URL; overrides base endpoint for this signal
+- `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` — full OTLP logs URL; overrides base endpoint for this signal
+- `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` — full OTLP metrics URL; overrides base endpoint for this signal
+- `OTEL_EXPORTER_OTLP_TRANSPORT` — OTLP transport for traces and logs: `http` or `grpc` (default: `http`); metrics always use HTTP
+- `OTEL_TRACES_SAMPLING_PROBABILITY` — probability (0.0–1.0) that a new trace is sampled (default: `1.0`)
+
+#### Security & RBAC
+- **[Preview] Deployment Metrics Scrape** requires read-only RBAC on `pods/proxy` for INFERENCE engine metrics (and on `metrics.k8s.io` pods when `METRICS_SCRAPE_RESOURCE_USAGE_ENABLED=true`)
+
+---
+
+### Changed
+
+#### Observability
+- OpenTelemetry migrated to Spring Boot 4 `spring-boot-starter-opentelemetry`; OTLP export is disabled by default (previously disabled via `OTEL_SDK_DISABLED=true`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT` — now the collector base URL without a trailing slash; signal paths (`/v1/traces`, `/v1/logs`, `/v1/metrics`) are appended automatically (default when export enabled: `http://localhost:4318`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` are no longer required when export is disabled
+- Prometheus scrape endpoint on management port `9464` stays active regardless of OTLP flags; enabling OTLP metrics export is additive
+
+---
+
+### Deprecated
+
+#### Observability
+- `OTEL_SDK_DISABLED` — replaced by `OTEL_EXPORT_ENABLED` (inverted meaning)
+- `OTEL_LOGS_EXPORTER`, `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER` — replaced by boolean `OTEL_*_EXPORT_ENABLED` flags
+- `OTEL_EXPORTER_OTLP_PROTOCOL` — replaced by `OTEL_EXPORTER_OTLP_TRANSPORT` with values `http` (formerly `http/protobuf`) or `grpc`
+
+---
+
+### Removed
+
+#### Observability
+- `OTEL_EXPORTER_OTLP_HEADERS` — no longer honoured; set Spring properties `management.opentelemetry.tracing.export.otlp.headers.*`, `management.opentelemetry.logging.export.otlp.headers.*`, and `management.otlp.metrics.export.headers.*` instead
+
+---
+
 ## 0.17.0
 
 ### Added

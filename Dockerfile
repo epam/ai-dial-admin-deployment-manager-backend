@@ -1,5 +1,5 @@
 # Build stage
-FROM gradle:8.13-jdk21-alpine AS builder
+FROM gradle:8.14.5-jdk21-alpine AS builder
 WORKDIR /build-workspace
 
 COPY build.gradle .
@@ -24,7 +24,7 @@ COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN apk add --no-cache zlib=1.3.2-r0 libcrypto3=3.5.6-r0 libssl3=3.5.6-r0
+RUN apk add --no-cache zlib=1.3.2-r0 libcrypto3=3.5.7-r0 libssl3=3.5.7-r0
 
 USER appuser
 

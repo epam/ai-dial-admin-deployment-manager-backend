@@ -1,0 +1,36 @@
+# Synthetic SGLang /metrics capture per spike §3.
+# TYPE sglang:num_queue_reqs gauge
+sglang:num_queue_reqs{model_name="qwen/Qwen2.5-7B-Instruct"} 1.0
+# TYPE sglang:num_running_reqs gauge
+sglang:num_running_reqs{model_name="qwen/Qwen2.5-7B-Instruct"} 4.0
+# TYPE sglang:token_usage gauge
+sglang:token_usage{model_name="qwen/Qwen2.5-7B-Instruct"} 0.61
+# TYPE sglang:prompt_tokens_total counter
+sglang:prompt_tokens_total{model_name="qwen/Qwen2.5-7B-Instruct"} 30000.0
+# TYPE sglang:generation_tokens_total counter
+sglang:generation_tokens_total{model_name="qwen/Qwen2.5-7B-Instruct"} 5000.0
+# TYPE sglang:num_aborted_requests_total counter
+sglang:num_aborted_requests_total{model_name="qwen/Qwen2.5-7B-Instruct"} 3.0
+# TYPE sglang:num_requests_total counter
+sglang:num_requests_total{model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+# TYPE sglang:time_to_first_token_seconds histogram
+sglang:time_to_first_token_seconds_bucket{le="0.1",model_name="qwen/Qwen2.5-7B-Instruct"} 30.0
+sglang:time_to_first_token_seconds_bucket{le="0.5",model_name="qwen/Qwen2.5-7B-Instruct"} 120.0
+sglang:time_to_first_token_seconds_bucket{le="1.0",model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+sglang:time_to_first_token_seconds_bucket{le="+Inf",model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+sglang:time_to_first_token_seconds_sum{model_name="qwen/Qwen2.5-7B-Instruct"} 45.0
+sglang:time_to_first_token_seconds_count{model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+# TYPE sglang:inter_token_latency_seconds histogram
+sglang:inter_token_latency_seconds_bucket{le="0.02",model_name="qwen/Qwen2.5-7B-Instruct"} 75.0
+sglang:inter_token_latency_seconds_bucket{le="0.05",model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+sglang:inter_token_latency_seconds_bucket{le="+Inf",model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+sglang:inter_token_latency_seconds_sum{model_name="qwen/Qwen2.5-7B-Instruct"} 4.5
+sglang:inter_token_latency_seconds_count{model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+# TYPE sglang:e2e_request_latency_seconds histogram
+sglang:e2e_request_latency_seconds_bucket{le="2.0",model_name="qwen/Qwen2.5-7B-Instruct"} 90.0
+sglang:e2e_request_latency_seconds_bucket{le="5.0",model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+sglang:e2e_request_latency_seconds_bucket{le="+Inf",model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+sglang:e2e_request_latency_seconds_sum{model_name="qwen/Qwen2.5-7B-Instruct"} 375.0
+sglang:e2e_request_latency_seconds_count{model_name="qwen/Qwen2.5-7B-Instruct"} 150.0
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.7e+09

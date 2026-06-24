@@ -10,6 +10,7 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentLogsService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.deployment.EventStreamingService;
+import com.epam.aidial.deployment.manager.service.deployment.metrics.DeploymentMetricsService;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentImageChangeRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.DeploymentTypeDto;
@@ -17,7 +18,9 @@ import com.epam.aidial.deployment.manager.web.dto.DuplicateDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.PodInfoDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentDto;
+import com.epam.aidial.deployment.manager.web.dto.metrics.DeploymentMetricsDto;
 import com.epam.aidial.deployment.manager.web.mapper.DeploymentDtoMapper;
+import com.epam.aidial.deployment.manager.web.mapper.DeploymentMetricsDtoMapper;
 import com.epam.aidial.deployment.manager.web.security.FullAdminOnly;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -56,7 +59,9 @@ public class DeploymentController {
     private final DeploymentService deploymentService;
     private final EventStreamingService eventStreamingService;
     private final DeploymentLogsService deploymentLogsService;
+    private final DeploymentMetricsService deploymentMetricsService;
     private final DeploymentDtoMapper dtoMapper;
+    private final DeploymentMetricsDtoMapper metricsDtoMapper;
 
     @GetMapping(produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
     public List<DeploymentInfoDto> getAllDeployments(
@@ -105,11 +110,13 @@ public class DeploymentController {
     @Operation(summary = "Roll back a deployment to a past revision",
             description = "Restores the deployment's stored configuration to its snapshot at the given audit revision. "
                     + "Allowed only when the deployment is in NOT_DEPLOYED or STOPPED. "
+                    + "If the deployment was deleted but existed at the revision, it is re-created (in NOT_DEPLOYED, "
+                    + "with sensitive env values reset and to be re-supplied before deploying). "
                     + "Does not modify live Kubernetes state — the operator must trigger deploy afterwards to apply.")
-    @ApiResponse(responseCode = "200", description = "Rollback applied or identical-state no-op")
+    @ApiResponse(responseCode = "200", description = "Rollback applied, deployment re-created, or identical-state no-op")
     @ApiResponse(responseCode = "400", description = "Active-state, validation, or missing-reference rejection")
     @ApiResponse(responseCode = "403", description = "Read-only role")
-    @ApiResponse(responseCode = "404", description = "Deployment or revision not found")
+    @ApiResponse(responseCode = "404", description = "Revision not found, or deployment never existed at the revision")
     public DeploymentDto rollbackDeployment(@PathVariable String id, @PathVariable Integer revision) {
         var rolledBack = deploymentService.rollback(id, revision);
         return dtoMapper.toDeploymentDto(rolledBack);
@@ -213,6 +220,24 @@ public class DeploymentController {
                 .previous(previous)
                 .build();
         return deploymentLogsService.streamLogs(id, podId, logReadConfig);
+    }
+
+    @GetMapping(path = "{id}/metrics",
+            produces = MimeTypeUtils.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Get a live metrics snapshot for a deployment",
+            description = "Resource metrics (replica counts and per-pod CPU/memory) are reported for any deployment "
+                    + "type; serving-quality metrics are additionally scraped for INFERENCE deployments. Missing "
+                    + "telemetry never fails the request: affected blocks are null with the reason recorded in "
+                    + "'availability' and the response is still 200. Counter-derived values are lifetime aggregates "
+                    + "(window=lifetime); raw cumulative counters are echoed in 'rawCounters' for client-side rate "
+                    + "derivation over the polling interval (subject to counter resets). The Ready predictor pod is "
+                    + "scraped for serving metrics and named in 'scrapedPod'; a chained KServe Python ModelServer "
+                    + "deployment additionally scrapes the transformer pod.")
+    @ApiResponse(responseCode = "200", description = "Live metrics snapshot (possibly partial — see availability)")
+    @ApiResponse(responseCode = "400", description = "Metrics collection is disabled by configuration")
+    @ApiResponse(responseCode = "404", description = "Deployment not found")
+    public DeploymentMetricsDto getMetrics(@PathVariable String id) {
+        return metricsDtoMapper.toDto(deploymentMetricsService.getSnapshot(id));
     }
 
     @GetMapping(path = "{id}/events/stream",

@@ -69,19 +69,25 @@ public abstract class ImageDefinitionBuildFunctionalTest {
         var targetRunner = AopTestUtils.getTargetObject(imageBuildRunner);
         var imageCopyPipelineField = targetRunner.getClass().getDeclaredField("imageCopyPipeline");
         imageCopyPipelineField.setAccessible(true);
+        var originalCopyPipeline = imageCopyPipelineField.get(targetRunner);
         imageCopyPipelineField.set(targetRunner, mockCopyPipeline);
         Mockito.doNothing().when(mockCopyPipeline).run(imageDefinitionId);
 
-        // When
-        imageBuildRunner.buildImage(imageDefinitionId);
+        try {
+            // When
+            imageBuildRunner.buildImage(imageDefinitionId);
 
-        // Then - Check immediately after build starts
-        var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
-                .orElseThrow();
-        assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILDING);
-        assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
-        assertThat(retrievedImageDef.getBuildLogs().stream()
-                .anyMatch(log -> log.contains("Image build started"))).isTrue();
+            // Then - Check immediately after build starts
+            var retrievedImageDef = imageDefinitionService.getImageDefinition(imageDefinitionId)
+                    .orElseThrow();
+            assertThat(retrievedImageDef.getBuildStatus()).isEqualTo(ImageStatus.BUILDING);
+            assertThat(retrievedImageDef.getBuildLogs().isEmpty()).isFalse();
+            assertThat(retrievedImageDef.getBuildLogs().stream()
+                    .anyMatch(log -> log.contains("Image build started"))).isTrue();
+        } finally {
+            // restore the real pipeline — the shared ImageBuildRunner singleton outlives this test
+            imageCopyPipelineField.set(targetRunner, originalCopyPipeline);
+        }
     }
 
     @Test

@@ -12,10 +12,16 @@ import java.time.Instant;
 @AllArgsConstructor
 public class PodInfo {
     private String name;
+    @Nullable
+    private String component;
+    @Nullable
+    private String mainContainerName;
     private Instant createdAt;
     private int restartCount;
     @Nullable
     private String lastTerminationReason;
+    @Nullable
+    private String lastTerminationMessage;
     @Nullable
     private Integer lastExitCode;
     @Nullable

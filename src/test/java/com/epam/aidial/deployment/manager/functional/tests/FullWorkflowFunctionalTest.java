@@ -135,16 +135,14 @@ public abstract class FullWorkflowFunctionalTest {
     }
 
     private static Stream<Arguments> getFullWorkflowParams() {
-        var dialUrlEnv = new EnvVarDefinition("DIAL_URL", new SimpleEnvVarValue("http://test-dial-url.svc.cluster.local"),
-                EnvVarMountType.CONTENT, "Sample DIAL URL");
         var interceptorImageUri = getEnvVarOrThrow("K8S_TEST_INTERCEPTOR_IMAGE_URI");
         var mcpGitSseImageGitUrl = getEnvVarOrThrow("K8S_TEST_MCP_GIT_SSE_IMAGE_URI");
         var mcpGitStdioImageGitUrl = getEnvVarOrThrow("K8S_TEST_MCP_GIT_STDIO_IMAGE_URI");
         return Stream.of(
                 Arguments.of(FunctionalTestHelper.createRealInterceptorImageDefinition(interceptorImageUri),
-                        FunctionalTestHelper.createRealInterceptorDeploymentRequest("interceptor-docker-deployment", List.of(dialUrlEnv))),
+                        FunctionalTestHelper.createRealInterceptorDeploymentRequest("interceptor-docker-deployment", List.of(dialUrlEnv()))),
                 Arguments.of(FunctionalTestHelper.createRealMcpDockerStdioImageDefinition(interceptorImageUri),
-                        FunctionalTestHelper.createRealMcpDeploymentRequest("mcp-docker-stdio-deployment", List.of(dialUrlEnv))),
+                        FunctionalTestHelper.createRealMcpDeploymentRequest("mcp-docker-stdio-deployment", List.of(dialUrlEnv()))),
                 Arguments.of(FunctionalTestHelper.createRealMcpGitSseImageDefinition(mcpGitSseImageGitUrl),
                         FunctionalTestHelper.createRealMcpDeploymentRequest("mcp-git-sse-deployment", List.of())),
                 Arguments.of(FunctionalTestHelper.createRealMcpGitStdioImageDefinition(mcpGitStdioImageGitUrl),
@@ -152,10 +150,15 @@ public abstract class FullWorkflowFunctionalTest {
         );
     }
 
+    private static EnvVarDefinition dialUrlEnv() {
+        return new EnvVarDefinition("DIAL_URL", new SimpleEnvVarValue("http://test-dial-url.svc.cluster.local"),
+                EnvVarMountType.CONTENT, "Sample DIAL URL");
+    }
+
     private static String getEnvVarOrThrow(String envVarName) {
         String value = System.getenv(envVarName);
         if (StringUtils.isBlank(value)) {
-            throw new IllegalArgumentException("Environment variable '%s' should be set");
+            throw new IllegalArgumentException("Environment variable '%s' should be set".formatted(envVarName));
         }
         return value;
     }

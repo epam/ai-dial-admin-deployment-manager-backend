@@ -11,6 +11,25 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class ExecutorServiceConfiguration {
 
+    private static final int METRICS_SCRAPE_POOL_SIZE = 8;
+    private static final int METRICS_SCRAPE_QUEUE_CAPACITY = 64;
+
+    @Bean(name = "metrics-scrape", destroyMethod = "shutdown")
+    public ExecutorService metricsScrapeExecutor() {
+        var threadFactory = Thread.ofPlatform()
+                .daemon(true)
+                .name("metrics-scrape-", 1)
+                .factory();
+        return new ThreadPoolExecutor(
+                METRICS_SCRAPE_POOL_SIZE,
+                METRICS_SCRAPE_POOL_SIZE,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(METRICS_SCRAPE_QUEUE_CAPACITY),
+                threadFactory,
+                new ThreadPoolExecutor.CallerRunsPolicy());
+    }
+
     @Bean(name = "k8s-service-readiness-checker", destroyMethod = "shutdown")
     public ExecutorService k8sServiceReadinessCheckerExecutor(ReconciliationExecutorProperties properties) {
         var queue = new LinkedBlockingQueue<Runnable>(properties.getQueueCapacity());

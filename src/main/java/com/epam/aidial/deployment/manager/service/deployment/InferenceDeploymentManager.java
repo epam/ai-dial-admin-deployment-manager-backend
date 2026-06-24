@@ -20,6 +20,7 @@ import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetecto
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
+import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
@@ -32,6 +33,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -41,6 +43,7 @@ import java.util.stream.Stream;
 public class InferenceDeploymentManager extends AbstractModelDeploymentManager<InferenceDeployment, InferenceService> {
 
     private static final String SERVICE_NAME_LABEL = "serving.kserve.io/inferenceservice";
+    private static final String COMPONENT_LABEL = "component";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
@@ -229,6 +232,32 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     /**
+     * Augments the baseline policy with chained-mode rules (spec 022 FR-001) when the
+     * {@code InferenceService} carries a transformer. On the update path {@code serviceSpec}
+     * is null and the live cluster resource is read; failing fast on absence avoids silently
+     * stripping the augmentation (which would recreate the bug spec 022 fixes).
+     */
+    @Override
+    protected CiliumNetworkPolicy buildCiliumNetworkPolicy(InferenceDeployment deployment,
+                                                           InferenceService serviceSpec,
+                                                           String serviceName,
+                                                           List<String> allowedDomains,
+                                                           Set<Integer> ports) {
+        InferenceService source = serviceSpec != null ? serviceSpec : requireLiveService(serviceName);
+        return ciliumNetworkPolicyCreator.create(
+                namespace, getServiceNameLabel(), serviceName, allowedDomains, ports, isChainedDeployment(source));
+    }
+
+    private InferenceService requireLiveService(String serviceName) {
+        InferenceService service = k8sKserveClient.getService(namespace, serviceName);
+        if (service == null) {
+            throw new IllegalStateException(
+                    "InferenceService '%s' not found in namespace '%s'".formatted(serviceName, namespace));
+        }
+        return service;
+    }
+
+    /**
      * Best-effort transformer readiness check based on URL presence.
      *
      * <p>KServe does not surface a per-component equivalent of the predictor's
@@ -294,6 +323,13 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     @Override
     protected String getServiceNameLabel() {
         return SERVICE_NAME_LABEL;
+    }
+
+    /** KServe pods carry a {@code component} label ({@code predictor}/{@code transformer}); other types don't. */
+    @Override
+    protected String resolveComponent(Pod pod) {
+        var labels = pod.getMetadata().getLabels();
+        return labels != null ? labels.get(COMPONENT_LABEL) : null;
     }
 
     @Override

@@ -13,6 +13,7 @@ import com.epam.aidial.deployment.manager.exception.ImageInUseException;
 import com.epam.aidial.deployment.manager.exception.ImportValidationException;
 import com.epam.aidial.deployment.manager.exception.InferenceTaskDetectionException;
 import com.epam.aidial.deployment.manager.exception.McpClientException;
+import com.epam.aidial.deployment.manager.exception.MetricsCollectionDisabledException;
 import com.epam.aidial.deployment.manager.exception.MissingTransformerImageException;
 import com.epam.aidial.deployment.manager.registry.mcp.client.McpRegistryClientException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -156,6 +157,14 @@ public class DefaultExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ErrorView handleIllegalArgumentError(HttpServletRequest req, Exception ex) {
         logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    // Intended config state (feature disabled), not a fault — return 400 per contract without
+    // logging it as an uncaught exception.
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MetricsCollectionDisabledException.class)
+    public ErrorView handleMetricsCollectionDisabled(HttpServletRequest req, MetricsCollectionDisabledException ex) {
         return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 

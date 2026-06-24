@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.functional.tests.AuditFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigExportImportFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ConfigImportValidationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.DeploymentMetricsFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.DeploymentRollbackFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.FullWorkflowWithMockedK8sClientFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.GlobalWhitelistRollbackFunctionalTest;
@@ -15,7 +16,7 @@ import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionRollba
 import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import org.junit.jupiter.api.Nested;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
@@ -48,6 +49,10 @@ public class H2FunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class DeploymentTests extends DeploymentFunctionalTest {
+    }
+
+    @Nested
+    class DeploymentMetricsTests extends DeploymentMetricsFunctionalTest {
     }
 
     @Nested

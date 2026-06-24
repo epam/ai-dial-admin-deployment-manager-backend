@@ -8,7 +8,6 @@ import com.epam.aidial.deployment.manager.model.config.ExportRequest;
 import com.epam.aidial.deployment.manager.model.config.ImportConfigPreview;
 import com.epam.aidial.deployment.manager.model.config.SelectedItemsExportRequest;
 import com.epam.aidial.deployment.manager.service.config.previews.ConfigImportPreviewer;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -135,7 +135,7 @@ public class ConfigTransferService {
         }
     }
 
-    private ExportConfig sanitizeExportConfig(ExportConfig config) throws Exception {
+    private ExportConfig sanitizeExportConfig(ExportConfig config) {
         return exportJsonMapper.readValue(exportJsonMapper.writeValueAsBytes(config), ExportConfig.class);
     }
 }

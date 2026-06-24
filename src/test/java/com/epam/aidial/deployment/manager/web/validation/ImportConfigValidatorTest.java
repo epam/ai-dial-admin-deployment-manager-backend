@@ -332,6 +332,7 @@ class ImportConfigValidatorTest {
                     .filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()))
                     .hasSize(1)
                     .first()
+                    .satisfies(e -> assertThat(e.entityIdentifier()).isEqualTo("not a valid domain!!!"))
                     .satisfies(e -> assertThat(e.message()).contains("not a valid domain!!!"));
         }
 
@@ -344,9 +345,23 @@ class ImportConfigValidatorTest {
             var errors = importConfigValidator.collectErrors(config);
             assertThat(errors).filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()))
                     .hasSize(2)
-                    .extracting(ImportValidationError::message)
-                    .anyMatch(m -> m.contains("bad!"))
-                    .anyMatch(m -> m.contains("also bad!!"));
+                    .extracting(ImportValidationError::entityIdentifier)
+                    .containsExactlyInAnyOrder("bad!", "also bad!!");
+        }
+
+        @Test
+        void shouldKeyErrorByOffendingDomain() {
+            var config = ExportConfig.builder()
+                    .globalImageBuildDomainWhitelist(List.of("valid.com", "bad!"))
+                    .build();
+
+            var errors = importConfigValidator.collectErrors(config);
+            assertThat(errors)
+                    .filteredOn(e -> "GLOBAL_DOMAIN_WHITELIST".equals(e.entityType()))
+                    .hasSize(1)
+                    .first()
+                    .satisfies(e -> assertThat(e.entityIdentifier()).isEqualTo("bad!"))
+                    .satisfies(e -> assertThat(e.fieldPath()).isEqualTo("globalImageBuildDomainWhitelist"));
         }
 
         @Test

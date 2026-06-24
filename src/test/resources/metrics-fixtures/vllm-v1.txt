@@ -1,0 +1,12 @@
+# Synthetic vLLM V1 capture — exercises the V1 KV-cache rename
+# (vllm:gpu_cache_usage_perc → vllm:kv_cache_usage_perc, spike §3 verification note).
+# TYPE vllm:num_requests_running gauge
+vllm:num_requests_running{model_name="google/gemma-3-4b-it"} 2.0
+# TYPE vllm:num_requests_waiting gauge
+vllm:num_requests_waiting{model_name="google/gemma-3-4b-it"} 1.0
+# TYPE vllm:kv_cache_usage_perc gauge
+vllm:kv_cache_usage_perc{model_name="google/gemma-3-4b-it"} 0.42
+# TYPE vllm:prompt_tokens_total counter
+vllm:prompt_tokens_total{model_name="google/gemma-3-4b-it"} 1200.0
+# TYPE vllm:generation_tokens_total counter
+vllm:generation_tokens_total{model_name="google/gemma-3-4b-it"} 340.0

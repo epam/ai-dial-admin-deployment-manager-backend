@@ -17,7 +17,6 @@ import com.epam.aidial.deployment.manager.service.JobSpecification;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.knative.client.KnativeClient;
 import io.fabric8.knative.serving.v1.RevisionSpec;
@@ -64,6 +63,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
 import java.util.HashMap;

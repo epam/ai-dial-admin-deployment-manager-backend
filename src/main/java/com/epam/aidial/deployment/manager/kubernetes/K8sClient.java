@@ -18,12 +18,17 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 @Slf4j
@@ -33,6 +38,9 @@ import java.util.function.Predicate;
 public class K8sClient {
 
     private final KubernetesClient client;
+
+    @Qualifier("metrics-scrape")
+    private final ExecutorService scrapeExecutor;
 
     public PodList getJobPods(String namespace, String name) {
         return getPods(namespace, Map.of("job-name", name));
@@ -73,6 +81,42 @@ public class K8sClient {
 
     public PodResource getPodResource(String namespace, String podName) {
         return client.pods().inNamespace(namespace).withName(podName);
+    }
+
+    /**
+     * Scrapes a workload pod's Prometheus metrics through the Kubernetes API-server pod-proxy
+     * subresource. The proxy rides the existing kube auth/TLS and works even when the deployment
+     * manager runs outside the cluster (pod IPs are not routable there, the API server is).
+     * {@code metricsPath} is the engine's exposition path (e.g. {@code /metrics} for vLLM-class
+     * engines). Any failure — timeout, non-2xx, missing pod —
+     * maps to {@link Optional#empty()} with context logging, never an exception: missing
+     * telemetry must not fail the request.
+     *
+     * <p>{@code timeoutMs} bounds the wait for the response; on timeout the underlying request
+     * is abandoned to the HTTP client's own timeouts.</p>
+     */
+    public Optional<String> scrapePodMetrics(String namespace, String podName, int port, String metricsPath, long timeoutMs) {
+        var proxyUri = "/api/v1/namespaces/%s/pods/http:%s:%d/proxy%s".formatted(namespace, podName, port, metricsPath);
+        log.debug("Scraping pod metrics via API-server proxy: {}", proxyUri);
+        try {
+            var body = CompletableFuture.supplyAsync(() -> client.raw(proxyUri), scrapeExecutor)
+                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            if (body == null) {
+                log.warn("Metrics scrape of pod '{}' in namespace '{}' (port {}) returned no body", podName, namespace, port);
+            }
+            return Optional.ofNullable(body);
+        } catch (TimeoutException e) {
+            log.warn("Timed out scraping metrics of pod '{}' in namespace '{}' after {} ms", podName, namespace, timeoutMs);
+            return Optional.empty();
+        } catch (ExecutionException e) {
+            var cause = e.getCause() != null ? e.getCause() : e;
+            log.warn("Failed to scrape metrics of pod '{}' in namespace '{}': {}", podName, namespace, cause.getMessage());
+            return Optional.empty();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while scraping metrics of pod '{}' in namespace '{}'", podName, namespace);
+            return Optional.empty();
+        }
     }
 
     public NonNamespaceOperation<Event, EventList, Resource<Event>> getAllEventsBase(String namespace) {

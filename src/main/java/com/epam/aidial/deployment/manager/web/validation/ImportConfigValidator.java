@@ -104,7 +104,8 @@ public class ImportConfigValidator {
         }
         for (String domain : whitelist) {
             if (!DomainListValidator.isValidDomain(domain)) {
-                errors.add(new ImportValidationError("GLOBAL_DOMAIN_WHITELIST", "",
+                errors.add(new ImportValidationError("GLOBAL_DOMAIN_WHITELIST",
+                        domain == null ? "" : domain,
                         "globalImageBuildDomainWhitelist",
                         domain == null ? "domain must not be null"
                                 : "domain '%s' is not a valid domain name".formatted(domain)));

@@ -2,10 +2,8 @@ package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.AppProperties;
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.service.RegistryService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import io.fabric8.kubernetes.api.model.Secret;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
@@ -41,21 +40,20 @@ class ManifestGeneratorTest {
     @InjectMocks
     private ManifestGenerator manifestGenerator;
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper objectMapper = JsonMapperConfiguration.createPrettyJsonMapper();
 
     @BeforeEach
-    void setupMocks() throws JsonProcessingException {
+    void setupMocks() {
         var baseSecret = objectMapper.readValue(BASE_SECRET_JSON, Secret.class);
         when(appconfig.cloneBuilderSecretConfig()).thenReturn(baseSecret);
     }
 
-    private String serialize(Object obj) throws JsonProcessingException {
+    private String serialize(Object obj) {
         return objectMapper.writeValueAsString(obj);
     }
 
     @Test
-    void testSecretConfig_createsSecretWithProvidedData() throws JsonProcessingException, JSONException {
+    void testSecretConfig_createsSecretWithProvidedData() throws JSONException {
         // Given
         var secretName = "my-custom-secret";
         var secretData = Map.of(
@@ -92,7 +90,7 @@ class ManifestGeneratorTest {
     }
 
     @Test
-    void testDialRegistryAuthSecretConfig_withBasicAuth() throws JsonProcessingException, JSONException {
+    void testDialRegistryAuthSecretConfig_withBasicAuth() throws JSONException {
         // Given
         var secretName = "dial-registry-secret";
         var dockerConfigContent = """
@@ -124,7 +122,7 @@ class ManifestGeneratorTest {
     }
 
     @Test
-    void testDialRegistryAuthSecretConfig_withoutBasicAuth() throws JsonProcessingException, JSONException {
+    void testDialRegistryAuthSecretConfig_withoutBasicAuth() throws JSONException {
         // Given
         var secretName = "dial-registry-secret-no-auth";
         // Mock the registry service to return a non-basic auth scheme

@@ -1,0 +1,33 @@
+# Synthetic TGI /metrics capture per spike §3 — TGI exposes no TTFT and no KV-cache gauge.
+# TYPE tgi_queue_size gauge
+tgi_queue_size 2.0
+# TYPE tgi_batch_current_size gauge
+tgi_batch_current_size 3.0
+# TYPE tgi_request_count counter
+tgi_request_count 100.0
+# TYPE tgi_request_success counter
+tgi_request_success 95.0
+# TYPE tgi_request_mean_time_per_token_duration histogram
+tgi_request_mean_time_per_token_duration_bucket{le="0.01"} 40.0
+tgi_request_mean_time_per_token_duration_bucket{le="0.025"} 90.0
+tgi_request_mean_time_per_token_duration_bucket{le="0.05"} 100.0
+tgi_request_mean_time_per_token_duration_bucket{le="+Inf"} 100.0
+tgi_request_mean_time_per_token_duration_sum 2.0
+tgi_request_mean_time_per_token_duration_count 100.0
+# TYPE tgi_request_duration histogram
+tgi_request_duration_bucket{le="0.5"} 50.0
+tgi_request_duration_bucket{le="1.0"} 80.0
+tgi_request_duration_bucket{le="2.5"} 95.0
+tgi_request_duration_bucket{le="+Inf"} 100.0
+tgi_request_duration_sum 90.0
+tgi_request_duration_count 100.0
+# TYPE tgi_request_input_length histogram
+tgi_request_input_length_bucket{le="1024.0"} 80.0
+tgi_request_input_length_bucket{le="+Inf"} 100.0
+tgi_request_input_length_sum 21000.0
+tgi_request_input_length_count 100.0
+# TYPE tgi_request_generated_tokens histogram
+tgi_request_generated_tokens_bucket{le="128.0"} 90.0
+tgi_request_generated_tokens_bucket{le="+Inf"} 100.0
+tgi_request_generated_tokens_sum 4200.0
+tgi_request_generated_tokens_count 100.0

@@ -13,7 +13,7 @@ import java.util.List;
 )
 public class ContainerConfigurationTemplateDto {
 
-    private final ConfigurationObjectTemplate config = new ConfigurationObjectTemplate();
+    private ConfigurationObjectTemplate config = new ConfigurationObjectTemplate();
 
     @Data
     public static class ConfigurationObjectTemplate {

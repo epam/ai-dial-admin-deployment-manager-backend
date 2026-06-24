@@ -13,9 +13,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import io.kserve.serving.v1beta1.InferenceService;
 import org.json.JSONException;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.skyscreamer.jsonassert.JSONAssert;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
 import java.util.List;
@@ -59,11 +57,10 @@ class InferenceManifestGeneratorTest {
             new PoolPrimitivesConverter(JsonMapperConfiguration.createJsonMapper());
     private InferenceManifestGenerator manifestGenerator;
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper objectMapper = JsonMapperConfiguration.createPrettyJsonMapper();
 
     @BeforeEach
-    void setupMocks() throws JsonProcessingException {
+    void setupMocks() {
         var baseServiceJson = ResourceUtils.readResource("/manifest/inference_service_template.json");
         var baseService = objectMapper.readValue(baseServiceJson, InferenceService.class);
 
@@ -75,7 +72,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenEnvs() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withOverriddenEnvs() throws JSONException {
         // Given
         var deploymentName = "basic-inference-app";
         var storageUri = "s3://my-bucket/my-model";
@@ -97,13 +94,13 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenResources() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withOverriddenResources() throws JSONException {
         // Given
         var deploymentName = "resource-inference-app";
         var storageUri = "s3://my-bucket/resource-model";
 
-        var limits = Map.of("cpu", "2000m", "memory", "8Gi");
-        var requests = Map.of("memory", "2Gi");
+        var limits = Map.of("cpu", "2000m", "memory", "8Gi", "nvidia.com/gpu", "1");
+        var requests = Map.of("memory", "2Gi", "nvidia.com/gpu", "1");
         var resources = new Resources(limits, requests);
 
         // When
@@ -119,7 +116,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenScaling() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withOverriddenScaling() throws JSONException {
         // Given
         var deploymentName = "scaling-inference-app";
         var storageUri = "s3://my-bucket/scaling-model";
@@ -141,7 +138,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withOverriddenScaling_onlyRequiredParam() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withOverriddenScaling_onlyRequiredParam() throws JSONException {
         // Given
         var deploymentName = "scale-zero-delay-app";
         var storageUri = "s3://my-bucket/model";
@@ -180,7 +177,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withCustomPort() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withCustomPort() throws JSONException {
         // Given
         var deploymentName = "custom-port-inference-app";
         var storageUri = "s3://my-bucket/port-model";
@@ -201,7 +198,7 @@ class InferenceManifestGeneratorTest {
     }
 
     @Test
-    void testServiceConfig_withArgs() throws JsonProcessingException, JSONException {
+    void testServiceConfig_withArgs() throws JSONException {
         // Given
         var deploymentName = "args-inference-app";
         var storageUri = "s3://my-bucket/args-model";
@@ -383,7 +380,7 @@ class InferenceManifestGeneratorTest {
         assertThat(predictor.getNodeSelector()).containsEntry("workload", "gpu");
         assertThat(predictor.getAffinity()).isNotNull();
         assertThat(predictor.getTolerations()).hasSize(1);
-        assertThat(predictor.getTolerations().get(0).getKey()).isEqualTo("dedicated");
+        assertThat(predictor.getTolerations().getFirst().getKey()).isEqualTo("dedicated");
     }
 
     @Test
@@ -617,7 +614,7 @@ class InferenceManifestGeneratorTest {
         assertThat(args).doesNotContain("--return_raw_logits");
     }
 
-    private String serialize(Object obj) throws JsonProcessingException {
+    private String serialize(Object obj) {
         return objectMapper.writeValueAsString(obj);
     }
 

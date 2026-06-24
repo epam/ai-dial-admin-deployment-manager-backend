@@ -1,10 +1,9 @@
 package com.epam.aidial.deployment.manager.docker;
 
 import com.epam.aidial.deployment.manager.configuration.DockerAuthScheme;
+import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
 import com.epam.aidial.deployment.manager.configuration.RegistryProperties;
-import com.epam.aidial.deployment.manager.docker.dto.ContainerConfigurationTemplateDto;
 import com.epam.aidial.deployment.manager.model.ImageEntrypoint;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.tools.jib.api.DescriptorDigest;
 import com.google.cloud.tools.jib.api.ImageReference;
 import com.google.cloud.tools.jib.api.LogEvent;
@@ -24,6 +23,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.event.Level;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.ByteArrayInputStream;
 import java.net.HttpURLConnection;
@@ -47,8 +47,7 @@ class DockerRegistryClientTest {
 
     private DockerRegistryClient dockerRegistryClient;
 
-    @Mock
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = JsonMapperConfiguration.createJsonMapper();
     @Mock
     private RegistryClient registryClient;
     @Mock
@@ -100,15 +99,9 @@ class DockerRegistryClientTest {
             var descriptorDigest = mock(DescriptorDigest.class);
             when(configDescriptor.getDigest()).thenReturn(descriptorDigest);
 
-            // Mock blob
+            // Mock blob — parsed by the real project ObjectMapper, exercising the actual Jackson binding
             var blob = Blobs.from(new ByteArrayInputStream("{\"config\":{\"Entrypoint\":[\"sh\"],\"Cmd\":[\"-c\",\"echo hello\"]}}".getBytes()));
             when(registryClient.pullBlob(eq(descriptorDigest), any(), any())).thenReturn(blob);
-
-            // Mock object mapper
-            var configTemplate = new ContainerConfigurationTemplateDto();
-            configTemplate.getConfig().setEntrypoint(List.of("sh"));
-            configTemplate.getConfig().setCmd(List.of("-c", "echo hello"));
-            when(objectMapper.readValue(any(byte[].class), eq(ContainerConfigurationTemplateDto.class))).thenReturn(configTemplate);
 
             // When
             ImageEntrypoint result = dockerRegistryClient.getEntrypoint(imageName);

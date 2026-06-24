@@ -6,8 +6,10 @@ import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
 import com.epam.aidial.deployment.manager.dao.repository.DeploymentRepository;
+import com.epam.aidial.deployment.manager.exception.DeploymentException;
 import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
+import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -32,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -152,6 +155,83 @@ class DeploymentServiceTest {
 
         verify(nodePoolService, never()).resolveForCreate(any());
         assertThat(cloneRequest.getNodePoolId()).isEqualTo("etalon-pool");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRefreshCnpSynchronously_whenOnlyAllowedDomainsChanged() {
+        // Only the CNP predicate fires (allowedDomains diff, no other fields changed).
+        // CNP refresh runs synchronously inside the @Transactional method; rollingUpdate is NOT invoked.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        var updated = runningMcp(List.of("a.com", "b.com"), 8080);
+
+        var request = newMcpRequest(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(existing));
+        when(deploymentManager.resolveSecrets(existing)).thenReturn(existing);
+        when(deploymentMapper.toDeployment(eq(request), any())).thenReturn(updated);
+        when(deploymentRepository.update(eq(DEPLOYMENT_ID), any())).thenAnswer(inv -> inv.getArgument(1));
+
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).rollingUpdate(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldSkipStandaloneCnpRefresh_whenRollingUpdateAlsoApplies() {
+        // containerPort diff triggers BOTH predicates. Standalone CNP refresh must NOT fire —
+        // rollingUpdate's own afterCommit refreshes the CNP using the fresh chained signal.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        var updated = runningMcp(List.of("a.com"), 9090);
+
+        var request = newMcpRequest(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(existing));
+        when(deploymentManager.resolveSecrets(existing)).thenReturn(existing);
+        when(deploymentMapper.toDeployment(eq(request), any())).thenReturn(updated);
+        when(deploymentRepository.update(eq(DEPLOYMENT_ID), any())).thenAnswer(inv -> inv.getArgument(1));
+        // rollingUpdate's return becomes the new updatedDeployment; needs to be non-null so the
+        // subsequent setEnvs(envs) doesn't NPE.
+        when(deploymentManager.rollingUpdate(DEPLOYMENT_ID)).thenReturn(updated);
+
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldPropagateDeploymentException_whenCnpRefreshFails() {
+        // Same setup as the standalone-refresh test, but the K8s write fails. The exception
+        // propagates synchronously from updateDeployment — operator sees a 5xx and retries.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        var updated = runningMcp(List.of("a.com", "b.com"), 8080);
+
+        var request = newMcpRequest(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(existing));
+        when(deploymentManager.resolveSecrets(existing)).thenReturn(existing);
+        when(deploymentMapper.toDeployment(eq(request), any())).thenReturn(updated);
+        when(deploymentRepository.update(eq(DEPLOYMENT_ID), any())).thenAnswer(inv -> inv.getArgument(1));
+        doThrow(new DeploymentException("simulated kube-apiserver failure"))
+                .when(deploymentManager).updateCiliumNetworkPolicy(DEPLOYMENT_ID);
+
+        assertThatThrownBy(() -> deploymentService.updateDeployment(DEPLOYMENT_ID, request))
+                .isInstanceOf(DeploymentException.class)
+                .hasMessageContaining("simulated kube-apiserver failure");
+    }
+
+    private static McpDeployment runningMcp(List<String> allowedDomains, Integer containerPort) {
+        return McpDeployment.builder()
+                .id(DEPLOYMENT_ID)
+                .source(new ImageReferenceSource("registry.example.com/img:1", null))
+                .metadata(new DeploymentMetadata(List.of()))
+                .status(DeploymentStatus.RUNNING)
+                .serviceName("svc-" + DEPLOYMENT_ID)
+                .envs(List.of())
+                .allowedDomains(allowedDomains)
+                .containerPort(containerPort)
+                .build();
     }
 
     private static CreateMcpDeployment newMcpRequest(String nodePoolId) {
