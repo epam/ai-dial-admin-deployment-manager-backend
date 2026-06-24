@@ -4,7 +4,7 @@ buildscript {
             classpath ('org.apache.commons:commons-lang3:3.18.0') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
+            classpath ('com.fasterxml.jackson.core:jackson-core:2.21.4') {
                 because("previous versions have vulnerabilities")
             }
             classpath ('io.netty:netty-codec-http2:4.2.15.Final') {
@@ -70,6 +70,9 @@ dependencies {
     implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
     // aligns every io.netty module (overriding the Boot BOM) to one patched version — covers multiple HIGH CVEs
     implementation platform('io.netty:netty-bom:4.2.15.Final')
+    // overrides the Boot-BOM-managed Jackson 3 (3.1.2) — PolymorphicTypeValidator/array-subtype allowlist
+    // bypasses (CVE-2026-54512, CVE-2026-54513), patched in 3.1.4
+    implementation platform('tools.jackson:jackson-bom:3.1.4')
 
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
@@ -129,9 +132,9 @@ dependencies {
     // executing the exact code they shipped with (db.migration.MigrationJsonMapper), and Hibernate's
     // JSON column mapping (@JdbcTypeCode(SqlTypes.JSON)) still uses Jackson 2 with
     // constructor-parameter-name detection, which spring-boot-starter-json used to provide before Jackson 3
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.2'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.2'
-    runtimeOnly 'com.fasterxml.jackson.module:jackson-module-parameter-names:2.21.2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.4'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.4'
+    runtimeOnly 'com.fasterxml.jackson.module:jackson-module-parameter-names:2.21.4'
     implementation 'com.github.f4b6a3:uuid-creator:6.0.0'
 
     implementation 'org.mapstruct:mapstruct:1.6.3'
@@ -171,7 +174,7 @@ dependencies {
         implementation("io.grpc:grpc-netty-shaded:1.75.0") {
             because("previous versions have vulnerabilities")
         }
-        implementation ('com.fasterxml.jackson.core:jackson-core:2.21.1') {
+        implementation ('com.fasterxml.jackson.core:jackson-core:2.21.4') {
             because("transitive Jackson 2 from fabric8/MCP/jib — previous versions have vulnerabilities")
         }
         implementation("org.bouncycastle:bcprov-jdk18on:1.84") {
