@@ -23,6 +23,14 @@
 #### Security & RBAC
 - **[Preview] Deployment Metrics Scrape** requires read-only RBAC on `pods/proxy` for INFERENCE engine metrics (and on `metrics.k8s.io` pods when `METRICS_SCRAPE_RESOURCE_USAGE_ENABLED=true`)
 
+#### Deployment & Scaling
+- Chained text-classification inference deployments — auto-detected from HuggingFace metadata; a dedicated transformer container is generated alongside the engine. Configured via `app.text-classification-transformer-container-config` (full Kubernetes Container spec template, mirroring `app.knative-service-container-config`):
+  - `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_IMAGE` — transformer container image; **no default and required** for chained deployments. Deploy fails fast with HTTP 5xx if unset when a text-classification model is detected.
+  - `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_REQUEST` — CPU request (default: `100m`)
+  - `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_REQUEST` — memory request (default: `256Mi`)
+  - `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_CPU_LIMIT` — CPU limit (default: `500m`)
+  - `INFERENCE_TEXT_CLASSIFICATION_TRANSFORMER_MEMORY_LIMIT` — memory limit (default: `512Mi`)
+
 ---
 
 ### Changed
