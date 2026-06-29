@@ -7,6 +7,7 @@ import com.epam.aidial.deployment.manager.utils.mapping.InferenceMappers;
 import com.epam.aidial.deployment.manager.utils.mapping.MappingChain;
 import io.fabric8.kubernetes.api.model.Container;
 import io.kserve.serving.v1beta1.InferenceService;
+import io.kserve.serving.v1beta1.inferenceservicespec.Transformer;
 import io.kserve.serving.v1beta1.inferenceservicespec.transformer.Containers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,18 @@ public class TextClassificationTransformerSection {
     private static final String MODEL_NAME_ARG = "--model_name";
     private static final String PREDICTOR_PROTOCOL_ARG = "--predictor_protocol";
     private static final String KSERVE_V2_PROTOCOL = "v2";
+
+    /**
+     * KServe auto-stamps these on a runtime-backed predictor (so it is scrapeable) but not on a
+     * user-supplied transformer container. We replicate them on the transformer so (a) its pod
+     * advertises a scrape target that {@code InferenceServingMetricsCollector} consumes, and (b) the
+     * service mesh treats the port the same way it treats the predictor's metrics port. The port
+     * mirrors KServe's default transformer container port (`--http_port 8080`).
+     */
+    private static final String PROMETHEUS_PORT_ANNOTATION = "prometheus.kserve.io/port";
+    private static final String PROMETHEUS_PATH_ANNOTATION = "prometheus.kserve.io/path";
+    private static final String TRANSFORMER_METRICS_PORT = "8080";
+    private static final String METRICS_PATH = "/metrics";
 
     private final AppProperties appProperties;
     private final JsonMapper jsonMapper;
@@ -76,13 +89,18 @@ public class TextClassificationTransformerSection {
         // The two are structurally identical (same JSON shape) but unrelated Java classes — round-trip via JSON.
         var containerSkeleton = toKserveContainer(deploymentName, template);
 
-        var containers = new MappingChain<>(service)
+        var transformer = new MappingChain<>(service)
                 .get(InferenceMappers.SERVICE_SPEC_FIELD)
                 .get(InferenceMappers.SERVICE_SPEC_TRANSFORMER_FIELD)
+                .data();
+
+        var containers = new MappingChain<>(transformer)
                 .get(InferenceMappers.TRANSFORMER_CONTAINERS_FIELD)
                 .data();
         containers.clear();
         containers.add(containerSkeleton);
+
+        applyPrometheusScrapeAnnotations(transformer);
 
         var containerChain = new MappingChain<>(containerSkeleton);
 
@@ -95,6 +113,22 @@ public class TextClassificationTransformerSection {
                 .get(ID2LABEL_ENV_VAR)
                 .data()
                 .setValue(serializeId2Label(deploymentName, id2Label));
+    }
+
+    /**
+     * Adds the KServe Prometheus scrape annotations to the transformer component so they propagate to
+     * its pod. Without them the pod has no declared scrape target (KServe only auto-stamps them on a
+     * runtime-backed predictor), and the metrics collector skips it. Existing operator-supplied values
+     * win — {@code putIfAbsent} keeps tuning via {@code app.text-classification-transformer-container-config}
+     * (or a future per-deployment override) authoritative.
+     */
+    private void applyPrometheusScrapeAnnotations(Transformer transformer) {
+        var annotations = transformer.getAnnotations() != null
+                ? transformer.getAnnotations()
+                : new LinkedHashMap<String, String>();
+        annotations.putIfAbsent(PROMETHEUS_PORT_ANNOTATION, TRANSFORMER_METRICS_PORT);
+        annotations.putIfAbsent(PROMETHEUS_PATH_ANNOTATION, METRICS_PATH);
+        transformer.setAnnotations(annotations);
     }
 
     private String serializeId2Label(String deploymentName, Map<Integer, String> id2Label) {
