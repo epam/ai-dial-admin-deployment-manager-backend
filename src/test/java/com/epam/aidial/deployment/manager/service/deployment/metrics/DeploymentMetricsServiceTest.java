@@ -327,7 +327,9 @@ class DeploymentMetricsServiceTest {
     @Test
     void shouldReturnKserveModelServerSnapshot_combiningPredictorAndTransformer() {
         givenDeployment(inferenceDeployment(null));
-        givenPods(List.of(podInfo("transformer-pod", "transformer"), podInfo("predictor-pod", "predictor")));
+        // The transformer advertises a Prometheus endpoint (prometheus.kserve.io/port present), so it is scraped.
+        givenPods(List.of(podInfo("transformer-pod", "transformer", DEFAULT_PORT, "/metrics"),
+                podInfo("predictor-pod", "predictor")));
         when(k8sClient.scrapePodMetrics(NAMESPACE, "predictor-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/kserve-modelserver-predictor.txt")));
         when(k8sClient.scrapePodMetrics(NAMESPACE, "transformer-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
@@ -387,6 +389,32 @@ class DeploymentMetricsServiceTest {
                 .containsEntry("request_predict_total", 100.0)
                 .doesNotContainKey("request_preprocess_total");
         assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
+    }
+
+    @Test
+    void shouldNotScrapeTransformer_whenItAdvertisesNoMetricsEndpoint() {
+        // Real-world case: the chained transformer has metric aggregation disabled, so KServe
+        // stamps no prometheus.kserve.io/port on it (metricsPort == null). Scraping it would only ever
+        // time out (while starting) or be reset (once running), so it must be skipped — the snapshot
+        // degrades cleanly to predictor-only and the serving block stays available.
+        givenDeployment(inferenceDeployment(null));
+        givenPods(List.of(podInfo("transformer-pod", "transformer"), podInfo("predictor-pod", "predictor")));
+        when(k8sClient.scrapePodMetrics(NAMESPACE, "predictor-pod", DEFAULT_PORT, "/metrics", TIMEOUT_MS))
+                .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/kserve-modelserver-predictor.txt")));
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.engine()).isEqualTo(EngineFamily.KSERVE_MODELSERVER);
+        assertThat(snapshot.scrapedPod()).isEqualTo("predictor-pod");
+        assertThat(snapshot.availability().get(AVAILABILITY_SERVING).available()).isTrue();
+        // predictor-only: e2e is the predict histogram itself, no pre/post counters from the transformer
+        assertThat(snapshot.operational().e2eLatency().mean()).isCloseTo(0.2, within(1e-9));
+        assertThat(snapshot.rawCounters())
+                .containsEntry("request_predict_total", 100.0)
+                .doesNotContainKey("request_preprocess_total");
+        // the transformer was never scraped
+        verify(k8sClient, never()).scrapePodMetrics(eq(NAMESPACE), eq("transformer-pod"), anyInt(), anyString(), anyLong());
     }
 
     @Test
@@ -491,7 +519,14 @@ class DeploymentMetricsServiceTest {
     }
 
     private static PodInfo podInfo(String name, String component) {
-        return new PodInfo(name, component, "kserve-container", Instant.now(), 0, null, null, null, null, null);
+        // No prometheus.kserve.io/* annotations advertised — metricsPort/metricsPath are null, so the
+        // collector falls back to the engine default port for the predictor and skips the transformer.
+        return podInfo(name, component, null, null);
+    }
+
+    private static PodInfo podInfo(String name, String component, Integer metricsPort, String metricsPath) {
+        return new PodInfo(name, component, "kserve-container", Instant.now(), 0, null, null, null, null, null,
+                metricsPort, metricsPath);
     }
 
 }
