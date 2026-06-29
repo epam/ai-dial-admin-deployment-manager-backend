@@ -519,7 +519,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 containerInfo.lastTerminationMessage(),
                 containerInfo.lastExitCode(),
                 containerInfo.lastSignal(),
-                containerInfo.lastFinishedAt()
+                containerInfo.lastFinishedAt(),
+                resolveMetricsPort(pod),
+                resolveMetricsPath(pod)
         );
     }
 
@@ -732,6 +734,25 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
      * {@code predictor}/{@code transformer} label) override this.
      */
     protected String resolveComponent(Pod pod) {
+        return null;
+    }
+
+    /**
+     * Resolves the Prometheus scrape port a pod advertises, or {@code null} when it publishes none.
+     * The base reports none; deployment types whose pods advertise a scrape endpoint (e.g. KServe's
+     * {@code prometheus.kserve.io/port} annotation) override this. A {@code null} tells the metrics
+     * collector the pod has no scrape target, so it must not be scraped.
+     */
+    protected Integer resolveMetricsPort(Pod pod) {
+        return null;
+    }
+
+    /**
+     * Resolves the Prometheus scrape path a pod advertises, or {@code null} when it publishes none
+     * (the collector then falls back to its engine default). Overridden alongside
+     * {@link #resolveMetricsPort(Pod)} by types whose pods carry the annotation.
+     */
+    protected String resolveMetricsPath(Pod pod) {
         return null;
     }
 

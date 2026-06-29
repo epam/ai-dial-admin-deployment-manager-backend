@@ -28,4 +28,8 @@ public class PodInfo {
     private Integer lastSignal;
     @Nullable
     private Instant lastFinishedAt;
+    @Nullable
+    private Integer metricsPort;
+    @Nullable
+    private String metricsPath;
 }

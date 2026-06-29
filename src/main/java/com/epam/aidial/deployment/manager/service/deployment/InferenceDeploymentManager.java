@@ -28,6 +28,7 @@ import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +45,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
     private static final String SERVICE_NAME_LABEL = "serving.kserve.io/inferenceservice";
     private static final String COMPONENT_LABEL = "component";
+    private static final String PROMETHEUS_PORT_ANNOTATION = "prometheus.kserve.io/port";
+    private static final String PROMETHEUS_PATH_ANNOTATION = "prometheus.kserve.io/path";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
@@ -330,6 +333,38 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     protected String resolveComponent(Pod pod) {
         var labels = pod.getMetadata().getLabels();
         return labels != null ? labels.get(COMPONENT_LABEL) : null;
+    }
+
+    /**
+     * KServe stamps {@code prometheus.kserve.io/port}/{@code /path} on a pod only when it actually
+     * exposes a Prometheus endpoint. The predictor carries them; a chained transformer whose metric
+     * aggregation is disabled does not — so a {@code null} port is the authoritative signal that the
+     * transformer has no scrape target, letting the collector skip it instead of scraping a doomed
+     * default port (which times out while the pod starts and resets once it is running).
+     */
+    @Override
+    protected Integer resolveMetricsPort(Pod pod) {
+        var value = annotation(pod, PROMETHEUS_PORT_ANNOTATION);
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value.trim());
+        } catch (NumberFormatException e) {
+            log.warn("Pod '{}' has a non-numeric {} annotation: '{}'; ignoring",
+                    pod.getMetadata().getName(), PROMETHEUS_PORT_ANNOTATION, value);
+            return null;
+        }
+    }
+
+    @Override
+    protected String resolveMetricsPath(Pod pod) {
+        return annotation(pod, PROMETHEUS_PATH_ANNOTATION);
+    }
+
+    private static String annotation(Pod pod, String key) {
+        var annotations = pod.getMetadata().getAnnotations();
+        return annotations != null ? annotations.get(key) : null;
     }
 
     @Override
