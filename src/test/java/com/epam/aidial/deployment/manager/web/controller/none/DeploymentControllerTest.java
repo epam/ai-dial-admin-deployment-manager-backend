@@ -717,7 +717,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
         var podInfo = new PodInfo("pod-1", null, null, createdAt, 5, "OOMKilled",
-                "Container exceeded its memory limit", 137, 9, finishedAt);
+                "Container exceeded its memory limit", 137, 9, finishedAt, null, null);
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -733,7 +733,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/pods_without_termination_info_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-2", null, null, createdAt, 0, null, null, null, null, finishedAt);
+        var podInfo = new PodInfo("pod-2", null, null, createdAt, 0, null, null, null, null, finishedAt, null, null);
 
         when(deploymentService.getInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
@@ -749,7 +749,7 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/active_pods_response.json");
         var createdAt = Instant.parse("2023-01-01T12:00:00Z");
         var finishedAt = Instant.parse("2023-01-01T12:10:00Z");
-        var podInfo = new PodInfo("pod-3", null, null, createdAt, 2, "Error", null, 1, null, finishedAt);
+        var podInfo = new PodInfo("pod-3", null, null, createdAt, 2, "Error", null, 1, null, finishedAt, null, null);
 
         when(deploymentService.getActiveInstances(DEPLOYMENT_ID)).thenReturn(List.of(podInfo));
 
