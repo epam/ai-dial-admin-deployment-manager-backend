@@ -37,10 +37,14 @@
 Authored per vendor under `src/main/resources/db/migration/{H2,POSTGRES,MS_SQL_SERVER}/`.
 
 ```sql
-ALTER TABLE inference_deployment ADD inference_task VARCHAR(255);
+-- main table: enum-as-string convention (matches model_format VARCHAR(32))
+ALTER TABLE inference_deployment ADD inference_task VARCHAR(32);
+-- audit table: Envers default length convention
+ALTER TABLE inference_deployment_aud ADD inference_task VARCHAR(255);
 ```
 
 - Nullable; no backfill. Null is coalesced to `NONE` at the API boundary (FR-007).
+- The `_aud` audit column is added alongside the main column (entity is `@Audited`).
 - Adjust per-vendor `ADD` syntax as needed (`ADD COLUMN` for H2/Postgres, `ADD` for SQL Server).
 - After authoring, run `./gradlew generateDbSchema` and commit `docs/db-schema.md`.
 
