@@ -30,7 +30,7 @@ public class InferenceDeploymentEntity extends DeploymentEntity {
     private String modelFormat;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "inference_task")
+    @Column(name = "inference_task", nullable = false)
     private InferenceTask inferenceTask;
 
 }

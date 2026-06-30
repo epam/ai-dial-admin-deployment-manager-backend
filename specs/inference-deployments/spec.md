@@ -144,7 +144,7 @@ Status: **Implemented** *(Implemented via 024-model-serving-capability)*
 - **WHEN** an inference deployment has no persisted capability (predates the feature)
 - **THEN** the response reports `inferenceTask: NONE`
 
-Existing rows that predate the column are backfilled to `NONE` by migration `V1.60` (main table only; the real task is re-detected on the next deploy/update).
+Existing rows that predate the column are backfilled to `NONE` by the `DEFAULT 'NONE'` on the `V1.59` column (the main column is `NOT NULL`; the real task is re-detected on the next deploy/update).
 
 ## Implementation Notes
 - Domain model: `com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment`

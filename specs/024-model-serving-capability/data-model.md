@@ -37,27 +37,22 @@
 Authored per vendor under `src/main/resources/db/migration/{H2,POSTGRES,MS_SQL_SERVER}/`.
 
 ```sql
--- main table: enum-as-string convention (matches model_format VARCHAR(32))
-ALTER TABLE inference_deployment ADD inference_task VARCHAR(32);
--- audit table: Envers default length convention
+-- main table: NOT NULL with DEFAULT 'NONE' backfills existing rows atomically on ADD COLUMN
+-- (enum-as-string convention, matches model_format VARCHAR(32))
+ALTER TABLE inference_deployment ADD inference_task VARCHAR(32) DEFAULT 'NONE' NOT NULL;
+-- audit table: nullable, Envers default length (historical revisions legitimately have no value)
 ALTER TABLE inference_deployment_aud ADD inference_task VARCHAR(255);
 ```
 
-- Nullable. Null is coalesced to `NONE` at the API boundary (FR-007).
-- The `_aud` audit column is added alongside the main column (entity is `@Audited`).
+- Main column is `NOT NULL DEFAULT 'NONE'` — existing rows are backfilled to `NONE` by the `DEFAULT`
+  in the same `ADD COLUMN` step (no separate backfill migration). The real task is re-detected on the
+  deployment's next deploy/update.
+- The `_aud` audit column is nullable (entity is `@Audited`).
 - Adjust per-vendor `ADD` syntax as needed (`ADD COLUMN` for H2/Postgres, `ADD` for SQL Server).
+- The persist path never writes null to the main column: `PersistenceDeploymentMapper` coalesces a
+  null `inferenceTask` to `NONE` when mapping to the entity, covering every save path (create,
+  update, rollback from a pre-feature revision, import). The API also coalesces null → `NONE`.
 - After authoring, run `./gradlew generateDbSchema` and commit `docs/db-schema.md`.
-
-### Backfill migration: `V1.60__BackfillInferenceTask.sql`
-
-Backfills existing inference deployments (rows that predate the column) to the conservative default:
-
-```sql
-UPDATE inference_deployment SET inference_task = 'NONE' WHERE inference_task IS NULL;
-```
-
-- Main table only; `_aud` rows are left as-is to preserve historical revision state.
-- The real task is re-detected on the deployment's next deploy/update.
 
 ## State / lifecycle
 
