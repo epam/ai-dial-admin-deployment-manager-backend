@@ -17,6 +17,23 @@ Status: **Implemented**
 
 ## Requirements
 
+### Requirement: Auto-provisioned imagePullSecrets for trusted-registry images
+When `app.registry.auto-pull-secret-enabled` is `true` (default), the deploy flow SHALL auto-provision a `kubernetes.io/dockerconfigjson` pull secret and reference it from the generated workload whenever an in-scope image is served from a credentialed configured registry (the primary registry or a trusted-private registry with `BASIC` auth). The credential match reuses `DockerHubAliases.sameRegistry(...)` (Docker Hub alias-aware). In-scope images are the deployment image for KNative image-based deployments and the chained transformer container image for Inference deployments; the predictor and NIM workloads are out of scope (NIM keeps its existing `spec.image.pullSecrets`). The reference is injected onto the already-built CRD by the deployment manager — `RevisionSpec.imagePullSecrets` for KNative, `spec.transformer.imagePullSecrets` for KServe — so manifest-generator signatures are unchanged. When no in-scope image matches a credentialed registry, or the feature is disabled, no secret is created and no `imagePullSecrets` is injected (manifest unchanged).
+
+Status: **Implemented** — Implemented via 025-auto-pull-secrets
+
+#### Scenario: KNative image-based deployment from a trusted registry
+- **WHEN** an MCP/Interceptor/Adapter/Application deployment whose image host matches a credentialed configured registry is deployed
+- **THEN** a `dockerconfigjson` pull secret is created in the deployment namespace and `spec.template.spec.imagePullSecrets` references it
+
+#### Scenario: Chained transformer image from a trusted registry
+- **WHEN** an Inference deployment chains a text-classification transformer whose configured image host matches a credentialed configured registry
+- **THEN** `spec.transformer.imagePullSecrets` references the provisioned secret and the predictor is left untouched
+
+#### Scenario: Public/unmatched image leaves the manifest unchanged
+- **WHEN** a deployment image's host matches no credentialed configured registry, or `AUTO_PULL_SECRET_ENABLED=false`
+- **THEN** no pull secret is created and the generated manifest carries no auto-injected `imagePullSecrets`
+
 ### Requirement: KNative manifest generated for image-based deployments
 When KNative is enabled, the system SHALL generate a KNative Service manifest for MCP, Interceptor, Adapter, and Application deployments. The manifest includes:
 

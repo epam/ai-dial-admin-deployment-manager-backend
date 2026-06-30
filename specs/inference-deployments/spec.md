@@ -83,6 +83,11 @@ Status: **Implemented**
 - **WHEN** `POST /api/v1/deployments/{id}/deploy` is called for an INFERENCE deployment with `app.kserve.enabled=false`
 - **THEN** the deploy operation fails or is skipped with an appropriate error
 
+### Requirement: Transformer image pull secret auto-provisioned for trusted registries
+When a chained text-classification transformer's operator-configured image is served from a credentialed configured registry (and `app.registry.auto-pull-secret-enabled` is true), the deploy flow SHALL auto-provision a `kubernetes.io/dockerconfigjson` pull secret and set `spec.transformer.imagePullSecrets` on the generated InferenceService. The predictor is never given an auto pull secret (its model is loaded via `storageUri`, not a private container image). See [kubernetes-manifests](../kubernetes-manifests/spec.md).
+
+Status: **Implemented** — Implemented via 025-auto-pull-secrets
+
 ### Requirement: Auto-detect text-classification task at deploy time
 On every deploy of a HuggingFace-sourced inference deployment, the system SHALL fetch the model's HF Hub metadata and compute a transient `task` (one of `TEXT_CLASSIFICATION` / `NONE`) plus an optional `id2Label` map. The detection result is not persisted; it flows directly into manifest generation. There is no operator-facing `task` or `id2label` field on the API.
 

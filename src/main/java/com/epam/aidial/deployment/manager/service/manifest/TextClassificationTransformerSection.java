@@ -73,6 +73,15 @@ public class TextClassificationTransformerSection {
     }
 
     /**
+     * The operator-configured transformer container image, or {@code null}/blank when unset. Exposed so
+     * the deploy flow can resolve registry pull credentials for the transformer image.
+     */
+    public String transformerImage() {
+        Container template = appProperties.cloneTextClassificationTransformerContainerConfig();
+        return template == null ? null : template.getImage();
+    }
+
+    /**
      * Apply the transformer block to the given {@link InferenceService}.
      *
      * @param service        the service spec being built (mutated in place)
