@@ -25,7 +25,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.FilterType;
-import org.springframework.context.annotation.Primary;
 
 import java.util.concurrent.ExecutorService;
 
@@ -100,13 +99,12 @@ public class FunctionalTestConfiguration {
     /**
      * Stub HuggingFace client so inference-deployment create/update (which now runs task detection
      * via {@code InferenceDeploymentManager#enrichBeforePersist}) does not make real HTTP calls in
-     * functional tests. Returns metadata that resolves to {@code InferenceTask.NONE}. Marked
-     * {@link Primary} to win over the scanned real client; tests that need a specific task can
-     * re-stub this mock.
+     * functional tests. Returns metadata that resolves to {@code InferenceTask.NONE}. The method
+     * name matches the scanned bean, so this {@code @Bean} overrides it (mirrors
+     * {@link #dockerRegistryClient()}); tests that need a specific task can re-stub this mock.
      */
     @Bean
-    @Primary
-    public HuggingFaceClient testHuggingFaceClient() {
+    public HuggingFaceClient huggingFaceClient() {
         HuggingFaceClient mock = Mockito.mock(HuggingFaceClient.class);
         Mockito.when(mock.getModel(Mockito.anyString()))
                 .thenReturn(Model.builder().sha("test-sha").pipelineTag("feature-extraction").build());

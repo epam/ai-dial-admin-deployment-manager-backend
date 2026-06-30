@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-06-29T16:11:27.083139Z
+> Generated at: 2026-06-30T11:55:20.931942Z
 
 ## Tables
 
@@ -345,7 +345,7 @@
 |--------|------|----------|---------|-----|
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
 | MODEL_FORMAT | VARCHAR(32) | No |  |  |
-| INFERENCE_TASK | VARCHAR(255) | Yes |  |  |
+| INFERENCE_TASK | VARCHAR(32) | Yes |  |  |
 
 ## INFERENCE_DEPLOYMENT_AUD
 
