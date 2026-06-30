@@ -2,7 +2,7 @@
 
 **Feature Branch**: `024-model-serving-capability`  
 **Created**: 2026-06-29  
-**Status**: Draft  
+**Status**: Implemented  
 **Capability**: inference-deployments  
 **Input**: User description: "Expose an API about what serving an inference model supports. Using the existing inference-task detection, additionally recognise text-generation models. Based on the detected task, tell the frontend what the model exposes: text-generation → chat completion endpoint, text-classification → mcp toolset."
 

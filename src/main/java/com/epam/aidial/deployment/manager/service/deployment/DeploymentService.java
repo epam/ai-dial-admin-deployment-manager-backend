@@ -158,6 +158,8 @@ public class DeploymentService {
             deployment.setAuthor(request.getAuthor());
         }
 
+        deploymentManager.enrichBeforePersist(deployment);
+
         var savedDeployment = deploymentRepository.save(deployment);
         savedDeployment.setEnvs(envs); // we do not save secret values into DB
         return savedDeployment;
@@ -309,6 +311,10 @@ public class DeploymentService {
         if (imageDefinition != null) {
             setDeploymentImageDefinitionRef(deployment, imageDefinition);
         }
+
+        // Re-evaluate the serving capability against the (possibly changed) model source so the
+        // persisted value never goes stale. Unchanged sources yield the same task.
+        deploymentManager.enrichBeforePersist(deployment);
 
         var updatedDeployment = deploymentRepository.update(id, deployment);
 

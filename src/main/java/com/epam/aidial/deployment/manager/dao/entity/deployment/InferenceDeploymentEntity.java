@@ -1,8 +1,11 @@
 package com.epam.aidial.deployment.manager.dao.entity.deployment;
 
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -25,5 +28,9 @@ public class InferenceDeploymentEntity extends DeploymentEntity {
 
     @Column(name = "model_format")
     private String modelFormat;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "inference_task")
+    private InferenceTask inferenceTask;
 
 }

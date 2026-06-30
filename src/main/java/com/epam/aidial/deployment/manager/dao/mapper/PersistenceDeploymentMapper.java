@@ -154,6 +154,7 @@ public abstract class PersistenceDeploymentMapper {
         if (existingEntity instanceof InferenceDeploymentEntity existingInference
                 && updatedEntity instanceof InferenceDeploymentEntity updatedInference) {
             existingInference.setModelFormat(updatedInference.getModelFormat());
+            existingInference.setInferenceTask(updatedInference.getInferenceTask());
         }
     }
 
