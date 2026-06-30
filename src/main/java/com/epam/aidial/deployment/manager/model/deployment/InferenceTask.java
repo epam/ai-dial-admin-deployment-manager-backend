@@ -16,6 +16,13 @@ public enum InferenceTask {
     TEXT_CLASSIFICATION,
 
     /**
+     * Generative / causal-LM model. Informational only — surfaced to clients as a serving
+     * capability (chat completion). Does NOT alter the generated manifest: the predictor-only
+     * shape is used, identical to {@link #NONE}.
+     */
+    TEXT_GENERATION,
+
+    /**
      * No recognized chained task. Generated manifest is predictor-only (the existing pre-feature
      * shape).
      */

@@ -7,6 +7,9 @@ import com.epam.aidial.deployment.manager.configuration.datasource.H2Configurati
 import com.epam.aidial.deployment.manager.configuration.datasource.MsSqlServerConfiguration;
 import com.epam.aidial.deployment.manager.configuration.datasource.PostgresConfiguration;
 import com.epam.aidial.deployment.manager.docker.DockerRegistryClient;
+import com.epam.aidial.deployment.manager.huggingface.client.HuggingFaceClient;
+import com.epam.aidial.deployment.manager.huggingface.model.Model;
+import com.epam.aidial.deployment.manager.huggingface.model.ModelConfig;
 import com.epam.aidial.deployment.manager.kubernetes.JobRunner;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReader;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
@@ -91,6 +94,23 @@ public class FunctionalTestConfiguration {
     @Bean
     public SecurityClaimsExtractor securityClaimsExtractor() {
         return Mockito.mock(SecurityClaimsExtractor.class);
+    }
+
+    /**
+     * Stub HuggingFace client so inference-deployment create/update (which now runs task detection
+     * via {@code InferenceDeploymentManager#enrichBeforePersist}) does not make real HTTP calls in
+     * functional tests. Returns metadata that resolves to {@code InferenceTask.NONE}. The method
+     * name matches the scanned bean, so this {@code @Bean} overrides it (mirrors
+     * {@link #dockerRegistryClient()}); tests that need a specific task can re-stub this mock.
+     */
+    @Bean
+    public HuggingFaceClient huggingFaceClient() {
+        HuggingFaceClient mock = Mockito.mock(HuggingFaceClient.class);
+        Mockito.when(mock.getModel(Mockito.anyString()))
+                .thenReturn(Model.builder().sha("test-sha").pipelineTag("feature-extraction").build());
+        Mockito.when(mock.fetchModelConfig(Mockito.anyString(), Mockito.any()))
+                .thenReturn(ModelConfig.builder().build());
+        return mock;
     }
 
     @Bean

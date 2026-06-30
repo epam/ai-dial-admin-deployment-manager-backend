@@ -70,3 +70,10 @@ Where `<slug>` is the directory name under `specs/` that the feature belongs to 
 1. Edit `specs/NNN-<short-name>/spec.md` to flip `**Status**:` from `Draft` to `Implemented` (or `Partially implemented — <reason>` if not all P1+ stories landed).
 2. Read the `**Capability**:` line; for each listed slug, open `specs/<slug>/spec.md` and update the affected Requirement(s)/Scenario(s) to match the shipped behaviour. Add a one-line `Implemented via NNN-<feature>` cross-reference near the changed Requirement, and remove or upgrade any `Pending: NNN-<feature>` note for this feature.
 3. If the field is `N/A — creates new capability <slug>`, scaffold `specs/<slug>/spec.md` from the house style (use `specs/api-conventions/spec.md` as a model) and add a row to `specs/README.md`.
+
+## Active Technologies
+- Java 21 + Spring Boot 4.0.6 (Framework 7), Hibernate ORM 7 + Envers, MapStruct 1.6.3, Flyway, Fabric8/KServe client, Lombok (024-model-serving-capability)
+- Relational, multi-vendor (H2 / PostgreSQL / SQL Server) via Flyway migrations; `inference_deployment` table (024-model-serving-capability)
+
+## Recent Changes
+- 024-model-serving-capability: Added Java 21 + Spring Boot 4.0.6 (Framework 7), Hibernate ORM 7 + Envers, MapStruct 1.6.3, Flyway, Fabric8/KServe client, Lombok
