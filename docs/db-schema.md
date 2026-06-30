@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-06-30T11:55:20.931942Z
+> Generated at: 2026-06-30T12:05:35.438580Z
 
 ## Tables
 

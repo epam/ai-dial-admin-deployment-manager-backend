@@ -43,10 +43,21 @@ ALTER TABLE inference_deployment ADD inference_task VARCHAR(32);
 ALTER TABLE inference_deployment_aud ADD inference_task VARCHAR(255);
 ```
 
-- Nullable; no backfill. Null is coalesced to `NONE` at the API boundary (FR-007).
+- Nullable. Null is coalesced to `NONE` at the API boundary (FR-007).
 - The `_aud` audit column is added alongside the main column (entity is `@Audited`).
 - Adjust per-vendor `ADD` syntax as needed (`ADD COLUMN` for H2/Postgres, `ADD` for SQL Server).
 - After authoring, run `./gradlew generateDbSchema` and commit `docs/db-schema.md`.
+
+### Backfill migration: `V1.60__BackfillInferenceTask.sql`
+
+Backfills existing inference deployments (rows that predate the column) to the conservative default:
+
+```sql
+UPDATE inference_deployment SET inference_task = 'NONE' WHERE inference_task IS NULL;
+```
+
+- Main table only; `_aud` rows are left as-is to preserve historical revision state.
+- The real task is re-detected on the deployment's next deploy/update.
 
 ## State / lifecycle
 
