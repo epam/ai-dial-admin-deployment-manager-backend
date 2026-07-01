@@ -72,7 +72,7 @@ public class DeploymentService {
      *
      * @see #isApplicableForRollingUpdate(Deployment, Deployment, boolean)
      */
-    private static final String[] NON_REDEPLOY_FIELDS = {
+    static final String[] NON_REDEPLOY_FIELDS = {
             "id", "displayName", "description", "topics", "metadata",
             "status", "url", "createdAt", "updatedAt", "author",
             "serviceName", "allowedDomains", "envs"

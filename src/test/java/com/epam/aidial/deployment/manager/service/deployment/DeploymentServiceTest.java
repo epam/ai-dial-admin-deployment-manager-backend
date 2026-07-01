@@ -11,12 +11,14 @@ import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -288,6 +290,19 @@ class DeploymentServiceTest {
 
         verify(deploymentManager, never()).rollingUpdate(anyString());
         verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    void nonRedeployFields_shouldAllResolveToRealDeploymentFields() {
+        // Guards the stringly-typed deny-list behind EqualsBuilder.reflectionEquals: a typo or an
+        // un-propagated field rename would silently drop an exclusion (the field falls back into the
+        // comparison) and cause spurious rolling updates. reflectionEquals never validates the
+        // exclude names, so fail loudly here instead.
+        for (String field : DeploymentService.NON_REDEPLOY_FIELDS) {
+            assertThat(FieldUtils.getField(Deployment.class, field, true))
+                    .as("NON_REDEPLOY_FIELDS entry '%s' must be a real field on the Deployment hierarchy", field)
+                    .isNotNull();
+        }
     }
 
     private CreateMcpDeployment stubUpdateFlow(McpDeployment existing, McpDeployment updated) {
