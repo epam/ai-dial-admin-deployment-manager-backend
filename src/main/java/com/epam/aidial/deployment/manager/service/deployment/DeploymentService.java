@@ -27,9 +27,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
-import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
@@ -43,6 +41,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +62,21 @@ import java.util.stream.Collectors;
 @LogExecution
 @RequiredArgsConstructor
 public class DeploymentService {
+
+    /**
+     * Deployment fields that must NOT trigger a rolling update when changed: identity / audit
+     * metadata, system-computed fields, DIAL catalog display metadata, and fields handled by a
+     * dedicated path (env changes via {@link EnvVarChangeDetector}, {@code allowedDomains} via the
+     * Cilium network policy update). Every other field — base or subclass — is treated as
+     * redeploy-triggering by default, so new deployment properties are covered automatically.
+     *
+     * @see #isApplicableForRollingUpdate(Deployment, Deployment, boolean)
+     */
+    static final String[] NON_REDEPLOY_FIELDS = {
+            "id", "displayName", "description", "topics", "metadata",
+            "status", "url", "createdAt", "updatedAt", "author",
+            "serviceName", "allowedDomains", "envs"
+    };
 
     private final DeploymentRepository deploymentRepository;
     private final ImageDefinitionService imageDefinitionService;
@@ -594,26 +608,13 @@ public class DeploymentService {
     }
 
     private static boolean isApplicableForRollingUpdate(Deployment existing, Deployment updated, boolean envsAreChanged) {
-        // 1. Check specialized deployment types using pattern matching
-        boolean specializedUpdate = switch (existing) {
-            case NimDeployment exNim when updated instanceof NimDeployment upNim ->
-                    !Objects.equals(exNim.getContainerGrpcPort(), upNim.getContainerGrpcPort());
-
-            case InferenceDeployment exInf when updated instanceof InferenceDeployment upInf ->
-                    !Objects.equals(exInf.getArgs(), upInf.getArgs())
-                            || !Objects.equals(exInf.getCommand(), upInf.getCommand());
-
-            default -> false;
-        };
-
-        // 2. Check general deployment fields (and env changes)
+        // Redeploy by default: ANY container-spec field difference triggers a rolling update, so new
+        // deployment properties (base or subclass) are covered automatically. Only the explicitly
+        // listed non-spec fields (identity, catalog display, audit, and the separately-handled
+        // envs / allowedDomains) are excluded. EqualsBuilder walks the full class hierarchy, so
+        // subclass fields (transport, modelFormat, containerGrpcPort, ...) are compared too.
         return envsAreChanged
-                || specializedUpdate
-                || !Objects.equals(existing.getSource(), updated.getSource())
-                || !Objects.equals(existing.getContainerPort(), updated.getContainerPort())
-                || !Objects.equals(existing.getScaling(), updated.getScaling())
-                || !Objects.equals(existing.getResources(), updated.getResources())
-                || !Objects.equals(existing.getNodePoolId(), updated.getNodePoolId());
+                || !EqualsBuilder.reflectionEquals(existing, updated, NON_REDEPLOY_FIELDS);
     }
 
     private static boolean isApplicableForCiliumNetworkPolicyUpdate(Deployment existing, Deployment updated) {
