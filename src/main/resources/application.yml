@@ -57,6 +57,7 @@ app:
     user: ${DOCKER_REGISTRY_USER:}
     password: ${DOCKER_REGISTRY_PASSWORD:}
     trusted-private-registries: ${TRUSTED_PRIVATE_REGISTRIES:}
+    auto-pull-secret-enabled: ${AUTO_PULL_SECRET_ENABLED:true}
 
   git:
     trusted-private-repos: ${TRUSTED_PRIVATE_GIT_REPOS:}

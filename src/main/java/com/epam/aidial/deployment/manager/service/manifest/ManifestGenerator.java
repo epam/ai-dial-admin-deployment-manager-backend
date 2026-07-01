@@ -19,6 +19,9 @@ public class ManifestGenerator extends BaseManifestGenerator {
 
     public static final String DOCKER_CONFIG_KEY = "config.json";
 
+    public static final String DOCKER_CONFIG_JSON_KEY = ".dockerconfigjson";
+    public static final String DOCKER_CONFIG_JSON_TYPE = "kubernetes.io/dockerconfigjson";
+
     private final RegistryService registryService;
 
     public ManifestGenerator(AppProperties appconfig, RegistryService registryService) {
@@ -34,6 +37,19 @@ public class ManifestGenerator extends BaseManifestGenerator {
         }
 
         return secretConfig(name, dockerConfigData, null);
+    }
+
+    /**
+     * Build an image-pull secret of type {@code kubernetes.io/dockerconfigjson} carrying the given
+     * docker config document under the {@code .dockerconfigjson} key. Unlike
+     * {@link #dialRegistryAuthSecretConfig(String)} (an Opaque {@code config.json} secret mounted into
+     * build jobs), this secret is referenced from a workload's {@code imagePullSecrets} so its pods can
+     * pull images from credentialed registries.
+     */
+    public Secret pullSecretConfig(String name, String dockerConfigJson) {
+        var secret = secretConfig(name, Map.of(DOCKER_CONFIG_JSON_KEY, dockerConfigJson), null);
+        secret.setType(DOCKER_CONFIG_JSON_TYPE);
+        return secret;
     }
 
     public Secret secretConfig(String name, Map<String, String> stringData, Map<String, String> binaryData) {

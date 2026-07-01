@@ -20,11 +20,7 @@ public class InferenceDeploymentDto extends DeploymentDto {
     @NotNull @Valid
     private InferenceDeploymentSourceDto source;
 
-    /**
-     * System-computed serving capability (read-only). The frontend maps it to a consumption
-     * surface: {@code TEXT_GENERATION} → chat completion, {@code TEXT_CLASSIFICATION} → MCP
-     * toolset, {@code NONE} → neither. Never null in responses (a missing detected value is
-     * reported as {@code NONE}).
-     */
+    /** System-computed serving capability (read-only). */
+    @NotNull
     private InferenceTask inferenceTask;
 }

@@ -24,6 +24,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -114,6 +115,8 @@ class KnativeDeploymentManagerTest {
     @Mock
     private K8sKnativeClient k8sKnativeClient;
     @Mock
+    private RegistryPullSecretProvisioner registryPullSecretProvisioner;
+    @Mock
     private PodResource podResource;
     @Mock
     private ContainerResource containerResource;
@@ -153,8 +156,15 @@ class KnativeDeploymentManagerTest {
                 healthCheckProvider,
                 k8sKnativeClient,
                 knativeDeployProperties,
+                registryPullSecretProvisioner,
                 SERVICE_CONTAINER
         );
+
+        org.mockito.Mockito.lenient().when(registryPullSecretProvisioner.provisionForDeployment(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(Optional.empty());
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -348,6 +358,39 @@ class KnativeDeploymentManagerTest {
         verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
         verify(deploymentRepository).updateServiceName(eq(DEPLOYMENT_ID), eq(SERVICE_NAME));
         verify(deploymentRepository).updateStatus(eq(DEPLOYMENT_ID), eq(DeploymentStatus.PENDING));
+    }
+
+    @Test
+    void deploy_shouldInjectImagePullSecret_whenProvisionerReturnsSecretName() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(SERVICE_NAME);
+        ImageDefinition imageDefinition = createImageDefinition();
+
+        var serviceSpec = new Service();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+        var revisionTemplate = new io.fabric8.knative.serving.v1.RevisionTemplateSpec();
+        revisionTemplate.setSpec(new io.fabric8.knative.serving.v1.RevisionSpec());
+        var innerSpec = new io.fabric8.knative.serving.v1.ServiceSpec();
+        innerSpec.setTemplate(revisionTemplate);
+        serviceSpec.setSpec(innerSpec);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
+        when(knativeManifestGenerator.serviceConfig(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(serviceSpec);
+        when(registryPullSecretProvisioner.provisionForDeployment(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(Optional.of("test-pull-secret"));
+
+        // When
+        knativeDeploymentManager.deploy(DEPLOYMENT_ID);
+
+        // Then: the provisioned pull secret is wired into the Knative RevisionSpec
+        var pullSecrets = serviceSpec.getSpec().getTemplate().getSpec().getImagePullSecrets();
+        assertThat(pullSecrets).hasSize(1);
+        assertThat(pullSecrets.get(0).getName()).isEqualTo("test-pull-secret");
     }
 
     @Test
@@ -796,6 +839,7 @@ class KnativeDeploymentManagerTest {
                 healthCheckProvider,
                 k8sKnativeClient,
                 knativeDeployProperties,
+                registryPullSecretProvisioner,
                 SERVICE_CONTAINER
         );
 
