@@ -128,7 +128,7 @@ Status: **Implemented**
 - **THEN** the system responds with 400
 
 ### Requirement: Update deployment configuration
-The system SHALL update an existing deployment's configuration without affecting its Kubernetes resources.
+The system SHALL update an existing deployment's configuration. For a deployment that is not `RUNNING`, the Kubernetes state is not changed; for a `RUNNING` deployment, a rolling update is applied when a container-spec field changes (see scenarios below).
 
 Status: **Implemented**
 
