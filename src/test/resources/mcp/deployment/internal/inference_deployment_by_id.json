@@ -1,0 +1,17 @@
+{
+  "$type": "inference",
+  "id": "decade00-0000-4000-a000-000000000002",
+  "displayName": "example inference deployment",
+  "description": "Text-classification inference deployment",
+  "modelFormat": "huggingface",
+  "source": {
+    "$type": "huggingface",
+    "modelName": "protectai/deberta-v3-base-prompt-injection"
+  },
+  "inferenceTask": "text_classification",
+  "metadata": {
+    "envs": []
+  },
+  "status": "running",
+  "url": "https://example.com/example-inference-deployment"
+}
