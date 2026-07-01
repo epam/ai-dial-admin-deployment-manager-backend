@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -232,5 +233,94 @@ class RegistryServiceTest {
                 """;
 
         assertThat(MAPPER.readTree(actualJson)).isEqualTo(MAPPER.readTree(expectedJson));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> authsOf(String dockerConfigJson) throws Exception {
+        Map<String, Object> root = MAPPER.readValue(dockerConfigJson, new TypeReference<>() {
+        });
+        return (Map<String, Object>) root.get("auths");
+    }
+
+    @Test
+    void dockerConfigForImages_shouldContainOnlyMainRegistry_whenImageIsInBasicAuthMainRegistry() throws Exception {
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.BASIC, "user", "pass", null);
+
+        Optional<String> result = service.dockerConfigForImages(List.of("main.registry/app:1"));
+
+        assertThat(result).isPresent();
+        Map<String, Object> auths = authsOf(result.get());
+        assertThat(auths).containsOnlyKeys("https://main.registry/v2");
+        assertThat(auths.get("https://main.registry/v2")).extracting("auth").isEqualTo(expectedBase64("user", "pass"));
+    }
+
+    @Test
+    void dockerConfigForImages_shouldContainOnlyMatchedTrustedRegistry_notTheMainRegistry() throws Exception {
+        // The narrowing guarantee: a deployment whose image is in priv.example.com gets a secret with
+        // ONLY that registry's credential — never the main registry's (least-privilege).
+        String trusted = """
+                [ {"registry":"priv.example.com","authScheme":"BASIC","user":"u1","password":"p1"} ]
+                """;
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.BASIC, "main", "mPass", trusted);
+
+        Optional<String> result = service.dockerConfigForImages(List.of("priv.example.com/app:1"));
+
+        assertThat(result).isPresent();
+        Map<String, Object> auths = authsOf(result.get());
+        assertThat(auths).containsOnlyKeys("https://priv.example.com/v2");
+        assertThat(auths.get("https://priv.example.com/v2")).extracting("auth").isEqualTo(expectedBase64("u1", "p1"));
+        assertThat(auths).doesNotContainKey("https://main.registry/v2");
+    }
+
+    @Test
+    void dockerConfigForImages_shouldBeEmpty_whenHostIsUnconfigured() {
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.BASIC, "user", "pass", null);
+
+        assertThat(service.dockerConfigForImages(List.of("other.registry/app:1"))).isEmpty();
+    }
+
+    @Test
+    void dockerConfigForImages_shouldBeEmpty_whenMainRegistryIsAnonymous() {
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.NONE, null, null, null);
+
+        assertThat(service.dockerConfigForImages(List.of("main.registry/app:1"))).isEmpty();
+    }
+
+    @Test
+    void dockerConfigForImages_shouldBeEmpty_whenTrustedRegistryIsNotBasic() {
+        String trusted = """
+                [ {"registry":"priv.example.com","authScheme":"TOKEN","user":"u1","password":"p1"} ]
+                """;
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.NONE, null, null, trusted);
+
+        assertThat(service.dockerConfigForImages(List.of("priv.example.com/app:1"))).isEmpty();
+    }
+
+    @Test
+    void dockerConfigForImages_shouldNormalizeDockerHubAliases() throws Exception {
+        // Credential configured under one Docker Hub alias must match an image expressed under another.
+        String trusted = """
+                [ {"registry":"docker.io","authScheme":"BASIC","user":"u1","password":"p1"} ]
+                """;
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.NONE, null, null, trusted);
+
+        Optional<String> result = service.dockerConfigForImages(List.of("registry-1.docker.io/library/app:1"));
+
+        assertThat(result).isPresent();
+        assertThat(authsOf(result.get())).containsOnlyKeys("https://index.docker.io/v1/");
+    }
+
+    @Test
+    void dockerConfigForImages_shouldBeEmpty_whenReferenceIsUnparseable() {
+        RegistryService service = newService("main.registry", URI.create("https"), "%s",
+                DockerAuthScheme.BASIC, "user", "pass", null);
+
+        assertThat(service.dockerConfigForImages(List.of("INVALID IMAGE!!"))).isEmpty();
     }
 }

@@ -48,6 +48,11 @@ This does not apply to NIM or KServe deployments, which have distinct failure st
 
 ## Requirements
 
+### Requirement: Auto-provisioned registry pull secret on deploy
+On deploy, when an image-based deployment's image is served from a credentialed configured registry (primary or trusted-private with `BASIC` auth, and `app.registry.auto-pull-secret-enabled` is true), the system SHALL auto-provision a per-deployment `kubernetes.io/dockerconfigjson` pull secret — tracked as a disposable `SECRET` resource and cleaned up on undeploy — and reference it from the generated workload's `imagePullSecrets`, with no manual administrator action on secrets or service accounts. See [kubernetes-manifests](../kubernetes-manifests/spec.md).
+
+Status: **Implemented** — Implemented via 025-auto-pull-secrets
+
 ### Requirement: List deployments
 The system SHALL return all deployments, optionally filtered by `imageDefinitionId` OR deployment `type`. The two filters are mutually exclusive.
 
