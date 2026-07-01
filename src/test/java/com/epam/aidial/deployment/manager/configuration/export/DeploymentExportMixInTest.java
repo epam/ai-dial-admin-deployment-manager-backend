@@ -5,6 +5,7 @@ import com.epam.aidial.deployment.manager.model.deployment.AdapterDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
@@ -49,6 +50,19 @@ class DeploymentExportMixInTest {
         assertThat(json)
                 .doesNotContain("nodePoolId")
                 .doesNotContain("gpu-pool");
+    }
+
+    @Test
+    void shouldStripInferenceTaskFromExportPayload() throws Exception {
+        var deployment = new InferenceDeployment();
+        deployment.setId("hello");
+        deployment.setInferenceTask(InferenceTask.TEXT_GENERATION);
+
+        var json = exportMapper.writeValueAsString(deployment);
+
+        assertThat(json)
+                .doesNotContain("inferenceTask")
+                .doesNotContain("TEXT_GENERATION");
     }
 
     @Test
