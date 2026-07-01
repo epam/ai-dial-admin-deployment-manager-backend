@@ -22,6 +22,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -29,6 +30,7 @@ import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumN
 import com.epam.aidial.deployment.manager.utils.K8sParseUtils;
 import io.fabric8.knative.pkg.apis.Condition;
 import io.fabric8.knative.serving.v1.Service;
+import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +56,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     private final ImageDefinitionService imageDefinitionService;
     private final K8sKnativeClient k8sKnativeClient;
     private final HealthCheckProvider healthCheckProvider;
+    private final RegistryPullSecretProvisioner registryPullSecretProvisioner;
 
     private final String serviceContainer;
     private final int readyGracePeriodSec;
@@ -71,6 +74,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
             HealthCheckProvider healthCheckProvider,
             K8sKnativeClient k8sKnativeClient,
             KnativeDeployProperties knativeDeployProperties,
+            RegistryPullSecretProvisioner registryPullSecretProvisioner,
             @Value("${app.knative-service-container-config.name}") String serviceContainer
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
@@ -80,6 +84,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         this.imageDefinitionService = imageDefinitionService;
         this.healthCheckProvider = healthCheckProvider;
         this.k8sKnativeClient = k8sKnativeClient;
+        this.registryPullSecretProvisioner = registryPullSecretProvisioner;
         this.serviceContainer = serviceContainer;
         this.readyGracePeriodSec = knativeDeployProperties.getReadyGracePeriod();
     }
@@ -116,7 +121,11 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
-        return knativeManifestGenerator.serviceConfig(
+        var pullSecretName = registryPullSecretProvisioner
+                .provisionForDeployment(deployment.getId(), namespace, List.of(imageName))
+                .orElse(null);
+
+        var service = knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 userDefinedSimpleEnvs,
@@ -130,6 +139,20 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 deployment.getCommand(),
                 deployment.getArgs(),
                 poolPrimitives);
+
+        applyImagePullSecret(service, pullSecretName);
+        return service;
+    }
+
+    private void applyImagePullSecret(Service service, String pullSecretName) {
+        if (StringUtils.isBlank(pullSecretName)
+                || service.getSpec() == null
+                || service.getSpec().getTemplate() == null
+                || service.getSpec().getTemplate().getSpec() == null) {
+            return;
+        }
+        service.getSpec().getTemplate().getSpec().setImagePullSecrets(
+                List.of(new LocalObjectReferenceBuilder().withName(pullSecretName).build()));
     }
 
     private String resolveImageName(Deployment deployment) {
