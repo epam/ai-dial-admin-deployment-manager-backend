@@ -20,6 +20,10 @@ public record InferenceTaskDetectionResult(
         return new InferenceTaskDetectionResult(InferenceTask.NONE, null);
     }
 
+    public static InferenceTaskDetectionResult textGeneration() {
+        return new InferenceTaskDetectionResult(InferenceTask.TEXT_GENERATION, null);
+    }
+
     public static InferenceTaskDetectionResult textClassification(Map<Integer, String> id2Label) {
         return new InferenceTaskDetectionResult(InferenceTask.TEXT_CLASSIFICATION, id2Label);
     }

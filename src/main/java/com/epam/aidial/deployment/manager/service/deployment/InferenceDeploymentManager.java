@@ -94,6 +94,20 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         return List.of(InferenceDeployment.class);
     }
 
+    /**
+     * Detects the serving capability from the HuggingFace source and stores it on the deployment so
+     * it can be served back to clients without a live HF call. A non-HuggingFace source leaves the
+     * task unset (read back as {@code NONE}); detection failures propagate and abort create/update.
+     */
+    @Override
+    public void enrichBeforePersist(Deployment deployment) {
+        if (deployment instanceof InferenceDeployment inferenceDeployment
+                && inferenceDeployment.getSource() instanceof HuggingFaceSource huggingFaceSource) {
+            InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
+            inferenceDeployment.setInferenceTask(detection.task());
+        }
+    }
+
     @Override
     protected Optional<InferenceDeployment> getDeploymentOptional(String id) {
         return deploymentRepository.getById(id)

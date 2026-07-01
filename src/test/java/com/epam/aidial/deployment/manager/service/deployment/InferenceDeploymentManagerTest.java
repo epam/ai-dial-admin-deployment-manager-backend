@@ -20,6 +20,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
@@ -888,6 +889,28 @@ class InferenceDeploymentManagerTest {
                 any(),
                 anyBoolean()
         );
+    }
+
+    @Test
+    void enrichBeforePersist_shouldSetDetectedTask_forHuggingFaceSource() {
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.NOT_DEPLOYED);
+        deployment.setSource(new HuggingFaceSource("org/generative-model"));
+        when(inferenceTaskDetector.detect(any())).thenReturn(InferenceTaskDetectionResult.textGeneration());
+
+        inferenceDeploymentManager.enrichBeforePersist(deployment);
+
+        assertThat(deployment.getInferenceTask()).isEqualTo(InferenceTask.TEXT_GENERATION);
+    }
+
+    @Test
+    void enrichBeforePersist_shouldLeaveTaskUnset_whenSourceIsNotHuggingFace() {
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.NOT_DEPLOYED);
+        deployment.setSource(null);
+
+        inferenceDeploymentManager.enrichBeforePersist(deployment);
+
+        assertThat(deployment.getInferenceTask()).isNull();
+        verify(inferenceTaskDetector, never()).detect(any());
     }
 
     @Test

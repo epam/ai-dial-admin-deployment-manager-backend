@@ -17,6 +17,16 @@ public interface DeploymentManager<S> {
 
     List<Class<? extends Deployment>> getSupportedDeploymentClasses();
 
+    /**
+     * Populates system-computed, type-specific fields on a freshly built or updated deployment
+     * before it is persisted. Default is a no-op; managers that derive state from external
+     * metadata (e.g. inference task detection) override this. Called inside the create/update
+     * transaction, so a thrown exception aborts the operation.
+     */
+    default void enrichBeforePersist(Deployment deployment) {
+        // no-op by default
+    }
+
     Deployment deploy(String id);
 
     boolean reconcile(String id, boolean ignorePendingOnServiceNotFound);

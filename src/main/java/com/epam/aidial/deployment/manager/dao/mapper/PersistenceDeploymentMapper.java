@@ -30,6 +30,7 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -86,6 +87,19 @@ public abstract class PersistenceDeploymentMapper {
     protected void setImageDefinitionId(Deployment domain, @MappingTarget DeploymentEntity entity) {
         if (domain.getSource() instanceof InternalImageSource source) {
             entity.setImageDefinitionId(source.imageDefinitionId());
+        }
+    }
+
+    /**
+     * Guards the NOT NULL {@code inference_deployment.inference_task} column: any persist path that
+     * has not set a task (e.g. a non-HuggingFace source, or a rollback reconstructed from a
+     * pre-feature audit revision where the column was null) is coalesced to {@code NONE}. Runs on
+     * both {@code toEntity} and the update path (which builds its entity via {@code toEntity}).
+     */
+    @AfterMapping
+    protected void defaultInferenceTask(@MappingTarget DeploymentEntity entity) {
+        if (entity instanceof InferenceDeploymentEntity inferenceEntity && inferenceEntity.getInferenceTask() == null) {
+            inferenceEntity.setInferenceTask(InferenceTask.NONE);
         }
     }
 
@@ -154,6 +168,7 @@ public abstract class PersistenceDeploymentMapper {
         if (existingEntity instanceof InferenceDeploymentEntity existingInference
                 && updatedEntity instanceof InferenceDeploymentEntity updatedInference) {
             existingInference.setModelFormat(updatedInference.getModelFormat());
+            existingInference.setInferenceTask(updatedInference.getInferenceTask());
         }
     }
 

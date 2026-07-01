@@ -88,17 +88,27 @@ When a chained text-classification transformer's operator-configured image is se
 
 Status: **Implemented** — Implemented via 025-auto-pull-secrets
 
-### Requirement: Auto-detect text-classification task at deploy time
-On every deploy of a HuggingFace-sourced inference deployment, the system SHALL fetch the model's HF Hub metadata and compute a transient `task` (one of `TEXT_CLASSIFICATION` / `NONE`) plus an optional `id2Label` map. The detection result is not persisted; it flows directly into manifest generation. There is no operator-facing `task` or `id2label` field on the API.
+### Requirement: Auto-detect inference task from model metadata
+On every deploy of a HuggingFace-sourced inference deployment, the system SHALL fetch the model's HF Hub metadata and compute a `task` (one of `TEXT_CLASSIFICATION` / `TEXT_GENERATION` / `NONE`) plus an optional `id2Label` map. At deploy time the result flows directly into manifest generation. The same detection also runs at create/update time and the resulting `task` is persisted on the deployment and exposed read-only as `inferenceTask` (see "Expose serving capability on inference deployment responses"). The `id2Label` map remains transient (deploy-time only).
 
-Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
+When a model satisfies more than one task signal, detection applies a fixed precedence: text-classification is evaluated first (the more specific signal that drives the transformer chain), then text-generation, otherwise `NONE`.
+
+Status: **Implemented** *(Implemented via 021-inference-task-transformer; extended with TEXT_GENERATION + persistence via 024-model-serving-capability)*
 
 #### Scenario: Text-classification model detected
 - **WHEN** a deploy is requested for a model whose `pipeline_tag` is `text-classification` OR whose `architectures` list contains an entry matching `.*ForSequenceClassification`
 - **THEN** detection returns `TEXT_CLASSIFICATION` and the model's `config.json` `id2label` is parsed into the `id2Label` map
 
-#### Scenario: Non-classification model detected
-- **WHEN** a deploy is requested for a model whose HF metadata satisfies neither signal
+#### Scenario: Text-generation model detected
+- **WHEN** a deploy is requested for a model whose `pipeline_tag` is `text-generation` OR whose `architectures` list contains an entry matching `.*(ForCausalLM|ForConditionalGeneration|LMHeadModel)`, and the text-classification signal does not match
+- **THEN** detection returns `TEXT_GENERATION` and the manifest is generated predictor-only (no transformer, identical to `NONE`)
+
+#### Scenario: Both signals present
+- **WHEN** a model satisfies both the text-classification and text-generation signals
+- **THEN** detection returns `TEXT_CLASSIFICATION` (classification precedence)
+
+#### Scenario: Non-classification, non-generation model detected
+- **WHEN** a deploy is requested for a model whose HF metadata satisfies none of the signals
 - **THEN** detection returns `NONE` and the manifest is generated predictor-only (unchanged from pre-feature behavior)
 
 ### Requirement: Reject unusable model metadata at deploy time
@@ -122,22 +132,41 @@ Status: **Implemented** *(Implemented via 021-inference-task-transformer)*
 - **WHEN** a `TEXT_CLASSIFICATION`-detected deployment carries `--return_probabilities` or `--task=<non-sequence_classification>` in its predictor args
 - **THEN** the deploy fails with HTTP 400 before any cluster mutation
 
+### Requirement: Expose serving capability on inference deployment responses
+The detected `task` SHALL be persisted on the inference deployment at create time and re-evaluated whenever the model source changes, and SHALL be exposed read-only as `inferenceTask` on the inference deployment response (single fetch and list). The value is one of `TEXT_GENERATION` / `TEXT_CLASSIFICATION` / `NONE`; a deployment with no persisted value (created before this feature) is reported as `NONE`. Clients cannot set the value (it is absent from the create/update request). The capability carries no endpoint URL or path — the frontend maps the value to a consumption surface (`TEXT_GENERATION` → chat completion, `TEXT_CLASSIFICATION` → MCP toolset). The value is excluded from config export/import (it is re-derived on import).
+
+Status: **Implemented** *(Implemented via 024-model-serving-capability)*
+
+#### Scenario: Capability returned for a deployed model
+- **WHEN** an inference deployment created from a text-generation model is fetched
+- **THEN** the response includes `inferenceTask: TEXT_GENERATION`
+
+#### Scenario: Capability updates when model source changes
+- **WHEN** an inference deployment's model source is changed to a model of a different task
+- **THEN** the persisted `inferenceTask` is re-evaluated and the next fetch reflects the new task
+
+#### Scenario: Absent value reported as NONE
+- **WHEN** an inference deployment has no persisted capability (predates the feature)
+- **THEN** the response reports `inferenceTask: NONE`
+
+Existing rows that predate the column are backfilled to `NONE` by the `DEFAULT 'NONE'` on the `V1.59` column (the main column is `NOT NULL`; the real task is re-detected on the next deploy/update).
+
 ## Implementation Notes
 - Domain model: `com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment`
-  - Fields: `modelFormat` (String). Note: `source`, `command`, and `args` are inherited from the base `Deployment` model.
+  - Fields: `modelFormat` (String), `inferenceTask` (`InferenceTask`, system-computed, `@JsonIgnore` so it is excluded from export/import). Note: `source`, `command`, and `args` are inherited from the base `Deployment` model.
 - Source domain model: `com.epam.aidial.deployment.manager.model.deployment.Source` (unified sealed interface; inference uses `HuggingFaceSource` variant)
 - HuggingFace source domain model: `com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource`
 - Request DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.CreateInferenceDeploymentRequestDto`
   - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`). Note: `command` and `args` are inherited from the base request DTO.
 - Response DTO: `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto`
-  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`). Note: `command` and `args` are inherited from the base response DTO.
+  - Fields: `modelFormat` (required String), `source` (required `InferenceDeploymentSourceDto`), `inferenceTask` (read-only `InferenceTask`, null coalesced to `NONE` by `DeploymentDtoMapper`). Note: `command` and `args` are inherited from the base response DTO.
 - Source DTO (interface): `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentSourceDto` (`$type` discriminator)
 - HuggingFace source DTO (record): `com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentHuggingFaceSourceDto` (`modelName` with `@NotNull @ValidHuggingFaceModelName`)
 - Persistence source: stored as `PersistenceHuggingFaceSource` within the unified `PersistenceSource` JSON column on base `DeploymentEntity`
 - Probe converter: `com.epam.aidial.deployment.manager.service.manifest.KserveProbeConverter`
 - Deployment manager: `com.epam.aidial.deployment.manager.service.deployment.InferenceDeploymentManager` (active when `app.kserve.enabled=true`)
 - Manifest generator: `com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator`
-- Detector: `com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector` (runs at deploy time; not persisted)
+- Detector: `com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector` (runs at create/update time → persisted `inferenceTask`, and at deploy time → manifest/`id2Label`). Persistence is wired via `InferenceDeploymentManager#enrichBeforePersist`, called by `DeploymentService` create/update; the entity column is `inference_deployment.inference_task` (migration `V1.59`).
   - Exception hierarchy: `InferenceTaskDetectionException` (base), `ModelMetadataMissingException` / `ModelMetadataUnusableException` / `ModelNotFoundException` → HTTP 400; `HuggingFaceUpstreamException` → HTTP 502
 - Missing-image gate: `com.epam.aidial.deployment.manager.service.deployment.MissingTransformerImageException` → HTTP 500
 - Transformer manifest section: `com.epam.aidial.deployment.manager.service.manifest.TextClassificationTransformerSection` (emits the `transformer` block when detection returns `TEXT_CLASSIFICATION`). It also stamps the `prometheus.kserve.io/port: "8080"` + `prometheus.kserve.io/path: "/metrics"` annotations on `spec.transformer` (KServe auto-stamps these on a runtime-backed predictor but not on a user-supplied transformer container) so the transformer pod advertises a scrape target that `DeploymentMetricsService` consumes — see `specs/deployment-metrics/spec.md`. Operator-supplied values win (`putIfAbsent`).
