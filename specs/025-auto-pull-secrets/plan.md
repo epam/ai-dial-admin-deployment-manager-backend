@@ -64,24 +64,22 @@ src/main/java/com/epam/aidial/deployment/manager/
 │   ├── DockerRegistryClient.java               # (existing) image→registry matching to reuse
 │   └── DockerHubAliases.java                    # (existing) sameRegistry() normalization to reuse
 ├── service/
-│   ├── RegistryService.java                     # EDIT: add credential-resolution-by-image-host + dockerconfigjson builder
-│   ├── RegistryPullSecretProvisioner.java       # NEW: orchestrates resolve→build→create→register for a deployment's in-scope images
+│   ├── RegistryService.java                     # EDIT: add dockerConfigForImages(...) — narrowed deploy-time {"auths"} for the registries serving the images; dockerConfig() (build, ALL registries) left UNCHANGED
+│   ├── RegistryPullSecretProvisioner.java       # NEW: match→build→create→register a per-deployment pull secret; returns the secret name
 │   ├── manifest/
 │   │   ├── ManifestGenerator.java               # EDIT: add pullSecretConfig(name, dockerConfigJson) → type kubernetes.io/dockerconfigjson
-│   │   ├── KnativeManifestGenerator.java         # EDIT: inject imagePullSecrets into RevisionSpec when provided
-│   │   ├── InferenceManifestGenerator.java       # EDIT: thread transformer pull-secret name through
-│   │   └── TextClassificationTransformerSection.java  # EDIT: set imagePullSecrets on Transformer when provided
+│   │   └── TextClassificationTransformerSection.java  # EDIT: add transformerImage() accessor (no signature change)
 │   └── deployment/
-│       ├── AbstractDeploymentManager.java        # EDIT (or subclass hook): provision pull secret before manifest build
-│       ├── KnativeDeploymentManager.java         # EDIT: resolve deployment image → provision → pass secret name to serviceConfig
-│       └── InferenceDeploymentManager.java        # EDIT: resolve transformer image → provision → pass secret name
+│       ├── KnativeDeploymentManager.java         # EDIT: resolve image → provision → inject imagePullSecrets onto the built Service
+│       └── InferenceDeploymentManager.java        # EDIT: resolve transformer image → provision → inject onto the built InferenceService's transformer
 ├── kubernetes/
 │   └── K8sClient.java                            # (existing) createSecret(...) reused as-is
-├── cleanup/resource/
-│   └── DisposableResourceManager.java            # (existing) saveK8sResources/lifecycle reused as-is
-└── utils/mapping/
-    ├── KnativeMappers.java                        # EDIT: add RevisionSpec.imagePullSecrets field mapper
-    └── InferenceMappers.java                      # EDIT: add Transformer.imagePullSecrets field mapper
+└── cleanup/resource/
+    └── DisposableResourceManager.java            # (existing) saveK8sResources/lifecycle reused as-is
+
+# As-built note: the manifest generators' serviceConfig(...) signatures and utils/mapping/*Mappers are
+# UNCHANGED. imagePullSecrets is injected post-hoc onto the built CRD in the deployment managers, not
+# threaded through serviceConfig(...) nor via new mapper fields. See research.md D4.
 
 src/main/resources/
 └── application.yml                                # EDIT: add app.registry.auto-pull-secret-enabled flag
@@ -92,7 +90,7 @@ docs/
 src/test/java/...                                  # NEW/EDIT: manifest unit tests + Knative & inference functional deploy tests
 ```
 
-**Structure Decision**: Single-module backend. The feature slots into existing layers without new packages: a small new service (`RegistryPullSecretProvisioner`) plus targeted edits to `RegistryService`, the three manifest generators, the two affected deployment managers, the two mapper classes, and config/docs. The `kubernetes/` and `cleanup/` layers are reused unchanged.
+**Structure Decision**: Single-module backend, no new packages. As shipped: one new service (`RegistryPullSecretProvisioner`); a narrowed builder `dockerConfigForImages(...)` on `RegistryService` (`dockerConfig()` untouched); `pullSecretConfig(...)` on `ManifestGenerator`; a `transformerImage()` accessor on `TextClassificationTransformerSection`; and `imagePullSecrets` injection in the two deployment managers (`KnativeDeploymentManager`, `InferenceDeploymentManager`). The manifest generators' `serviceConfig(...)` signatures and the `utils/mapping` mappers are unchanged (see research.md D4). `kubernetes/` and `cleanup/` are reused as-is.
 
 ## Complexity Tracking
 

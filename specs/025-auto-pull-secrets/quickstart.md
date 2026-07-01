@@ -35,8 +35,8 @@ Example `TRUSTED_PRIVATE_REGISTRIES`:
 1. Configure a trusted private registry with valid credentials; ensure `AUTO_PULL_SECRET_ENABLED` is unset or `true`.
 2. Create an MCP/interceptor/adapter/application deployment whose image is `my.private.registry/...`.
 3. Deploy it. **Expect**: the workload reaches Running with no manual secret/service-account work.
-4. Inspect the generated Knative Service: `spec.template.spec.imagePullSecrets` references `<deploymentId>-…-pull`.
-5. `kubectl get secret <deploymentId>-…-pull -n <ns> -o yaml` → `type: kubernetes.io/dockerconfigjson`, key `.dockerconfigjson`.
+4. Inspect the generated Knative Service: `spec.template.spec.imagePullSecrets` references a secret named `<prefix>-<deploymentId>-pull-<random>`.
+5. `kubectl get secret <that-name> -n <ns> -o yaml` → `type: kubernetes.io/dockerconfigjson`, key `.dockerconfigjson`.
 6. Undeploy. **Expect**: the secret is removed (no accumulation).
 
 ### Inference with transformer (US2)

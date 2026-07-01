@@ -11,7 +11,7 @@ This feature adds **no new REST API** and changes **no existing HTTP contract**.
 ```yaml
 # spec.template.spec  (RevisionSpec)
 imagePullSecrets:
-  - name: <deploymentId>-<suffix>-pull   # generateUniqueName(deploymentId, "pull")
+  - name: <prefix>-<deploymentId>-pull-<random>   # generateUniqueName(deploymentId, "pull")
 ```
 
 **When** unmatched / anonymous / feature disabled: the `imagePullSecrets` field is **absent / empty** — the manifest is identical to the pre-feature output (FR-006).
@@ -23,7 +23,7 @@ imagePullSecrets:
 ```yaml
 # spec.transformer  (Transformer)
 imagePullSecrets:
-  - name: <deploymentId>-<suffix>-pull
+  - name: <prefix>-<deploymentId>-pull-<random>
 ```
 
 **When** predictor-only, unmatched, or feature disabled: `spec.transformer.imagePullSecrets` is absent/empty; predictor is never given an auto pull secret (D5).
@@ -78,7 +78,7 @@ KnativeDeploymentManager / InferenceDeploymentManager (service/deployment/)
 
 | Spec scenario | Assertion against contract |
 |---|---|
-| US1.1 | Knative manifest contains `spec.template.spec.imagePullSecrets[0].name == <deploymentId>-...-pull`; a `dockerconfigjson` Secret of that name exists in the namespace. |
+| US1.1 | Knative manifest contains `spec.template.spec.imagePullSecrets[0].name` matching `<prefix>-<deploymentId>-pull-<random>`; a `dockerconfigjson` Secret of that name exists in the namespace. |
 | US1.2 | Deploy → undeploy → redeploy: no error; secret name stable; secret present after redeploy, absent after undeploy. |
 | US1.3 | Change image to a different trusted registry → secret's `.dockerconfigjson` contains an `auths` entry for the new registry. |
 | US2.1 | InferenceService `spec.transformer.imagePullSecrets[0].name` set; predictor has none. |
