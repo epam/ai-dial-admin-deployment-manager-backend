@@ -163,6 +163,14 @@ public abstract class DeploymentDtoMapper {
     }
 
     @AfterMapping
+    protected void setInferenceInternalDtoTask(@MappingTarget DeploymentInternalDto dto, Deployment model) {
+        if (model instanceof InferenceDeployment inferenceDeployment && dto instanceof InferenceDeploymentInternalDto inferenceDto) {
+            inferenceDto.setInferenceTask(
+                    inferenceDeployment.getInferenceTask() == null ? InferenceTask.NONE : inferenceDeployment.getInferenceTask());
+        }
+    }
+
+    @AfterMapping
     protected void setCreateImageSource(@MappingTarget CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
         applyCreateImageSource(model, dto);
     }

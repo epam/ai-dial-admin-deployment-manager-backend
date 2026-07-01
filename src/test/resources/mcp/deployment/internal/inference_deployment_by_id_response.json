@@ -1,0 +1,7 @@
+{
+  "$type": "inference",
+  "id": "decade00-0000-4000-a000-000000000002",
+  "displayName": "example inference deployment",
+  "url": "https://example.com/example-inference-deployment",
+  "inferenceTask": "text_classification"
+}
