@@ -221,6 +221,86 @@ class DeploymentServiceTest {
                 .hasMessageContaining("simulated kube-apiserver failure");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRollingUpdate_whenCommandChanged() {
+        // Regression for #364: a command change on a non-inference type (mcp) must trigger a
+        // rolling update. Only command differs — allowedDomains/containerPort are equal, so the
+        // CNP predicate stays false.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setCommand(List.of("python", "-m", "server"));
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setCommand(List.of("python", "-m", "server", "--verbose"));
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRollingUpdate_whenArgsChanged() {
+        // Regression for #364: an args change on a non-inference type (mcp) must trigger a rolling update.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setArgs(List.of("--port", "8080"));
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setArgs(List.of("--port", "9090"));
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRollingUpdate_whenSubclassFieldChanged() {
+        // The reflective comparison walks the full class hierarchy, so a subclass-only field
+        // (McpDeployment.mcpEndpointPath) now triggers a rolling update too — previously missed
+        // by the hand-maintained enumeration.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setMcpEndpointPath("/mcp");
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setMcpEndpointPath("/api/mcp");
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldNotRollingUpdate_whenOnlyDisplayNameChanged() {
+        // Guard against over-triggering: a change to a deny-listed cosmetic field (displayName)
+        // must NOT cause a redeploy or a CNP refresh.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setDisplayName("Old name");
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setDisplayName("New name");
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager, never()).rollingUpdate(anyString());
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    private CreateMcpDeployment stubUpdateFlow(McpDeployment existing, McpDeployment updated) {
+        var request = newMcpRequest(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(existing));
+        when(deploymentManager.resolveSecrets(existing)).thenReturn(existing);
+        when(deploymentMapper.toDeployment(eq(request), any())).thenReturn(updated);
+        when(deploymentRepository.update(eq(DEPLOYMENT_ID), any())).thenAnswer(inv -> inv.getArgument(1));
+        // rollingUpdate's return becomes the new updatedDeployment; non-null so setEnvs(...) doesn't NPE.
+        when(deploymentManager.rollingUpdate(DEPLOYMENT_ID)).thenReturn(updated);
+        return request;
+    }
+
     private static McpDeployment runningMcp(List<String> allowedDomains, Integer containerPort) {
         return McpDeployment.builder()
                 .id(DEPLOYMENT_ID)
