@@ -145,7 +145,10 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     private void applyImagePullSecret(Service service, String pullSecretName) {
-        if (StringUtils.isBlank(pullSecretName)) {
+        if (StringUtils.isBlank(pullSecretName)
+                || service.getSpec() == null
+                || service.getSpec().getTemplate() == null
+                || service.getSpec().getTemplate().getSpec() == null) {
             return;
         }
         service.getSpec().getTemplate().getSpec().setImagePullSecrets(

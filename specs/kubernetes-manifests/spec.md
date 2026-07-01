@@ -34,6 +34,10 @@ Status: **Implemented** — Implemented via 025-auto-pull-secrets
 - **WHEN** a deployment image's host matches no credentialed configured registry, or `AUTO_PULL_SECRET_ENABLED=false`
 - **THEN** no pull secret is created and the generated manifest carries no auto-injected `imagePullSecrets`
 
+#### Scenario: Prior pull secret superseded on update
+- **WHEN** a deployment served from a credentialed registry is updated/rolling-updated and a new pull secret is provisioned
+- **THEN** the previously provisioned pull secret is marked for cleanup (not orphaned), mirroring sensitive-env-secret supersession, while co-located env secrets are left untouched
+
 ### Requirement: KNative manifest generated for image-based deployments
 When KNative is enabled, the system SHALL generate a KNative Service manifest for MCP, Interceptor, Adapter, and Application deployments. The manifest includes:
 

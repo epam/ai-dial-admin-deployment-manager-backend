@@ -1,7 +1,9 @@
 package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -18,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -91,5 +94,42 @@ class RegistryPullSecretProvisionerTest {
         verify(k8sClient).createSecret(eq(NAMESPACE), eq(secret));
         verify(disposableResourceManager)
                 .changeResourceLifecycleByGroupIdInSameTransaction(eq(DEPLOYMENT_ID), any(), eq(ResourceLifecycleState.STABLE));
+    }
+
+    @Test
+    void shouldSupersedePriorPullSecret_butLeaveEnvSecretUntouched_whenImageMatches() {
+        var provisioner = newProvisioner(true);
+        var priorPullSecret = disposableSecret("test-dep-1-pull-oldsec");
+        var envSecret = disposableSecret("test-dep-1-envs-abcdef");
+        var newSecret = new SecretBuilder().withNewMetadata().withName("test-dep-1-pull-newone").endMetadata().build();
+        when(disposableResourceManager.getAllByGroupId(DEPLOYMENT_ID)).thenReturn(List.of(priorPullSecret, envSecret));
+        when(registryService.dockerConfigForImages(List.of("priv.reg/app:1"))).thenReturn(Optional.of(DOCKER_CONFIG_JSON));
+        when(manifestGenerator.pullSecretConfig(anyString(), eq(DOCKER_CONFIG_JSON))).thenReturn(newSecret);
+
+        var result = provisioner.provisionForDeployment(DEPLOYMENT_ID, NAMESPACE, List.of("priv.reg/app:1"));
+
+        assertThat(result).isPresent();
+        // The prior pull secret is marked for cleanup so it is not orphaned.
+        verify(disposableResourceManager).changeResourceLifecycleByGroupIdInSameTransaction(
+                eq(DEPLOYMENT_ID),
+                argThat(ref -> ref instanceof K8sResourceReference k8s && "test-dep-1-pull-oldsec".equals(k8s.getName())),
+                eq(ResourceLifecycleState.TO_CLEANUP));
+        // The co-located env secret is never touched by pull-secret supersession.
+        verify(disposableResourceManager, never()).changeResourceLifecycleByGroupIdInSameTransaction(
+                anyString(),
+                argThat(ref -> ref instanceof K8sResourceReference k8s && "test-dep-1-envs-abcdef".equals(k8s.getName())),
+                any());
+        // The freshly provisioned secret still ends up STABLE.
+        verify(disposableResourceManager).changeResourceLifecycleByGroupIdInSameTransaction(
+                eq(DEPLOYMENT_ID), any(), eq(ResourceLifecycleState.STABLE));
+        verify(k8sClient).createSecret(eq(NAMESPACE), eq(newSecret));
+    }
+
+    private static DisposableResource disposableSecret(String name) {
+        return DisposableResource.builder()
+                .groupId(DEPLOYMENT_ID)
+                .reference(new K8sResourceReference(NAMESPACE, K8sResourceKind.SECRET, name))
+                .lifecycleState(ResourceLifecycleState.STABLE)
+                .build();
     }
 }

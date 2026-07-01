@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service;
 
 import com.epam.aidial.deployment.manager.cleanup.resource.DisposableResourceManager;
+import com.epam.aidial.deployment.manager.cleanup.resource.model.DisposableResource;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceKind;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.K8sResourceReference;
 import com.epam.aidial.deployment.manager.cleanup.resource.model.ResourceLifecycleState;
@@ -81,6 +82,11 @@ public class RegistryPullSecretProvisioner {
             return Optional.empty();
         }
 
+        // Supersede any prior pull secret for this deployment so a config-update / rolling-update does
+        // not orphan STABLE dockerconfigjson secrets (mirrors env-secret cleanupSecrets()). Must run
+        // before the new secret is registered — its name also matches the pull pattern.
+        supersedePriorPullSecrets(deploymentId, namespace);
+
         var secretName = K8sNamingUtils.generateUniqueName(deploymentId, PULL_SECRET_NAME_SUFFIX);
         var secret = manifestGenerator.pullSecretConfig(secretName, dockerConfig.get());
 
@@ -94,5 +100,32 @@ public class RegistryPullSecretProvisioner {
         log.info("Provisioned docker pull secret '{}' for deployment '{}' in namespace '{}'",
                 secretName, deploymentId, namespace);
         return Optional.of(secretName);
+    }
+
+    /**
+     * Mark any previously provisioned pull secret(s) for this deployment {@code TO_CLEANUP} so the
+     * cleanup job reclaims the orphaned K8s secret and its {@code disposable_resource} row. Without
+     * this, every update/rolling-update would leave the prior {@code STABLE} pull secret behind until
+     * the whole deployment is deleted.
+     */
+    private void supersedePriorPullSecrets(String deploymentId, String namespace) {
+        disposableResourceManager.getAllByGroupId(deploymentId).stream()
+                .map(DisposableResource::getReference)
+                .filter(K8sResourceReference.class::isInstance)
+                .map(K8sResourceReference.class::cast)
+                .filter(ref -> ref.getKind() == K8sResourceKind.SECRET && isPullSecret(ref.getName()))
+                .forEach(ref -> disposableResourceManager.changeResourceLifecycleByGroupIdInSameTransaction(
+                        deploymentId,
+                        new K8sResourceReference(namespace, K8sResourceKind.SECRET, ref.getName()),
+                        ResourceLifecycleState.TO_CLEANUP));
+    }
+
+    /**
+     * Pull secrets are named {@code <prefix>-<deploymentId>-pull-<6 lowercase>} by
+     * {@link K8sNamingUtils#generateUniqueName}; env secrets use the {@code -envs-} marker, so matching
+     * the {@code -pull-<random>} tail keeps env secrets of the same deployment untouched.
+     */
+    private static boolean isPullSecret(String name) {
+        return name != null && name.matches(".*-" + PULL_SECRET_NAME_SUFFIX + "-[a-z]{6}");
     }
 }
