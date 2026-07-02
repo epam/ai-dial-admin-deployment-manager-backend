@@ -11,12 +11,15 @@ import com.epam.aidial.deployment.manager.mapper.DeploymentMapper;
 import com.epam.aidial.deployment.manager.model.DeploymentMetadata;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,8 +28,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -219,6 +233,177 @@ class DeploymentServiceTest {
         assertThatThrownBy(() -> deploymentService.updateDeployment(DEPLOYMENT_ID, request))
                 .isInstanceOf(DeploymentException.class)
                 .hasMessageContaining("simulated kube-apiserver failure");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRollingUpdate_whenCommandChanged() {
+        // Regression for #364: a command change on a non-inference type (mcp) must trigger a
+        // rolling update. Only command differs — allowedDomains/containerPort are equal, so the
+        // CNP predicate stays false.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setCommand(List.of("python", "-m", "server"));
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setCommand(List.of("python", "-m", "server", "--verbose"));
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRollingUpdate_whenArgsChanged() {
+        // Regression for #364: an args change on a non-inference type (mcp) must trigger a rolling update.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setArgs(List.of("--port", "8080"));
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setArgs(List.of("--port", "9090"));
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldRollingUpdate_whenSubclassFieldChanged() {
+        // The reflective comparison walks the full class hierarchy, so a subclass-only field
+        // (McpDeployment.mcpEndpointPath) now triggers a rolling update too — previously missed
+        // by the hand-maintained enumeration.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setMcpEndpointPath("/mcp");
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setMcpEndpointPath("/api/mcp");
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager).rollingUpdate(DEPLOYMENT_ID);
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void updateDeployment_shouldNotRollingUpdate_whenOnlyDisplayNameChanged() {
+        // Guard against over-triggering: a change to a deny-listed cosmetic field (displayName)
+        // must NOT cause a redeploy or a CNP refresh.
+        var existing = runningMcp(List.of("a.com"), 8080);
+        existing.setDisplayName("Old name");
+        var updated = runningMcp(List.of("a.com"), 8080);
+        updated.setDisplayName("New name");
+
+        var request = stubUpdateFlow(existing, updated);
+        deploymentService.updateDeployment(DEPLOYMENT_ID, request);
+
+        verify(deploymentManager, never()).rollingUpdate(anyString());
+        verify(deploymentManager, never()).updateCiliumNetworkPolicy(anyString());
+    }
+
+    @Test
+    void nonRedeployFields_shouldAllResolveToRealDeploymentFields() {
+        // Guards the stringly-typed deny-list behind EqualsBuilder.reflectionEquals: a typo or an
+        // un-propagated field rename would silently drop an exclusion (the field falls back into the
+        // comparison) and cause spurious rolling updates. reflectionEquals never validates the
+        // exclude names, so fail loudly here instead.
+        for (String field : DeploymentService.NON_REDEPLOY_FIELDS) {
+            assertThat(FieldUtils.getField(Deployment.class, field, true))
+                    .as("NON_REDEPLOY_FIELDS entry '%s' must be a real field on the Deployment hierarchy", field)
+                    .isNotNull();
+        }
+    }
+
+    @Test
+    void deploymentFieldTypes_shouldAllImplementValueEquals() {
+        // reflectionEquals is non-recursive: nested field values are compared via their own equals().
+        // A project-owned field type that inherits Object's identity equals() would make every update
+        // to a deployment carrying it look changed and redeploy spuriously. Walk every type reachable
+        // from the Deployment hierarchy (following @JsonSubTypes for polymorphic fields) and fail
+        // loudly on any concrete project type that does not override equals(Object).
+        Set<String> excludedFields = Set.of(DeploymentService.NON_REDEPLOY_FIELDS);
+        Set<Class<?>> visited = new HashSet<>();
+        Deque<Class<?>> queue = new ArrayDeque<>();
+        queue.add(Deployment.class);
+        List<String> offenders = new ArrayList<>();
+
+        while (!queue.isEmpty()) {
+            Class<?> type = queue.poll();
+            if (!visited.add(type)) {
+                continue;
+            }
+
+            // Polymorphic fields hold subtype instances at runtime; follow the declared subtype map.
+            JsonSubTypes subTypes = type.getAnnotation(JsonSubTypes.class);
+            if (subTypes != null) {
+                for (JsonSubTypes.Type subType : subTypes.value()) {
+                    queue.add(subType.value());
+                }
+            }
+
+            // Enums compare by identity correctly; interfaces/abstract classes are covered through
+            // their concrete subtypes.
+            if (!type.isEnum() && !type.isInterface() && !Modifier.isAbstract(type.getModifiers()) && !overridesEquals(type)) {
+                offenders.add(type.getName());
+            }
+
+            boolean deploymentLevel = Deployment.class.isAssignableFrom(type);
+            for (Field field : FieldUtils.getAllFieldsList(type)) {
+                if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic()
+                        || (deploymentLevel && excludedFields.contains(field.getName()))) {
+                    continue;
+                }
+                collectProjectTypes(field.getGenericType(), queue);
+            }
+        }
+
+        assertThat(offenders)
+                .as("Types reachable from the Deployment hierarchy are compared by reflectionEquals via their equals();"
+                        + " each must implement value equality (e.g. Lombok @Data / @EqualsAndHashCode)")
+                .isEmpty();
+    }
+
+    private static boolean overridesEquals(Class<?> type) {
+        try {
+            return type.getMethod("equals", Object.class).getDeclaringClass() != Object.class;
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("equals(Object) is always present", e);
+        }
+    }
+
+    private static void collectProjectTypes(Type type, Deque<Class<?>> queue) {
+        if (type instanceof Class<?> clazz) {
+            if (clazz.isArray()) {
+                collectProjectTypes(clazz.getComponentType(), queue);
+            } else if (clazz.getPackageName().startsWith("com.epam.aidial")) {
+                queue.add(clazz);
+            }
+        } else if (type instanceof ParameterizedType parameterized) {
+            collectProjectTypes(parameterized.getRawType(), queue);
+            for (Type argument : parameterized.getActualTypeArguments()) {
+                collectProjectTypes(argument, queue);
+            }
+        } else if (type instanceof GenericArrayType array) {
+            collectProjectTypes(array.getGenericComponentType(), queue);
+        } else if (type instanceof WildcardType wildcard) {
+            for (Type bound : wildcard.getUpperBounds()) {
+                collectProjectTypes(bound, queue);
+            }
+        }
+    }
+
+    private CreateMcpDeployment stubUpdateFlow(McpDeployment existing, McpDeployment updated) {
+        var request = newMcpRequest(null);
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(existing));
+        when(deploymentManager.resolveSecrets(existing)).thenReturn(existing);
+        when(deploymentMapper.toDeployment(eq(request), any())).thenReturn(updated);
+        when(deploymentRepository.update(eq(DEPLOYMENT_ID), any())).thenAnswer(inv -> inv.getArgument(1));
+        // rollingUpdate's return becomes the new updatedDeployment; non-null so setEnvs(...) doesn't NPE.
+        when(deploymentManager.rollingUpdate(DEPLOYMENT_ID)).thenReturn(updated);
+        return request;
     }
 
     private static McpDeployment runningMcp(List<String> allowedDomains, Integer containerPort) {

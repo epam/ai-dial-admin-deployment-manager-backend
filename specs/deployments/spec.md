@@ -133,13 +133,18 @@ Status: **Implemented**
 - **THEN** the system responds with 400
 
 ### Requirement: Update deployment configuration
-The system SHALL update an existing deployment's configuration without affecting its Kubernetes resources.
+The system SHALL update an existing deployment's configuration. For a deployment that is not `RUNNING`, the Kubernetes state is not changed; for a `RUNNING` deployment, a rolling update is applied when a container-spec field changes (see scenarios below).
 
 Status: **Implemented**
 
 #### Scenario: Successful update
 - **WHEN** `PUT /api/v1/deployments/{id}` is called with a valid body
-- **THEN** the deployment configuration is updated; the Kubernetes state is not immediately changed
+- **THEN** the deployment configuration is updated; if the deployment is not `RUNNING`, the Kubernetes state is not immediately changed
+
+#### Scenario: Update of a running deployment auto-triggers a rolling update
+- **WHEN** `PUT /api/v1/deployments/{id}` is called on a `RUNNING` deployment and any container-spec field changes
+- **THEN** a rolling update is applied so the workload picks up the new configuration; status transitions to `PENDING`
+- **Design intent**: fields are treated as redeploy-triggering **by default** so new deployment properties are covered automatically. The comparison excludes only non-spec fields, which never on their own trigger a rolling update: `id`, catalog display metadata (`displayName`, `description`, `topics`), audit/computed fields (`author`, `createdAt`, `updatedAt`, `url`, `serviceName`, `status`), `envs` (handled by the secret-aware env-change detector), and `allowedDomains` (handled by the separate Cilium network policy refresh). Every other field — base (e.g. `source`, `scaling`, `resources`, `probeProperties`, `containerPort`, `command`, `args`, `nodePoolId`) or subtype-specific (e.g. `transport`, `mcpEndpointPath`, `modelFormat`, `containerGrpcPort`) — triggers a rolling update when changed.
 
 #### Scenario: Non-existent deployment
 - **WHEN** `PUT /api/v1/deployments/{id}` is called with an unknown ID
