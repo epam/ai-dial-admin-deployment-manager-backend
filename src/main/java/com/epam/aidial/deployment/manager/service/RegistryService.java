@@ -115,7 +115,10 @@ public class RegistryService {
      * MUST stay that way (a build can pull base images from several registries).
      *
      * <p>Host matching mirrors {@link com.epam.aidial.deployment.manager.docker.DockerRegistryClient}
-     * and is Docker Hub alias-aware via {@link DockerHubAliases#sameRegistry(String, String)}.
+     * and is Docker Hub alias-aware via {@link DockerHubAliases#sameRegistry(String, String)} —
+     * except for precedence: when the same host is both a trusted-private registry and the primary
+     * registry, the trusted-private (least-privilege) credentials win here, while inspection and
+     * builds keep preferring the primary registry.
      * Unparseable references and images served from anonymous/unconfigured registries contribute
      * nothing. Returns {@link Optional#empty()} when no in-scope image matches a credentialed registry.
      */
@@ -144,31 +147,30 @@ public class RegistryService {
     }
 
     /**
-     * Add the single auth entry for the credentialed registry (primary first, then trusted-private)
-     * that serves {@code host}, if any. First match wins; anonymous/unconfigured hosts add nothing.
+     * Add the single auth entry for the credentialed registry (trusted-private first, then the primary
+     * registry as fallback) that serves {@code host}, if any. First match wins; anonymous/unconfigured
+     * hosts add nothing. Trusted-private wins over the primary registry on the same host so an
+     * administrator can hand workloads a least-privilege (e.g. read-only) pull account while the
+     * primary registry keeps the write-capable account for builds.
      */
     private void addMatchedAuth(String host, Map<String, Object> auths) {
-        if (registryProperties.getAuth() == DockerAuthScheme.BASIC
-                && StringUtils.isNotBlank(registryProperties.getUser())
-                && registryProperties.getPassword() != null
-                && DockerHubAliases.sameRegistry(registryProperties.getUrl(), host)) {
-            auths.put(authKey(registryProperties.getProtocol().toString(), registryProperties.getUrl()),
-                    Map.of("auth", basicAuth(registryProperties.getUser(), registryProperties.getPassword())));
-            return;
-        }
-
         for (var trustedRegistry : registryProperties.getTrustedPrivateRegistries()) {
             if ("BASIC".equals(trustedRegistry.getAuthScheme())
                     && StringUtils.isNotBlank(trustedRegistry.getUser())
                     && trustedRegistry.getPassword() != null
                     && DockerHubAliases.sameRegistry(trustedRegistry.getRegistry(), host)) {
-                var protocol = StringUtils.isNotBlank(trustedRegistry.getProtocol())
-                        ? trustedRegistry.getProtocol()
-                        : "https";
-                auths.put(authKey(protocol, trustedRegistry.getRegistry()),
+                auths.put(pullAuthKey(trustedRegistry.getRegistry()),
                         Map.of("auth", basicAuth(trustedRegistry.getUser(), trustedRegistry.getPassword())));
                 return;
             }
+        }
+
+        if (registryProperties.getAuth() == DockerAuthScheme.BASIC
+                && StringUtils.isNotBlank(registryProperties.getUser())
+                && registryProperties.getPassword() != null
+                && DockerHubAliases.sameRegistry(registryProperties.getUrl(), host)) {
+            auths.put(pullAuthKey(registryProperties.getUrl()),
+                    Map.of("auth", basicAuth(registryProperties.getUser(), registryProperties.getPassword())));
         }
     }
 
@@ -185,6 +187,19 @@ public class RegistryService {
         return DockerHubAliases.contains(registry)
                 ? DockerHubAliases.LEGACY_AUTH_KEY
                 : API_URL_TEMPLATE.formatted(protocol, registry);
+    }
+
+    /**
+     * Auths key for kubelet-consumed pull secrets. The kubelet credential keyring does path-prefix
+     * matching, so a {@code https://host/v2} key never matches a {@code host/image:tag} pull — the key
+     * must be the bare registry host. Docker Hub keeps the legacy index key, which the keyring
+     * special-cases. Build-time {@code config.json} keeps {@link #authKey}'s {@code /v2} shape
+     * (docker CLI / BuildKit / skopeo normalize it; kubelet does not).
+     */
+    private static String pullAuthKey(String registry) {
+        return DockerHubAliases.contains(registry)
+                ? DockerHubAliases.LEGACY_AUTH_KEY
+                : registry;
     }
 
 }
