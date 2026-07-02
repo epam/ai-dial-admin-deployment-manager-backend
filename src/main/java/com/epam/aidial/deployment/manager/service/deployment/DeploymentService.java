@@ -70,6 +70,10 @@ public class DeploymentService {
      * Cilium network policy update). Every other field — base or subclass — is treated as
      * redeploy-triggering by default, so new deployment properties are covered automatically.
      *
+     * <p>The comparison uses non-recursive {@link EqualsBuilder#reflectionEquals}, so every field
+     * type reachable from the {@link Deployment} hierarchy must implement value {@code equals()};
+     * a type comparing by identity would make every update look changed and spuriously redeploy.
+     *
      * @see #isApplicableForRollingUpdate(Deployment, Deployment, boolean)
      */
     static final String[] NON_REDEPLOY_FIELDS = {

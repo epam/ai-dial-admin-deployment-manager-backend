@@ -18,6 +18,7 @@ import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.audit.HistoryService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +28,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -302,6 +314,84 @@ class DeploymentServiceTest {
             assertThat(FieldUtils.getField(Deployment.class, field, true))
                     .as("NON_REDEPLOY_FIELDS entry '%s' must be a real field on the Deployment hierarchy", field)
                     .isNotNull();
+        }
+    }
+
+    @Test
+    void deploymentFieldTypes_shouldAllImplementValueEquals() {
+        // reflectionEquals is non-recursive: nested field values are compared via their own equals().
+        // A project-owned field type that inherits Object's identity equals() would make every update
+        // to a deployment carrying it look changed and redeploy spuriously. Walk every type reachable
+        // from the Deployment hierarchy (following @JsonSubTypes for polymorphic fields) and fail
+        // loudly on any concrete project type that does not override equals(Object).
+        Set<String> excludedFields = Set.of(DeploymentService.NON_REDEPLOY_FIELDS);
+        Set<Class<?>> visited = new HashSet<>();
+        Deque<Class<?>> queue = new ArrayDeque<>();
+        queue.add(Deployment.class);
+        List<String> offenders = new ArrayList<>();
+
+        while (!queue.isEmpty()) {
+            Class<?> type = queue.poll();
+            if (!visited.add(type)) {
+                continue;
+            }
+
+            // Polymorphic fields hold subtype instances at runtime; follow the declared subtype map.
+            JsonSubTypes subTypes = type.getAnnotation(JsonSubTypes.class);
+            if (subTypes != null) {
+                for (JsonSubTypes.Type subType : subTypes.value()) {
+                    queue.add(subType.value());
+                }
+            }
+
+            // Enums compare by identity correctly; interfaces/abstract classes are covered through
+            // their concrete subtypes.
+            if (!type.isEnum() && !type.isInterface() && !Modifier.isAbstract(type.getModifiers()) && !overridesEquals(type)) {
+                offenders.add(type.getName());
+            }
+
+            boolean deploymentLevel = Deployment.class.isAssignableFrom(type);
+            for (Field field : FieldUtils.getAllFieldsList(type)) {
+                if (Modifier.isStatic(field.getModifiers()) || field.isSynthetic()
+                        || (deploymentLevel && excludedFields.contains(field.getName()))) {
+                    continue;
+                }
+                collectProjectTypes(field.getGenericType(), queue);
+            }
+        }
+
+        assertThat(offenders)
+                .as("Types reachable from the Deployment hierarchy are compared by reflectionEquals via their equals();"
+                        + " each must implement value equality (e.g. Lombok @Data / @EqualsAndHashCode)")
+                .isEmpty();
+    }
+
+    private static boolean overridesEquals(Class<?> type) {
+        try {
+            return type.getMethod("equals", Object.class).getDeclaringClass() != Object.class;
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("equals(Object) is always present", e);
+        }
+    }
+
+    private static void collectProjectTypes(Type type, Deque<Class<?>> queue) {
+        if (type instanceof Class<?> clazz) {
+            if (clazz.isArray()) {
+                collectProjectTypes(clazz.getComponentType(), queue);
+            } else if (clazz.getPackageName().startsWith("com.epam.aidial")) {
+                queue.add(clazz);
+            }
+        } else if (type instanceof ParameterizedType parameterized) {
+            collectProjectTypes(parameterized.getRawType(), queue);
+            for (Type argument : parameterized.getActualTypeArguments()) {
+                collectProjectTypes(argument, queue);
+            }
+        } else if (type instanceof GenericArrayType array) {
+            collectProjectTypes(array.getGenericComponentType(), queue);
+        } else if (type instanceof WildcardType wildcard) {
+            for (Type bound : wildcard.getUpperBounds()) {
+                collectProjectTypes(bound, queue);
+            }
         }
     }
 
