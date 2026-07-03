@@ -15,19 +15,24 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
+import com.epam.aidial.deployment.manager.service.manifest.TextClassificationTransformerSection;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
+import io.kserve.serving.v1beta1.inferenceservicespec.transformer.ImagePullSecrets;
 import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -49,6 +54,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     private final InferenceManifestGenerator inferenceManifestGenerator;
     private final K8sKserveClient k8sKserveClient;
     private final InferenceTaskDetector inferenceTaskDetector;
+    private final TextClassificationTransformerSection textClassificationTransformerSection;
+    private final RegistryPullSecretProvisioner registryPullSecretProvisioner;
     private final boolean useClusterInternalUrl;
     private final List<String> defaultAllowedDomains;
 
@@ -64,7 +71,9 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             K8sKserveClient k8sKserveClient,
             KserveDeployProperties kserveDeployProperties,
             HuggingFaceProperties huggingFaceProperties,
-            InferenceTaskDetector inferenceTaskDetector
+            InferenceTaskDetector inferenceTaskDetector,
+            TextClassificationTransformerSection textClassificationTransformerSection,
+            RegistryPullSecretProvisioner registryPullSecretProvisioner
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
                 containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, kserveDeployProperties.getNamespace(),
@@ -72,6 +81,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
         this.inferenceTaskDetector = inferenceTaskDetector;
+        this.textClassificationTransformerSection = textClassificationTransformerSection;
+        this.registryPullSecretProvisioner = registryPullSecretProvisioner;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
         this.defaultAllowedDomains = huggingFaceProperties.getDefaultAllowedDomains();
     }
@@ -110,7 +121,17 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
 
-        return inferenceManifestGenerator.serviceConfig(
+        // The predictor pulls its model via storageUri (not a private container image), so only the
+        // chained transformer's image can require pull credentials (spec 025, D5).
+        String transformerPullSecretName = null;
+        if (detection.task() == InferenceTask.TEXT_CLASSIFICATION) {
+            transformerPullSecretName = registryPullSecretProvisioner
+                    .provisionForDeployment(deployment.getId(), namespace,
+                            List.of(StringUtils.defaultString(textClassificationTransformerSection.transformerImage())))
+                    .orElse(null);
+        }
+
+        var service = inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 deployment.getModelFormat(),
@@ -127,6 +148,18 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 poolPrimitives,
                 detection.task(),
                 detection.id2Label());
+
+        applyTransformerImagePullSecret(service, transformerPullSecretName);
+        return service;
+    }
+
+    private void applyTransformerImagePullSecret(InferenceService service, String pullSecretName) {
+        if (StringUtils.isBlank(pullSecretName) || service.getSpec() == null || service.getSpec().getTransformer() == null) {
+            return;
+        }
+        var ref = new ImagePullSecrets();
+        ref.setName(pullSecretName);
+        service.getSpec().getTransformer().setImagePullSecrets(List.of(ref));
     }
 
     @Override
