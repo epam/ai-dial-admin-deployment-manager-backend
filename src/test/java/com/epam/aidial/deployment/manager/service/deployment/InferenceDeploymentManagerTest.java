@@ -20,10 +20,13 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
+import com.epam.aidial.deployment.manager.service.manifest.TextClassificationTransformerSection;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.Container;
@@ -119,6 +122,10 @@ class InferenceDeploymentManagerTest {
     private CiliumNetworkPolicy ciliumNetworkPolicy;
     @Mock
     private InferenceTaskDetector inferenceTaskDetector;
+    @Mock
+    private TextClassificationTransformerSection textClassificationTransformerSection;
+    @Mock
+    private RegistryPullSecretProvisioner registryPullSecretProvisioner;
 
     private InferenceDeploymentManager inferenceDeploymentManager;
 
@@ -142,9 +149,13 @@ class InferenceDeploymentManagerTest {
                 k8sKserveClient,
                 kserveDeployProperties,
                 huggingFaceProperties,
-                inferenceTaskDetector
+                inferenceTaskDetector,
+                textClassificationTransformerSection,
+                registryPullSecretProvisioner
         );
         lenient().when(inferenceTaskDetector.detect(any())).thenReturn(InferenceTaskDetectionResult.none());
+        lenient().when(registryPullSecretProvisioner.provisionForDeployment(anyString(), anyString(), any()))
+                .thenReturn(Optional.empty());
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -513,6 +524,32 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
+    void deploy_shouldInjectTransformerImagePullSecret_whenTransformerImageMatchesCredentialedRegistry() {
+        // Given: a chained text-classification deployment whose transformer image is in a credentialed registry
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(SERVICE_NAME);
+        InferenceService serviceSpec = createInferenceServiceWithTransformer();
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(inferenceTaskDetector.detect(any()))
+                .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "NEGATIVE", 1, "POSITIVE")));
+        when(textClassificationTransformerSection.transformerImage()).thenReturn("priv.registry/transformer:1");
+        when(registryPullSecretProvisioner.provisionForDeployment(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(Optional.of("test-pull-secret"));
+
+        // When
+        inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
+
+        // Then: the provisioned pull secret is wired into the transformer block (predictor untouched)
+        var pullSecrets = serviceSpec.getSpec().getTransformer().getImagePullSecrets();
+        assertThat(pullSecrets).hasSize(1);
+        assertThat(pullSecrets.get(0).getName()).isEqualTo("test-pull-secret");
+    }
+
+    @Test
     void updateCiliumNetworkPolicy_shouldPreserveChainedAugmentation_onAllowedDomainsUpdate() {
         // Given: a chained-mode inference deployment whose allowedDomains the operator is updating.
         // The chained signal is sourced from the live K8s InferenceService — no HuggingFace Hub call.
@@ -855,6 +892,28 @@ class InferenceDeploymentManagerTest {
     }
 
     @Test
+    void enrichBeforePersist_shouldSetDetectedTask_forHuggingFaceSource() {
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.NOT_DEPLOYED);
+        deployment.setSource(new HuggingFaceSource("org/generative-model"));
+        when(inferenceTaskDetector.detect(any())).thenReturn(InferenceTaskDetectionResult.textGeneration());
+
+        inferenceDeploymentManager.enrichBeforePersist(deployment);
+
+        assertThat(deployment.getInferenceTask()).isEqualTo(InferenceTask.TEXT_GENERATION);
+    }
+
+    @Test
+    void enrichBeforePersist_shouldLeaveTaskUnset_whenSourceIsNotHuggingFace() {
+        InferenceDeployment deployment = (InferenceDeployment) createDeployment(DeploymentStatus.NOT_DEPLOYED);
+        deployment.setSource(null);
+
+        inferenceDeploymentManager.enrichBeforePersist(deployment);
+
+        assertThat(deployment.getInferenceTask()).isNull();
+        verify(inferenceTaskDetector, never()).detect(any());
+    }
+
+    @Test
     void deploy_shouldUseOnlyDefaultAllowedDomainsWhenDeploymentDomainsEmptyWithHuggingFaceSource() {
         // Given: HuggingFace source with empty deployment allowedDomains
         var huggingFaceProperties = createHuggingFacePropertiesWithDefaultDomains();
@@ -910,7 +969,9 @@ class InferenceDeploymentManagerTest {
                 deploymentRepository,
                 k8sKserveClient,
                 kserveDeployProperties, huggingFaceProperties,
-                inferenceTaskDetector
+                inferenceTaskDetector,
+                textClassificationTransformerSection,
+                registryPullSecretProvisioner
         );
     }
 
@@ -1193,7 +1254,9 @@ class InferenceDeploymentManagerTest {
                 k8sKserveClient,
                 kserveDeployProperties,
                 huggingFaceProperties,
-                inferenceTaskDetector
+                inferenceTaskDetector,
+                textClassificationTransformerSection,
+                registryPullSecretProvisioner
         );
 
         var reconcileConfig = getReconcileConfig(service);

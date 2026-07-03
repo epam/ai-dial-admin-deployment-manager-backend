@@ -38,7 +38,10 @@ import java.util.regex.Pattern;
 public class InferenceTaskDetector {
 
     private static final String TEXT_CLASSIFICATION_PIPELINE_TAG = "text-classification";
+    private static final String TEXT_GENERATION_PIPELINE_TAG = "text-generation";
     private static final Pattern SEQUENCE_CLASSIFICATION_ARCHITECTURE = Pattern.compile(".*ForSequenceClassification$");
+    private static final Pattern TEXT_GENERATION_ARCHITECTURE =
+            Pattern.compile(".*(ForCausalLM|ForConditionalGeneration|LMHeadModel)$");
     private static final Pattern AUTO_STUB_LABEL = Pattern.compile("^LABEL_\\d+$");
 
     private final HuggingFaceClient huggingFaceClient;
@@ -66,16 +69,30 @@ public class InferenceTaskDetector {
         // simplification is deliberate — split into two paths if HF Hub QPS becomes a concern.
         ModelConfig config = fetchConfig(modelName, model.getSha());
 
+        // Precedence: text-classification is the more specific, higher-confidence signal (it drives
+        // the chained-transformer manifest) and is evaluated first. A model that satisfies both
+        // signals is classified as TEXT_CLASSIFICATION to preserve existing manifest behaviour.
         boolean isTextClassification =
                 TEXT_CLASSIFICATION_PIPELINE_TAG.equalsIgnoreCase(model.getPipelineTag())
                         || hasSequenceClassificationArchitecture(config);
 
-        if (!isTextClassification) {
-            log.debug("Model '{}' detected as NONE (pipeline_tag='{}', architectures={})",
-                    modelName, model.getPipelineTag(), config.getArchitectures());
-            return InferenceTaskDetectionResult.none();
+        if (isTextClassification) {
+            return InferenceTaskDetectionResult.textClassification(extractAndValidateId2Label(modelName, config));
         }
-        return InferenceTaskDetectionResult.textClassification(extractAndValidateId2Label(modelName, config));
+
+        boolean isTextGeneration =
+                TEXT_GENERATION_PIPELINE_TAG.equalsIgnoreCase(model.getPipelineTag())
+                        || hasTextGenerationArchitecture(config);
+
+        if (isTextGeneration) {
+            log.debug("Model '{}' detected as TEXT_GENERATION (pipeline_tag='{}', architectures={})",
+                    modelName, model.getPipelineTag(), config.getArchitectures());
+            return InferenceTaskDetectionResult.textGeneration();
+        }
+
+        log.debug("Model '{}' detected as NONE (pipeline_tag='{}', architectures={})",
+                modelName, model.getPipelineTag(), config.getArchitectures());
+        return InferenceTaskDetectionResult.none();
     }
 
     private Model fetchModel(String modelName) {
@@ -122,6 +139,15 @@ public class InferenceTaskDetector {
         return config.getArchitectures().stream()
                 .filter(StringUtils::isNotBlank)
                 .anyMatch(arch -> SEQUENCE_CLASSIFICATION_ARCHITECTURE.matcher(arch).matches());
+    }
+
+    private boolean hasTextGenerationArchitecture(ModelConfig config) {
+        if (CollectionUtils.isEmpty(config.getArchitectures())) {
+            return false;
+        }
+        return config.getArchitectures().stream()
+                .filter(StringUtils::isNotBlank)
+                .anyMatch(arch -> TEXT_GENERATION_ARCHITECTURE.matcher(arch).matches());
     }
 
     private Map<Integer, String> extractAndValidateId2Label(String modelName, ModelConfig config) {

@@ -48,6 +48,11 @@ This does not apply to NIM or KServe deployments, which have distinct failure st
 
 ## Requirements
 
+### Requirement: Auto-provisioned registry pull secret on deploy
+On deploy, when an image-based deployment's image is served from a credentialed configured registry (primary or trusted-private with `BASIC` auth, and `app.registry.auto-pull-secret-enabled` is true), the system SHALL auto-provision a per-deployment `kubernetes.io/dockerconfigjson` pull secret — tracked as a disposable `SECRET` resource and cleaned up on undeploy — and reference it from the generated workload's `imagePullSecrets`, with no manual administrator action on secrets or service accounts. See [kubernetes-manifests](../kubernetes-manifests/spec.md).
+
+Status: **Implemented** — Implemented via 025-auto-pull-secrets
+
 ### Requirement: List deployments
 The system SHALL return all deployments, optionally filtered by `imageDefinitionId` OR deployment `type`. The two filters are mutually exclusive.
 
@@ -128,13 +133,18 @@ Status: **Implemented**
 - **THEN** the system responds with 400
 
 ### Requirement: Update deployment configuration
-The system SHALL update an existing deployment's configuration without affecting its Kubernetes resources.
+The system SHALL update an existing deployment's configuration. For a deployment that is not `RUNNING`, the Kubernetes state is not changed; for a `RUNNING` deployment, a rolling update is applied when a container-spec field changes (see scenarios below).
 
 Status: **Implemented**
 
 #### Scenario: Successful update
 - **WHEN** `PUT /api/v1/deployments/{id}` is called with a valid body
-- **THEN** the deployment configuration is updated; the Kubernetes state is not immediately changed
+- **THEN** the deployment configuration is updated; if the deployment is not `RUNNING`, the Kubernetes state is not immediately changed
+
+#### Scenario: Update of a running deployment auto-triggers a rolling update
+- **WHEN** `PUT /api/v1/deployments/{id}` is called on a `RUNNING` deployment and any container-spec field changes
+- **THEN** a rolling update is applied so the workload picks up the new configuration; status transitions to `PENDING`
+- **Design intent**: fields are treated as redeploy-triggering **by default** so new deployment properties are covered automatically. The comparison excludes only non-spec fields, which never on their own trigger a rolling update: `id`, catalog display metadata (`displayName`, `description`, `topics`), audit/computed fields (`author`, `createdAt`, `updatedAt`, `url`, `serviceName`, `status`), `envs` (handled by the secret-aware env-change detector), and `allowedDomains` (handled by the separate Cilium network policy refresh). Every other field — base (e.g. `source`, `scaling`, `resources`, `probeProperties`, `containerPort`, `command`, `args`, `nodePoolId`) or subtype-specific (e.g. `transport`, `mcpEndpointPath`, `modelFormat`, `containerGrpcPort`) — triggers a rolling update when changed.
 
 #### Scenario: Non-existent deployment
 - **WHEN** `PUT /api/v1/deployments/{id}` is called with an unknown ID

@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -162,6 +163,14 @@ public abstract class DeploymentDtoMapper {
     }
 
     @AfterMapping
+    protected void setInferenceInternalDtoTask(@MappingTarget DeploymentInternalDto dto, Deployment model) {
+        if (model instanceof InferenceDeployment inferenceDeployment && dto instanceof InferenceDeploymentInternalDto inferenceDto) {
+            inferenceDto.setInferenceTask(
+                    inferenceDeployment.getInferenceTask() == null ? InferenceTask.NONE : inferenceDeployment.getInferenceTask());
+        }
+    }
+
+    @AfterMapping
     protected void setCreateImageSource(@MappingTarget CreateDeployment model, CreateImageBasedDeploymentRequestDto dto) {
         applyCreateImageSource(model, dto);
     }
@@ -236,6 +245,11 @@ public abstract class DeploymentDtoMapper {
         if (model.getSource() instanceof HuggingFaceSource(String modelName)) {
             dto.setSource(new InferenceDeploymentHuggingFaceSourceDto(modelName));
         }
+    }
+
+    @AfterMapping
+    protected void setInferenceDtoTask(@MappingTarget InferenceDeploymentDto dto, InferenceDeployment model) {
+        dto.setInferenceTask(model.getInferenceTask() == null ? InferenceTask.NONE : model.getInferenceTask());
     }
 
     @Named("toDeploymentSourceDto")

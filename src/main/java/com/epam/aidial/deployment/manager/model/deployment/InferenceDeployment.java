@@ -17,4 +17,5 @@ import lombok.experimental.SuperBuilder;
 @EqualsAndHashCode(callSuper = true)
 public class InferenceDeployment extends Deployment {
     private String modelFormat;
+    private InferenceTask inferenceTask;
 }

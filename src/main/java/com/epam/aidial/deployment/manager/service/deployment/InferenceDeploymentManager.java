@@ -15,19 +15,24 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
+import com.epam.aidial.deployment.manager.service.manifest.TextClassificationTransformerSection;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
 import io.cilium.v2.CiliumNetworkPolicy;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.kserve.serving.v1beta1.InferenceService;
+import io.kserve.serving.v1beta1.inferenceservicespec.transformer.ImagePullSecrets;
 import io.kserve.serving.v1beta1.inferenceservicestatus.Components;
 import io.kserve.serving.v1beta1.inferenceservicestatus.ModelStatus;
 import io.kserve.serving.v1beta1.inferenceservicestatus.modelstatus.States;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -44,11 +49,15 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
     private static final String SERVICE_NAME_LABEL = "serving.kserve.io/inferenceservice";
     private static final String COMPONENT_LABEL = "component";
+    private static final String PROMETHEUS_PORT_ANNOTATION = "prometheus.kserve.io/port";
+    private static final String PROMETHEUS_PATH_ANNOTATION = "prometheus.kserve.io/path";
     private static final int DEFAULT_KSERVE_SERVICE_PORT = 8080;
 
     private final InferenceManifestGenerator inferenceManifestGenerator;
     private final K8sKserveClient k8sKserveClient;
     private final InferenceTaskDetector inferenceTaskDetector;
+    private final TextClassificationTransformerSection textClassificationTransformerSection;
+    private final RegistryPullSecretProvisioner registryPullSecretProvisioner;
     private final boolean useClusterInternalUrl;
     private final List<String> defaultAllowedDomains;
 
@@ -64,7 +73,9 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
             K8sKserveClient k8sKserveClient,
             KserveDeployProperties kserveDeployProperties,
             HuggingFaceProperties huggingFaceProperties,
-            InferenceTaskDetector inferenceTaskDetector
+            InferenceTaskDetector inferenceTaskDetector,
+            TextClassificationTransformerSection textClassificationTransformerSection,
+            RegistryPullSecretProvisioner registryPullSecretProvisioner
     ) {
         super(k8sClient, disposableResourceManager, manifestGenerator, deploymentRepository,
                 containerPortResolver, ciliumNetworkPolicyCreator, nodePoolProperties, kserveDeployProperties.getNamespace(),
@@ -72,6 +83,8 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         this.inferenceManifestGenerator = inferenceManifestGenerator;
         this.k8sKserveClient = k8sKserveClient;
         this.inferenceTaskDetector = inferenceTaskDetector;
+        this.textClassificationTransformerSection = textClassificationTransformerSection;
+        this.registryPullSecretProvisioner = registryPullSecretProvisioner;
         this.useClusterInternalUrl = kserveDeployProperties.isUseClusterInternalUrl();
         this.defaultAllowedDomains = huggingFaceProperties.getDefaultAllowedDomains();
     }
@@ -79,6 +92,20 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     @Override
     public List<Class<? extends Deployment>> getSupportedDeploymentClasses() {
         return List.of(InferenceDeployment.class);
+    }
+
+    /**
+     * Detects the serving capability from the HuggingFace source and stores it on the deployment so
+     * it can be served back to clients without a live HF call. A non-HuggingFace source leaves the
+     * task unset (read back as {@code NONE}); detection failures propagate and abort create/update.
+     */
+    @Override
+    public void enrichBeforePersist(Deployment deployment) {
+        if (deployment instanceof InferenceDeployment inferenceDeployment
+                && inferenceDeployment.getSource() instanceof HuggingFaceSource huggingFaceSource) {
+            InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
+            inferenceDeployment.setInferenceTask(detection.task());
+        }
     }
 
     @Override
@@ -110,7 +137,17 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
 
         InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
 
-        return inferenceManifestGenerator.serviceConfig(
+        // The predictor pulls its model via storageUri (not a private container image), so only the
+        // chained transformer's image can require pull credentials (spec 025, D5).
+        String transformerPullSecretName = null;
+        if (detection.task() == InferenceTask.TEXT_CLASSIFICATION) {
+            transformerPullSecretName = registryPullSecretProvisioner
+                    .provisionForDeployment(deployment.getId(), namespace,
+                            List.of(StringUtils.defaultString(textClassificationTransformerSection.transformerImage())))
+                    .orElse(null);
+        }
+
+        var service = inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 deployment.getModelFormat(),
@@ -127,6 +164,18 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 poolPrimitives,
                 detection.task(),
                 detection.id2Label());
+
+        applyTransformerImagePullSecret(service, transformerPullSecretName);
+        return service;
+    }
+
+    private void applyTransformerImagePullSecret(InferenceService service, String pullSecretName) {
+        if (StringUtils.isBlank(pullSecretName) || service.getSpec() == null || service.getSpec().getTransformer() == null) {
+            return;
+        }
+        var ref = new ImagePullSecrets();
+        ref.setName(pullSecretName);
+        service.getSpec().getTransformer().setImagePullSecrets(List.of(ref));
     }
 
     @Override
@@ -330,6 +379,38 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     protected String resolveComponent(Pod pod) {
         var labels = pod.getMetadata().getLabels();
         return labels != null ? labels.get(COMPONENT_LABEL) : null;
+    }
+
+    /**
+     * KServe stamps {@code prometheus.kserve.io/port}/{@code /path} on a pod only when it actually
+     * exposes a Prometheus endpoint. The predictor carries them; a chained transformer whose metric
+     * aggregation is disabled does not — so a {@code null} port is the authoritative signal that the
+     * transformer has no scrape target, letting the collector skip it instead of scraping a doomed
+     * default port (which times out while the pod starts and resets once it is running).
+     */
+    @Override
+    protected Integer resolveMetricsPort(Pod pod) {
+        var value = annotation(pod, PROMETHEUS_PORT_ANNOTATION);
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value.trim());
+        } catch (NumberFormatException e) {
+            log.warn("Pod '{}' has a non-numeric {} annotation: '{}'; ignoring",
+                    pod.getMetadata().getName(), PROMETHEUS_PORT_ANNOTATION, value);
+            return null;
+        }
+    }
+
+    @Override
+    protected String resolveMetricsPath(Pod pod) {
+        return annotation(pod, PROMETHEUS_PATH_ANNOTATION);
+    }
+
+    private static String annotation(Pod pod, String key) {
+        var annotations = pod.getMetadata().getAnnotations();
+        return annotations != null ? annotations.get(key) : null;
     }
 
     @Override

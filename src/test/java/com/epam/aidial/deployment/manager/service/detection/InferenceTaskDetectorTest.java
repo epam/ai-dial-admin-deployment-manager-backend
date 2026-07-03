@@ -69,6 +69,50 @@ class InferenceTaskDetectorTest {
     }
 
     @Test
+    void shouldDetectTextGenerationFromPipelineTag() {
+        var model = Model.builder().pipelineTag("text-generation").build();
+        when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
+                ModelConfig.builder().architectures(List.of("LlamaForCausalLM")).build());
+
+        var result = detector.detect(new HuggingFaceSource(MODEL_NAME));
+
+        assertThat(result.task()).isEqualTo(InferenceTask.TEXT_GENERATION);
+        assertThat(result.id2Label()).isNull();
+    }
+
+    @Test
+    void shouldDetectTextGenerationFromArchitectureFallback() {
+        var model = Model.builder().pipelineTag("feature-extraction").build();
+        when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
+                ModelConfig.builder().architectures(List.of("GPT2LMHeadModel")).build());
+
+        var result = detector.detect(new HuggingFaceSource(MODEL_NAME));
+
+        assertThat(result.task()).isEqualTo(InferenceTask.TEXT_GENERATION);
+        assertThat(result.id2Label()).isNull();
+    }
+
+    @Test
+    void shouldPreferTextClassification_whenBothClassificationAndGenerationSignalsPresent() {
+        // pipeline_tag says generation but the architecture is sequence-classification — the more
+        // specific classification signal must win (precedence rule).
+        var model = Model.builder().pipelineTag("text-generation").build();
+        when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);
+        when(huggingFaceClient.fetchModelConfig(eq(MODEL_NAME), any())).thenReturn(
+                ModelConfig.builder()
+                        .architectures(List.of("DistilBertForSequenceClassification"))
+                        .id2Label(orderedMap("0", "NEGATIVE", "1", "POSITIVE"))
+                        .build());
+
+        var result = detector.detect(new HuggingFaceSource(MODEL_NAME));
+
+        assertThat(result.task()).isEqualTo(InferenceTask.TEXT_CLASSIFICATION);
+        assertThat(result.id2Label()).hasSize(2);
+    }
+
+    @Test
     void shouldDetectNoneWhenNeitherSignalMatches() {
         var model = Model.builder().pipelineTag("translation").build();
         when(huggingFaceClient.getModel(MODEL_NAME)).thenReturn(model);

@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.web.controller.none.internal;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
+import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
@@ -62,6 +63,22 @@ class DeploymentInternalControllerTest extends AbstractControllerNoneSecureTest 
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/internal/deployment_by_id_response.json");
         var modelJson = ResourceUtils.readResource("/mcp/deployment/internal/deployment_by_id.json");
         var model = objectMapper.readValue(modelJson, McpDeployment.class);
+        var deploymentId = model.getId();
+
+        when(deploymentService.getDeployment(any(), anyBoolean())).thenReturn(Optional.of(model));
+
+        mockMvc.perform(get("/api/internal/v1/deployments/{id}", deploymentId))
+                .andExpect(status().isOk())
+                .andExpect(content().json(dtoJson, JsonCompareMode.LENIENT));
+
+        verify(deploymentService).getDeployment(deploymentId, false);
+    }
+
+    @Test
+    void testGetDeploymentById_inferenceExposesInferenceTask() throws Exception {
+        var dtoJson = ResourceUtils.readResource("/mcp/deployment/internal/inference_deployment_by_id_response.json");
+        var modelJson = ResourceUtils.readResource("/mcp/deployment/internal/inference_deployment_by_id.json");
+        var model = objectMapper.readValue(modelJson, InferenceDeployment.class);
         var deploymentId = model.getId();
 
         when(deploymentService.getDeployment(any(), anyBoolean())).thenReturn(Optional.of(model));

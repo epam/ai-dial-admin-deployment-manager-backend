@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-05-20T20:57:51.860997600Z
+> Generated at: 2026-06-30T13:12:31.609715Z
 
 ## Tables
 
@@ -345,6 +345,7 @@
 |--------|------|----------|---------|-----|
 | ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
 | MODEL_FORMAT | VARCHAR(32) | No |  |  |
+| INFERENCE_TASK | VARCHAR(32) | No | 'NONE' |  |
 
 ## INFERENCE_DEPLOYMENT_AUD
 
@@ -353,10 +354,11 @@
 | ID | VARCHAR(36) | No |  | PK |
 | REV | INTEGER | No |  | PK, FK → REVINFO.ID |
 | MODEL_FORMAT | VARCHAR(255) | Yes |  |  |
+| INFERENCE_TASK | VARCHAR(255) | Yes |  |  |
 
 **Indexes:**
 
-- `FK_INFERENCE_DEPLOYMENT_AUD_REV_INDEX_4` on (REV)
+- `FK_INFERENCE_DEPLOYMENT_AUD_REV_INDEX_1` on (REV)
 
 ## INTERCEPTOR_DEPLOYMENT
 

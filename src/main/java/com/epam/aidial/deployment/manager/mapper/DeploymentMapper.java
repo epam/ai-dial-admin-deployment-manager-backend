@@ -53,6 +53,18 @@ public abstract class DeploymentMapper {
         return deployment;
     }
 
+    // Dedicated subclass mapping so the inference-only, system-computed inferenceTask (populated
+    // later by InferenceDeploymentManager#enrichBeforePersist) can be ignored without affecting the
+    // other deployment subtypes, which have no such property.
+    @Mapping(target = "url", ignore = true)
+    @Mapping(target = "envs", ignore = true)
+    @Mapping(target = "serviceName", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "status", constant = "NOT_DEPLOYED")
+    @Mapping(target = "inferenceTask", ignore = true)
+    protected abstract InferenceDeployment toInferenceDeployment(CreateInferenceDeployment createInferenceDeployment);
+
     @SubclassMapping(source = McpDeployment.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeployment.class)

@@ -83,12 +83,15 @@ public class InferenceServingMetricsCollector implements ServingMetricsCollector
         }
         var pod = predictorPod.getName();
         var namespace = target.namespace();
-        // Assumption: the engine exposes Prometheus on its container/traffic port over plain HTTP
-        // (true for vLLM/TGI/SGLang/KServe ModelServer), and the transformer pod serves on the same
-        // port. Sidecar exporters on other ports (e.g. the KServe queue-proxy on 8012) are not read.
-        var port = target.port();
+        // Each pod is scraped at the Prometheus endpoint KServe advertises on it
+        // (prometheus.kserve.io/port + /path, surfaced as PodInfo#getMetricsPort/getMetricsPath),
+        // falling back to the engine's container/traffic port + /metrics when a pod carries no
+        // annotation. Sidecar exporters on other ports (e.g. the KServe queue-proxy on 8012) are
+        // not read. The fallback keeps the predictor scrape working for any engine, while a
+        // transformer that advertises no endpoint is skipped rather than scraped on a doomed port.
+        var fallbackPort = target.port();
 
-        var exposition = scrapeAndParse(namespace, pod, port);
+        var exposition = scrapeAndParse(namespace, predictorPod, fallbackPort);
         if (exposition.isEmpty()) {
             return ServingMetricsResult.unavailable(EngineFamily.UNKNOWN, pod, REASON_SCRAPE_FAILED);
         }
@@ -99,7 +102,7 @@ public class InferenceServingMetricsCollector implements ServingMetricsCollector
         }
 
         var context = buildScrapeContext(exposition.get(),
-                scrapeTransformerIfChained(engine, namespace, readyPods, predictorPod, port));
+                scrapeTransformerIfChained(engine, namespace, readyPods, predictorPod, fallbackPort));
         var normalized = normalizers.stream()
                 .filter(normalizer -> normalizer.supports(engine))
                 .findFirst()
@@ -111,9 +114,15 @@ public class InferenceServingMetricsCollector implements ServingMetricsCollector
         return ServingMetricsResult.available(engine, pod, normalized);
     }
 
-    /** Scrapes one pod's {@code /metrics} and parses the exposition; empty when blank or unreachable. */
-    private Optional<ParsedExposition> scrapeAndParse(String namespace, String pod, int port) {
-        return k8sClient.scrapePodMetrics(namespace, pod, port, METRICS_PATH, properties.getTimeoutMs())
+    /**
+     * Scrapes one pod's Prometheus endpoint and parses the exposition; empty when blank or unreachable.
+     * The pod's advertised {@link PodInfo#getMetricsPort() port}/{@link PodInfo#getMetricsPath() path}
+     * win; absent either falls back to {@code fallbackPort}/{@link #METRICS_PATH}.
+     */
+    private Optional<ParsedExposition> scrapeAndParse(String namespace, PodInfo pod, int fallbackPort) {
+        var port = pod.getMetricsPort() != null ? pod.getMetricsPort() : fallbackPort;
+        var path = StringUtils.isNotBlank(pod.getMetricsPath()) ? pod.getMetricsPath() : METRICS_PATH;
+        return k8sClient.scrapePodMetrics(namespace, pod.getName(), port, path, properties.getTimeoutMs())
                 .filter(StringUtils::isNotBlank)
                 .map(prometheusTextParser::parse);
     }
@@ -121,17 +130,21 @@ public class InferenceServingMetricsCollector implements ServingMetricsCollector
     /**
      * Scrapes the transformer pod only for a chained KServe Python ModelServer deployment — the sole
      * engine that consumes it. Gated on the detected engine (known only after the predictor scrape),
-     * so other engines never pay the extra pod-proxy round-trip. Returns empty when the engine isn't
-     * KSERVE_MODELSERVER, no transformer pod is Ready, or the scrape fails — the context then degrades
+     * so other engines never pay the extra pod-proxy round-trip, and on the transformer actually
+     * advertising a Prometheus endpoint ({@link PodInfo#getMetricsPort()} present) — a transformer
+     * whose metric aggregation is disabled exposes none, and scraping it would only ever time out or
+     * be reset. Returns empty when the engine isn't KSERVE_MODELSERVER, no transformer pod is Ready,
+     * the transformer advertises no endpoint, or the scrape fails — the context then degrades
      * gracefully to predictor-only.
      */
     private Optional<ParsedExposition> scrapeTransformerIfChained(EngineFamily engine, String namespace,
-                                                                  List<PodInfo> readyPods, PodInfo predictorPod, int port) {
+                                                                  List<PodInfo> readyPods, PodInfo predictorPod, int fallbackPort) {
         if (engine != EngineFamily.KSERVE_MODELSERVER) {
             return Optional.empty();
         }
         return selectTransformerPod(readyPods, predictorPod)
-                .flatMap(transformerPod -> scrapeAndParse(namespace, transformerPod.getName(), port));
+                .filter(transformerPod -> transformerPod.getMetricsPort() != null)
+                .flatMap(transformerPod -> scrapeAndParse(namespace, transformerPod, fallbackPort));
     }
 
     /**

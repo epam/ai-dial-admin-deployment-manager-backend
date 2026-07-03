@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.kserve.serving.v1beta1.InferenceService;
 import io.kserve.serving.v1beta1.InferenceServiceSpec;
+import io.kserve.serving.v1beta1.inferenceservicespec.Transformer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,12 +55,34 @@ class TextClassificationTransformerSectionTest {
         assertThat(transformer).isNotNull();
         var containers = transformer.getContainers();
         assertThat(containers).hasSize(1);
-        var container = containers.get(0);
+        var container = containers.getFirst();
         assertThat(container.getImage()).isEqualTo(TRANSFORMER_IMAGE);
         assertThat(container.getArgs())
                 .contains("--model_name=" + DEPLOYMENT_NAME, "--predictor_protocol=v2");
         assertThat(container.getEnv()).extracting(env -> env.getName() + "=" + env.getValue())
                 .contains("ID2LABEL={\"0\":\"NEGATIVE\",\"1\":\"POSITIVE\"}");
+        // Prometheus scrape annotations so the transformer pod advertises a metrics endpoint
+        // (KServe auto-stamps these on the predictor but not on a custom transformer container).
+        assertThat(transformer.getAnnotations())
+                .containsEntry("prometheus.kserve.io/port", "8080")
+                .containsEntry("prometheus.kserve.io/path", "/metrics");
+    }
+
+    @Test
+    void shouldPreserveExistingTransformerAnnotations() {
+        when(appProperties.cloneTextClassificationTransformerContainerConfig())
+                .thenReturn(templateWithImage(TRANSFORMER_IMAGE));
+        InferenceService service = emptyInferenceService();
+        var transformer = new Transformer();
+        transformer.setAnnotations(new LinkedHashMap<>(Map.of("prometheus.kserve.io/port", "9999")));
+        service.getSpec().setTransformer(transformer);
+
+        section.apply(service, DEPLOYMENT_NAME, orderedLabels(0, "A"));
+
+        // operator-supplied value wins (putIfAbsent); the missing path is still added
+        assertThat(service.getSpec().getTransformer().getAnnotations())
+                .containsEntry("prometheus.kserve.io/port", "9999")
+                .containsEntry("prometheus.kserve.io/path", "/metrics");
     }
 
     @Test
