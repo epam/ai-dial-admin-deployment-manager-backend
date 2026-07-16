@@ -90,7 +90,7 @@ class RegistryPullSecretProvisionerTest {
 
         assertThat(plan.action()).isEqualTo(PullSecretPlan.Action.PROVISION);
         assertThat(plan.secretName()).isEqualTo(PULL_SECRET_NAME);
-        assertThat(PULL_SECRET_NAME).doesNotMatch(".*-pull-[a-z]{6}"); // stable, not random-suffixed (#387)
+        assertThat(PULL_SECRET_NAME).doesNotMatch(".*-pull-[a-z]{6}"); // stable, not random-suffixed
         assertThat(plan.secret()).isSameAs(secret);
         // plan() is read-only: no cluster secret, no disposable-resource bookkeeping.
         verifyNoInteractions(k8sClient, disposableResourceManager);

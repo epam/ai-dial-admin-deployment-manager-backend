@@ -94,7 +94,7 @@ public class RegistryPullSecretProvisioner {
 
         // Deterministic per-deployment name so redeploy performs an idempotent create-or-replace of the
         // SAME object the live workload already references — instead of minting a new random name and
-        // orphaning the old one, which a scaled-to-zero Knative revision could still reference (#387).
+        // orphaning the old one, which a scaled-to-zero Knative revision could still reference.
         var secretName = K8sNamingUtils.generateName(deploymentId, PULL_SECRET_NAME_SUFFIX);
         var secret = manifestGenerator.pullSecretConfig(secretName, dockerConfig.get());
         return PullSecretPlan.provision(secretName, secret);
@@ -125,7 +125,7 @@ public class RegistryPullSecretProvisioner {
     /**
      * Condemnation phase. MUST run only after the CRD apply succeeded: condemning earlier would let the
      * cleaner delete a secret the still-live (possibly scaled-to-zero) revision references if the
-     * create/update of the CRD failed — reintroducing #387 on the failure path. For {@code PROVISION}
+     * create/update of the CRD failed — breaking scale-from-zero on the failure path. For {@code PROVISION}
      * plans it condemns only prior differently-named (legacy) secrets; for {@code CONDEMN} plans (the
      * image no longer needs credentials) it condemns every tracked pull secret of the deployment.
      */

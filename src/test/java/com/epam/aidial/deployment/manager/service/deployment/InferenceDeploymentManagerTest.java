@@ -755,7 +755,7 @@ class InferenceDeploymentManagerTest {
 
         // Then: the secret is provisioned BEFORE the CRD is re-applied and stale secrets are condemned
         // only AFTER the CRD apply succeeded (a failed update must never condemn a secret the live,
-        // possibly scaled-to-zero, revision still references — #387 failure path).
+        // possibly scaled-to-zero, revision still references).
         InOrder order = inOrder(registryPullSecretProvisioner, k8sKserveClient);
         order.verify(registryPullSecretProvisioner).apply(eq(DEPLOYMENT_ID), eq(NAMESPACE), eq(pullSecretPlan));
         order.verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));

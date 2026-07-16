@@ -422,7 +422,7 @@ class KnativeDeploymentManagerTest {
 
         // Then: the secret is provisioned BEFORE the CRD (so the revision's pods can pull) and stale
         // secrets are condemned only AFTER the CRD apply succeeded (a failed apply must never condemn
-        // a secret the live revision still references — #387 failure path).
+        // a secret the live revision still references).
         InOrder order = inOrder(registryPullSecretProvisioner, k8sKnativeClient);
         order.verify(registryPullSecretProvisioner).apply(eq(DEPLOYMENT_ID), eq(NAMESPACE), eq(pullSecretPlan));
         order.verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
