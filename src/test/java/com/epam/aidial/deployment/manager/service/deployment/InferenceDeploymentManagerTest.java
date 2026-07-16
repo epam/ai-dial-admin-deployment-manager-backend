@@ -22,6 +22,7 @@ import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
@@ -154,8 +155,8 @@ class InferenceDeploymentManagerTest {
                 registryPullSecretProvisioner
         );
         lenient().when(inferenceTaskDetector.detect(any())).thenReturn(InferenceTaskDetectionResult.none());
-        lenient().when(registryPullSecretProvisioner.provisionForDeployment(anyString(), anyString(), any()))
-                .thenReturn(Optional.empty());
+        lenient().when(registryPullSecretProvisioner.plan(anyString(), anyString(), any()))
+                .thenReturn(PullSecretPlan.none());
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -537,13 +538,13 @@ class InferenceDeploymentManagerTest {
         when(inferenceTaskDetector.detect(any()))
                 .thenReturn(InferenceTaskDetectionResult.textClassification(Map.of(0, "NEGATIVE", 1, "POSITIVE")));
         when(textClassificationTransformerSection.transformerImage()).thenReturn("priv.registry/transformer:1");
-        when(registryPullSecretProvisioner.provisionForDeployment(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
-                .thenReturn(Optional.of("test-pull-secret"));
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(PullSecretPlan.provision("test-pull-secret", null));
 
         // When
         inferenceDeploymentManager.deploy(DEPLOYMENT_ID);
 
-        // Then: the provisioned pull secret is wired into the transformer block (predictor untouched)
+        // Then: the provisioned pull secret name is wired into the transformer block (predictor untouched)
         var pullSecrets = serviceSpec.getSpec().getTransformer().getImagePullSecrets();
         assertThat(pullSecrets).hasSize(1);
         assertThat(pullSecrets.get(0).getName()).isEqualTo("test-pull-secret");

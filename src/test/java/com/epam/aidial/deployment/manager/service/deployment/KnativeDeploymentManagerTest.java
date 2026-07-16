@@ -25,6 +25,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -160,11 +161,11 @@ class KnativeDeploymentManagerTest {
                 SERVICE_CONTAINER
         );
 
-        org.mockito.Mockito.lenient().when(registryPullSecretProvisioner.provisionForDeployment(
+        org.mockito.Mockito.lenient().when(registryPullSecretProvisioner.plan(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.any()))
-                .thenReturn(Optional.empty());
+                .thenReturn(PullSecretPlan.none());
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -381,13 +382,14 @@ class KnativeDeploymentManagerTest {
         when(knativeManifestGenerator.serviceConfig(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(serviceSpec);
-        when(registryPullSecretProvisioner.provisionForDeployment(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
-                .thenReturn(Optional.of("test-pull-secret"));
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(PullSecretPlan.provision("test-pull-secret", null));
 
         // When
         knativeDeploymentManager.deploy(DEPLOYMENT_ID);
 
-        // Then: the provisioned pull secret is wired into the Knative RevisionSpec
+        // Then: the provisioned pull secret name is wired into the Knative RevisionSpec (pre-commit),
+        // independent of the post-commit apply() that writes the secret to the cluster.
         var pullSecrets = serviceSpec.getSpec().getTemplate().getSpec().getImagePullSecrets();
         assertThat(pullSecrets).hasSize(1);
         assertThat(pullSecrets.get(0).getName()).isEqualTo("test-pull-secret");
