@@ -735,6 +735,57 @@ class InferenceDeploymentManagerTest {
         order.verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
     }
 
+    @Test
+    void rollingUpdate_shouldApplyPullSecretBeforeServiceUpdate_andCondemnStaleOnlyAfter() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService serviceSpec = createInferenceServiceWithoutTransformer();
+        var pullSecretPlan = PullSecretPlan.provision("test-pull-secret", null);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(pullSecretPlan);
+
+        // When
+        inferenceDeploymentManager.rollingUpdate(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: the secret is provisioned BEFORE the CRD is re-applied and stale secrets are condemned
+        // only AFTER the CRD apply succeeded (a failed update must never condemn a secret the live,
+        // possibly scaled-to-zero, revision still references — #387 failure path).
+        InOrder order = inOrder(registryPullSecretProvisioner, k8sKserveClient);
+        order.verify(registryPullSecretProvisioner).apply(eq(DEPLOYMENT_ID), eq(NAMESPACE), eq(pullSecretPlan));
+        order.verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
+        order.verify(registryPullSecretProvisioner).condemnStale(eq(DEPLOYMENT_ID), eq(NAMESPACE), eq(pullSecretPlan));
+    }
+
+    @Test
+    void rollingUpdate_shouldNotFail_whenCondemnStaleThrows() {
+        // Given: condemnation failure is only a leak (reclaimed on the next redeploy) — it must not
+        // fail the otherwise-successful rolling update.
+        Deployment deployment = createDeployment(DeploymentStatus.RUNNING);
+        InferenceService serviceSpec = createInferenceServiceWithoutTransformer();
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(containerPortResolver.resolveContainerPort(any(), eq(DEFAULT_KSERVE_SERVICE_PORT))).thenReturn(8080);
+        when(inferenceManifestGenerator.serviceConfig(eq(DEPLOYMENT_ID), eq(SERVICE_NAME), any(), any(), any(), any(), any(), any(),
+                any(), any(), eq(8080), any(), anyInt(), any(), any(), any())).thenReturn(serviceSpec);
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(PullSecretPlan.provision("test-pull-secret", null));
+        doThrow(new RuntimeException("condemn failed")).when(registryPullSecretProvisioner)
+                .condemnStale(eq(DEPLOYMENT_ID), eq(NAMESPACE), any());
+
+        // When: firing afterCommit must not propagate the condemnation failure.
+        inferenceDeploymentManager.rollingUpdate(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then
+        verify(k8sKserveClient).updateService(eq(NAMESPACE), eq(serviceSpec));
+    }
+
     private InferenceService createInferenceServiceWithTransformer() {
         InferenceService service = new InferenceService();
         ObjectMeta metadata = new ObjectMeta();

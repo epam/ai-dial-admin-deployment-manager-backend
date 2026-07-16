@@ -173,6 +173,11 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         registryPullSecretProvisioner.apply(deployment.getId(), namespace, pullSecretPlan);
     }
 
+    @Override
+    protected void condemnStalePullSecrets(InferenceDeployment deployment, PullSecretPlan pullSecretPlan) {
+        registryPullSecretProvisioner.condemnStale(deployment.getId(), namespace, pullSecretPlan);
+    }
+
     private void applyTransformerImagePullSecret(InferenceService service, String pullSecretName) {
         if (StringUtils.isBlank(pullSecretName) || service.getSpec() == null || service.getSpec().getTransformer() == null) {
             return;

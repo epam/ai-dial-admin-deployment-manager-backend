@@ -158,6 +158,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                         }
                         throw new DeploymentException(errorMessage, e);
                     }
+                    // Only after the CRD apply succeeded: condemning earlier would let the cleaner
+                    // delete a secret the live revision still references if createService failed.
+                    // A condemnation failure is only a leak (reclaimed on the next redeploy), so it
+                    // must not fail the otherwise-successful deploy.
+                    try {
+                        condemnStalePullSecrets(deployment, pullSecretPlan);
+                    } catch (Exception e) {
+                        log.warn("Failed to condemn stale pull secrets for deployment '{}'; "
+                                + "they will be migrated on the next redeploy", id, e);
+                    }
                 }
             });
 
@@ -262,6 +272,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                 .formatted(id);
                         log.warn(errorMessage, e);
                         throw new DeploymentException(errorMessage, e);
+                    }
+                    // Only after the CRD apply succeeded: condemning earlier would let the cleaner
+                    // delete a secret the live revision still references if updateService failed.
+                    // A condemnation failure is only a leak (reclaimed on the next redeploy), so it
+                    // must not fail the otherwise-successful rolling update.
+                    try {
+                        condemnStalePullSecrets(deployment, pullSecretPlan);
+                    } catch (Exception e) {
+                        log.warn("Failed to condemn stale pull secrets for deployment '{}'; "
+                                + "they will be migrated on the next redeploy", id, e);
                     }
                 }
             });
@@ -747,6 +767,18 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
      */
     protected void applyPullSecretPlan(D deployment, PullSecretPlan pullSecretPlan) {
         // default: nothing to apply
+    }
+
+    /**
+     * Condemn pull secrets the just-applied spec no longer references (legacy random-named ones, or all
+     * of them when the image needs no credentials). Invoked only <b>after</b> the CRD apply succeeded so
+     * a failed deploy/rolling update never condemns a secret the still-live revision references; a
+     * failure here is tolerated (logged, not rethrown) — the stale secret is reclaimed on the next
+     * successful redeploy. No-op by default (e.g. NIM); overridden together with
+     * {@link #applyPullSecretPlan}.
+     */
+    protected void condemnStalePullSecrets(D deployment, PullSecretPlan pullSecretPlan) {
+        // default: nothing to condemn
     }
 
     protected abstract void createService(String namespace, S service);

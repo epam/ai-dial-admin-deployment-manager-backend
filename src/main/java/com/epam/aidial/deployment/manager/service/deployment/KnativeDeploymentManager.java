@@ -148,6 +148,11 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
         registryPullSecretProvisioner.apply(deployment.getId(), namespace, pullSecretPlan);
     }
 
+    @Override
+    protected void condemnStalePullSecrets(Deployment deployment, PullSecretPlan pullSecretPlan) {
+        registryPullSecretProvisioner.condemnStale(deployment.getId(), namespace, pullSecretPlan);
+    }
+
     private void applyImagePullSecret(Service service, String pullSecretName) {
         if (StringUtils.isBlank(pullSecretName)
                 || service.getSpec() == null

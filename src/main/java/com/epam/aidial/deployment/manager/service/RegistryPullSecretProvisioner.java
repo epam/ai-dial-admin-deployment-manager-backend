@@ -23,15 +23,20 @@ import java.util.List;
  * credentialed registry, so the generated workload can reference it via {@code imagePullSecrets}
  * without any manual administrator action.
  *
- * <p>Provisioning is two-phase, mirroring how the {@code CiliumNetworkPolicy} is handled:
+ * <p>Provisioning is three-phase, mirroring how the {@code CiliumNetworkPolicy} is handled:
  * <ol>
  *   <li>{@link #plan} — read-only, safe to run inside the deploy transaction (pre-commit). It resolves
  *       whether a pull secret is needed, and if so computes the <b>deterministic</b> per-deployment name
  *       ({@code <prefix>-<id>-pull}) and secret manifest. No cluster or DB writes.</li>
- *   <li>{@link #apply} — the side-effecting half, run in the {@code afterCommit} phase right before the
- *       CRD is applied. It create-or-replaces the secret in place (idempotent across redeploys, so a
- *       name a live or scaled-to-zero revision references is never orphaned) and tracks it via the
- *       {@link DisposableResourceManager}, or condemns a now-unused prior secret.</li>
+ *   <li>{@link #apply} — run in the {@code afterCommit} phase right before the CRD is applied. It
+ *       create-or-replaces the secret in place (idempotent across redeploys, so a name a live or
+ *       scaled-to-zero revision references is never orphaned) and tracks it {@code STABLE} via the
+ *       {@link DisposableResourceManager}.</li>
+ *   <li>{@link #condemnStale} — run only <b>after</b> the CRD apply succeeded. It condemns pull
+ *       secrets the just-applied spec no longer references (legacy random-named ones, or all of them
+ *       when the image moved to a public/unconfigured registry). Sequenced last so a failed CRD apply
+ *       never condemns a secret the still-live revision references — the worst case of a failure in
+ *       between is a leaked secret, reclaimed on the next successful redeploy.</li>
  * </ol>
  */
 @Slf4j
@@ -96,26 +101,41 @@ public class RegistryPullSecretProvisioner {
     }
 
     /**
-     * Side-effecting apply phase. MUST run in the post-commit phase (an {@code afterCommit} hook),
+     * Provision-only apply phase. MUST run in the post-commit phase (an {@code afterCommit} hook),
      * right before the CRD is applied — mirroring how the {@code CiliumNetworkPolicy} is applied — so a
      * rolled-back deploy never mutates the cluster secret and the secret write lands together with the
      * CRD apply. Uses the {@code REQUIRES_NEW} disposable-resource bookkeeping (there is no ambient
-     * transaction post-commit).
+     * transaction post-commit). Deliberately condemns nothing — see {@link #condemnStale}.
      */
     public void apply(String deploymentId, String namespace, PullSecretPlan plan) {
         switch (plan.action()) {
-            case NONE -> {
-                // feature disabled / unmanaged deployment — leave any existing secrets untouched
+            case NONE, CONDEMN -> {
+                // nothing to provision; stale-secret condemnation is deferred to condemnStale()
             }
-            case CONDEMN -> condemnPriorPullSecrets(deploymentId, namespace, null);
             case PROVISION -> {
-                // keep the current deterministic name; condemn only prior differently-named (legacy) secrets
-                condemnPriorPullSecrets(deploymentId, namespace, plan.secretName());
                 k8sClient.createOrReplaceSecret(namespace, plan.secret());
                 markPullSecretStable(deploymentId, namespace, plan.secret(), plan.secretName());
                 log.info("Provisioned docker pull secret '{}' for deployment '{}' in namespace '{}'",
                         plan.secretName(), deploymentId, namespace);
             }
+            default -> throw new IllegalStateException("Unexpected pull-secret action: " + plan.action());
+        }
+    }
+
+    /**
+     * Condemnation phase. MUST run only after the CRD apply succeeded: condemning earlier would let the
+     * cleaner delete a secret the still-live (possibly scaled-to-zero) revision references if the
+     * create/update of the CRD failed — reintroducing #387 on the failure path. For {@code PROVISION}
+     * plans it condemns only prior differently-named (legacy) secrets; for {@code CONDEMN} plans (the
+     * image no longer needs credentials) it condemns every tracked pull secret of the deployment.
+     */
+    public void condemnStale(String deploymentId, String namespace, PullSecretPlan plan) {
+        switch (plan.action()) {
+            case NONE -> {
+                // feature disabled / unmanaged deployment — leave any existing secrets untouched
+            }
+            case CONDEMN -> condemnPriorPullSecrets(deploymentId, namespace, null);
+            case PROVISION -> condemnPriorPullSecrets(deploymentId, namespace, plan.secretName());
             default -> throw new IllegalStateException("Unexpected pull-secret action: " + plan.action());
         }
     }
@@ -143,20 +163,24 @@ public class RegistryPullSecretProvisioner {
 
     /**
      * Register the pull secret as a {@code STABLE} disposable resource, idempotently: on the first
-     * deploy it is saved (briefly {@code TEMPORARY}) then promoted; on redeploy the existing row for the
-     * deterministic name is simply (re)affirmed {@code STABLE}, so no duplicate row is inserted and no
-     * {@code TEMPORARY} row is left for the scheduled cleaner to reclaim out from under the live Service.
+     * deploy it is saved directly {@code STABLE} in a single transaction — never as an externally
+     * visible {@code TEMPORARY} row the scheduled cleaner (which reclaims all {@code TEMPORARY} rows
+     * with no age grace) could reap between a save and a separate promote. On redeploy the existing row
+     * for the deterministic name is (re)affirmed {@code STABLE}, so no duplicate row is inserted and a
+     * {@code TO_CLEANUP} row from a prior undeploy is resurrected.
      */
     private void markPullSecretStable(String deploymentId, String namespace, Secret secret, String secretName) {
         var reference = new K8sResourceReference(namespace, K8sResourceKind.SECRET, secretName);
         var alreadyTracked = disposableResourceManager.getAllByGroupId(deploymentId).stream()
                 .map(DisposableResource::getReference)
                 .anyMatch(reference::equals);
-        if (!alreadyTracked) {
-            disposableResourceManager.saveK8sResources(List.of(secret), K8sResourceKind.SECRET, deploymentId, namespace);
+        if (alreadyTracked) {
+            disposableResourceManager.changeResourceLifecycleByGroupId(
+                    deploymentId, reference, ResourceLifecycleState.STABLE);
+        } else {
+            disposableResourceManager.saveK8sResources(
+                    List.of(secret), K8sResourceKind.SECRET, deploymentId, namespace, ResourceLifecycleState.STABLE);
         }
-        disposableResourceManager.changeResourceLifecycleByGroupId(
-                deploymentId, reference, ResourceLifecycleState.STABLE);
     }
 
     /**
