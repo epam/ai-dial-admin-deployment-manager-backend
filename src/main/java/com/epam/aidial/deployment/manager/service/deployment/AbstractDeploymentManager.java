@@ -150,6 +150,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     } catch (Exception e) {
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
                         log.warn(errorMessage, e);
+                        // Condemns service + CNP but intentionally leaves the pull secret STABLE:
+                        // provisioning is idempotent, so a retry create-or-replaces the same object
+                        // in place; it is reclaimed with the rest of the group on deployment delete.
                         markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
                         if (isUnrecoverableK8sError(e)) {
                             log.warn("Unrecoverable Kubernetes error for deployment '{}' (HTTP {}). Marking as STOPPED.",
