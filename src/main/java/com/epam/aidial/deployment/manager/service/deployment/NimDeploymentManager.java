@@ -15,6 +15,7 @@ import com.epam.aidial.deployment.manager.model.SimpleEnvVar;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.NimManifestGenerator;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -86,7 +87,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
     }
 
     @Override
-    protected NIMService prepareServiceSpec(NimDeployment deployment) {
+    protected PreparedService<NIMService> prepareServiceSpec(NimDeployment deployment) {
         if (!(deployment.getSource() instanceof NgcRegistrySource(String imageRef))) {
             throw new IllegalArgumentException("NIM deployment source should be NGC registry. Deployment: '%s'"
                     .formatted(deployment.getId()));
@@ -101,7 +102,7 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
 
         var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
-        return nimManifestGenerator.serviceConfig(
+        var service = nimManifestGenerator.serviceConfig(
                 deployment.getId(),
                 deployment.getServiceName(),
                 userDefinedSimpleEnvs,
@@ -117,6 +118,8 @@ public class NimDeploymentManager extends AbstractModelDeploymentManager<NimDepl
                 deployment.getCommand(),
                 deployment.getArgs(),
                 poolPrimitives);
+        // NIM keeps its own NGC pull secret; no auto-provisioned pull secret to apply.
+        return new PreparedService<>(service, PullSecretPlan.none());
     }
 
     @Override

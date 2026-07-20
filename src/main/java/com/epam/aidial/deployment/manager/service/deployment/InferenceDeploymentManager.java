@@ -17,6 +17,7 @@ import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetectionResult;
 import com.epam.aidial.deployment.manager.service.detection.InferenceTaskDetector;
 import com.epam.aidial.deployment.manager.service.manifest.InferenceManifestGenerator;
@@ -122,7 +123,7 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
     }
 
     @Override
-    protected InferenceService prepareServiceSpec(InferenceDeployment deployment) {
+    protected PreparedService<InferenceService> prepareServiceSpec(InferenceDeployment deployment) {
         if (!(deployment.getSource() instanceof HuggingFaceSource huggingFaceSource)) {
             throw new IllegalArgumentException("Inference deployment source should be HuggingFace. Deployment: '%s'"
                     .formatted(deployment.getId()));
@@ -138,14 +139,12 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
         InferenceTaskDetectionResult detection = inferenceTaskDetector.detect(huggingFaceSource);
 
         // The predictor pulls its model via storageUri (not a private container image), so only the
-        // chained transformer's image can require pull credentials (spec 025, D5).
-        String transformerPullSecretName = null;
-        if (detection.task() == InferenceTask.TEXT_CLASSIFICATION) {
-            transformerPullSecretName = registryPullSecretProvisioner
-                    .provisionForDeployment(deployment.getId(), namespace,
-                            List.of(StringUtils.defaultString(textClassificationTransformerSection.transformerImage())))
-                    .orElse(null);
-        }
+        // chained transformer's image can require pull credentials (spec 025, D5). A non-classification
+        // task has no transformer image → empty list → the plan condemns any stale transformer secret.
+        var transformerImages = detection.task() == InferenceTask.TEXT_CLASSIFICATION
+                ? List.of(StringUtils.defaultString(textClassificationTransformerSection.transformerImage()))
+                : List.<String>of();
+        var pullSecretPlan = registryPullSecretProvisioner.plan(deployment.getId(), namespace, transformerImages);
 
         var service = inferenceManifestGenerator.serviceConfig(
                 deployment.getId(),
@@ -165,8 +164,18 @@ public class InferenceDeploymentManager extends AbstractModelDeploymentManager<I
                 detection.task(),
                 detection.id2Label());
 
-        applyTransformerImagePullSecret(service, transformerPullSecretName);
-        return service;
+        applyTransformerImagePullSecret(service, pullSecretPlan.secretName());
+        return new PreparedService<>(service, pullSecretPlan);
+    }
+
+    @Override
+    protected void applyPullSecretPlan(InferenceDeployment deployment, PullSecretPlan pullSecretPlan) {
+        registryPullSecretProvisioner.apply(deployment.getId(), namespace, pullSecretPlan);
+    }
+
+    @Override
+    protected void condemnStalePullSecrets(InferenceDeployment deployment, PullSecretPlan pullSecretPlan) {
+        registryPullSecretProvisioner.condemnStale(deployment.getId(), namespace, pullSecretPlan);
     }
 
     private void applyTransformerImagePullSecret(InferenceService service, String pullSecretName) {
