@@ -21,6 +21,7 @@ import com.epam.aidial.deployment.manager.model.SensitiveEnvVar;
 import com.epam.aidial.deployment.manager.model.SensitiveFileEnvVar;
 import com.epam.aidial.deployment.manager.model.SimpleEnvVarValue;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.PoolSchedulingPrimitives;
 import com.epam.aidial.deployment.manager.service.pipeline.specification.CiliumNetworkPolicyCreator;
@@ -128,7 +129,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 deploymentRepository.updateServiceName(id, serviceName);
             }
 
-            var serviceSpec = prepareServiceSpec(deployment);
+            var prepared = prepareServiceSpec(deployment);
+            var serviceSpec = prepared.spec();
+            var pullSecretPlan = prepared.pullSecretPlan();
 
             saveDisposableResource(id, deployment.getServiceName(), namespace);
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
@@ -137,6 +140,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 @Override
                 public void afterCommit() {
                     try {
+                        // Provision the pull secret before the CRD so the revision's pods can pull;
+                        // post-commit, alongside the CRD apply, mirroring the CiliumNetworkPolicy.
+                        applyPullSecretPlan(deployment, pullSecretPlan);
                         createCiliumNetworkPolicy(deployment, serviceSpec, id,
                                 getEffectiveDeploymentAllowedDomains(deployment),
                                 getCiliumIngressPorts(deployment), deployment.getServiceName());
@@ -144,6 +150,9 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                     } catch (Exception e) {
                         var errorMessage = "Failed to deploy service '%s'".formatted(id);
                         log.warn(errorMessage, e);
+                        // Condemns service + CNP but intentionally leaves the pull secret STABLE:
+                        // provisioning is idempotent, so a retry create-or-replaces the same object
+                        // in place; it is reclaimed with the rest of the group on deployment delete.
                         markDisposableResourcesForCleanup(id, namespace, deployment.getServiceName(), deployment.getServiceName());
                         if (isUnrecoverableK8sError(e)) {
                             log.warn("Unrecoverable Kubernetes error for deployment '{}' (HTTP {}). Marking as STOPPED.",
@@ -151,6 +160,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                             deploymentRepository.updateStatusInNewTransaction(id, DeploymentStatus.STOPPED);
                         }
                         throw new DeploymentException(errorMessage, e);
+                    }
+                    // Only after the CRD apply succeeded: condemning earlier would let the cleaner
+                    // delete a secret the live revision still references if createService failed.
+                    // A condemnation failure is only a leak (reclaimed on the next redeploy), so it
+                    // must not fail the otherwise-successful deploy.
+                    try {
+                        condemnStalePullSecrets(deployment, pullSecretPlan);
+                    } catch (Exception e) {
+                        log.warn("Failed to condemn stale pull secrets for deployment '{}'; "
+                                + "they will be migrated on the next redeploy", id, e);
                     }
                 }
             });
@@ -217,12 +236,25 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         }
 
         try {
-            var serviceSpec = prepareServiceSpec(deployment);
+            var prepared = prepareServiceSpec(deployment);
+            var serviceSpec = prepared.spec();
+            var pullSecretPlan = prepared.pullSecretPlan();
             deploymentRepository.updateStatus(id, DeploymentStatus.PENDING);
 
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    // Provision the pull secret BEFORE the CRD is re-applied so the new revision's pods
+                    // can pull; keeps the secret write in the same post-commit phase as the CRD apply
+                    // (never mutated by a rolled-back transaction), mirroring the CiliumNetworkPolicy.
+                    try {
+                        applyPullSecretPlan(deployment, pullSecretPlan);
+                    } catch (Exception e) {
+                        var errorMessage = "Rolling update failed during pull-secret provisioning for deployment '%s'"
+                                .formatted(id);
+                        log.warn(errorMessage, e);
+                        throw new DeploymentException(errorMessage, e);
+                    }
                     // Refresh CNP BEFORE updateService to avoid a half-applied update where
                     // the new topology is live but the CNP still blocks the new traffic.
                     // Over-permissive briefly > under-permissive.
@@ -243,6 +275,16 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                                 .formatted(id);
                         log.warn(errorMessage, e);
                         throw new DeploymentException(errorMessage, e);
+                    }
+                    // Only after the CRD apply succeeded: condemning earlier would let the cleaner
+                    // delete a secret the live revision still references if updateService failed.
+                    // A condemnation failure is only a leak (reclaimed on the next redeploy), so it
+                    // must not fail the otherwise-successful rolling update.
+                    try {
+                        condemnStalePullSecrets(deployment, pullSecretPlan);
+                    } catch (Exception e) {
+                        log.warn("Failed to condemn stale pull secrets for deployment '{}'; "
+                                + "they will be migrated on the next redeploy", id, e);
                     }
                 }
             });
@@ -710,7 +752,37 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
         return getDeploymentOptional(id).orElseThrow(notFound("Deployment", id));
     }
 
-    protected abstract S prepareServiceSpec(D deployment);
+    protected abstract PreparedService<S> prepareServiceSpec(D deployment);
+
+    /**
+     * A prepared service spec together with the pull-secret {@link PullSecretPlan} to apply post-commit.
+     * The plan is computed pre-commit (read-only) and stashed here so a (possibly network-bound)
+     * computation such as inference-task detection is not repeated in the {@code afterCommit} hook.
+     */
+    protected record PreparedService<T>(T spec, PullSecretPlan pullSecretPlan) {
+    }
+
+    /**
+     * Apply the deferred pull-secret plan produced by {@link #prepareServiceSpec}, in the post-commit
+     * phase right before the CRD is applied — mirroring how the {@code CiliumNetworkPolicy} is applied.
+     * No-op by default (e.g. NIM, which keeps its own NGC pull secret); overridden by managers that
+     * auto-provision pull secrets.
+     */
+    protected void applyPullSecretPlan(D deployment, PullSecretPlan pullSecretPlan) {
+        // default: nothing to apply
+    }
+
+    /**
+     * Condemn pull secrets the just-applied spec no longer references (legacy random-named ones, or all
+     * of them when the image needs no credentials). Invoked only <b>after</b> the CRD apply succeeded so
+     * a failed deploy/rolling update never condemns a secret the still-live revision references; a
+     * failure here is tolerated (logged, not rethrown) — the stale secret is reclaimed on the next
+     * successful redeploy. No-op by default (e.g. NIM); overridden together with
+     * {@link #applyPullSecretPlan}.
+     */
+    protected void condemnStalePullSecrets(D deployment, PullSecretPlan pullSecretPlan) {
+        // default: nothing to condemn
+    }
 
     protected abstract void createService(String namespace, S service);
 

@@ -13,6 +13,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -141,6 +142,23 @@ public class K8sClient {
                 .create();
         log.debug("Secret {} created in namespace {}", name, namespace);
         return created;
+    }
+
+    /**
+     * Idempotently create the secret, or update it in place when a secret of the same name already
+     * exists. Unlike {@link #createSecret(String, Secret)} (a bare {@code create()} that 409-conflicts
+     * on an existing name), this never deletes-then-recreates, so a name a live workload references via
+     * {@code imagePullSecrets} is never momentarily absent and credential rotation just rewrites the data.
+     */
+    public Secret createOrReplaceSecret(String namespace, Secret secret) {
+        var name = K8sNamingUtils.extractName(secret);
+        log.debug("Creating or replacing secret {} in namespace {}", name, namespace);
+        var result = client.secrets()
+                .inNamespace(namespace)
+                .resource(secret)
+                .createOr(NonDeletingOperation::update);
+        log.debug("Secret {} created or replaced in namespace {}", name, namespace);
+        return result;
     }
 
     public void deleteSecret(String namespace, String name) {

@@ -25,6 +25,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -50,6 +51,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -70,6 +72,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -160,11 +163,11 @@ class KnativeDeploymentManagerTest {
                 SERVICE_CONTAINER
         );
 
-        org.mockito.Mockito.lenient().when(registryPullSecretProvisioner.provisionForDeployment(
+        org.mockito.Mockito.lenient().when(registryPullSecretProvisioner.plan(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.any()))
-                .thenReturn(Optional.empty());
+                .thenReturn(PullSecretPlan.none());
 
         TransactionSynchronizationManager.initSynchronization();
     }
@@ -381,16 +384,80 @@ class KnativeDeploymentManagerTest {
         when(knativeManifestGenerator.serviceConfig(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(serviceSpec);
-        when(registryPullSecretProvisioner.provisionForDeployment(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
-                .thenReturn(Optional.of("test-pull-secret"));
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(PullSecretPlan.provision("test-pull-secret", null));
 
         // When
         knativeDeploymentManager.deploy(DEPLOYMENT_ID);
 
-        // Then: the provisioned pull secret is wired into the Knative RevisionSpec
+        // Then: the provisioned pull secret name is wired into the Knative RevisionSpec (pre-commit),
+        // independent of the post-commit apply() that writes the secret to the cluster.
         var pullSecrets = serviceSpec.getSpec().getTemplate().getSpec().getImagePullSecrets();
         assertThat(pullSecrets).hasSize(1);
         assertThat(pullSecrets.get(0).getName()).isEqualTo("test-pull-secret");
+    }
+
+    @Test
+    void deploy_shouldApplyPullSecretBeforeCreateService_andCondemnStaleOnlyAfter() {
+        // Given
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(SERVICE_NAME);
+        ImageDefinition imageDefinition = createImageDefinition();
+        Service serviceSpec = new Service();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+        var pullSecretPlan = PullSecretPlan.provision("test-pull-secret", null);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
+        when(knativeManifestGenerator.serviceConfig(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(serviceSpec);
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(pullSecretPlan);
+
+        // When
+        knativeDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: the secret is provisioned BEFORE the CRD (so the revision's pods can pull) and stale
+        // secrets are condemned only AFTER the CRD apply succeeded (a failed apply must never condemn
+        // a secret the live revision still references).
+        InOrder order = inOrder(registryPullSecretProvisioner, k8sKnativeClient);
+        order.verify(registryPullSecretProvisioner).apply(eq(DEPLOYMENT_ID), eq(NAMESPACE), eq(pullSecretPlan));
+        order.verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+        order.verify(registryPullSecretProvisioner).condemnStale(eq(DEPLOYMENT_ID), eq(NAMESPACE), eq(pullSecretPlan));
+    }
+
+    @Test
+    void deploy_shouldNotFail_whenCondemnStaleThrows() {
+        // Given: condemnation failure is only a leak (reclaimed on the next redeploy) — it must not
+        // fail the otherwise-successful deploy nor mark its resources for cleanup.
+        Deployment deployment = createDeployment(DeploymentStatus.STOPPED);
+        deployment.setServiceName(SERVICE_NAME);
+        ImageDefinition imageDefinition = createImageDefinition();
+        Service serviceSpec = new Service();
+        serviceSpec.setMetadata(new ObjectMeta());
+        serviceSpec.getMetadata().setName(SERVICE_NAME);
+
+        when(deploymentRepository.getById(DEPLOYMENT_ID)).thenReturn(Optional.of(deployment));
+        when(imageDefinitionService.getImageDefinition(IMAGE_DEFINITION_ID)).thenReturn(Optional.of(imageDefinition));
+        when(knativeManifestGenerator.serviceConfig(
+                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(serviceSpec);
+        when(registryPullSecretProvisioner.plan(eq(DEPLOYMENT_ID), eq(NAMESPACE), any()))
+                .thenReturn(PullSecretPlan.provision("test-pull-secret", null));
+        doThrow(new RuntimeException("condemn failed")).when(registryPullSecretProvisioner)
+                .condemnStale(eq(DEPLOYMENT_ID), eq(NAMESPACE), any());
+
+        // When
+        knativeDeploymentManager.deploy(DEPLOYMENT_ID);
+        TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+        // Then: no DeploymentException propagated, the service was created, nothing marked for cleanup.
+        verify(k8sKnativeClient).createService(eq(NAMESPACE), eq(serviceSpec));
+        verify(disposableResourceManager, never())
+                .markKnativeServiceResourceForCleanup(anyString(), anyString(), anyString());
     }
 
     @Test

@@ -363,6 +363,30 @@ class K8sClientTest {
     }
 
     @Test
+    void createOrReplaceSecret_shouldCreateOrUpdateAndReturnSecret() {
+        // Given
+        Secret inputSecret = new Secret();
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(SECRET_NAME);
+        inputSecret.setMetadata(metadata);
+
+        Secret persistedSecret = new Secret();
+
+        when(kubernetesClient.secrets()).thenReturn(secretOperation);
+        when(secretOperation.inNamespace(NAMESPACE)).thenReturn(namespacedSecretOperation);
+        when(namespacedSecretOperation.resource(inputSecret)).thenReturn(secretResource);
+        when(secretResource.createOr(any())).thenReturn(persistedSecret);
+
+        // When
+        Secret result = k8sClient.createOrReplaceSecret(NAMESPACE, inputSecret);
+
+        // Then: idempotent create-or-update, never a delete-then-create.
+        assertThat(result).isSameAs(persistedSecret);
+        verify(namespacedSecretOperation).resource(inputSecret);
+        verify(secretResource).createOr(any());
+    }
+
+    @Test
     void deleteSecret_shouldDeleteSecret() {
         // Given
         when(kubernetesClient.secrets()).thenReturn(secretOperation);
