@@ -346,8 +346,7 @@ class NimManifestGeneratorTest {
 
     @Test
     void shouldSetProgressDeadlineOnSpecAnnotations_inKserveMode() {
-        // Given: the NIM operator propagates only spec.annotations to the KServe InferenceService,
-        // see https://github.com/NVIDIA/k8s-nim-operator/issues/829
+        // Given: the NIM operator propagates only spec.annotations to the KServe InferenceService
         nimDeployProperties.setKserveModeEnabled(true);
         var deploymentName = "kserve-deadline-nim-app";
         var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";

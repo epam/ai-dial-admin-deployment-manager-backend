@@ -115,8 +115,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
         applyExposeService(exposeChain, containerPort, containerGrpcPort);
 
-        // The NIM operator propagates only spec.annotations (not metadata.annotations) to the KServe
-        // InferenceService, see https://github.com/NVIDIA/k8s-nim-operator/issues/829
+        // The NIM operator propagates only spec.annotations (not metadata.annotations) to the KServe InferenceService
         var knativeAnnotations = kserveMode
                 ? specChain.get(NimMappers.SERVICE_SPEC_ANNOTATIONS_FIELD).data()
                 : config.get(NimMappers.SERVICE_METADATA_FIELD).get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();

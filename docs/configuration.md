@@ -154,7 +154,7 @@ app:
 
 KNative has a default progress deadline of 600 seconds (10 minutes). If a Revision does not become ready within this window, KNative marks it as **Failed** and terminates the pod. This can cause deployments of large models to fail if they need more time to download or initialize.
 
-The application automatically sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative, when a startup probe is configured), the InferenceService metadata (for KServe), or `NIMService.spec.annotations` (for NIM in kserve mode — the NIM operator propagates only `spec.annotations` to the KServe InferenceService, see [NVIDIA/k8s-nim-operator#829](https://github.com/NVIDIA/k8s-nim-operator/issues/829); in legacy standalone mode the annotation stays on NIMService metadata and has no effect):
+The application automatically sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative, when a startup probe is configured), the InferenceService metadata (for KServe), or `NIMService.spec.annotations` (for NIM in kserve mode — the NIM operator propagates only `spec.annotations` to the KServe InferenceService; in legacy standalone mode the annotation stays on NIMService metadata and has no effect):
 
 **When a startup probe is configured**, the deadline is computed from the probe parameters:
 
