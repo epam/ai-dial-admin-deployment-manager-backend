@@ -9,13 +9,6 @@
 
 ---
 
-### Changed
-
-#### Observability
-- Deployment Metrics Scrape (`GET /api/v1/deployments/{id}/metrics`) is promoted out of **[Preview]** and is now a stable feature. No configuration changes — `METRICS_SCRAPE_ENABLED`, `METRICS_SCRAPE_TIMEOUT_MS`, `METRICS_SCRAPE_CACHE_TTL_MS`, and `METRICS_SCRAPE_RESOURCE_USAGE_ENABLED` keep their existing defaults.
-
----
-
 ## 0.18.0
 
 ### Added
