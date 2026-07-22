@@ -181,7 +181,7 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 ## Assumptions
 
 - Knative Serving is installed and available in the target Kubernetes cluster. The system does not verify Knative availability.
-- The NIM operator (NVIDIA) supports `inferencePlatform: kserve` and propagates NIMService `spec.annotations` (not `metadata.annotations`) to the KServe InferenceService. Note: KServe filters `min-scale`/`max-scale` annotations (its `ServiceAnnotationDisallowedList`) and the operator does not set predictor `minReplicas`/`maxReplicas` in serverless mode, so replica bounds are not enforced on the Revision — see `specs/nim-deployments/spec.md` for the documented limitation.
+- The NIM operator (NVIDIA) supports `inferencePlatform: kserve` and propagates NIMService `spec.annotations` (not `metadata.annotations`) to the KServe InferenceService.
 - The `expose.router` field (empty object) is required by the NIM operator for kserve mode and should remain in the manifest.
 - The transition from standalone to kserve does not require database migration -- this is purely a manifest generation change. The `storageSize` field requires migration V1.57.
 - Default autoscaling values (KPA class, concurrency metric, target 10) are reasonable starting defaults for NIM workloads.
