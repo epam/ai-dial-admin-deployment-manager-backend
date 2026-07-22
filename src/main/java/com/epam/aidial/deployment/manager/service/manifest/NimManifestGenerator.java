@@ -239,15 +239,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private void applyScaling(String name, @Nullable Scaling scaling, Map<String, String> annotations) {
         log.debug("Applying scaling for NIM deployment '{}': {}", name, scaling);
-        var effectiveScaling = scaling != null ? scaling : DEFAULT_SCALING;
-        if (effectiveScaling.getMinReplicas() != 1 || effectiveScaling.getMaxReplicas() != 1) {
-            log.warn("NIM deployment '{}': requested min/max replicas ({}/{}) are not enforced on the Knative Revision — "
-                            + "the NIM operator does not map replica bounds to the KServe predictor in serverless mode and KServe "
-                            + "filters the min-scale/max-scale annotations, so the Revision runs with min-scale=1 and unbounded "
-                            + "max-scale (see https://github.com/NVIDIA/k8s-nim-operator/issues/829).",
-                    name, effectiveScaling.getMinReplicas(), effectiveScaling.getMaxReplicas());
-        }
-        applyScalingAnnotations(name, effectiveScaling, annotations);
+        applyScalingAnnotations(name, scaling != null ? scaling : DEFAULT_SCALING, annotations);
     }
 
     private void applyStartupProbe(String name,
