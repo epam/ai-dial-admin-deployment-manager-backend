@@ -23,6 +23,7 @@ import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner;
+import com.epam.aidial.deployment.manager.service.RegistryPullSecretProvisioner.PullSecretPlan;
 import com.epam.aidial.deployment.manager.service.deployment.healthcheck.HealthCheckProvider;
 import com.epam.aidial.deployment.manager.service.manifest.KnativeManifestGenerator;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -110,7 +111,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
     }
 
     @Override
-    protected Service prepareServiceSpec(Deployment deployment) {
+    protected PreparedService<Service> prepareServiceSpec(Deployment deployment) {
         var imageName = resolveImageName(deployment);
 
         var userDefinedSensitiveEnvs = filterEnvsByExactType(deployment, SensitiveEnvVar.class);
@@ -121,9 +122,7 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
 
         var poolPrimitives = resolvePoolPrimitives(deployment.getNodePoolId());
 
-        var pullSecretName = registryPullSecretProvisioner
-                .provisionForDeployment(deployment.getId(), namespace, List.of(imageName))
-                .orElse(null);
+        var pullSecretPlan = registryPullSecretProvisioner.plan(deployment.getId(), namespace, List.of(imageName));
 
         var service = knativeManifestGenerator.serviceConfig(
                 deployment.getId(),
@@ -140,8 +139,18 @@ public class KnativeDeploymentManager extends AbstractDeploymentManager<Deployme
                 deployment.getArgs(),
                 poolPrimitives);
 
-        applyImagePullSecret(service, pullSecretName);
-        return service;
+        applyImagePullSecret(service, pullSecretPlan.secretName());
+        return new PreparedService<>(service, pullSecretPlan);
+    }
+
+    @Override
+    protected void applyPullSecretPlan(Deployment deployment, PullSecretPlan pullSecretPlan) {
+        registryPullSecretProvisioner.apply(deployment.getId(), namespace, pullSecretPlan);
+    }
+
+    @Override
+    protected void condemnStalePullSecrets(Deployment deployment, PullSecretPlan pullSecretPlan) {
+        registryPullSecretProvisioner.condemnStale(deployment.getId(), namespace, pullSecretPlan);
     }
 
     private void applyImagePullSecret(Service service, String pullSecretName) {

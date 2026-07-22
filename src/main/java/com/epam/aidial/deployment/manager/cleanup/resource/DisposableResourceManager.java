@@ -150,6 +150,21 @@ public class DisposableResourceManager {
                                  K8sResourceKind resourceKind,
                                  String groupId,
                                  String namespace) {
+        saveK8sResources(k8sResources, resourceKind, groupId, namespace, ResourceLifecycleState.TEMPORARY);
+    }
+
+    /**
+     * Save with an explicit initial lifecycle state. Callers registering a resource post-commit (no
+     * ambient transaction) that must never be visible to the cleaner as {@code TEMPORARY} save it
+     * directly {@code STABLE} — a {@code TEMPORARY} row committed by this {@code REQUIRES_NEW}
+     * transaction would otherwise be reclaimable before a separate promote transaction lands.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveK8sResources(List<? extends HasMetadata> k8sResources,
+                                 K8sResourceKind resourceKind,
+                                 String groupId,
+                                 String namespace,
+                                 ResourceLifecycleState lifecycleState) {
         var now = Instant.now();
         var resources = k8sResources.stream()
                 .map(rs -> DisposableResource.builder()
@@ -159,7 +174,7 @@ public class DisposableResourceManager {
                                 .namespace(namespace)
                                 .name(K8sNamingUtils.extractName(rs))
                                 .build())
-                        .lifecycleState(ResourceLifecycleState.TEMPORARY)
+                        .lifecycleState(lifecycleState)
                         .createdAt(now)
                         .build()
                 ).toList();

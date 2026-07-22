@@ -1,5 +1,14 @@
 # Infra Changelog
 
+## 0.19.0
+
+### Added
+
+#### Image Registry & Pull Secrets
+- `app.registry.auto-pull-secret-enabled` / `AUTO_PULL_SECRET_ENABLED` — when `true` (default), the service auto-provisions a `kubernetes.io/dockerconfigjson` pull secret and wires it into a deployment's generated workload (`imagePullSecrets`) whenever an in-scope image (an image-based deployment's image or a chained inference transformer image) comes from a credentialed registry (the primary `DOCKER_REGISTRY` or a `BASIC`-auth trusted-private registry). Images from public/unconfigured registries are untouched. Set to `false` to manage pull secrets manually.
+
+---
+
 ## 0.18.0
 
 ### Added
