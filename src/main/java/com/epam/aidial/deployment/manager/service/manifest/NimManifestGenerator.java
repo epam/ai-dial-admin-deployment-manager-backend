@@ -39,6 +39,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -114,10 +115,16 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         var exposeChain = specChain.get(NimMappers.SERVICE_SPEC_EXPOSE_FIELD);
         applyExposeService(exposeChain, containerPort, containerGrpcPort);
 
+        // The NIM operator propagates only spec.annotations (not metadata.annotations) to the KServe
+        // InferenceService, see https://github.com/NVIDIA/k8s-nim-operator/issues/829
+        var knativeAnnotations = kserveMode
+                ? specChain.get(NimMappers.SERVICE_SPEC_ANNOTATIONS_FIELD).data()
+                : config.get(NimMappers.SERVICE_METADATA_FIELD).get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
+
         if (kserveMode) {
             specChain.data().setInferencePlatform(NIMServiceSpec.InferencePlatform.KSERVE);
             exposeChain.data().setRouter(new Router());
-            applyScaling(name, scaling, config);
+            applyScaling(name, scaling, knativeAnnotations);
         } else {
             if (scaling != null) {
                 log.warn("NIM deployment '{}': 'scaling' is ignored in legacy (standalone) mode. "
@@ -136,7 +143,7 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         }
 
         applyStartupProbe(name, specChain, probeProperties);
-        applyProgressDeadline(probeProperties, startupTimeoutSec, config);
+        applyProgressDeadline(probeProperties, startupTimeoutSec, knativeAnnotations);
 
         applyPoolPrimitives(specChain, poolPrimitives);
 
@@ -230,11 +237,17 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
         return backend;
     }
 
-    private void applyScaling(String name, @Nullable Scaling scaling, MappingChain<NIMService> config) {
+    private void applyScaling(String name, @Nullable Scaling scaling, Map<String, String> annotations) {
         log.debug("Applying scaling for NIM deployment '{}': {}", name, scaling);
-        var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
-                .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
-        applyScalingAnnotations(name, scaling != null ? scaling : DEFAULT_SCALING, annotations);
+        var effectiveScaling = scaling != null ? scaling : DEFAULT_SCALING;
+        if (effectiveScaling.getMinReplicas() != 1 || effectiveScaling.getMaxReplicas() != 1) {
+            log.warn("NIM deployment '{}': requested min/max replicas ({}/{}) are not enforced on the Knative Revision — "
+                            + "the NIM operator does not map replica bounds to the KServe predictor in serverless mode and KServe "
+                            + "filters the min-scale/max-scale annotations, so the Revision runs with min-scale=1 and unbounded "
+                            + "max-scale (see https://github.com/NVIDIA/k8s-nim-operator/issues/829).",
+                    name, effectiveScaling.getMinReplicas(), effectiveScaling.getMaxReplicas());
+        }
+        applyScalingAnnotations(name, effectiveScaling, annotations);
     }
 
     private void applyStartupProbe(String name,
@@ -249,10 +262,8 @@ public class NimManifestGenerator extends DeployableManifestGenerator {
 
     private void applyProgressDeadline(@Nullable ProbeProperties probeProperties,
                                        int startupTimeoutSec,
-                                       MappingChain<NIMService> config) {
+                                       Map<String, String> annotations) {
         var progressDeadline = progressDeadlineCalculator.compute(probeProperties, startupTimeoutSec);
-        var annotations = config.get(NimMappers.SERVICE_METADATA_FIELD)
-                .get(NimMappers.METADATA_ANNOTATIONS_FIELD).data();
         annotations.put(KnativeAnnotations.PROGRESS_DEADLINE, progressDeadline);
     }
 

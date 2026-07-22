@@ -339,9 +339,30 @@ class NimManifestGeneratorTest {
                 8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
-        // Then: fallback deadline = 3600 + 30 = 3630s
+        // Then: fallback deadline = 3600 + 30 = 3630s; in legacy mode it stays on metadata
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations).containsEntry("serving.knative.dev/progress-deadline", "3630s");
+    }
+
+    @Test
+    void shouldSetProgressDeadlineOnSpecAnnotations_inKserveMode() {
+        // Given: the NIM operator propagates only spec.annotations to the KServe InferenceService,
+        // see https://github.com/NVIDIA/k8s-nim-operator/issues/829
+        nimDeployProperties.setKserveModeEnabled(true);
+        var deploymentName = "kserve-deadline-nim-app";
+        var imageName = "nvcr.io/nim/meta/llama-3.1-8b-instruct:1.0";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        // When
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, Collections.emptyList(), Collections.emptyList(), resources, imageName,
+                8000, null, null, null, null, STARTUP_TIMEOUT_SEC, null, null, null
+        );
+
+        // Then
+        assertThat(generatedService.getSpec().getAnnotations())
+                .containsEntry(KnativeAnnotations.PROGRESS_DEADLINE, "3630s");
+        assertThat(generatedService.getMetadata().getAnnotations()).isNullOrEmpty();
     }
 
     @Test
@@ -360,8 +381,9 @@ class NimManifestGeneratorTest {
                 8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
-        // Then: min/max/initial-scale from Scaling + class/metric/target from strategy
-        var annotations = generatedService.getMetadata().getAnnotations();
+        // Then: min/max/initial-scale from Scaling + class/metric/target from strategy, on spec.annotations —
+        // the only location the NIM operator propagates to the KServe InferenceService
+        var annotations = generatedService.getSpec().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.AUTOSCALING_CLASS, KnativeAnnotations.AUTOSCALING_CLASS_KPA)
                 .containsEntry(KnativeAnnotations.AUTOSCALING_METRIC, KnativeAnnotations.AUTOSCALING_METRIC_CONCURRENCY)
@@ -369,6 +391,7 @@ class NimManifestGeneratorTest {
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "2")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "5")
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "2");
+        assertThat(generatedService.getMetadata().getAnnotations()).isNullOrEmpty();
     }
 
     @Test
@@ -388,7 +411,7 @@ class NimManifestGeneratorTest {
         );
 
         // Then: min/max/initial from Scaling; no class/metric/target annotations
-        var annotations = generatedService.getMetadata().getAnnotations();
+        var annotations = generatedService.getSpec().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "3")
@@ -414,7 +437,7 @@ class NimManifestGeneratorTest {
         );
 
         // Then: initial-scale should be 1 (Math.max(0, 1)) even though min-scale is 0
-        var annotations = generatedService.getMetadata().getAnnotations();
+        var annotations = generatedService.getSpec().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "0")
                 .containsEntry(KnativeAnnotations.MAX_SCALE, "3")
@@ -436,7 +459,7 @@ class NimManifestGeneratorTest {
                 8000, null, null, scaling, null, STARTUP_TIMEOUT_SEC, null, null, null
         );
 
-        // Then: no knative autoscaling annotations are set in legacy mode
+        // Then: no knative autoscaling annotations are set in legacy mode — neither on metadata nor on spec
         var annotations = generatedService.getMetadata().getAnnotations();
         assertThat(annotations)
                 .doesNotContainKey(KnativeAnnotations.MIN_SCALE)
@@ -445,6 +468,7 @@ class NimManifestGeneratorTest {
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_CLASS)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_METRIC)
                 .doesNotContainKey(KnativeAnnotations.AUTOSCALING_TARGET);
+        assertThat(generatedService.getSpec().getAnnotations()).isNullOrEmpty();
     }
 
     @Test
@@ -464,7 +488,7 @@ class NimManifestGeneratorTest {
         );
 
         // Then
-        var annotations = generatedService.getMetadata().getAnnotations();
+        var annotations = generatedService.getSpec().getAnnotations();
         assertThat(annotations)
                 .containsEntry(KnativeAnnotations.INITIAL_SCALE, "1")
                 .containsEntry(KnativeAnnotations.MIN_SCALE, "1")

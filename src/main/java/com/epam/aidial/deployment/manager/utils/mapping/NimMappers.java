@@ -43,6 +43,11 @@ public class NimMappers {
             NIMService::getSpec,
             NIMService::setSpec);
 
+    public static final FieldMapper<NIMServiceSpec, Map<String, String>> SERVICE_SPEC_ANNOTATIONS_FIELD = new FieldMapper<>(
+            HashMap::new,
+            NIMServiceSpec::getAnnotations,
+            NIMServiceSpec::setAnnotations);
+
     public static final FieldMapper<NIMServiceSpec, Image> SERVICE_SPEC_IMAGE_FIELD = new FieldMapper<>(
             Image::new,
             NIMServiceSpec::getImage,
