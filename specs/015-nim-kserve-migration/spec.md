@@ -140,11 +140,11 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 #### KServe Migration
 
 - **FR-001**: System MUST set `inferencePlatform` to `kserve` on all generated NIMService manifests.
-- **FR-002**: System MUST include Knative autoscaling annotations on NIMService metadata: `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, `autoscaling.knative.dev/target`, `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`, and `autoscaling.knative.dev/initial-scale`.
+- **FR-002**: System MUST include Knative autoscaling annotations on NIMService **`spec.annotations`**: `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, `autoscaling.knative.dev/target`, `autoscaling.knative.dev/min-scale`, `autoscaling.knative.dev/max-scale`, and `autoscaling.knative.dev/initial-scale`. (Originally placed on `metadata.annotations`, which the NIM operator never propagates to the KServe InferenceService.)
 - **FR-003**: System MUST map the deployment's `minScale` value to the `autoscaling.knative.dev/min-scale` annotation, `maxScale` to the `autoscaling.knative.dev/max-scale` annotation, and compute `initialScale = Math.max(minScale, 1)` for the `autoscaling.knative.dev/initial-scale` annotation (following the same formula used by InferenceService scaling).
 - **FR-004**: System MUST NOT generate an `expose.ingress` section on NIMService manifests. Only `expose.service` and `expose.router` should be present.
 - **FR-005**: System MUST allow Knative autoscaling defaults (class, metric, target concurrency) to be configurable via application properties.
-- **FR-006**: System MUST retain the existing `serving.knative.dev/progress-deadline` annotation alongside the new autoscaling annotations.
+- **FR-006**: System MUST retain the existing `serving.knative.dev/progress-deadline` annotation alongside the new autoscaling annotations (in kserve mode it is set on `spec.annotations`, per FR-002).
 - **FR-007**: System MUST continue to set `NIM_SERVED_MODEL_NAME` env var as before (existing behavior preserved).
 
 #### Configurable Storage Size
@@ -159,8 +159,8 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 
 ### Key Entities *(include if feature involves data)*
 
-- **NIMService manifest**: The Kubernetes custom resource generated for NIM deployments. Key structural changes: metadata annotations gain Knative autoscaling entries; `inferencePlatform` is set to `kserve`; `expose.ingress` is removed; `storage.pvc.size` is optionally overridden by `storageSize`.
-- **Knative autoscaling annotations**: A set of metadata annotations that configure Knative Serving's Pod Autoscaler (KPA) behavior -- class, metric, target, min-scale, max-scale, initial-scale.
+- **NIMService manifest**: The Kubernetes custom resource generated for NIM deployments. Key structural changes: `spec.annotations` gains Knative autoscaling entries; `inferencePlatform` is set to `kserve`; `expose.ingress` is removed; `storage.pvc.size` is optionally overridden by `storageSize`.
+- **Knative autoscaling annotations**: A set of annotations that configure Knative Serving's Pod Autoscaler (KPA) behavior -- class, metric, target, min-scale, max-scale, initial-scale. Set on NIMService `spec.annotations` so the NIM operator forwards them to the KServe InferenceService.
 - **`storageSize`**: Optional String field on NIM deployments. Stored in the `nim_deployment` table as `storage_size VARCHAR(64)` (migration V1.57). Validated via `@ValidStorageSize` custom constraint backed by `StorageSizeValidator` which delegates parsing to Fabric8 `Quantity` (through `KubernetesQuantityParser` utility). The validator reads the max from `app.validation.resources.max-storage-size` (default `200Gi`).
 
 ## Success Criteria *(mandatory)*
@@ -181,7 +181,7 @@ An operator attempts to create a NIM deployment with an invalid storage size for
 ## Assumptions
 
 - Knative Serving is installed and available in the target Kubernetes cluster. The system does not verify Knative availability.
-- The NIM operator (NVIDIA) supports `inferencePlatform: kserve` and correctly handles the Knative autoscaling annotations on NIMService resources.
+- The NIM operator (NVIDIA) supports `inferencePlatform: kserve` and propagates NIMService `spec.annotations` (not `metadata.annotations`) to the KServe InferenceService.
 - The `expose.router` field (empty object) is required by the NIM operator for kserve mode and should remain in the manifest.
 - The transition from standalone to kserve does not require database migration -- this is purely a manifest generation change. The `storageSize` field requires migration V1.57.
 - Default autoscaling values (KPA class, concurrency metric, target 10) are reasonable starting defaults for NIM workloads.
