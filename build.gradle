@@ -7,10 +7,10 @@ buildscript {
             classpath ('com.fasterxml.jackson.core:jackson-core:2.21.4') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('io.netty:netty-codec-http2:4.2.15.Final') {
+            classpath ('io.netty:netty-codec-http2:4.2.16.Final') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('io.netty:netty-codec-http:4.2.15.Final') {
+            classpath ('io.netty:netty-codec-http:4.2.16.Final') {
                 because("previous versions have vulnerabilities")
             }
         }
@@ -69,7 +69,7 @@ dependencies {
     // overrides the Boot-BOM-managed OpenTelemetry 1.55.0 — unbounded memory allocation in W3C baggage propagation, patched in 1.62.0
     implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
     // aligns every io.netty module (overriding the Boot BOM) to one patched version — covers multiple HIGH CVEs
-    implementation platform('io.netty:netty-bom:4.2.15.Final')
+    implementation platform('io.netty:netty-bom:4.2.16.Final')
     // overrides the Boot-BOM-managed Jackson 3 (3.1.2) — PolymorphicTypeValidator/array-subtype allowlist
     // bypasses (CVE-2026-54512, CVE-2026-54513), patched in 3.1.4
     implementation platform('tools.jackson:jackson-bom:3.1.4')
