@@ -108,6 +108,54 @@ public abstract class DeploymentMetricsFunctionalTest {
     }
 
     @Test
+    void shouldReturnGpuMetricsSnapshotForGpuInferenceDeployment() {
+        // Given — a GPU-requesting inference deployment; DCGM exporter co-located on the pod's node
+        var id = "metrics-gpu-deployment";
+        createGpuInferenceDeployment(id, "metrics-gpu-svc");
+        var predictor = readyGpuPredictorPod("metrics-gpu-pod-0", "gpu-node-1");
+        stubGpuScenario("metrics-gpu-svc", predictor, "nvidia-gpu-operator", dcgmExporterPod("dcgm-abc", "gpu-node-1"));
+        stubScrape("metrics-gpu-pod-0", 8080, "/metrics", ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
+        var dcgmBody = String.join("\n",
+                "DCGM_FI_DEV_GPU_UTIL{namespace=\"default\",pod=\"metrics-gpu-pod-0\",gpu=\"0\"} 80",
+                "DCGM_FI_DEV_FB_USED{namespace=\"default\",pod=\"metrics-gpu-pod-0\",gpu=\"0\"} 8192",
+                "DCGM_FI_DEV_FB_FREE{namespace=\"default\",pod=\"metrics-gpu-pod-0\",gpu=\"0\"} 8192");
+        stubScrapeNs("nvidia-gpu-operator", "dcgm-abc", 9400, "/metrics", dcgmBody);
+        stubPodUsage("metrics-gpu-pod-0", "250m", "1Gi");
+
+        // When
+        var metrics = deploymentController.getMetrics(id);
+
+        // Then — GPU block is available and populated on top of the CPU/memory block
+        assertThat(metrics.availability().get("resources.gpu").available()).isTrue();
+        var pod = metrics.resources().pods().getFirst();
+        assertThat(pod.cpuMillicores()).isEqualTo(250.0);
+        assertThat(pod.gpuUtilization()).isEqualTo(0.8);
+        assertThat(pod.gpuMemoryBytes()).isEqualTo(8192 * 1024d * 1024d);
+        assertThat(pod.gpuMemoryTotalBytes()).isEqualTo(16384 * 1024d * 1024d);
+    }
+
+    @Test
+    void shouldDegradeGpuBlock_whenExporterAbsentForGpuDeployment() {
+        // Given — GPU deployment but no DCGM exporter pods on the node
+        var id = "metrics-gpu-noexporter";
+        createGpuInferenceDeployment(id, "metrics-gpu-noexporter-svc");
+        var predictor = readyGpuPredictorPod("metrics-gpu-noexporter-pod-0", "gpu-node-2");
+        // no exporter pod: the dcgm namespace lists nothing
+        stubGpuScenario("metrics-gpu-noexporter-svc", predictor, "nvidia-gpu-operator");
+        stubScrape("metrics-gpu-noexporter-pod-0", 8080, "/metrics", ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
+        stubPodUsage("metrics-gpu-noexporter-pod-0", "100m", "512Mi");
+
+        // When
+        var metrics = deploymentController.getMetrics(id);
+
+        // Then — still 200, GPU block unavailable, CPU/memory unaffected
+        assertThat(metrics.availability().get("resources.gpu").available()).isFalse();
+        assertThat(metrics.availability().get("resources.gpu").reason()).contains("unavailable");
+        assertThat(metrics.availability().get("resources.usage").available()).isTrue();
+        assertThat(metrics.resources().pods().getFirst().gpuUtilization()).isNull();
+    }
+
+    @Test
     void shouldReturnResourceOnlySnapshotForNimDeployment() {
         // Given — a NIM deployment (not INFERENCE): resource metrics apply, serving does not
         var id = "metrics-nim-deployment";
@@ -228,6 +276,21 @@ public abstract class DeploymentMetricsFunctionalTest {
         deploymentRepository.updateServiceName(id, serviceName);
     }
 
+    private void createGpuInferenceDeployment(String id, String serviceName) {
+        CreateDeployment request = CreateInferenceDeployment.builder()
+                .id(id)
+                .displayName("Metrics test " + id)
+                .modelFormat("huggingface")
+                .metadata(new DeploymentMetadata(List.of()))
+                .resources(new Resources(Map.of("nvidia.com/gpu", "1"), Map.of("nvidia.com/gpu", "1")))
+                .source(new HuggingFaceSource("test-org/metrics-test-model"))
+                .allowedDomains(List.of())
+                .containerPort(8080)
+                .build();
+        deploymentService.createDeployment(request);
+        deploymentRepository.updateServiceName(id, serviceName);
+    }
+
     private void createNimDeployment(String id, String serviceName) {
         CreateDeployment request = CreateNimDeployment.builder()
                 .id(id)
@@ -255,8 +318,36 @@ public abstract class DeploymentMetricsFunctionalTest {
     }
 
     private void stubScrape(String podName, int port, String path, String body) {
-        var proxyUri = "/api/v1/namespaces/%s/pods/http:%s:%d/proxy%s".formatted(NAMESPACE, podName, port, path);
+        stubScrapeNs(NAMESPACE, podName, port, path, body);
+    }
+
+    private void stubScrapeNs(String namespace, String podName, int port, String path, String body) {
+        var proxyUri = "/api/v1/namespaces/%s/pods/http:%s:%d/proxy%s".formatted(namespace, podName, port, path);
         when(kubernetesClient.raw(proxyUri)).thenReturn(body);
+    }
+
+    /**
+     * Stubs pod listing for both the deployment's service pods (in {@code default}) and the DCGM
+     * exporter pods (in {@code dcgmNamespace}) off the same {@code client.pods()} mock, differentiated
+     * by namespace. An empty {@code exporterPods} models a cluster with no exporter.
+     */
+    @SuppressWarnings({"unchecked"})
+    private void stubGpuScenario(String serviceName, Pod servicePod, String dcgmNamespace, Pod... exporterPods) {
+        var svcOp = Mockito.mock(MixedOperation.class);
+        var dcgmOp = Mockito.mock(MixedOperation.class);
+        when(kubernetesClient.pods()).thenReturn(svcOp);
+
+        var servicePodList = new PodList();
+        servicePodList.setItems(List.of(servicePod));
+        when(svcOp.inNamespace(NAMESPACE)).thenReturn(svcOp);
+        when(svcOp.withLabels(Map.of(KSERVE_SERVICE_LABEL, serviceName))).thenReturn(svcOp);
+        when(svcOp.list()).thenReturn(servicePodList);
+
+        var dcgmPodList = new PodList();
+        dcgmPodList.setItems(List.of(exporterPods));
+        when(svcOp.inNamespace(dcgmNamespace)).thenReturn(dcgmOp);
+        when(dcgmOp.withLabels(Map.of("app", "nvidia-dcgm-exporter"))).thenReturn(dcgmOp);
+        when(dcgmOp.list()).thenReturn(dcgmPodList);
     }
 
     private void stubPodUsage(String podName, String cpu, String memory) {
@@ -281,6 +372,31 @@ public abstract class DeploymentMetricsFunctionalTest {
                 .editMetadata()
                 .addToLabels("component", "predictor")
                 .endMetadata()
+                .build();
+    }
+
+    /** A Ready KServe predictor pod scheduled on {@code nodeName} (needed for co-located exporter discovery). */
+    private static Pod readyGpuPredictorPod(String name, String nodeName) {
+        return new PodBuilder(readyPredictorPod(name))
+                .editOrNewSpec()
+                .withNodeName(nodeName)
+                .addNewContainer()
+                .withName("kserve-container")
+                .endContainer()
+                .endSpec()
+                .build();
+    }
+
+    /** A DCGM exporter DaemonSet pod on {@code nodeName}. */
+    private static Pod dcgmExporterPod(String name, String nodeName) {
+        return new PodBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .withCreationTimestamp("2026-06-05T10:00:00Z")
+                .endMetadata()
+                .withNewSpec()
+                .withNodeName(nodeName)
+                .endSpec()
                 .build();
     }
 

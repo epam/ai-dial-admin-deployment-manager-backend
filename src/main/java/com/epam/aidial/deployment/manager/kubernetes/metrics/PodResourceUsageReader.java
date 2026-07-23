@@ -23,7 +23,8 @@ import java.util.Optional;
  * Reads per-pod CPU/memory usage from the {@code metrics.k8s.io} API (metrics-server) via
  * Fabric8 {@code top()}. Degrades gracefully — an absent metrics-server or any API error maps
  * to an empty result with context logging, so the metrics snapshot stays partial
- * instead of failing. GPU fields stay {@code null} — they require the DCGM exporter (follow-up).
+ * instead of failing. GPU fields stay {@code null} here — GPU telemetry comes from the DCGM
+ * exporter and is joined onto these usages by the GPU metrics collector, not read from metrics-server.
  */
 @Slf4j
 @Component
@@ -132,7 +133,8 @@ public class PodResourceUsageReader {
                 memoryBytes += Quantity.getAmountInBytes(memory).doubleValue();
             }
         }
-        return new PodResourceUsage(podName, cpuMillicores, memoryBytes, null, null);
+        // GPU fields are joined later by the GPU collector; the metrics-server carries no GPU data.
+        return new PodResourceUsage(podName, cpuMillicores, memoryBytes, null, null, null);
     }
 
 }
