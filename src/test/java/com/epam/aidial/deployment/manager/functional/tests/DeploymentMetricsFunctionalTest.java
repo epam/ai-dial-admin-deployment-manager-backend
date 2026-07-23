@@ -113,13 +113,13 @@ public abstract class DeploymentMetricsFunctionalTest {
         var id = "metrics-gpu-deployment";
         createGpuInferenceDeployment(id, "metrics-gpu-svc");
         var predictor = readyGpuPredictorPod("metrics-gpu-pod-0", "gpu-node-1");
-        stubGpuScenario("metrics-gpu-svc", predictor, "nvidia-gpu-operator", dcgmExporterPod("dcgm-abc", "gpu-node-1"));
+        stubGpuScenario("metrics-gpu-svc", predictor, "gpu-operator", dcgmExporterPod("dcgm-abc", "gpu-node-1"));
         stubScrape("metrics-gpu-pod-0", 8080, "/metrics", ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
         var dcgmBody = String.join("\n",
                 "DCGM_FI_DEV_GPU_UTIL{namespace=\"default\",pod=\"metrics-gpu-pod-0\",gpu=\"0\"} 80",
                 "DCGM_FI_DEV_FB_USED{namespace=\"default\",pod=\"metrics-gpu-pod-0\",gpu=\"0\"} 8192",
                 "DCGM_FI_DEV_FB_FREE{namespace=\"default\",pod=\"metrics-gpu-pod-0\",gpu=\"0\"} 8192");
-        stubScrapeNs("nvidia-gpu-operator", "dcgm-abc", 9400, "/metrics", dcgmBody);
+        stubScrapeNs("gpu-operator", "dcgm-abc", 9400, "/metrics", dcgmBody);
         stubPodUsage("metrics-gpu-pod-0", "250m", "1Gi");
 
         // When
@@ -141,7 +141,7 @@ public abstract class DeploymentMetricsFunctionalTest {
         createGpuInferenceDeployment(id, "metrics-gpu-noexporter-svc");
         var predictor = readyGpuPredictorPod("metrics-gpu-noexporter-pod-0", "gpu-node-2");
         // no exporter pod: the dcgm namespace lists nothing
-        stubGpuScenario("metrics-gpu-noexporter-svc", predictor, "nvidia-gpu-operator");
+        stubGpuScenario("metrics-gpu-noexporter-svc", predictor, "gpu-operator");
         stubScrape("metrics-gpu-noexporter-pod-0", 8080, "/metrics", ResourceUtils.readResource("/metrics-fixtures/vllm.txt"));
         stubPodUsage("metrics-gpu-noexporter-pod-0", "100m", "512Mi");
 
