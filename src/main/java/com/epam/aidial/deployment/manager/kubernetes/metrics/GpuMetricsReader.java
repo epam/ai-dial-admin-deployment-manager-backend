@@ -3,7 +3,6 @@ package com.epam.aidial.deployment.manager.kubernetes.metrics;
 import com.epam.aidial.deployment.manager.configuration.MetricsScrapeProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +14,9 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Reads raw GPU telemetry from the NVIDIA DCGM exporter through the API-server pod proxy. The
@@ -56,12 +56,20 @@ public class GpuMetricsReader {
             return List.of();
         }
         try {
+            // Keep at most one Running exporter per node: a DaemonSet rolling update can briefly run two
+            // pods on a node, and scraping both would double-count that node's GPU series (memory sums,
+            // total sums). Newest wins — during a rollout the newer pod is the current replacement. The
+            // Running filter also stops Pending/Failed pods from burning the scrape-timeout budget.
             var exporterPodNames = k8sClient.getPods(namespace, labels).getItems().stream()
                     .filter(pod -> pod.getSpec() != null && nodeNames.contains(pod.getSpec().getNodeName()))
-                    .map(Pod::getMetadata)
-                    .filter(Objects::nonNull)
-                    .map(ObjectMeta::getName)
-                    .filter(StringUtils::isNotBlank)
+                    .filter(pod -> pod.getStatus() != null && "Running".equals(pod.getStatus().getPhase()))
+                    .filter(pod -> pod.getMetadata() != null && StringUtils.isNotBlank(pod.getMetadata().getName()))
+                    .collect(Collectors.toMap(
+                            pod -> pod.getSpec().getNodeName(),
+                            Function.identity(),
+                            GpuMetricsReader::newestOf))
+                    .values().stream()
+                    .map(pod -> pod.getMetadata().getName())
                     .toList();
             return k8sClient.scrapePodMetrics(namespace, exporterPodNames, gpu.getPort(),
                     gpu.getMetricsPath(), properties.getTimeoutMs());
@@ -70,6 +78,16 @@ public class GpuMetricsReader {
                     namespace, e.getMessage());
             return List.of();
         }
+    }
+
+    /**
+     * Picks the newer of two exporter pods on the same node by creation timestamp (ISO-8601, UTC, so a
+     * lexicographic compare is chronological). A pod with a blank timestamp is treated as older.
+     */
+    private static Pod newestOf(Pod left, Pod right) {
+        var leftTs = StringUtils.trimToEmpty(left.getMetadata().getCreationTimestamp());
+        var rightTs = StringUtils.trimToEmpty(right.getMetadata().getCreationTimestamp());
+        return leftTs.compareTo(rightTs) >= 0 ? left : right;
     }
 
     /** Parses a {@code k=v,k2=v2} label selector into a map; a blank selector matches all pods. */

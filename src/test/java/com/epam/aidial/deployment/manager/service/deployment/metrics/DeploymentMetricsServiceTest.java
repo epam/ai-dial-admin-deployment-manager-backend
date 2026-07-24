@@ -585,6 +585,24 @@ class DeploymentMetricsServiceTest {
         verify(gpuMetricsReader, never()).readColocatedExporters(any());
     }
 
+    @Test
+    void shouldDegradeGpuWithSchedulingReason_whenPodsNotYetScheduled() {
+        // GPU requested and pods exist but none is scheduled onto a node yet (all Pending): report the
+        // distinct "not scheduled" reason rather than blaming the exporter, and skip the exporter round-trip.
+        givenDeployment(gpuInferenceDeployment());
+        givenPods(gpuPodInfo("model-pod-0", null));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any()))
+                .thenReturn(List.of(new PodResourceUsage("model-pod-0", 250.0, 1073741824.0, null, null, null)));
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).available()).isFalse();
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).reason()).contains("scheduled");
+        assertThat(snapshot.resources().pods().getFirst().gpuUtilization()).isNull();
+        verify(gpuMetricsReader, never()).readColocatedExporters(any());
+    }
+
     private void givenDeployment(Deployment deployment) {
         when(deploymentService.getDeployment(DEPLOYMENT_ID, false)).thenReturn(Optional.of(deployment));
     }

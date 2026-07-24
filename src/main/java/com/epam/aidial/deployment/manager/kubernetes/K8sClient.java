@@ -109,10 +109,10 @@ public class K8sClient {
     /**
      * Concurrent variant of {@link #scrapePodMetrics(String, String, int, String, long)} for scraping
      * several pods at once (e.g. the co-located DCGM exporters of a multi-node deployment). Every scrape
-     * is submitted up-front so they run in parallel on the shared scrape pool, then each is reaped with
-     * its own {@code timeoutMs} budget — total latency is ~one timeout rather than the sum of sequential
-     * scrapes. Individual failures/timeouts drop out (same graceful semantics), so the returned list
-     * carries only the bodies that were read.
+     * is submitted up-front so they run in parallel on the shared scrape pool, then reaped against a
+     * single shared {@code timeoutMs} deadline — total latency is ~one timeout rather than the sum, even
+     * if several scrapes hang. Individual failures/timeouts drop out (same graceful semantics), so the
+     * returned list carries only the bodies that were read.
      */
     public List<String> scrapePodMetrics(String namespace, Collection<String> podNames, int port, String metricsPath, long timeoutMs) {
         if (podNames == null || podNames.isEmpty()) {
@@ -122,9 +122,14 @@ public class K8sClient {
                 .map(podName -> Map.entry(podName, CompletableFuture.supplyAsync(
                         () -> client.raw(buildProxyUri(namespace, podName, port, metricsPath)), scrapeExecutor)))
                 .toList();
+        // Single shared deadline across all scrapes: the futures already run in parallel, so reaping each
+        // with a fresh full timeout would make the worst-case wall time N×timeout. get(0, ...) on a
+        // not-yet-done future throws TimeoutException immediately once the deadline is exhausted.
+        var deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
         var bodies = new ArrayList<String>(pending.size());
         for (var entry : pending) {
-            awaitScrape(entry.getValue(), namespace, entry.getKey(), port, timeoutMs).ifPresent(bodies::add);
+            var remainingMs = Math.max(TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime()), 0);
+            awaitScrape(entry.getValue(), namespace, entry.getKey(), port, remainingMs).ifPresent(bodies::add);
         }
         return bodies;
     }

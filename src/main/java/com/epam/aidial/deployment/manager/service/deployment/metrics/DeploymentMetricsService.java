@@ -64,6 +64,7 @@ public class DeploymentMetricsService {
     private static final String REASON_GPU_NOT_REQUESTED = "deployment does not request GPU";
     private static final String REASON_GPU_DISABLED = "GPU metrics collection is disabled by configuration";
     private static final String REASON_GPU_NO_PODS = "no pods to read GPU usage from";
+    private static final String REASON_GPU_PODS_UNSCHEDULED = "GPU usage not available until pods are scheduled onto nodes";
     private static final String REASON_GPU_UNAVAILABLE = "GPU telemetry unavailable (DCGM exporter not present or unreachable?)";
 
     private final DeploymentService deploymentService;
@@ -189,6 +190,10 @@ public class DeploymentMetricsService {
         }
         var podNames = allPods.stream().map(PodInfo::getName).collect(Collectors.toSet());
         var nodeNames = allPods.stream().map(PodInfo::getNodeName).filter(StringUtils::isNotBlank).collect(Collectors.toSet());
+        if (nodeNames.isEmpty()) {
+            availability.put(AVAILABILITY_RESOURCES_GPU, AvailabilityStatus.unavailable(REASON_GPU_PODS_UNSCHEDULED));
+            return podUsages;
+        }
         var gpuByPod = gpuMetricsCollector.collect(manager.getNamespace(), podNames, nodeNames);
         if (gpuByPod.isEmpty()) {
             availability.put(AVAILABILITY_RESOURCES_GPU, AvailabilityStatus.unavailable(REASON_GPU_UNAVAILABLE));
