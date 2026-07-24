@@ -67,8 +67,8 @@ public class PodResourceUsageReader {
             // replica count. In a shared model namespace this transfers every pod's usage and keeps
             // only this deployment's, so cost scales with namespace size rather than deployment size.
             // A labelSelector-scoped query (the deployment's service label, via the generic
-            // metrics.k8s.io typed resource) is the future optimization — pending confirmation that
-            // metrics-server honours labelSelector; until then namespace-wide is the safe choice.
+            // metrics.k8s.io typed resource) is a pending optimization — pending confirmation
+            // that metrics-server honours labelSelector; until then namespace-wide is the safe choice.
             var podMetricsList = client.top().pods().metrics(namespace);
             if (podMetricsList == null || CollectionUtils.isEmpty(podMetricsList.getItems())) {
                 log.debug("No resource metrics in namespace '{}'", namespace);

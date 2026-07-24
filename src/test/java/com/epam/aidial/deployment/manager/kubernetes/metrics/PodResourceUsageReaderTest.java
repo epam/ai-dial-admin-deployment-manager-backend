@@ -68,7 +68,8 @@ class PodResourceUsageReaderTest {
         assertThat(usage.name()).isEqualTo(POD_NAME);
         assertThat(usage.cpuMillicores()).isCloseTo(350.0, within(1e-6));
         assertThat(usage.memoryBytes()).isCloseTo(1073741824.0 + 536870912.0, within(1e-6));
-        // GPU fields require DCGM (follow-up) — always null in the PoC
+        // GPU fields are populated by GpuMetricsReader (merged in DeploymentMetricsService),
+        // not by this reader — always null here
         assertThat(usage.gpuUtilization()).isNull();
         assertThat(usage.gpuMemoryBytes()).isNull();
     }
