@@ -234,7 +234,8 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             return;
         }
         if (MapUtils.isNotEmpty(primitives.nodeSelector())) {
-            predictorChain.data().setNodeSelector(primitives.nodeSelector());
+            // Copy: primitives.nodeSelector() aliases the shared NodePoolProperties pool config.
+            predictorChain.data().setNodeSelector(new LinkedHashMap<>(primitives.nodeSelector()));
         }
         var convertedAffinity = poolPrimitivesConverter.convertAffinity(primitives.affinity(), Affinity.class);
         if (convertedAffinity != null) {
