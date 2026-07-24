@@ -1,0 +1,18 @@
+# HELP DCGM_FI_DEV_GPU_UTIL GPU utilization (in %).
+# TYPE DCGM_FI_DEV_GPU_UTIL gauge
+DCGM_FI_DEV_GPU_UTIL{gpu="0",UUID="GPU-aaaa",device="nvidia0",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-0",container="kserve-container"} 75
+DCGM_FI_DEV_GPU_UTIL{gpu="1",UUID="GPU-bbbb",device="nvidia1",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-0",container="kserve-container"} 55
+DCGM_FI_DEV_GPU_UTIL{gpu="2",UUID="GPU-cccc",device="nvidia2",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-1",container="kserve-container"} 20
+DCGM_FI_DEV_GPU_UTIL{gpu="3",UUID="GPU-dddd",device="nvidia3",modelName="Tesla T4",Hostname="node1",namespace="other-ns",pod="other-tenant-pod",container="main"} 99
+# HELP DCGM_FI_DEV_FB_USED Framebuffer memory used (in MiB).
+# TYPE DCGM_FI_DEV_FB_USED gauge
+DCGM_FI_DEV_FB_USED{gpu="0",UUID="GPU-aaaa",device="nvidia0",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-0",container="kserve-container"} 10240
+DCGM_FI_DEV_FB_USED{gpu="1",UUID="GPU-bbbb",device="nvidia1",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-0",container="kserve-container"} 8192
+DCGM_FI_DEV_FB_USED{gpu="2",UUID="GPU-cccc",device="nvidia2",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-1",container="kserve-container"} 4096
+DCGM_FI_DEV_FB_USED{gpu="3",UUID="GPU-dddd",device="nvidia3",modelName="Tesla T4",Hostname="node1",namespace="other-ns",pod="other-tenant-pod",container="main"} 30000
+# HELP DCGM_FI_DEV_FB_FREE Framebuffer memory free (in MiB).
+# TYPE DCGM_FI_DEV_FB_FREE gauge
+DCGM_FI_DEV_FB_FREE{gpu="0",UUID="GPU-aaaa",device="nvidia0",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-0",container="kserve-container"} 6144
+DCGM_FI_DEV_FB_FREE{gpu="1",UUID="GPU-bbbb",device="nvidia1",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-0",container="kserve-container"} 8192
+DCGM_FI_DEV_FB_FREE{gpu="2",UUID="GPU-cccc",device="nvidia2",modelName="Tesla T4",Hostname="node1",namespace="model-ns",pod="model-pod-1",container="kserve-container"} 12288
+DCGM_FI_DEV_FB_FREE{gpu="3",UUID="GPU-dddd",device="nvidia3",modelName="Tesla T4",Hostname="node1",namespace="other-ns",pod="other-tenant-pod",container="main"} 2768

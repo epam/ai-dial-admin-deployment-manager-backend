@@ -4,8 +4,10 @@ import com.epam.aidial.deployment.manager.configuration.MetricsScrapeProperties;
 import com.epam.aidial.deployment.manager.exception.EntityNotFoundException;
 import com.epam.aidial.deployment.manager.exception.MetricsCollectionDisabledException;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
+import com.epam.aidial.deployment.manager.kubernetes.metrics.GpuMetricsReader;
 import com.epam.aidial.deployment.manager.kubernetes.metrics.PodResourceUsageReader;
 import com.epam.aidial.deployment.manager.model.PodInfo;
+import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
@@ -28,6 +30,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_OPERATIONAL;
 import static com.epam.aidial.deployment.manager.model.metrics.UnifiedDeploymentMetrics.AVAILABILITY_RESOURCES;
@@ -67,6 +70,8 @@ class DeploymentMetricsServiceTest {
     private K8sClient k8sClient;
     @Mock
     private PodResourceUsageReader podResourceUsageReader;
+    @Mock
+    private GpuMetricsReader gpuMetricsReader;
 
     private MetricsScrapeProperties properties;
     private DeploymentMetricsService service;
@@ -80,6 +85,15 @@ class DeploymentMetricsServiceTest {
         var resourceUsage = new MetricsScrapeProperties.ResourceUsage();
         resourceUsage.setEnabled(true);
         properties.setResourceUsage(resourceUsage);
+        var gpu = new MetricsScrapeProperties.Gpu();
+        gpu.setEnabled(true);
+        gpu.setNamespace("nvidia-gpu-operator");
+        gpu.setPodLabelSelector("app=nvidia-dcgm-exporter");
+        gpu.setPort(9400);
+        gpu.setMetricsPath("/metrics");
+        gpu.setPodLabel("pod");
+        gpu.setNamespaceLabel("namespace");
+        properties.setGpu(gpu);
 
         var inferenceCollector = new InferenceServingMetricsCollector(
                 k8sClient,
@@ -88,12 +102,14 @@ class DeploymentMetricsServiceTest {
                 List.of(new VllmMetricsNormalizer(), new TgiMetricsNormalizer(), new SglangMetricsNormalizer(),
                         new KserveModelServerMetricsNormalizer()),
                 properties);
+        var gpuCollector = new GpuMetricsCollector(gpuMetricsReader, new PrometheusTextParser(), properties);
 
         service = new DeploymentMetricsService(
                 deploymentService,
                 deploymentManagerProvider,
                 List.of(inferenceCollector),
                 podResourceUsageReader,
+                gpuCollector,
                 properties);
 
         doReturn(deploymentManager).when(deploymentManagerProvider).provide(DEPLOYMENT_ID);
@@ -108,7 +124,7 @@ class DeploymentMetricsServiceTest {
         when(k8sClient.scrapePodMetrics(NAMESPACE, POD_NAME, DEFAULT_PORT, "/metrics", TIMEOUT_MS))
                 .thenReturn(Optional.of(ResourceUtils.readResource("/metrics-fixtures/vllm.txt")));
         when(podResourceUsageReader.readAll(eq(NAMESPACE), eq(Map.of(POD_NAME, "kserve-container"))))
-                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 250.0, 1073741824.0, null, null)));
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 250.0, 1073741824.0, null, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -265,7 +281,7 @@ class DeploymentMetricsServiceTest {
         givenPods(podInfo(POD_NAME));
         when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
         when(podResourceUsageReader.readAll(eq(NAMESPACE), eq(Map.of(POD_NAME, "kserve-container"))))
-                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 100.0, 1000.0, null, null)));
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 100.0, 1000.0, null, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -462,7 +478,7 @@ class DeploymentMetricsServiceTest {
         givenDeployment(McpDeployment.builder().id(DEPLOYMENT_ID).build());
         givenPods(podInfo(POD_NAME));
         when(podResourceUsageReader.readAll(eq(NAMESPACE), eq(Map.of(POD_NAME, "kserve-container"))))
-                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 50.0, 2000.0, null, null)));
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 50.0, 2000.0, null, null, null)));
 
         var snapshot = service.getSnapshot(DEPLOYMENT_ID);
 
@@ -490,6 +506,101 @@ class DeploymentMetricsServiceTest {
         assertThatThrownBy(() -> service.getSnapshot(DEPLOYMENT_ID))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining(DEPLOYMENT_ID);
+    }
+
+    @Test
+    void shouldPopulateGpuMetrics_forGpuDeploymentWithExporter() {
+        // US1: GPU-requesting deployment + DCGM exporter present -> per-pod GPU fields + resources.gpu available
+        givenDeployment(gpuInferenceDeployment());
+        givenPods(gpuPodInfo("model-pod-0", "node1"));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any()))
+                .thenReturn(List.of(new PodResourceUsage("model-pod-0", 250.0, 1073741824.0, null, null, null)));
+        when(gpuMetricsReader.readColocatedExporters(eq(Set.of("node1"))))
+                .thenReturn(List.of(ResourceUtils.readResource("/metrics-fixtures/dcgm.txt")));
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).available()).isTrue();
+        var pod = snapshot.resources().pods().stream().filter(p -> p.name().equals("model-pod-0")).findFirst().orElseThrow();
+        // CPU/memory preserved, GPU joined on top (model-pod-0 spans 2 GPUs in the fixture)
+        assertThat(pod.cpuMillicores()).isEqualTo(250.0);
+        assertThat(pod.gpuUtilization()).isCloseTo(0.65, within(1e-9));
+        assertThat(pod.gpuMemoryBytes()).isCloseTo(18432 * 1024d * 1024d, within(1.0));
+        assertThat(pod.gpuMemoryTotalBytes()).isCloseTo(32768 * 1024d * 1024d, within(1.0));
+        assertThat(pod.gpuMemoryBytes()).isLessThanOrEqualTo(pod.gpuMemoryTotalBytes());
+    }
+
+    @Test
+    void shouldDegradeGpu_whenExporterAbsent() {
+        // US2: GPU requested but no exporter reachable -> resources.gpu unavailable, other blocks intact, still 200
+        givenDeployment(gpuInferenceDeployment());
+        givenPods(gpuPodInfo("model-pod-0", "node1"));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any()))
+                .thenReturn(List.of(new PodResourceUsage("model-pod-0", 250.0, 1073741824.0, null, null, null)));
+        when(gpuMetricsReader.readColocatedExporters(any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).available()).isFalse();
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).reason()).contains("unavailable");
+        // CPU/memory unaffected
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_USAGE).available()).isTrue();
+        var pod = snapshot.resources().pods().getFirst();
+        assertThat(pod.gpuUtilization()).isNull();
+        assertThat(pod.gpuMemoryTotalBytes()).isNull();
+    }
+
+    @Test
+    void shouldDegradeGpu_whenGpuCollectionDisabled() {
+        // US2: operator turned GPU collection off
+        properties.getGpu().setEnabled(false);
+        givenDeployment(gpuInferenceDeployment());
+        givenPods(gpuPodInfo("model-pod-0", "node1"));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any())).thenReturn(List.of());
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).available()).isFalse();
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).reason()).contains("disabled");
+        verify(gpuMetricsReader, never()).readColocatedExporters(any());
+    }
+
+    @Test
+    void shouldNotAttemptGpuCollection_forNonGpuDeployment() {
+        // US3: no nvidia.com/gpu request -> distinct reason, GPU fields null, no exporter round-trip
+        givenDeployment(inferenceDeployment(null));
+        givenPods(podInfo(POD_NAME));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any()))
+                .thenReturn(List.of(new PodResourceUsage(POD_NAME, 250.0, 1073741824.0, null, null, null)));
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).available()).isFalse();
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).reason()).contains("does not request GPU");
+        assertThat(snapshot.resources().pods().getFirst().gpuUtilization()).isNull();
+        verify(gpuMetricsReader, never()).readColocatedExporters(any());
+    }
+
+    @Test
+    void shouldDegradeGpuWithSchedulingReason_whenPodsNotYetScheduled() {
+        // GPU requested and pods exist but none is scheduled onto a node yet (all Pending): report the
+        // distinct "not scheduled" reason rather than blaming the exporter, and skip the exporter round-trip.
+        givenDeployment(gpuInferenceDeployment());
+        givenPods(gpuPodInfo("model-pod-0", null));
+        when(k8sClient.scrapePodMetrics(anyString(), anyString(), anyInt(), anyString(), anyLong())).thenReturn(Optional.empty());
+        when(podResourceUsageReader.readAll(anyString(), any()))
+                .thenReturn(List.of(new PodResourceUsage("model-pod-0", 250.0, 1073741824.0, null, null, null)));
+
+        var snapshot = service.getSnapshot(DEPLOYMENT_ID);
+
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).available()).isFalse();
+        assertThat(snapshot.availability().get(AVAILABILITY_RESOURCES_GPU).reason()).contains("scheduled");
+        assertThat(snapshot.resources().pods().getFirst().gpuUtilization()).isNull();
+        verify(gpuMetricsReader, never()).readColocatedExporters(any());
     }
 
     private void givenDeployment(Deployment deployment) {
@@ -526,7 +637,17 @@ class DeploymentMetricsServiceTest {
 
     private static PodInfo podInfo(String name, String component, Integer metricsPort, String metricsPath) {
         return new PodInfo(name, component, "kserve-container", Instant.now(), 0, null, null, null, null, null,
-                metricsPort, metricsPath);
+                metricsPort, metricsPath, null);
+    }
+
+    private static PodInfo gpuPodInfo(String name, String nodeName) {
+        return new PodInfo(name, "predictor", "kserve-container", Instant.now(), 0, null, null, null, null, null,
+                null, null, nodeName);
+    }
+
+    private static InferenceDeployment gpuInferenceDeployment() {
+        var resources = new Resources(Map.of("nvidia.com/gpu", "1"), Map.of("nvidia.com/gpu", "1"));
+        return InferenceDeployment.builder().id(DEPLOYMENT_ID).resources(resources).build();
     }
 
 }

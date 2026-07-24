@@ -563,7 +563,8 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
                 containerInfo.lastSignal(),
                 containerInfo.lastFinishedAt(),
                 resolveMetricsPort(pod),
-                resolveMetricsPath(pod)
+                resolveMetricsPath(pod),
+                pod.getSpec() != null ? pod.getSpec().getNodeName() : null
         );
     }
 

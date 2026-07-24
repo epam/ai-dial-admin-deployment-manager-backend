@@ -32,4 +32,6 @@ public class PodInfo {
     private Integer metricsPort;
     @Nullable
     private String metricsPath;
+    @Nullable
+    private String nodeName;
 }
