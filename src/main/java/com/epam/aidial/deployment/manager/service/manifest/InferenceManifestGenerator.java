@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -133,10 +134,11 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
 
         applyStartupProbe(name, modelChain, probeProperties);
 
-        applyPoolPrimitives(predictorChain, poolPrimitives);
+        applyPredictorPoolPrimitives(predictorChain, poolPrimitives);
 
         if (detectedTask == InferenceTask.TEXT_CLASSIFICATION) {
             applyChainedTransformer(name, detectedId2Label, modelChain, config.data());
+            applyTransformerPoolPrimitives(config, poolPrimitives);
         }
 
         return config.data();
@@ -153,6 +155,9 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
      *       the predictor args.</li>
      *   <li>Build the transformer block via {@link TextClassificationTransformerSection}.</li>
      * </ul>
+     *
+     * <p>The caller then projects the deployment's pool scheduling primitives onto the transformer
+     * block (see {@code applyTransformerPoolPrimitives}) so both pods land on the same node pool.
      */
     private void applyChainedTransformer(String name,
                                          Map<Integer, String> id2Label,
@@ -224,7 +229,7 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
         }
     }
 
-    private void applyPoolPrimitives(MappingChain<Predictor> predictorChain, PoolSchedulingPrimitives primitives) {
+    private void applyPredictorPoolPrimitives(MappingChain<Predictor> predictorChain, PoolSchedulingPrimitives primitives) {
         if (primitives == null || primitives.isEmpty()) {
             return;
         }
@@ -244,6 +249,36 @@ public class InferenceManifestGenerator extends DeployableManifestGenerator {
             }
             merged.addAll(convertedTolerations);
             predictorChain.data().setTolerations(merged);
+        }
+    }
+
+    // Mirrors applyPredictorPoolPrimitives so a chained transformer schedules onto the same node
+    // pool as the predictor. Kept as a separate typed method: the generated predictor/transformer
+    // CRD types share no common interface, and MappingChain<Predictor>/MappingChain<Transformer>
+    // have the same erasure, so an overload would not compile.
+    private void applyTransformerPoolPrimitives(MappingChain<InferenceService> config, PoolSchedulingPrimitives primitives) {
+        if (primitives == null || primitives.isEmpty()) {
+            return;
+        }
+        var transformer = config.get(InferenceMappers.SERVICE_SPEC_FIELD)
+                .get(InferenceMappers.SERVICE_SPEC_TRANSFORMER_FIELD).data();
+        if (MapUtils.isNotEmpty(primitives.nodeSelector())) {
+            transformer.setNodeSelector(new LinkedHashMap<>(primitives.nodeSelector()));
+        }
+        var convertedAffinity = poolPrimitivesConverter.convertAffinity(
+                primitives.affinity(), io.kserve.serving.v1beta1.inferenceservicespec.transformer.Affinity.class);
+        if (convertedAffinity != null) {
+            transformer.setAffinity(convertedAffinity);
+        }
+        var convertedTolerations = poolPrimitivesConverter.convertTolerations(
+                primitives.tolerations(), io.kserve.serving.v1beta1.inferenceservicespec.transformer.Tolerations.class);
+        if (CollectionUtils.isNotEmpty(convertedTolerations)) {
+            var merged = new ArrayList<io.kserve.serving.v1beta1.inferenceservicespec.transformer.Tolerations>();
+            if (transformer.getTolerations() != null) {
+                merged.addAll(transformer.getTolerations());
+            }
+            merged.addAll(convertedTolerations);
+            transformer.setTolerations(merged);
         }
     }
 

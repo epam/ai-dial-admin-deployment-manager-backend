@@ -105,6 +105,7 @@ For chained deployments:
 - The predictor `protocolVersion` is pinned to `v2`.
 - The predictor args have `--return_raw_logits` and `--task=sequence_classification` auto-injected (always).
 - The transformer container is named `kserve-container`, receives `--model_name=<deploymentName>` and `--predictor_protocol=v2` args, and an `ID2LABEL` env var carrying the detected map serialized as a JSON object with stringified-integer keys.
+- When the deployment references a node pool with non-empty scheduling primitives, the same primitives projected onto the `predictor` (nodeSelector replaced, affinity replaced, pool tolerations appended to existing) are also projected onto the `transformer` block, so both components schedule onto the same pool. When no pool is selected or the pool declares no primitives, the transformer block carries no pool-derived scheduling fields.
 - The deployment's resolved public URL is the transformer component's URL. The deployment is reported `RUNNING` only once the predictor reports `LOADED+UPTODATE` **and** the transformer component has surfaced a URL on `status.components` — a best-effort signal, since KServe does not surface per-component health for the transformer, so a transformer that previously surfaced a URL but later crashed continues to read as ready until KServe reconciles.
 - The per-deployment `CiliumNetworkPolicy` carries three additions over the predictor-only baseline: a chained intra-cluster egress block whose `toEndpoints` list has six narrowed per-app selectors — same-`InferenceService`, `app=istiod` and `app=istio-ingressgateway` in `istio-system`, and `app=activator`, `app=autoscaler`, `app=controller` in `knative-serving` — with no port constraint; a same-`InferenceService` entry appended to the existing ingress `fromEndpoints`; and `8080/TCP` admitted into the ingress `toPorts` via container-port resolution (`InferenceDeploymentManager.getCiliumIngressPorts` injects `DEFAULT_KSERVE_SERVICE_PORT = 8080`), not via a chained-mode dedup literal. Non-chained deployments produce byte-identical policies to the pre-feature shape. *(Implemented via 022-transformer-cilium-policies — see that spec for FR-level detail. The chained-mode signal is read by `InferenceDeploymentManager`'s override of the `buildCiliumNetworkPolicy(...)` hook on `AbstractDeploymentManager`; the abstract base carries no inference-specific concept.)*
 
@@ -115,6 +116,10 @@ Status: **Implemented** *(Implemented via 021-inference-task-transformer; chaine
 #### Scenario: Chained manifest for a detected text-classification model
 - **WHEN** detection returns `TEXT_CLASSIFICATION` with a valid `id2Label`
 - **THEN** the manifest contains both `predictor` (with `protocolVersion: v2`, `--return_raw_logits`, `--task=sequence_classification`) and `transformer` (with the configured image, `ID2LABEL` env, `--model_name=<name>`, `--predictor_protocol=v2`)
+
+#### Scenario: Pool primitives applied to both chained components
+- **WHEN** detection returns `TEXT_CLASSIFICATION` and the deployment's `nodePoolId` resolves to a pool with non-empty scheduling primitives
+- **THEN** the manifest's `predictor` and `transformer` blocks carry identical pool-derived `nodeSelector`, `affinity`, and appended `tolerations`
 
 #### Scenario: Predictor-only manifest for non-classification models
 - **WHEN** detection returns `NONE`
