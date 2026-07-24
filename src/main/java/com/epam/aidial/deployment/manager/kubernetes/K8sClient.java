@@ -23,6 +23,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -97,11 +100,43 @@ public class K8sClient {
      * is abandoned to the HTTP client's own timeouts.</p>
      */
     public Optional<String> scrapePodMetrics(String namespace, String podName, int port, String metricsPath, long timeoutMs) {
-        var proxyUri = "/api/v1/namespaces/%s/pods/http:%s:%d/proxy%s".formatted(namespace, podName, port, metricsPath);
+        var proxyUri = buildProxyUri(namespace, podName, port, metricsPath);
         log.debug("Scraping pod metrics via API-server proxy: {}", proxyUri);
+        var future = CompletableFuture.supplyAsync(() -> client.raw(proxyUri), scrapeExecutor);
+        return awaitScrape(future, namespace, podName, port, timeoutMs);
+    }
+
+    /**
+     * Concurrent variant of {@link #scrapePodMetrics(String, String, int, String, long)} for scraping
+     * several pods at once (e.g. the co-located DCGM exporters of a multi-node deployment). Every scrape
+     * is submitted up-front so they run in parallel on the shared scrape pool, then each is reaped with
+     * its own {@code timeoutMs} budget — total latency is ~one timeout rather than the sum of sequential
+     * scrapes. Individual failures/timeouts drop out (same graceful semantics), so the returned list
+     * carries only the bodies that were read.
+     */
+    public List<String> scrapePodMetrics(String namespace, Collection<String> podNames, int port, String metricsPath, long timeoutMs) {
+        if (podNames == null || podNames.isEmpty()) {
+            return List.of();
+        }
+        var pending = podNames.stream()
+                .map(podName -> Map.entry(podName, CompletableFuture.supplyAsync(
+                        () -> client.raw(buildProxyUri(namespace, podName, port, metricsPath)), scrapeExecutor)))
+                .toList();
+        var bodies = new ArrayList<String>(pending.size());
+        for (var entry : pending) {
+            awaitScrape(entry.getValue(), namespace, entry.getKey(), port, timeoutMs).ifPresent(bodies::add);
+        }
+        return bodies;
+    }
+
+    private static String buildProxyUri(String namespace, String podName, int port, String metricsPath) {
+        return "/api/v1/namespaces/%s/pods/http:%s:%d/proxy%s".formatted(namespace, podName, port, metricsPath);
+    }
+
+    private Optional<String> awaitScrape(CompletableFuture<String> future, String namespace, String podName,
+                                         int port, long timeoutMs) {
         try {
-            var body = CompletableFuture.supplyAsync(() -> client.raw(proxyUri), scrapeExecutor)
-                    .get(timeoutMs, TimeUnit.MILLISECONDS);
+            var body = future.get(timeoutMs, TimeUnit.MILLISECONDS);
             if (body == null) {
                 log.warn("Metrics scrape of pod '{}' in namespace '{}' (port {}) returned no body", podName, namespace, port);
             }

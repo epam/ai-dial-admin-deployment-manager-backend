@@ -95,6 +95,8 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 ### Requirement: GPU telemetry from the DCGM exporter
 For deployments that request `nvidia.com/gpu`, the system SHALL populate per-pod `gpuUtilization` (ratio 0–1), `gpuMemoryBytes` (used), and `gpuMemoryTotalBytes` (used+free) from the NVIDIA DCGM exporter, and mark `resources.gpu` available when telemetry is present. Only the exporter pods co-located on the nodes running the deployment's pods are scraped (through the same API-server pod proxy), and only for GPU-requesting deployments. For a pod bound to multiple GPUs, memory is summed and utilization averaged across its GPUs; series are attributed to a pod by the DCGM `namespace`/`pod` labels so a shared GPU node never leaks another tenant's usage. GPU collection is request-triggered only and served from the same response cache as the other blocks. The DCGM exporter is a cluster prerequisite; when it is absent/unreachable, when GPU collection is disabled, or when the deployment requests no GPU, `resources.gpu` is reported unavailable with a distinct reason and the snapshot still succeeds. KV-cache usage remains the engine-level GPU-pressure proxy for the serving block.
 
+Note: a deployment is considered GPU-backed solely by an explicit `nvidia.com/gpu > 0` in its `resources` limits/requests; GPU allocated by other means (e.g. node-pool scheduling without a `nvidia.com/gpu` request) is not detected and its `resources.gpu` is reported "does not request GPU".
+
 Status: **Implemented** *(Implemented via 026-gpu-metrics)*
 
 #### Scenario: GPU deployment with the exporter present

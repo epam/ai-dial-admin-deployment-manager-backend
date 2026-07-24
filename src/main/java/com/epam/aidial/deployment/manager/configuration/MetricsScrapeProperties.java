@@ -1,5 +1,6 @@
 package com.epam.aidial.deployment.manager.configuration;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -19,8 +20,10 @@ public class MetricsScrapeProperties {
     @Positive(message = "app.metrics.scrape.cache-ttl-ms must be positive")
     private long cacheTtlMs;
 
+    @Valid
     private ResourceUsage resourceUsage;
 
+    @Valid
     private Gpu gpu;
 
     @Data

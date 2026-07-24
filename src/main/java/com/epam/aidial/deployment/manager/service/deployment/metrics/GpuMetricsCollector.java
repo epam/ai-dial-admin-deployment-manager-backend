@@ -87,11 +87,11 @@ public class GpuMetricsCollector {
         switch (sample.name()) {
             case DCGM_FB_USED -> {
                 acc.usedMiB += sample.value();
-                acc.sawMemory = true;
+                acc.sawUsed = true;
             }
             case DCGM_FB_FREE -> {
                 acc.freeMiB += sample.value();
-                acc.sawMemory = true;
+                acc.sawFree = true;
             }
             case DCGM_GPU_UTIL -> {
                 acc.utilSum += sample.value();
@@ -107,12 +107,15 @@ public class GpuMetricsCollector {
         private double freeMiB;
         private double utilSum;
         private int utilCount;
-        private boolean sawMemory;
+        private boolean sawUsed;
+        private boolean sawFree;
 
         private GpuPodUsage toUsage(String pod) {
             Double utilization = utilCount > 0 ? (utilSum / utilCount) / 100d : null;
-            Double usedBytes = sawMemory ? usedMiB * MIB_TO_BYTES : null;
-            Double totalBytes = sawMemory ? (usedMiB + freeMiB) * MIB_TO_BYTES : null;
+            Double usedBytes = sawUsed ? usedMiB * MIB_TO_BYTES : null;
+            // Total is used + free, so it is only meaningful when both series were seen; a partial
+            // scrape (only one of FB_USED/FB_FREE) must not report a bogus total.
+            Double totalBytes = (sawUsed && sawFree) ? (usedMiB + freeMiB) * MIB_TO_BYTES : null;
             return new GpuPodUsage(pod, utilization, usedBytes, totalBytes);
         }
     }

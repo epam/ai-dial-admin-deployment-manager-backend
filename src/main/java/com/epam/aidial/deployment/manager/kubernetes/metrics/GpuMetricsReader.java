@@ -3,6 +3,7 @@ package com.epam.aidial.deployment.manager.kubernetes.metrics;
 import com.epam.aidial.deployment.manager.configuration.MetricsScrapeProperties;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -49,17 +49,22 @@ public class GpuMetricsReader {
         var gpu = properties.getGpu();
         var namespace = gpu.getNamespace();
         var labels = parseSelector(gpu.getPodLabelSelector());
+        if (labels.isEmpty()) {
+            // A blank selector would list (and try to scrape as exporters) every pod in the namespace;
+            // treat it as a misconfiguration and degrade rather than fan out over unrelated workloads.
+            log.warn("DCGM exporter pod-label-selector is blank; refusing to scrape all pods in namespace '{}'", namespace);
+            return List.of();
+        }
         try {
-            var exporterPods = k8sClient.getPods(namespace, labels).getItems();
-            return exporterPods.stream()
+            var exporterPodNames = k8sClient.getPods(namespace, labels).getItems().stream()
                     .filter(pod -> pod.getSpec() != null && nodeNames.contains(pod.getSpec().getNodeName()))
                     .map(Pod::getMetadata)
                     .filter(Objects::nonNull)
-                    .map(meta -> k8sClient.scrapePodMetrics(namespace, meta.getName(), gpu.getPort(),
-                            gpu.getMetricsPath(), properties.getTimeoutMs()))
-                    .filter(Optional::isPresent)
-                    .map(Optional::get)
+                    .map(ObjectMeta::getName)
+                    .filter(StringUtils::isNotBlank)
                     .toList();
+            return k8sClient.scrapePodMetrics(namespace, exporterPodNames, gpu.getPort(),
+                    gpu.getMetricsPath(), properties.getTimeoutMs());
         } catch (KubernetesClientException e) {
             log.warn("Failed to list dcgm-exporter pods in namespace '{}' (DCGM exporter not present?): {}",
                     namespace, e.getMessage());
