@@ -381,6 +381,72 @@ class InferenceManifestGeneratorTest {
         assertThat(predictor.getAffinity()).isNotNull();
         assertThat(predictor.getTolerations()).hasSize(1);
         assertThat(predictor.getTolerations().getFirst().getKey()).isEqualTo("dedicated");
+        assertThat(generatedService.getSpec().getTransformer()).isNull();
+    }
+
+    @Test
+    void testServiceConfig_chained_projectsPoolPrimitivesOntoTransformer() {
+        var deploymentName = "chained-node-pool-inference-app";
+        var storageUri = "s3://my-bucket/chained-node-pool-model";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+        var affinity = new io.fabric8.kubernetes.api.model.AffinityBuilder()
+                .withNewNodeAffinity()
+                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addNewMatchExpression()
+                .withKey("accelerator-type").withOperator("In").addToValues("nvidia-a100")
+                .endMatchExpression()
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .endNodeAffinity()
+                .build();
+        var toleration = new io.fabric8.kubernetes.api.model.TolerationBuilder()
+                .withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule")
+                .build();
+        var primitives = new PoolSchedulingPrimitives(Map.of("workload", "gpu"), affinity, java.util.List.of(toleration));
+
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, storageUri, Collections.emptyList(), Collections.emptyList(), resources,
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, primitives,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "NEGATIVE", 1, "POSITIVE")
+        );
+
+        var transformer = generatedService.getSpec().getTransformer();
+        assertThat(transformer).isNotNull();
+        assertThat(transformer.getNodeSelector()).containsEntry("workload", "gpu");
+        assertThat(transformer.getAffinity()).isNotNull();
+        var matchExpression = transformer.getAffinity().getNodeAffinity()
+                .getRequiredDuringSchedulingIgnoredDuringExecution()
+                .getNodeSelectorTerms().getFirst()
+                .getMatchExpressions().getFirst();
+        assertThat(matchExpression.getKey()).isEqualTo("accelerator-type");
+        assertThat(matchExpression.getValues()).containsExactly("nvidia-a100");
+        assertThat(transformer.getTolerations()).hasSize(1);
+        assertThat(transformer.getTolerations().getFirst().getKey()).isEqualTo("dedicated");
+
+        // Co-location invariant: the predictor carries the same pool-derived scheduling fields.
+        var predictor = generatedService.getSpec().getPredictor();
+        assertThat(predictor.getNodeSelector()).containsEntry("workload", "gpu");
+        assertThat(predictor.getAffinity()).isNotNull();
+        assertThat(predictor.getTolerations()).hasSize(1);
+        assertThat(predictor.getTolerations().getFirst().getKey()).isEqualTo("dedicated");
+    }
+
+    @Test
+    void testServiceConfig_chained_emptyPrimitives_doesNotCreateTransformerSchedulingFields() {
+        var deploymentName = "chained-no-pool-inference-app";
+        var resources = new Resources(Collections.emptyMap(), Collections.emptyMap());
+
+        var generatedService = manifestGenerator.serviceConfig(
+                deploymentName, DM_PREFIX + deploymentName, MODEL_FORMAT, "s3://my-bucket/chained-no-pool-model",
+                Collections.emptyList(), Collections.emptyList(), resources,
+                null, null, null, null, null, STARTUP_TIMEOUT_SEC, PoolSchedulingPrimitives.EMPTY,
+                InferenceTask.TEXT_CLASSIFICATION, Map.of(0, "NEGATIVE", 1, "POSITIVE")
+        );
+
+        // The section is mocked, so a transformer block here could only come from the generator's
+        // pool projection — empty primitives must not fabricate it.
+        assertThat(generatedService.getSpec().getTransformer()).isNull();
     }
 
     @Test
