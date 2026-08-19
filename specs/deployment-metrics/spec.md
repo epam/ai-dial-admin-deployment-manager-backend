@@ -3,7 +3,7 @@
 ## Purpose
 This spec describes the unified deployment metrics API — an on-demand live metrics snapshot for any deployment. Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type. For INFERENCE deployments, engine-specific Prometheus metrics (generative engines vLLM/TGI/SGLang, and the KServe Python ModelServer behind non-generative classification/embedding/custom predictors) are additionally scraped from the Ready predictor pod through the Kubernetes API-server pod proxy and normalized to a single engine-neutral schema so clients never depend on a particular engine's vocabulary. For a chained KServe InferenceService the transformer pod is also scraped — but only when it advertises a Prometheus endpoint (KServe's `prometheus.kserve.io/port` annotation) — so its pre/post-processing latency combines with the predictor's inference latency; a transformer that exposes no endpoint (e.g. metric aggregation disabled) is skipped and the snapshot degrades to predictor-only.
 
-Status: **Implemented** *(Implemented via 023-deployment-metrics-api — PoC scope: live snapshot only)*
+Status: **Implemented** *(live snapshot via 023-deployment-metrics-api; GPU telemetry via 026-gpu-metrics)*
 
 Origin: [issue #162](https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/162). This spec is the design source of record — the telemetry-foundation ADR, the engine-availability matrix, and the sized follow-up tickets are captured below. OpenAPI contract: `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml`.
 
@@ -11,7 +11,7 @@ Origin: [issue #162](https://github.com/epam/ai-dial-admin-deployment-manager-ba
 - **Unified schema**: engine-neutral metric names with explicit units, grouped into `serving`, `resources`, and `operational` blocks plus a `rawCounters` echo of directly-exposed cumulative counters.
 - **Engine family**: the recognized serving-engine vocabulary — `VLLM`, `TGI`, `SGLANG`, `KSERVE_MODELSERVER`, or `UNKNOWN`. The generative engines are identified by metric-name prefix sniffing (`vllm:` / `tgi_` / `sglang:`); `KSERVE_MODELSERVER` exposes unprefixed `request_*_seconds` histograms and is identified by the `request_predict_seconds` metric name declared in a `# TYPE` comment (so it is recognized even before the model serves its first request, when the label-gated histograms emit no samples). Non-inference deployments are not scraped and report engine `UNKNOWN`.
 - **Availability marker**: per-block `{available, reason}` entry; every response carries one entry per block key (`serving`, `operational`, `resources`, `resources.usage`, `resources.gpu`).
-- **Lifetime window**: counter-derived values are aggregates since engine process start, labelled `window: "lifetime"`. There is no time-series backend in the PoC.
+- **Lifetime window**: counter-derived values are aggregates since engine process start, labelled `window: "lifetime"`. There is no time-series backend.
 - **Pod proxy scrape**: `GET /api/v1/namespaces/{ns}/pods/http:{pod}:{port}/proxy/metrics` through the kube API server — no new infrastructure, works when the deployment manager runs outside the cluster. Used only for INFERENCE deployments (vLLM-class engines expose the standard `/metrics` exposition path).
 
 ## Requirements
@@ -92,19 +92,37 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 - **WHEN** `app.metrics.scrape.enabled=false` and the endpoint is called
 - **THEN** the response is HTTP 400 with an `ErrorView` stating metrics collection is disabled by configuration
 
-### Requirement: GPU fields are contract placeholders in the PoC
-The schema SHALL carry per-pod `gpuUtilization`/`gpuMemoryBytes` fields, reported unavailable (`resources.gpu` reason) until the DCGM exporter cluster prerequisite ships (follow-up (b) below). KV-cache usage is the engine-level GPU-pressure proxy available today.
+### Requirement: GPU telemetry from the DCGM exporter
+For deployments that request `nvidia.com/gpu`, the system SHALL populate per-pod `gpuUtilization` (ratio 0–1), `gpuMemoryBytes` (used), and `gpuMemoryTotalBytes` (used+free) from the NVIDIA DCGM exporter, and mark `resources.gpu` available when telemetry is present. Only the exporter pods co-located on the nodes running the deployment's pods are scraped (through the same API-server pod proxy), and only for GPU-requesting deployments. At most one Running exporter per node is scraped (newest wins), so a DaemonSet rolling update that briefly runs two exporters on a node never double-counts that node's GPU memory. For a pod bound to multiple GPUs, memory is summed and utilization averaged across its GPUs; series are attributed to a pod by the DCGM `namespace`/`pod` labels so a shared GPU node never leaks another tenant's usage. GPU collection is request-triggered only and served from the same response cache as the other blocks. The DCGM exporter is a cluster prerequisite; when it is absent/unreachable, when GPU collection is disabled, when the deployment's pods are not yet scheduled onto any node, or when the deployment requests no GPU, `resources.gpu` is reported unavailable with a distinct reason and the snapshot still succeeds. KV-cache usage remains the engine-level GPU-pressure proxy for the serving block.
 
-Status: **Implemented** *(placeholder behaviour; GPU telemetry itself is a follow-up)*
+Note: a deployment is considered GPU-backed solely by an explicit `nvidia.com/gpu > 0` in its `resources` limits/requests; GPU allocated by other means (e.g. node-pool scheduling without a `nvidia.com/gpu` request) is not detected and its `resources.gpu` is reported "does not request GPU".
+
+Status: **Implemented** *(Implemented via 026-gpu-metrics)*
+
+#### Scenario: GPU deployment with the exporter present
+- **WHEN** the endpoint is called for a running deployment that requests `nvidia.com/gpu` on a cluster with the DCGM exporter
+- **THEN** each running pod reports `gpuUtilization` (0–1), `gpuMemoryBytes`, and `gpuMemoryTotalBytes`, and `resources.gpu` is available
+
+#### Scenario: Exporter absent or GPU collection disabled
+- **WHEN** the exporter is absent/unreachable, or `app.metrics.scrape.gpu.enabled=false`
+- **THEN** the response is 200 with `resources.gpu` unavailable (reason recorded) and every other block unaffected
+
+#### Scenario: Non-GPU deployment
+- **WHEN** the deployment requests no `nvidia.com/gpu`
+- **THEN** no GPU collection is attempted and `resources.gpu` is unavailable with a "deployment does not request GPU" reason
+
+#### Scenario: GPU deployment whose pods are not yet scheduled
+- **WHEN** a GPU-requesting deployment's pods exist but none is scheduled onto a node yet (all Pending)
+- **THEN** no exporter scrape is attempted and `resources.gpu` is unavailable with a distinct "not available until pods are scheduled onto nodes" reason, rather than misreporting the exporter as absent
 
 ## Design Rationale (Telemetry Foundation ADR)
 All target engines natively expose the **Prometheus exposition format** over HTTP (`/metrics`); none speaks OTLP. Three transports were weighed:
 
-- **Option A — DM scrapes engine `/metrics` directly (chosen for the PoC).** DM reaches each pod's `/metrics` through the Kubernetes API-server pod-proxy subresource and normalizes in-process. Zero new infrastructure, reuses existing kube auth/TLS, works when DM runs outside the cluster (pod IPs are not routable there, the API server is), always-fresh values. Trade-off: no history — counter-derived values are lifetime aggregates, not windowed rates.
+- **Option A — DM scrapes engine `/metrics` directly (chosen for the live-snapshot implementation).** DM reaches each pod's `/metrics` through the Kubernetes API-server pod-proxy subresource and normalizes in-process. Zero new infrastructure, reuses existing kube auth/TLS, works when DM runs outside the cluster (pod IPs are not routable there, the API server is), always-fresh values. Trade-off: no history — counter-derived values are lifetime aggregates, not windowed rates.
 - **Option B — cluster Prometheus + PromQL.** True windowed rates and history, but new stateful infrastructure per cluster and a second observability stack alongside the existing OTLP pipeline.
 - **Option C — OTel Collector (Prometheus receiver) → OTLP backend (chosen direction for the time-range follow-up).** Aligns with the existing OTel investment so engine metrics, DM logs, and traces share one backend (preserving the trace↔metric pivot); the collector is stateless. Trade-off: still new cluster infrastructure, and the time-range query surface is backend-specific.
 
-**Decision**: ship the snapshot path on Option A (no infra, no manifest changes); implement the time-range follow-up on Option C, with Option B an acceptable per-cluster fallback where a managed Prometheus already exists. The unified schema is the stable contract that survives whichever transport wins — the PoC normalizers are reused as the collector's relabel/mapping rules later.
+**Decision**: ship the snapshot path on Option A (no infra, no manifest changes); implement the time-range follow-up on Option C, with Option B an acceptable per-cluster fallback where a managed Prometheus already exists. The unified schema is the stable contract that survives whichever transport wins — the snapshot normalizers are reused as the collector's relabel/mapping rules later.
 
 ## Engine-Availability Matrix
 Per-engine source metric for each unified field (`✓` exposed directly · `D` derived by DM · `✗` not exposed). Names verified against live dev-cluster captures where marked; upstream names drift between engine versions (e.g. vLLM V1 renamed `vllm:gpu_cache_usage_perc` → `vllm:kv_cache_usage_perc` and `vllm:time_per_output_token_seconds` → `vllm:inter_token_latency_seconds`), so normalizers accept both vocabularies.
@@ -133,7 +151,7 @@ Per-engine source metric for each unified field (`✓` exposed directly · `D` d
 |---|---|---|---|
 | `cpuMillicores` / `memoryBytes` | millicores / bytes | `metrics.k8s.io` (Fabric8 `top().pods()`) | per pod, attributed to the primary workload container (injected sidecars such as `queue-proxy`/`istio-proxy` excluded); requires metrics-server (present in managed clusters) |
 | `replicas.total` / `replicas.ready` | pods | existing pod listing | reported for every deployment type |
-| `gpuUtilization` / `gpuMemoryBytes` | ratio 0–1 / bytes | DCGM exporter (`DCGM_FI_DEV_*`) | contract placeholder — cluster prerequisite, follow-up (b); `kvCacheUsage` is today's engine-level proxy |
+| `gpuUtilization` / `gpuMemoryBytes` / `gpuMemoryTotalBytes` | ratio 0–1 / bytes / bytes | DCGM exporter (`DCGM_FI_DEV_GPU_UTIL`, `DCGM_FI_DEV_FB_USED`, `DCGM_FI_DEV_FB_FREE`) | per pod, for `nvidia.com/gpu`-requesting deployments; memory summed / utilization averaged across a pod's GPUs; cluster prerequisite (DCGM exporter DaemonSet); degrades gracefully when absent. Implemented via 026-gpu-metrics |
 
 Scale events are not duplicated here — they are served by the existing k8s events stream (see `specs/kubernetes-events/spec.md`).
 
@@ -141,24 +159,15 @@ Scale events are not duplicated here — they are served by the existing k8s eve
 - **Time-range API** (`?start&end&step&metrics`) — see `specs/023-deployment-metrics-api/contracts/deployment-metrics-api.yaml` (documented as not-implemented); requires the OTel Collector pipeline (ADR Option C above). The snapshot contract is forward-compatible: unified names and availability semantics are identical.
 - Multi-pod aggregation, long-term retention, alerting, access-control specifics.
 
-Sized follow-up tickets:
-
-| # | Ticket | Size | Depends on |
-|---|---|---|---|
-| (a) | **Time-range metrics API** — OTel Collector (Prometheus receiver) pipeline per ADR Option C, backend query adapter, `?start&end&step` implementation | L | PoC schema; per-cluster backend decision |
-| (b) | **GPU metrics via DCGM** — DCGM exporter as cluster prerequisite, join `DCGM_FI_DEV_*` series to pods, fill `gpuUtilization`/`gpuMemory*` in the resource block | M | (a) for history; snapshot-only join possible standalone |
-| (c) | **Persist serving runtime on `InferenceDeployment`** — record the engine at deploy time (DB column + DTOs + manifest plumbing), replacing prefix sniffing | S/M | none |
-| (d) | **Metrics-driven autoscaling** — implement `HARDWARE_USAGE` / `PENDING_REQUESTS` strategies (currently throw in `InferenceManifestGenerator`) on top of the unified feed | L | (a) or (b) for the metric source |
-| (e) | **UI metrics panel** — deployment-page panel consuming the snapshot, later the time-range variant | M (FE) | PoC endpoint |
-
 ## Implementation Notes
 - Endpoint: `DeploymentController.getMetrics` → `service/deployment/metrics/DeploymentMetricsService` (`@Cacheable`, cache `DeploymentMetricsCache` registered by `configuration/MetricsCachingConfig`)
 - Scrape transport (INFERENCE only): `kubernetes/K8sClient.scrapePodMetrics(ns, pod, port, metricsPath, timeoutMs)` via Fabric8 `client.raw(...)` on the pod-proxy subresource; failures map to empty, never propagate. Each pod is scraped at the endpoint KServe advertises on it — `PodInfo.metricsPort`/`metricsPath`, populated from the `prometheus.kserve.io/port`/`/path` annotations in `InferenceDeploymentManager.resolveMetricsPort`/`resolveMetricsPath` (base hooks default to null) — falling back to the engine's container/traffic port + standard `/metrics` path when a pod carries no annotation. The predictor pod is selected by the `component=predictor` label; for `KSERVE_MODELSERVER` the `component=transformer` pod is additionally scraped after the predictor, but only when it advertises a metrics endpoint (`PodInfo.metricsPort != null`) — KServe auto-stamps `prometheus.kserve.io/port` on a runtime-backed predictor but not on a user-supplied transformer container, so absent that annotation DM has no declared scrape target and scraping the default port would only waste the scrape budget and add log noise. The scrape degrades gracefully to predictor-only when the transformer advertises no endpoint, is absent, or is unreachable
 - Parsing: hand-rolled `PrometheusTextParser` (exposition format 0.0.4; no new dependency — nothing on the classpath parses this format); returns `ParsedExposition` (value-bearing samples + the metric names declared in `# TYPE` comments) so detection can recognize label-gated histograms that emit no samples while idle
 - Normalization: `EngineDetector` (prefix sniffing for the generative engines via `EngineFamily.metricNamePrefix()`, plus a `request_predict_seconds` declared-name marker for `KSERVE_MODELSERVER`) + `EngineMetricsNormalizer` implementations (`Vllm`/`Tgi`/`Sglang`/`KserveModelServer`, selected via `supports(EngineFamily)` and fed an `EngineScrapeContext` carrying the predictor index and an optional transformer index); percentiles via `HistogramSummaries`. The vLLM normalizer accepts both V0 and V1 names where they drifted — KV cache `vllm:gpu_cache_usage_perc` → `vllm:kv_cache_usage_perc`, inter-token latency `vllm:time_per_output_token_seconds` → `vllm:inter_token_latency_seconds` — and counts both `abort` (V0) and `error` (V1) `finished_reason` values in the error ratio (verified against a live dev-cluster vLLM V1 capture). The KServe ModelServer normalizer maps the predictor's `request_predict_seconds` histogram to `serving.requestLatency` + `requestsPerSecond` (generative fields and `requestErrorRatio` stay null, as the framework exposes no token/KV-cache/queue or success counters) and combines transformer pre/post means with predictor predict mean into `operational.e2eLatency`
-- Pod CPU/memory (all types): `kubernetes/metrics/PodResourceUsageReader` via Fabric8 `top().pods()` (one namespace-wide call, filtered client-side), summing only the pod's primary container — identified per type via `PodInfo.mainContainerName` (`getContainerName`) — so injected sidecars are excluded; replica counts and the Ready pod set come from `DeploymentManager.getInstancesWithReadiness` (all pods plus the Ready subset from a single pod-list call)
-- Domain types: `model/metrics/*` (`UnifiedDeploymentMetrics`, `NormalizedEngineMetrics`, …); web DTOs in `web/dto/metrics/*` mapped by `DeploymentMetricsDtoMapper`
+- Pod CPU/memory (all types): `kubernetes/metrics/PodResourceUsageReader` via Fabric8 `top().pods()` (one namespace-wide call, filtered client-side — a `labelSelector`-scoped query is a pending optimization, [#397](https://github.com/epam/ai-dial-admin-deployment-manager-backend/issues/397)), summing only the pod's primary container — identified per type via `PodInfo.mainContainerName` (`getContainerName`) — so injected sidecars are excluded; replica counts and the Ready pod set come from `DeploymentManager.getInstancesWithReadiness` (all pods plus the Ready subset from a single pod-list call)
+- GPU (deployments requesting `nvidia.com/gpu`): `kubernetes/metrics/GpuMetricsReader` discovers dcgm-exporter pods (config `app.metrics.scrape.gpu.*`), keeps only those co-located on the deployment's pods' nodes (`PodInfo.nodeName`, from `pod.getSpec().getNodeName()`), and scrapes each via the same `K8sClient.scrapePodMetrics` pod proxy; `service/deployment/metrics/GpuMetricsCollector` parses with `PrometheusTextParser`, filters `DCGM_FI_DEV_{GPU_UTIL,FB_USED,FB_FREE}` series by the `namespace`/`pod` labels, aggregates per pod (Σ memory, avg util, MiB→bytes), and `DeploymentMetricsService` merges the result into `PodResourceUsage` and sets `resources.gpu`. GPU request is detected by `GpuRequest.isRequested` (`nvidia.com/gpu > 0` in limits/requests)
+- Domain types: `model/metrics/*` (`UnifiedDeploymentMetrics`, `NormalizedEngineMetrics`, `GpuPodUsage`, …); web DTOs in `web/dto/metrics/*` mapped by `DeploymentMetricsDtoMapper`
 - Ports: `deployment.containerPort` with fallback to the manager default exposed via `DeploymentManager.getDefaultContainerPort()` (8080 for KServe inference)
-- RBAC (runbook/Helm, read-only): `pods`, `pods/proxy` get/list; `metrics.k8s.io` pods get/list when the resource-usage block is enabled
-- Test fixtures: `src/test/resources/metrics-fixtures/*` — `vllm.txt` (real dev-cluster vLLM V1 capture, KServe pod) is a live capture; `vllm-v0.txt` preserves V0-vocabulary coverage with hand-computed percentile expectations; `tgi.txt`/`sglang.txt` and the `kserve-modelserver-predictor.txt`/`kserve-modelserver-transformer.txt` pair (KServe Python ModelServer vocabulary, modelled on the live deberta exposition) remain synthetic until captured live
+- RBAC (runbook/Helm, read-only): `pods`, `pods/proxy` get/list; `metrics.k8s.io` pods get/list when the resource-usage block is enabled; `pods` + `pods/proxy` get/list in the DCGM exporter namespace when the GPU block is enabled
+- Test fixtures: `src/test/resources/metrics-fixtures/*` — `vllm.txt` (real dev-cluster vLLM V1 capture, KServe pod) is a live capture; `vllm-v0.txt` preserves V0-vocabulary coverage with hand-computed percentile expectations; `tgi.txt`/`sglang.txt` and the `kserve-modelserver-predictor.txt`/`kserve-modelserver-transformer.txt` pair (KServe Python ModelServer vocabulary, modelled on the live deberta exposition) remain synthetic until captured live; `dcgm.txt` (DCGM exporter vocabulary — multi-GPU pod, cross-namespace noise) is synthetic until captured live
 - Related specs: `deployments` (pod introspection), `inference-deployments`, `nim-deployments`, `api-conventions` (ErrorView), `observability-and-logging` (trace pivot scenario), `kubernetes-events` (scale events are cross-referenced, not duplicated)

@@ -8,13 +8,17 @@ public record ResourceMetricsDto(ReplicasDto replicas, List<PodResourceUsageDto>
     public record ReplicasDto(int total, int ready) {
     }
 
-    /** GPU fields require the DCGM exporter cluster prerequisite and are always {@code null} in the PoC. */
+    /**
+     * GPU fields come from the DCGM exporter and are {@code null} for pods with no GPU telemetry.
+     * {@code gpuMemoryBytes}/{@code gpuMemoryTotalBytes} are bytes; {@code gpuUtilization} is a ratio 0–1.
+     */
     public record PodResourceUsageDto(
             String name,
             Double cpuMillicores,
             Double memoryBytes,
             Double gpuUtilization,
-            Double gpuMemoryBytes
+            Double gpuMemoryBytes,
+            Double gpuMemoryTotalBytes
     ) {
     }
 }

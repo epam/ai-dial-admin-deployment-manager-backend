@@ -118,7 +118,7 @@ Status: **Implemented**
 #### Scenario: KServe mode
 - **GIVEN** `app.nim.deploy.kserve-mode-enabled=true`
 - **WHEN** a NIM deployment is deployed
-- **THEN** the generated NIMService has `inferencePlatform: kserve`, `expose.router` set to empty object, no `expose.ingress`, and Knative autoscaling annotations: `min-scale`, `max-scale`, and `initial-scale` are always set (default `1/1/1` when no `Scaling` is provided, otherwise derived from the `Scaling` with `initial-scale = Math.max(minReplicas, 1)`); `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, and `autoscaling.knative.dev/target` are set only when a `Scaling` with `ACTIVE_REQUESTS` strategy is provided (otherwise Knative cluster defaults apply)
+- **THEN** the generated NIMService has `inferencePlatform: kserve`, `expose.router` set to empty object, no `expose.ingress`, and Knative autoscaling annotations on **`spec.annotations`** (not `metadata.annotations` — the NIM operator propagates only `spec.annotations` to the KServe InferenceService): `min-scale`, `max-scale`, and `initial-scale` are always set (default `1/1/1` when no `Scaling` is provided, otherwise derived from the `Scaling` with `initial-scale = Math.max(minReplicas, 1)`); `autoscaling.knative.dev/class`, `autoscaling.knative.dev/metric`, and `autoscaling.knative.dev/target` are set only when a `Scaling` with `ACTIVE_REQUESTS` strategy is provided (otherwise Knative cluster defaults apply). The `serving.knative.dev/progress-deadline` annotation is likewise placed on `spec.annotations` in this mode.
 
 #### Scenario: KServe mode does not require cluster host
 - **GIVEN** `app.nim.deploy.kserve-mode-enabled=true`

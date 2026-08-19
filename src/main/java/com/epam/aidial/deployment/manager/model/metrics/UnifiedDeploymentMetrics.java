@@ -28,7 +28,7 @@ public record UnifiedDeploymentMetrics(
         Map<String, Double> rawCounters
 ) {
 
-    /** The only aggregation window supported by the PoC. */
+    /** The only aggregation window supported by the live-snapshot API. */
     public static final String WINDOW_LIFETIME = "lifetime";
 
     /** Availability map keys — one entry per block on every response. */

@@ -109,10 +109,55 @@ Status: **Implemented**
 - **WHEN** the application starts
 - **THEN** Hibernate validates the schema against entity mappings; it does NOT create or alter tables
 
+### Requirement: JSON attribute storage type is pinned per vendor
+Attributes annotated `@JdbcTypeCode(SqlTypes.JSON)` SHALL be stored as `jsonb` on POSTGRES, native `json` on H2,
+and `varchar(max)` on MS_SQL_SERVER. Known deviation: the three `allowed_domains` base columns
+(`domain_whitelist`, `image_definition`, `deployment`) are plain `json` on POSTGRES, created that way by
+`V1.39__AddAllowedDomainsToImageDefinitionAndDeployment.sql`; their `_aud` counterparts are `jsonb`. Schema
+validation tolerates this because Hibernate accepts a database type name that prefixes the mapped type name
+(`jsonb`.startsWith(`json`)). Converting those three columns to `jsonb` is a separate POSTGRES-only migration.
+
+The SQL Server mapping is pinned explicitly by `SqlServerJsonAsVarcharTypeContributor`, registered through
+`META-INF/services/org.hibernate.boot.model.TypeContributor`. From Hibernate 7.2.19 onwards
+`AbstractTransactSQLDialect` registers the nationalized JSON descriptor, which would resolve these attributes to
+`nvarchar(max)` and fail `ddl-auto: validate` against the `varchar(max)` columns the migrations create. The
+contributor keys off the registered descriptor rather than the dialect: it rewrites the registration only when
+`SqlTypes.JSON` currently resolves to `JsonAsStringJdbcType.NVARCHAR_INSTANCE`, so POSTGRES and H2 — which register
+their own descriptors — are untouched. If a future Hibernate release maps SQL Server JSON to some third descriptor,
+the contributor stops applying and SQL Server startup fails schema validation loudly, by design; the SQL Server
+functional suite surfaces that in CI.
+
+The contributor MUST be registered as a service, not via the `hibernate.type_contributors` property. On the JPA
+bootstrap path the service is invoked twice — once at `MetadataBuilder` configuration time, before dialect
+contributions, and once from `MetadataBuildingProcess` afterwards — and only the second invocation sees the
+nationalized descriptor. Property-supplied contributors run exclusively at the earlier point and would therefore be
+overwritten by the dialect.
+
+Known limitation: with the mssql-jdbc default `sendStringParametersAsUnicode=true`, writing characters outside the
+column collation's code page into `varchar(max)` degrades them to `?`. JSON attributes carry user-supplied text
+(env-var values, `metadata.envs[].description`), so non-ASCII content in those attributes is subject to lossy
+conversion on MS_SQL_SERVER — unlike sibling non-JSON columns such as `display_name` and `description`, which are
+`NVARCHAR(MAX)`. A UTF-8 database collation (SQL Server 2019+) removes the limitation; the functional-test fixture
+deliberately uses `SQL_Latin1_General_CP1_CS_AS` (CP1252), so the loss is reproducible. Tracked as issue #408:
+converting all JSON columns in the `MS_SQL_SERVER` migration tree to `NVARCHAR(MAX)` and dropping the contributor
+MUST happen as a single change.
+
+Status: **Implemented**
+
+#### Scenario: JSON attribute validated on SQL Server
+- **WHEN** the application starts with `DATASOURCE_VENDOR=MS_SQL_SERVER`
+- **THEN** JSON attributes resolve to `varchar(max)` and Hibernate schema validation passes
+
+#### Scenario: Other vendors keep their native JSON type
+- **WHEN** the application starts with `DATASOURCE_VENDOR=POSTGRES` or `DATASOURCE_VENDOR=H2`
+- **THEN** the contributor does not apply, and JSON attributes resolve to the dialect's own descriptor
+  (`jsonb` and `json` respectively)
+
 ## Implementation Notes
 - Config property: `DATASOURCE_VENDOR` (`H2` | `POSTGRES` | `MS_SQL_SERVER`)
 - Flyway config: `baseline-on-migrate: true`, `baseline-version: 1.1`
 - Datasource configuration: `com.epam.aidial.deployment.manager.configuration.datasource.*`
+- SQL Server JSON type pin: `configuration/datasource/SqlServerJsonAsVarcharTypeContributor` + `src/main/resources/META-INF/services/org.hibernate.boot.model.TypeContributor`
 - JPA entities: `com.epam.aidial.deployment.manager.dao.entity.*`
 - JPA repository interfaces: `com.epam.aidial.deployment.manager.dao.jpa.*` (extend `JpaRepository`)
 - Custom repository wrappers: `com.epam.aidial.deployment.manager.dao.repository.*` (delegate to JPA repos, add domain mapping)

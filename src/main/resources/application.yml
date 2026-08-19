@@ -123,6 +123,14 @@ app:
       cache-ttl-ms: ${METRICS_SCRAPE_CACHE_TTL_MS:5000}
       resource-usage:
         enabled: ${METRICS_SCRAPE_RESOURCE_USAGE_ENABLED:true}
+      gpu:
+        enabled: ${METRICS_SCRAPE_GPU_ENABLED:true}
+        namespace: ${METRICS_SCRAPE_GPU_DCGM_NAMESPACE:gpu-operator}
+        pod-label-selector: ${METRICS_SCRAPE_GPU_DCGM_POD_SELECTOR:app=nvidia-dcgm-exporter}
+        port: ${METRICS_SCRAPE_GPU_DCGM_PORT:9400}
+        metrics-path: ${METRICS_SCRAPE_GPU_DCGM_METRICS_PATH:/metrics}
+        pod-label: ${METRICS_SCRAPE_GPU_DCGM_POD_LABEL:pod}
+        namespace-label: ${METRICS_SCRAPE_GPU_DCGM_NAMESPACE_LABEL:namespace}
   image-name-format: ${IMAGE_NAME_FORMAT:app-%s}
   image-label: latest
   image-build-timeout-sec: 300
