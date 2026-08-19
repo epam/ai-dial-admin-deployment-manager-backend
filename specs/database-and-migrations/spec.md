@@ -109,10 +109,36 @@ Status: **Implemented**
 - **WHEN** the application starts
 - **THEN** Hibernate validates the schema against entity mappings; it does NOT create or alter tables
 
+### Requirement: JSON attribute storage type is pinned per vendor
+Attributes annotated `@JdbcTypeCode(SqlTypes.JSON)` SHALL be stored as `jsonb` on POSTGRES, native `json` on H2,
+and `varchar(max)` on MS_SQL_SERVER.
+
+The SQL Server mapping is pinned explicitly by `SqlServerJsonAsVarcharTypeContributor`, registered through
+`META-INF/services/org.hibernate.boot.model.TypeContributor`. From Hibernate 7.2.19 onwards
+`AbstractTransactSQLDialect` registers the nationalized JSON descriptor, which would resolve these attributes to
+`nvarchar(max)` and fail `ddl-auto: validate` against the `varchar(max)` columns the migrations create. The
+contributor MUST be registered as a service, not via the `hibernate.type_contributors` property: property-supplied
+contributors run at `MetadataBuilder` configuration time, before dialect contributions overwrite the registration.
+
+Known limitation: `varchar(max)` cannot represent characters outside the column collation's code page, so non-ASCII
+content in JSON attributes is subject to lossy conversion on MS_SQL_SERVER. Removing the contributor requires
+converting all JSON columns in the `MS_SQL_SERVER` migration tree to `NVARCHAR(MAX)` in the same change.
+
+Status: **Implemented**
+
+#### Scenario: JSON attribute validated on SQL Server
+- **WHEN** the application starts with `DATASOURCE_VENDOR=MS_SQL_SERVER`
+- **THEN** JSON attributes resolve to `varchar(max)` and Hibernate schema validation passes
+
+#### Scenario: Other vendors keep their native JSON type
+- **WHEN** the application starts with `DATASOURCE_VENDOR=POSTGRES` or `DATASOURCE_VENDOR=H2`
+- **THEN** the contributor does not apply, and JSON attributes resolve to `jsonb` and `json` respectively
+
 ## Implementation Notes
 - Config property: `DATASOURCE_VENDOR` (`H2` | `POSTGRES` | `MS_SQL_SERVER`)
 - Flyway config: `baseline-on-migrate: true`, `baseline-version: 1.1`
 - Datasource configuration: `com.epam.aidial.deployment.manager.configuration.datasource.*`
+- SQL Server JSON type pin: `configuration/datasource/SqlServerJsonAsVarcharTypeContributor` + `src/main/resources/META-INF/services/org.hibernate.boot.model.TypeContributor`
 - JPA entities: `com.epam.aidial.deployment.manager.dao.entity.*`
 - JPA repository interfaces: `com.epam.aidial.deployment.manager.dao.jpa.*` (extend `JpaRepository`)
 - Custom repository wrappers: `com.epam.aidial.deployment.manager.dao.repository.*` (delegate to JPA repos, add domain mapping)
