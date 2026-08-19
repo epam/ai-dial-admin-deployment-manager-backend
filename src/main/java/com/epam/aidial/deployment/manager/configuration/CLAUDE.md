@@ -31,6 +31,11 @@ When you add a new env-var-backed property here:
 
 Top-level files are individual `@Configuration` / `*Properties` classes — one concern each.
 
+One deliberate exception: `datasource/SqlServerJsonAsVarcharTypeContributor` is a Hibernate `TypeContributor`
+loaded by `ServiceLoader` (via `src/main/resources/META-INF/services/org.hibernate.boot.model.TypeContributor`),
+not a Spring bean. It lives here because it is part of the SQL Server datasource wiring — see
+`specs/database-and-migrations/spec.md` § "JSON attribute storage type is pinned per vendor".
+
 ## Related specs
 
 - `specs/api-conventions/spec.md`, `specs/security/spec.md`, `specs/observability-and-logging/spec.md` for cross-cutting concerns wired here.

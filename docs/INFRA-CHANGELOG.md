@@ -1,5 +1,42 @@
 # Infra Changelog
 
+## 0.20.0
+
+### Added
+
+#### Observability
+
+- `METRICS_SCRAPE_GPU_ENABLED` — enables the per-pod GPU block (utilization + framebuffer memory used/total) in the deployment metrics snapshot, sourced from the DCGM exporter, for deployments that request `nvidia.com/gpu`; degrades gracefully when the exporter is absent (default: `true`)
+- `METRICS_SCRAPE_GPU_DCGM_NAMESPACE` — namespace the DCGM exporter DaemonSet runs in (default: `gpu-operator`)
+- `METRICS_SCRAPE_GPU_DCGM_POD_SELECTOR` — label selector (`k=v,k2=v2`) identifying the DCGM exporter pods (default: `app=nvidia-dcgm-exporter`)
+- `METRICS_SCRAPE_GPU_DCGM_PORT` — port the DCGM exporter serves Prometheus metrics on (default: `9400`)
+- `METRICS_SCRAPE_GPU_DCGM_METRICS_PATH` — HTTP path of the DCGM exporter's Prometheus endpoint (default: `/metrics`)
+- `METRICS_SCRAPE_GPU_DCGM_POD_LABEL` — DCGM series label carrying the owning pod name, used to attribute GPUs to pods (default: `pod`)
+- `METRICS_SCRAPE_GPU_DCGM_NAMESPACE_LABEL` — DCGM series label carrying the owning pod's namespace (default: `namespace`)
+
+#### Security & RBAC
+
+- GPU metrics scraping (when `METRICS_SCRAPE_GPU_ENABLED=true`) requires additional read-only RBAC on `pods` and `pods/proxy` in the DCGM exporter namespace (default `gpu-operator`)
+
+---
+
+### Changed
+
+#### Observability
+
+- Deployment Metrics Scrape Configuration promoted out of Preview (previously `[Preview] Deployment Metrics Scrape Configuration`)
+- `METRICS_SCRAPE_TIMEOUT_MS` now also bounds each DCGM exporter GPU scrape, in addition to engine `/metrics` scrapes
+
+---
+
+### Fixed
+
+#### Deployment & Scaling
+
+- Progress deadline annotation now correctly propagates for NIM deployments running in KServe mode via `NIMService.spec.annotations` — previously set directly on `NIMService` metadata, which the NIM operator does not forward to the underlying KServe `InferenceService`, so the annotation had no effect
+
+---
+
 ## 0.19.0
 
 ### Added
