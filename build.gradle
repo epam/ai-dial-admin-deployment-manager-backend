@@ -21,7 +21,7 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '4.0.6'
+    id 'org.springframework.boot' version '4.0.7'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
@@ -70,7 +70,7 @@ dependencies {
     implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
     // aligns every io.netty module (overriding the Boot BOM) to one patched version — covers multiple HIGH CVEs
     implementation platform('io.netty:netty-bom:4.2.16.Final')
-    // overrides the Boot-BOM-managed Jackson 3 (3.1.2) — PolymorphicTypeValidator/array-subtype allowlist
+    // pins the Jackson 3 floor at 3.1.4 — PolymorphicTypeValidator/array-subtype allowlist
     // bypasses (CVE-2026-54512, CVE-2026-54513), patched in 3.1.4
     implementation platform('tools.jackson:jackson-bom:3.1.4')
 
