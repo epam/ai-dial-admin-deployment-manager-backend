@@ -164,8 +164,14 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.22') {
-            because("previous versions have vulnerabilities")
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.25') {
+            because("CVE-2026-65182, CVE-2026-65905, CVE-2026-68525 — previous versions have vulnerabilities")
+        }
+        implementation ('org.apache.tomcat.embed:tomcat-embed-el:11.0.25') {
+            because("keep in lockstep with tomcat-embed-core")
+        }
+        implementation ('org.apache.tomcat.embed:tomcat-embed-websocket:11.0.25') {
+            because("keep in lockstep with tomcat-embed-core")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
             because("previous versions have vulnerabilities")

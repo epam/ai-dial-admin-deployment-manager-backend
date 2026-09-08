@@ -1,6 +1,7 @@
 package com.epam.aidial.deployment.manager.service.pipeline.specification;
 
 import com.epam.aidial.deployment.manager.configuration.GitProperties;
+import com.epam.aidial.deployment.manager.configuration.GitScopeUtils;
 import com.epam.aidial.deployment.manager.configuration.logging.LogExecution;
 import com.epam.aidial.deployment.manager.model.GitSecretConfig;
 import com.epam.aidial.deployment.manager.service.manifest.ManifestGenerator;
@@ -153,6 +154,14 @@ public class GitService {
                 .orElseThrow(() -> new IllegalArgumentException("GIT credentials are not configured for URL: " + gitUrl));
     }
 
+    /**
+     * Generates the .gitconfig content that points git at the mounted credentials store.
+     * Deliberately does not set {@code credential.useHttpPath}: a resolved entry's {@code path} scope
+     * selects <em>which</em> credential is mounted for the build, it does not confine that credential
+     * to the path inside the build container — see the {@code git-credentials} spec.
+     *
+     * @return The .gitconfig file content
+     */
     private String generateGitConfig() {
         return """
                 [credential]
@@ -228,10 +237,62 @@ public class GitService {
     }
 
     /**
-     * Finds a matching trusted private repo configuration for the given git URL.
+     * Extracts the repository path from a git URL (HTTPS or SSH form), normalized for scope matching.
      *
      * @param gitUrl The git repository URL
-     * @return Optional containing the matching TrustedPrivateGitRepo, or empty if no match found
+     * @return The normalized repository path, or null if the URL carries no path
+     */
+    private String extractPathFromUrl(String gitUrl) {
+        String path = isSshUrl(gitUrl) ? extractPathFromSshUrl(gitUrl) : extractPathFromHttpUrl(gitUrl);
+        return GitScopeUtils.normalizePath(path);
+    }
+
+    /**
+     * Extracts the path portion from an SSH-formatted git URL (git@host:path or ssh://host/path).
+     *
+     * @param gitUrl The SSH-formatted git repository URL
+     * @return The path extracted from the URL
+     */
+    private String extractPathFromSshUrl(String gitUrl) {
+        if (gitUrl.startsWith("git@")) {
+            var colonIndex = gitUrl.indexOf(':');
+            if (colonIndex > 0) {
+                return gitUrl.substring(colonIndex + 1);
+            }
+        } else if (gitUrl.startsWith("ssh://")) {
+            var withoutProtocol = gitUrl.substring(6);
+            int slashIndex = withoutProtocol.indexOf('/');
+            if (slashIndex > 0) {
+                return withoutProtocol.substring(slashIndex + 1);
+            }
+        }
+        throw new IllegalArgumentException("Failed to parse SSH URL: " + gitUrl);
+    }
+
+    private String extractPathFromHttpUrl(String gitUrl) {
+        try {
+            var uri = URI.create(gitUrl);
+            return uri.getPath();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to parse HTTP URL: " + gitUrl, e);
+        }
+    }
+
+    /**
+     * Finds the most specific matching trusted private repo configuration for the given git URL.
+     * When several configured entries match (e.g. a domain-wide entry and a project- or
+     * repository-scoped entry on the same host), the most specific one wins:
+     * <ol>
+     *   <li>any exact-host match beats any subdomain-inherited (parent-domain) match;</li>
+     *   <li>among parent-domain matches, the closest — i.e. longest configured — parent domain wins,
+     *       before path specificity is considered at all;</li>
+     *   <li>within the same configured host, a repository-exact path beats a project/group path,
+     *       which beats a domain-wide entry (no path); among nested project paths the longest wins.</li>
+     * </ol>
+     * Host comparison is case-insensitive; path comparison is case-sensitive.
+     *
+     * @param gitUrl The git repository URL
+     * @return Optional containing the best-matching TrustedPrivateGitRepo, or empty if none match
      */
     private Optional<GitProperties.TrustedPrivateGitRepo> findMatchingTrustedRepo(String gitUrl) {
         if (gitProperties.getTrustedPrivateRepos().isEmpty()) {
@@ -239,12 +300,29 @@ public class GitService {
         }
 
         try {
-            var host = extractHostFromUrl(gitUrl);
+            var host = GitScopeUtils.normalizeHost(extractHostFromUrl(gitUrl));
+            var path = extractPathFromUrl(gitUrl);
+
+            GitProperties.TrustedPrivateGitRepo bestMatch = null;
+            int[] bestRank = null;
+            boolean hostMatchedAnyEntry = false;
             for (var trustedRepo : gitProperties.getTrustedPrivateRepos()) {
-                if (matchesTrustedRepo(host, gitUrl, trustedRepo)) {
-                    return Optional.of(trustedRepo);
+                if (hostMatches(host, trustedRepo.getHost())) {
+                    hostMatchedAnyEntry = true;
+                }
+                int[] rank = matchRank(host, path, gitUrl, trustedRepo);
+                if (rank != null && (bestRank == null || isMoreSpecific(rank, bestRank))) {
+                    bestRank = rank;
+                    bestMatch = trustedRepo;
                 }
             }
+
+            if (bestMatch == null && hostMatchedAnyEntry) {
+                log.warn("Host '{}' matches configured trusted-private-repos entries, but none cover path '{}' "
+                        + "or the required authentication type for URL: {}", host, path, gitUrl);
+            }
+
+            return Optional.ofNullable(bestMatch);
         } catch (Exception e) {
             log.warn("Failed to parse git URL for trusted repo lookup: {}", gitUrl, e);
         }
@@ -252,20 +330,75 @@ public class GitService {
         return Optional.empty();
     }
 
-    private boolean matchesTrustedRepo(String host, String gitUrl, GitProperties.TrustedPrivateGitRepo trustedRepo) {
-        // Match exact host or subdomain
-        boolean hostMatches = host.equals(trustedRepo.getHost()) || host.endsWith("." + trustedRepo.getHost());
-        if (!hostMatches) {
-            return false;
+    private boolean hostMatches(String urlHost, String entryHost) {
+        return urlHost.equals(entryHost) || urlHost.endsWith("." + entryHost);
+    }
+
+    /**
+     * Computes a specificity rank for a candidate entry against the URL's (host, path), or returns
+     * null if the entry does not match at all (wrong host, wrong path scope, or wrong auth type for
+     * the URL's protocol). Rank components, most significant first: host-match level (0 = exact host,
+     * 1 = subdomain-inherited), configured host length (longer = closer parent domain; a no-op for
+     * exact-host matches, where it always equals the URL host's length, and therefore only relevant
+     * when comparing two subdomain-inherited matches — where it outranks path specificity),
+     * path-match level (2 = repository-exact, 1 = project/group prefix, 0 = domain-wide), and
+     * configured path length (longer prefix wins among nested project scopes). Paths are compared
+     * case-sensitively, as git repository paths are.
+     *
+     * @param urlHost    The normalized host extracted from the git URL
+     * @param urlPath    The normalized path extracted from the git URL, or null if the URL has no path
+     * @param gitUrl     The original git URL, used only to decide SSH vs. HTTPS auth-type matching
+     * @param trustedRepo The candidate trusted repo configuration
+     * @return a 4-element specificity rank, or null if the entry does not match
+     */
+    private int[] matchRank(String urlHost, String urlPath, String gitUrl, GitProperties.TrustedPrivateGitRepo trustedRepo) {
+        var entryHost = trustedRepo.getHost();
+        int hostRank;
+        if (urlHost.equals(entryHost)) {
+            hostRank = 0;
+        } else if (urlHost.endsWith("." + entryHost)) {
+            hostRank = 1;
+        } else {
+            return null;
         }
 
-        // For SSH URLs, only match repos with SSH key authentication
-        if (isSshUrl(gitUrl)) {
-            return trustedRepo.getSshKey() != null;
+        var entryPath = trustedRepo.getPath();
+        int pathRank;
+        int pathLength;
+        if (entryPath == null) {
+            pathRank = 0;
+            pathLength = 0;
+        } else if (entryPath.equals(urlPath)) {
+            pathRank = 2;
+            pathLength = entryPath.length();
+        } else if (urlPath != null && urlPath.startsWith(entryPath + "/")) {
+            pathRank = 1;
+            pathLength = entryPath.length();
+        } else {
+            return null;
         }
 
-        // For HTTPS/HTTP URLs, only match repos with password or token authentication
-        return trustedRepo.getUser() != null || trustedRepo.getToken() != null;
+        // For SSH URLs, only match repos with SSH key authentication; for HTTPS/HTTP, only user or token
+        if (isSshUrl(gitUrl)
+                ? StringUtils.isBlank(trustedRepo.getSshKey())
+                : (StringUtils.isBlank(trustedRepo.getUser()) && StringUtils.isBlank(trustedRepo.getToken()))) {
+            return null;
+        }
+
+        return new int[] {hostRank, entryHost.length(), pathRank, pathLength};
+    }
+
+    private boolean isMoreSpecific(int[] candidate, int[] currentBest) {
+        if (candidate[0] != currentBest[0]) {
+            return candidate[0] < currentBest[0];
+        }
+        if (candidate[1] != currentBest[1]) {
+            return candidate[1] > currentBest[1];
+        }
+        if (candidate[2] != currentBest[2]) {
+            return candidate[2] > currentBest[2];
+        }
+        return candidate[3] > currentBest[3];
     }
 
 }

@@ -10,12 +10,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -365,8 +367,15 @@ class GitServiceTest {
     private GitProperties.TrustedPrivateGitRepo createTrustedRepo(
             String host, String protocol, String user, String password,
             String token, String sshKey, String sshKnownHosts) {
+        return createTrustedRepo(host, null, protocol, user, password, token, sshKey, sshKnownHosts);
+    }
+
+    private GitProperties.TrustedPrivateGitRepo createTrustedRepo(
+            String host, String path, String protocol, String user, String password,
+            String token, String sshKey, String sshKnownHosts) {
         var repo = new GitProperties.TrustedPrivateGitRepo();
         repo.setHost(host);
+        repo.setPath(path);
         repo.setProtocol(protocol);
         repo.setUser(user);
         repo.setPassword(password);
@@ -374,6 +383,156 @@ class GitServiceTest {
         repo.setSshKey(sshKey);
         repo.setSshKnownHosts(sshKnownHosts);
         return repo;
+    }
+
+    /**
+     * Resolves credentials for the given URL and returns the generated .git-credentials file content,
+     * so tests can assert WHICH configured entry (by its distinguishing token) was selected.
+     */
+    private String resolveGitCredentialsContent(String gitUrl) {
+        return resolveGitSecretData(gitUrl).get(".git-credentials");
+    }
+
+    /**
+     * Resolves credentials for the given URL and returns the whole generated secret payload, so tests
+     * can assert both which entry was selected and which authentication material it contributed.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, String> resolveGitSecretData(String gitUrl) {
+        var mockSecret = new Secret();
+        ArgumentCaptor<Map<String, String>> secretDataCaptor = ArgumentCaptor.forClass(Map.class);
+        when(manifestGenerator.secretConfig(anyString(), secretDataCaptor.capture(), isNull())).thenReturn(mockSecret);
+
+        Optional<GitSecretConfig> result = gitService.prepareGitSecret(gitUrl, "git-secret", manifestGenerator);
+
+        assertThat(result).isPresent();
+        return secretDataCaptor.getValue();
+    }
+
+    // ---- User Story 1: repository-specific credentials on a shared domain ----
+
+    @Test
+    void findMatchingTrustedRepo_shouldSelectRepositorySpecificEntry_overDomainWideEntry() {
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(domainWide, repoSpecific));
+
+        var credentials = resolveGitCredentialsContent("https://git.example.com/team/service-a.git");
+
+        assertThat(credentials).contains("repo-token").doesNotContain("domain-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldNotApplyRepositorySpecificEntry_toSiblingRepository() {
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(domainWide, repoSpecific));
+
+        var credentials = resolveGitCredentialsContent("https://git.example.com/team/service-b.git");
+
+        assertThat(credentials).contains("domain-token").doesNotContain("repo-token");
+    }
+
+    // ---- User Story 2: one token covering every repository in a project ----
+
+    @Test
+    void findMatchingTrustedRepo_shouldSelectProjectScopedEntry_forRepositoryUnderItsPath() {
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(projectScoped));
+
+        assertThat(resolveGitCredentialsContent("https://git.example.com/team/service-a.git")).contains("project-token");
+        assertThat(resolveGitCredentialsContent("https://git.example.com/team/service-c.git")).contains("project-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldPreferRepositorySpecificEntry_overProjectScopedEntry() {
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(projectScoped, repoSpecific));
+
+        var credentials = resolveGitCredentialsContent("https://git.example.com/team/service-a.git");
+
+        assertThat(credentials).contains("repo-token").doesNotContain("project-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldMatchProjectScopeOnlyAtSegmentBoundary() {
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(projectScoped, domainWide));
+
+        var credentials = resolveGitCredentialsContent("https://git.example.com/team2/service-a.git");
+
+        assertThat(credentials).contains("domain-token").doesNotContain("project-token");
+    }
+
+    // ---- User Story 3: automatic selection of the most specific credential ----
+
+    @Test
+    void findMatchingTrustedRepo_shouldResolveAllThreeScopeLevels_regardlessOfConfigurationOrder() {
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
+        // Deliberately not in specificity order, to prove resolution doesn't depend on list order.
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(repoSpecific, domainWide, projectScoped));
+
+        assertThat(resolveGitCredentialsContent("https://git.example.com/other-team/x.git")).contains("domain-token");
+        assertThat(resolveGitCredentialsContent("https://git.example.com/team/service-b.git")).contains("project-token");
+        assertThat(resolveGitCredentialsContent("https://git.example.com/team/service-a.git")).contains("repo-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldPreferExactHostMatch_overSubdomainInheritedMatchWithMoreSpecificPath() {
+        var subdomainInheritedRepoSpecific =
+                createTrustedRepo("example.com", "team/service-a", "https", "svc", null, "parent-repo-token", null, null);
+        var exactHostProjectScoped =
+                createTrustedRepo("sub.example.com", "team", "https", "svc", null, "exact-project-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(subdomainInheritedRepoSpecific, exactHostProjectScoped));
+
+        var credentials = resolveGitCredentialsContent("https://sub.example.com/team/service-a.git");
+
+        assertThat(credentials).contains("exact-project-token").doesNotContain("parent-repo-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldPreferLongerNestedProjectScope() {
+        var groupScoped = createTrustedRepo("gitlab.com", "group", "https", "svc", null, "outer-scope-token", null, null);
+        var subgroupScoped = createTrustedRepo("gitlab.com", "group/subgroup", "https", "svc", null, "inner-scope-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(groupScoped, subgroupScoped));
+
+        var credentials = resolveGitCredentialsContent("https://gitlab.com/group/subgroup/service.git");
+
+        assertThat(credentials).contains("inner-scope-token").doesNotContain("outer-scope-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldPreferCloserParentDomain_overMorePathSpecificFartherParentDomain() {
+        var fartherParentRepoSpecific =
+                createTrustedRepo("example.com", "team/service-a", "https", "svc", null, "farther-parent-token", null, null);
+        var closerParentProjectScoped =
+                createTrustedRepo("b.example.com", "team", "https", "svc", null, "closer-parent-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(fartherParentRepoSpecific, closerParentProjectScoped));
+
+        var credentials = resolveGitCredentialsContent("https://a.b.example.com/team/service-a.git");
+
+        assertThat(credentials).contains("closer-parent-token").doesNotContain("farther-parent-token");
+    }
+
+    @Test
+    void findMatchingTrustedRepo_shouldSelectByAuthType_whenSshAndHttpsEntriesShareTheSameScope() {
+        var sshKey = "-----BEGIN RSA PRIVATE KEY-----\nkey content\n-----END RSA PRIVATE KEY-----";
+        var sshKnownHosts = "git.example.com ssh-rsa AAABBBCCC\n";
+        var sshEntry = createTrustedRepo("git.example.com", "team/service-a", null, null, null, null, sshKey, sshKnownHosts);
+        var httpsEntry = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "https-token", null, null);
+        when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(sshEntry, httpsEntry));
+
+        var httpsSecretData = resolveGitSecretData("https://git.example.com/team/service-a.git");
+        var sshSecretData = resolveGitSecretData("git@git.example.com:team/service-a.git");
+
+        assertThat(httpsSecretData).containsKey(".git-credentials").doesNotContainKey("id_rsa");
+        assertThat(httpsSecretData.get(".git-credentials")).contains("https-token");
+        assertThat(sshSecretData).containsKey("id_rsa").doesNotContainKey(".git-credentials");
+        assertThat(sshSecretData.get("id_rsa")).isEqualTo(sshKey);
     }
 }
 

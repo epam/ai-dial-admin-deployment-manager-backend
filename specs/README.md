@@ -40,6 +40,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [024-model-serving-capability](024-model-serving-capability/spec.md) | Implemented | inference-deployments | Detect text-generation in addition to text-classification; persist the inference task on the inference deployment (create/source-change) and expose it read-only as `inferenceTask` so the frontend can map it to a consumption surface (text-generation → chat completion, text-classification → MCP toolset) |
 | [025-auto-pull-secrets](025-auto-pull-secrets/spec.md) | Implemented | kubernetes-manifests, deployments, inference-deployments | Auto-provision a docker pull secret and wire it into the generated CRD when a deployment's image (image-based) or chained transformer image comes from a configured trusted/primary credentialed registry; admins configure trusted registries once instead of hand-creating pull secrets + patching service accounts. Includes deterministic naming + idempotent create-or-replace so scale-to-zero deployments auto-resume (#387) |
 | [026-gpu-metrics](026-gpu-metrics/spec.md) | Implemented | deployment-metrics | Wire real GPU telemetry (NVIDIA DCGM exporter) into the metrics snapshot: populate per-pod gpuUtilization/gpuMemoryBytes, add gpuMemoryTotalBytes for the gauge, flip resources.gpu to available; co-located pod-proxy scrape gated on nvidia.com/gpu>0, graceful degrade when the exporter is absent |
+| [027-multi-git-credentials](027-multi-git-credentials/spec.md) | Implemented | N/A — creates new capability git-credentials | Allow multiple trusted-private-repo git credentials per host, scoped to a repository, project/group, or the whole domain, with automatic most-specific-match resolution |
 
 ---
 
@@ -103,3 +104,4 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [huggingface](huggingface/spec.md) | Implemented | HuggingFace model hub integration — model search and metadata retrieval with cursor-based pagination |
 | [buildkit](buildkit/spec.md) | Implemented | Container image building via BuildKit — rootful and rootless modes |
 | [mcp-registry](mcp-registry/spec.md) | Implemented | MCP registry browser — list available MCP server packages and versions from an external registry |
+| [git-credentials](git-credentials/spec.md) | Implemented | Trusted private Git repository credentials for image builds — multiple scoped entries per host (repository, project/group, or domain-wide) with automatic most-specific-match resolution |
