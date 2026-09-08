@@ -413,8 +413,8 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldSelectRepositorySpecificEntry_overDomainWideEntry() {
-        var domainWide = createTrustedRepo("git.example.com", null, "https", null, null, "domain-token", null, null);
-        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", null, null, "repo-token", null, null);
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(domainWide, repoSpecific));
 
         var credentials = resolveGitCredentialsContent("https://git.example.com/team/service-a.git");
@@ -424,8 +424,8 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldNotApplyRepositorySpecificEntry_toSiblingRepository() {
-        var domainWide = createTrustedRepo("git.example.com", null, "https", null, null, "domain-token", null, null);
-        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", null, null, "repo-token", null, null);
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(domainWide, repoSpecific));
 
         var credentials = resolveGitCredentialsContent("https://git.example.com/team/service-b.git");
@@ -437,7 +437,7 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldSelectProjectScopedEntry_forRepositoryUnderItsPath() {
-        var projectScoped = createTrustedRepo("git.example.com", "team", "https", null, null, "project-token", null, null);
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(projectScoped));
 
         assertThat(resolveGitCredentialsContent("https://git.example.com/team/service-a.git")).contains("project-token");
@@ -446,8 +446,8 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldPreferRepositorySpecificEntry_overProjectScopedEntry() {
-        var projectScoped = createTrustedRepo("git.example.com", "team", "https", null, null, "project-token", null, null);
-        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", null, null, "repo-token", null, null);
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(projectScoped, repoSpecific));
 
         var credentials = resolveGitCredentialsContent("https://git.example.com/team/service-a.git");
@@ -457,8 +457,8 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldMatchProjectScopeOnlyAtSegmentBoundary() {
-        var projectScoped = createTrustedRepo("git.example.com", "team", "https", null, null, "project-token", null, null);
-        var domainWide = createTrustedRepo("git.example.com", null, "https", null, null, "domain-token", null, null);
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(projectScoped, domainWide));
 
         var credentials = resolveGitCredentialsContent("https://git.example.com/team2/service-a.git");
@@ -470,9 +470,9 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldResolveAllThreeScopeLevels_regardlessOfConfigurationOrder() {
-        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", null, null, "repo-token", null, null);
-        var domainWide = createTrustedRepo("git.example.com", null, "https", null, null, "domain-token", null, null);
-        var projectScoped = createTrustedRepo("git.example.com", "team", "https", null, null, "project-token", null, null);
+        var repoSpecific = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "repo-token", null, null);
+        var domainWide = createTrustedRepo("git.example.com", null, "https", "svc", null, "domain-token", null, null);
+        var projectScoped = createTrustedRepo("git.example.com", "team", "https", "svc", null, "project-token", null, null);
         // Deliberately not in specificity order, to prove resolution doesn't depend on list order.
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(repoSpecific, domainWide, projectScoped));
 
@@ -484,9 +484,9 @@ class GitServiceTest {
     @Test
     void findMatchingTrustedRepo_shouldPreferExactHostMatch_overSubdomainInheritedMatchWithMoreSpecificPath() {
         var subdomainInheritedRepoSpecific =
-                createTrustedRepo("example.com", "team/service-a", "https", null, null, "parent-repo-token", null, null);
+                createTrustedRepo("example.com", "team/service-a", "https", "svc", null, "parent-repo-token", null, null);
         var exactHostProjectScoped =
-                createTrustedRepo("sub.example.com", "team", "https", null, null, "exact-project-token", null, null);
+                createTrustedRepo("sub.example.com", "team", "https", "svc", null, "exact-project-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(subdomainInheritedRepoSpecific, exactHostProjectScoped));
 
         var credentials = resolveGitCredentialsContent("https://sub.example.com/team/service-a.git");
@@ -496,8 +496,8 @@ class GitServiceTest {
 
     @Test
     void findMatchingTrustedRepo_shouldPreferLongerNestedProjectScope() {
-        var groupScoped = createTrustedRepo("gitlab.com", "group", "https", null, null, "outer-scope-token", null, null);
-        var subgroupScoped = createTrustedRepo("gitlab.com", "group/subgroup", "https", null, null, "inner-scope-token", null, null);
+        var groupScoped = createTrustedRepo("gitlab.com", "group", "https", "svc", null, "outer-scope-token", null, null);
+        var subgroupScoped = createTrustedRepo("gitlab.com", "group/subgroup", "https", "svc", null, "inner-scope-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(groupScoped, subgroupScoped));
 
         var credentials = resolveGitCredentialsContent("https://gitlab.com/group/subgroup/service.git");
@@ -508,9 +508,9 @@ class GitServiceTest {
     @Test
     void findMatchingTrustedRepo_shouldPreferCloserParentDomain_overMorePathSpecificFartherParentDomain() {
         var fartherParentRepoSpecific =
-                createTrustedRepo("example.com", "team/service-a", "https", null, null, "farther-parent-token", null, null);
+                createTrustedRepo("example.com", "team/service-a", "https", "svc", null, "farther-parent-token", null, null);
         var closerParentProjectScoped =
-                createTrustedRepo("b.example.com", "team", "https", null, null, "closer-parent-token", null, null);
+                createTrustedRepo("b.example.com", "team", "https", "svc", null, "closer-parent-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(fartherParentRepoSpecific, closerParentProjectScoped));
 
         var credentials = resolveGitCredentialsContent("https://a.b.example.com/team/service-a.git");
@@ -523,7 +523,7 @@ class GitServiceTest {
         var sshKey = "-----BEGIN RSA PRIVATE KEY-----\nkey content\n-----END RSA PRIVATE KEY-----";
         var sshKnownHosts = "git.example.com ssh-rsa AAABBBCCC\n";
         var sshEntry = createTrustedRepo("git.example.com", "team/service-a", null, null, null, null, sshKey, sshKnownHosts);
-        var httpsEntry = createTrustedRepo("git.example.com", "team/service-a", "https", null, null, "https-token", null, null);
+        var httpsEntry = createTrustedRepo("git.example.com", "team/service-a", "https", "svc", null, "https-token", null, null);
         when(gitProperties.getTrustedPrivateRepos()).thenReturn(List.of(sshEntry, httpsEntry));
 
         var httpsSecretData = resolveGitSecretData("https://git.example.com/team/service-a.git");

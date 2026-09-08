@@ -69,8 +69,8 @@ Violating any of these fails application startup with `IllegalArgumentException`
 
 ```json
 [
-  { "host": "git.example.com", "path": "team/service-a", "token": "repo-specific-token" },
-  { "host": "git.example.com", "path": "team", "token": "project-wide-token" },
+  { "host": "git.example.com", "path": "team/service-a", "user": "svc", "token": "repo-specific-token" },
+  { "host": "git.example.com", "path": "team", "user": "svc", "token": "project-wide-token" },
   { "host": "git.example.com", "user": "svc", "password": "fallback-password" }
 ]
 ```

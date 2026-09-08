@@ -174,10 +174,10 @@ public class GitConfiguration {
      */
     private List<String> authTypes(GitProperties.TrustedPrivateGitRepo repo) {
         List<String> authTypes = new ArrayList<>();
-        if (repo.getSshKey() != null) {
+        if (StringUtils.isNotBlank(repo.getSshKey())) {
             authTypes.add(AUTH_TYPE_SSH);
         }
-        if (repo.getUser() != null || repo.getToken() != null) {
+        if (StringUtils.isNotBlank(repo.getUser()) || StringUtils.isNotBlank(repo.getToken())) {
             authTypes.add(AUTH_TYPE_HTTP);
         }
         return authTypes;

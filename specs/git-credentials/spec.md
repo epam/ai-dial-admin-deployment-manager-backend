@@ -113,6 +113,8 @@ Status: **Implemented**
 - **WHEN** a configuration has at most one entry per host and none of them set `path`
 - **THEN** credential resolution behaves identically to the original single-credential-per-host implementation
 
+> **Upgrade note (breaking):** this backward-compatibility claim covers configurations with *at most one* entry per host. The original implementation never enforced that — a config with two or more entries for the same host (no `path`, same authentication type) previously booted and silently used the first matching entry. This capability's duplicate-scope validation (see "Reject ambiguous credential scopes at startup" above) now fails startup for such a config. Operators upgrading with a redundant duplicate-host entry in `TRUSTED_PRIVATE_GIT_REPOS` must remove the redundant entry before upgrading.
+
 ## Implementation Notes
 - Configuration: `com.epam.aidial.deployment.manager.configuration.GitProperties` (processed model) / `GitPropertiesDto` (wire format), populated from the `TRUSTED_PRIVATE_GIT_REPOS` env var by `GitConfiguration.gitProperties()`
 - Scope normalization (host lowercased with `Locale.ROOT`, so it never depends on the JVM default locale; path trimmed of leading/trailing `/` and a trailing `.git` suffix, casing preserved): `com.epam.aidial.deployment.manager.configuration.GitScopeUtils`

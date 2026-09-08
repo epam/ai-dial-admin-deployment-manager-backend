@@ -305,19 +305,33 @@ public class GitService {
 
             GitProperties.TrustedPrivateGitRepo bestMatch = null;
             int[] bestRank = null;
+            boolean hostMatchedAnyEntry = false;
             for (var trustedRepo : gitProperties.getTrustedPrivateRepos()) {
+                if (hostMatches(host, trustedRepo.getHost())) {
+                    hostMatchedAnyEntry = true;
+                }
                 int[] rank = matchRank(host, path, gitUrl, trustedRepo);
                 if (rank != null && (bestRank == null || isMoreSpecific(rank, bestRank))) {
                     bestRank = rank;
                     bestMatch = trustedRepo;
                 }
             }
+
+            if (bestMatch == null && hostMatchedAnyEntry) {
+                log.warn("Host '{}' matches configured trusted-private-repos entries, but none cover path '{}' "
+                        + "or the required authentication type for URL: {}", host, path, gitUrl);
+            }
+
             return Optional.ofNullable(bestMatch);
         } catch (Exception e) {
             log.warn("Failed to parse git URL for trusted repo lookup: {}", gitUrl, e);
         }
 
         return Optional.empty();
+    }
+
+    private boolean hostMatches(String urlHost, String entryHost) {
+        return urlHost.equals(entryHost) || urlHost.endsWith("." + entryHost);
     }
 
     /**
@@ -365,7 +379,9 @@ public class GitService {
         }
 
         // For SSH URLs, only match repos with SSH key authentication; for HTTPS/HTTP, only user or token
-        if (isSshUrl(gitUrl) ? trustedRepo.getSshKey() == null : (trustedRepo.getUser() == null && trustedRepo.getToken() == null)) {
+        if (isSshUrl(gitUrl)
+                ? StringUtils.isBlank(trustedRepo.getSshKey())
+                : (StringUtils.isBlank(trustedRepo.getUser()) && StringUtils.isBlank(trustedRepo.getToken()))) {
             return null;
         }
 
