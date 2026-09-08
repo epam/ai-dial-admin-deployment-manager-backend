@@ -225,6 +225,124 @@ class GitConfigurationTest {
         );
     }
 
+    @Test
+    void gitProperties_shouldAcceptMultipleDistinctScopes_onSameHost() throws Exception {
+        var repoSpecific = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repoSpecific.setHost("git.example.com");
+        repoSpecific.setPath("team/service-a");
+        repoSpecific.setUser("svc");
+        repoSpecific.setToken("repo-token");
+
+        var projectScoped = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        projectScoped.setHost("git.example.com");
+        projectScoped.setPath("team");
+        projectScoped.setUser("svc");
+        projectScoped.setToken("project-token");
+
+        var domainWide = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        domainWide.setHost("git.example.com");
+        domainWide.setUser("svc");
+        domainWide.setToken("domain-token");
+
+        var json = toJson(List.of(repoSpecific, projectScoped, domainWide));
+
+        var properties = new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root");
+
+        assertThat(properties.getTrustedPrivateRepos()).hasSize(3);
+        assertThat(properties.getTrustedPrivateRepos().get(0).getPath()).isEqualTo("team/service-a");
+        assertThat(properties.getTrustedPrivateRepos().get(1).getPath()).isEqualTo("team");
+        assertThat(properties.getTrustedPrivateRepos().get(2).getPath()).isNull();
+    }
+
+    @Test
+    void gitProperties_shouldThrow_whenTwoEntriesShareIdenticalDomainWideScope() throws Exception {
+        var repo1 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo1.setHost("github.com");
+        repo1.setUser("user1");
+        repo1.setToken("token1");
+
+        var repo2 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo2.setHost("github.com");
+        repo2.setUser("user2");
+        repo2.setToken("token2");
+
+        var json = toJson(List.of(repo1, repo2));
+
+        assertThatThrownBy(() -> new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate trusted-private-repos scope")
+                .hasMessageContaining("github.com");
+    }
+
+    @Test
+    void gitProperties_shouldThrow_whenTwoEntriesShareIdenticalPathScope() throws Exception {
+        var repo1 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo1.setHost("git.example.com");
+        repo1.setPath("team");
+        repo1.setUser("user1");
+        repo1.setToken("token1");
+
+        var repo2 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo2.setHost("git.example.com");
+        repo2.setPath("team");
+        repo2.setUser("user2");
+        repo2.setToken("token2");
+
+        var json = toJson(List.of(repo1, repo2));
+
+        assertThatThrownBy(() -> new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate trusted-private-repos scope")
+                .hasMessageContaining("team");
+    }
+
+    @Test
+    void gitProperties_shouldThrow_whenDuplicatePathScopeDiffersOnlyByFormatting() throws Exception {
+        var repo1 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo1.setHost("git.example.com");
+        repo1.setPath("team/service-a");
+        repo1.setUser("user1");
+        repo1.setToken("token1");
+
+        var repo2 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo2.setHost("git.example.com");
+        repo2.setPath("/team/service-a.git/");
+        repo2.setUser("user2");
+        repo2.setToken("token2");
+
+        var json = toJson(List.of(repo1, repo2));
+
+        assertThatThrownBy(() -> new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate trusted-private-repos scope");
+    }
+
+    @Test
+    void gitProperties_shouldNotFlagOverlappingButDistinctScopes_asDuplicates() throws Exception {
+        var projectScoped = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        projectScoped.setHost("git.example.com");
+        projectScoped.setPath("team");
+        projectScoped.setUser("svc");
+        projectScoped.setToken("project-token");
+
+        var repoSpecific = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repoSpecific.setHost("git.example.com");
+        repoSpecific.setPath("team/service-a");
+        repoSpecific.setUser("svc");
+        repoSpecific.setToken("repo-token");
+
+        var json = toJson(List.of(projectScoped, repoSpecific));
+
+        var properties = new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root");
+
+        assertThat(properties.getTrustedPrivateRepos()).hasSize(2);
+    }
+
     private static String toJson(List<GitPropertiesDto.TrustedPrivateGitRepoDto> repos) throws Exception {
         return MAPPER.writeValueAsString(repos);
     }

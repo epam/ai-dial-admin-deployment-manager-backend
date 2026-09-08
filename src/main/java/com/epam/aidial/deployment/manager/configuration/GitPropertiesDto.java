@@ -13,6 +13,7 @@ public class GitPropertiesDto {
     @Data
     public static class TrustedPrivateGitRepoDto {
         private String host;
+        private String path;
         private String protocol = "https";
         private String user;
         private String password;

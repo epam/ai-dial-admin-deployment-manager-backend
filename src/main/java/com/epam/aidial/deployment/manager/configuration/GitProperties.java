@@ -26,6 +26,7 @@ public class GitProperties {
     @Data
     public static class TrustedPrivateGitRepo {
         private String host;
+        private String path;
         private String protocol = "https";
         private String user;
         private String password;

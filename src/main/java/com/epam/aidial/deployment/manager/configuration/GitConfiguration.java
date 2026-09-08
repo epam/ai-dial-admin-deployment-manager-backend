@@ -13,7 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Configuration
@@ -59,6 +61,8 @@ public class GitConfiguration {
                     GitProperties.TrustedPrivateGitRepo processedRepo = convertToProcessedModel(repoDto, sshKeyContent, sshKnownHostsContent);
                     processedRepos.add(processedRepo);
                 }
+
+                validateNoDuplicateScopes(processedRepos);
 
                 properties.setTrustedPrivateRepos(processedRepos);
                 log.debug("Successfully deserialized and processed {} trusted private git repo configurations", processedRepos.size());
@@ -118,6 +122,34 @@ public class GitConfiguration {
             String errorMsg = "If password is set, then user must be set for host: %s".formatted(host);
             log.error(errorMsg);
             throw new IllegalArgumentException(errorMsg);
+        }
+    }
+
+    /**
+     * Rejects configurations where two or more entries define the identical normalized (host, path) scope,
+     * since credential resolution could not otherwise pick between them unambiguously.
+     *
+     * @param repos The processed repository configurations to check for duplicate scopes
+     * @throws IllegalArgumentException if two or more entries share the same scope
+     */
+    private void validateNoDuplicateScopes(List<GitProperties.TrustedPrivateGitRepo> repos) {
+        Map<String, List<Integer>> scopeToEntryIndices = new HashMap<>();
+        for (int i = 0; i < repos.size(); i++) {
+            GitProperties.TrustedPrivateGitRepo repo = repos.get(i);
+            String scopeKey = repo.getHost() + "|" + StringUtils.defaultString(repo.getPath());
+            scopeToEntryIndices.computeIfAbsent(scopeKey, key -> new ArrayList<>()).add(i);
+        }
+
+        for (Map.Entry<String, List<Integer>> scopeEntry : scopeToEntryIndices.entrySet()) {
+            List<Integer> entryIndices = scopeEntry.getValue();
+            if (entryIndices.size() > 1) {
+                String[] hostAndPath = scopeEntry.getKey().split("\\|", 2);
+                String path = StringUtils.isBlank(hostAndPath[1]) ? "(domain-wide)" : hostAndPath[1];
+                String errorMsg = "Duplicate trusted-private-repos scope for host '%s' and path '%s' at entries %s"
+                        .formatted(hostAndPath[0], path, entryIndices);
+                log.error(errorMsg);
+                throw new IllegalArgumentException(errorMsg);
+            }
         }
     }
 
@@ -194,7 +226,8 @@ public class GitConfiguration {
             String sshKeyContent,
             String sshKnownHostsContent) {
         GitProperties.TrustedPrivateGitRepo processedRepo = new GitProperties.TrustedPrivateGitRepo();
-        processedRepo.setHost(repoDto.getHost());
+        processedRepo.setHost(GitScopeUtils.normalizeHost(repoDto.getHost()));
+        processedRepo.setPath(GitScopeUtils.normalizePath(repoDto.getPath()));
         processedRepo.setProtocol(repoDto.getProtocol());
         processedRepo.setUser(repoDto.getUser());
         processedRepo.setPassword(repoDto.getPassword());
