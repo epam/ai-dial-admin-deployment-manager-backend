@@ -154,6 +154,14 @@ public class GitService {
                 .orElseThrow(() -> new IllegalArgumentException("GIT credentials are not configured for URL: " + gitUrl));
     }
 
+    /**
+     * Generates the .gitconfig content that points git at the mounted credentials store.
+     * Deliberately does not set {@code credential.useHttpPath}: a resolved entry's {@code path} scope
+     * selects <em>which</em> credential is mounted for the build, it does not confine that credential
+     * to the path inside the build container — see the {@code git-credentials} spec.
+     *
+     * @return The .gitconfig file content
+     */
     private String generateGitConfig() {
         return """
                 [credential]
@@ -273,9 +281,15 @@ public class GitService {
     /**
      * Finds the most specific matching trusted private repo configuration for the given git URL.
      * When several configured entries match (e.g. a domain-wide entry and a project- or
-     * repository-scoped entry on the same host), the most specific one wins: an exact-host match
-     * beats a subdomain-inherited match, and — within the same host-match level — a repository-exact
-     * scope beats a project/group scope, which beats a domain-wide scope.
+     * repository-scoped entry on the same host), the most specific one wins:
+     * <ol>
+     *   <li>any exact-host match beats any subdomain-inherited (parent-domain) match;</li>
+     *   <li>among parent-domain matches, the closest — i.e. longest configured — parent domain wins,
+     *       before path specificity is considered at all;</li>
+     *   <li>within the same configured host, a repository-exact path beats a project/group path,
+     *       which beats a domain-wide entry (no path); among nested project paths the longest wins.</li>
+     * </ol>
+     * Host comparison is case-insensitive; path comparison is case-sensitive.
      *
      * @param gitUrl The git repository URL
      * @return Optional containing the best-matching TrustedPrivateGitRepo, or empty if none match
@@ -310,10 +324,12 @@ public class GitService {
      * Computes a specificity rank for a candidate entry against the URL's (host, path), or returns
      * null if the entry does not match at all (wrong host, wrong path scope, or wrong auth type for
      * the URL's protocol). Rank components, most significant first: host-match level (0 = exact host,
-     * 1 = subdomain-inherited), configured host length (longer = more specific parent domain, only
-     * relevant when comparing two subdomain-inherited matches), path-match level (2 = repository-exact,
-     * 1 = project/group prefix, 0 = domain-wide), and configured path length (longer prefix wins among
-     * nested project scopes).
+     * 1 = subdomain-inherited), configured host length (longer = closer parent domain; a no-op for
+     * exact-host matches, where it always equals the URL host's length, and therefore only relevant
+     * when comparing two subdomain-inherited matches — where it outranks path specificity),
+     * path-match level (2 = repository-exact, 1 = project/group prefix, 0 = domain-wide), and
+     * configured path length (longer prefix wins among nested project scopes). Paths are compared
+     * case-sensitively, as git repository paths are.
      *
      * @param urlHost    The normalized host extracted from the git URL
      * @param urlPath    The normalized path extracted from the git URL, or null if the URL has no path

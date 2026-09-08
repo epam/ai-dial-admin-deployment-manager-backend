@@ -33,7 +33,8 @@ Violating any of these fails application startup with `IllegalArgumentException`
 
 ## Cross-entry validation (new)
 
-- No two entries may resolve to the same normalized `(host, path)` pair (see `data-model.md` for normalization rules). Violating this fails application startup with `IllegalArgumentException` naming the conflicting entries.
+- No two entries may resolve to the same normalized `(host, path)` pair **for the same authentication type** — SSH (`sshKeyPath`) or HTTPS/HTTP (`user`/`token`); an entry carrying both occupies both (see `data-model.md` for normalization rules). Violating this fails application startup with `IllegalArgumentException` naming the conflicting entries, their shared host/path and the authentication type.
+- Two entries sharing a `(host, path)` scope with *different* authentication types are valid: an SSH clone URL resolves to the SSH entry and an HTTPS clone URL to the `user`/`token` entry.
 
 ## Examples
 
@@ -47,6 +48,15 @@ Violating any of these fails application startup with `IllegalArgumentException`
 
 ```json
 { "host": "git.example.com", "path": "team", "user": "svc", "token": "project-wide-token" }
+```
+
+**SSH and HTTPS credentials for the same scope** (valid — the clone URL's protocol selects between them):
+
+```json
+[
+  { "host": "git.example.com", "path": "team/service-a", "sshKeyPath": "/etc/git/id_rsa", "sshKnownHostsPath": "/etc/git/known_hosts" },
+  { "host": "git.example.com", "path": "team/service-a", "user": "svc", "token": "repo-a-token" }
+]
 ```
 
 **Domain-wide fallback** (today's existing shape, still valid — `path` simply omitted):

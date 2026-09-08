@@ -45,7 +45,18 @@ Change the config to include two entries with the identical scope, e.g.:
 ]
 ```
 
-**Expected**: the application fails to start with an `IllegalArgumentException` naming both conflicting entries (host `git.example.com`, path `team`).
+**Expected**: the application fails to start with an `IllegalArgumentException` naming both conflicting entries (host `git.example.com`, path `team`, `HTTPS/HTTP` authentication), reported as a configuration error rather than a JSON-format error.
+
+Now change the second entry to use SSH instead:
+
+```json
+[
+  { "host": "git.example.com", "path": "team", "user": "a", "token": "x" },
+  { "host": "git.example.com", "path": "team", "sshKeyPath": "/etc/git/id_rsa", "sshKnownHostsPath": "/etc/git/known_hosts" }
+]
+```
+
+**Expected**: startup succeeds — the two entries serve different authentication types, so an `https://` clone resolves to the first and a `git@`/`ssh://` clone to the second.
 
 ## 6. Verify existing single-entry-per-host configs are unaffected (SC-005)
 

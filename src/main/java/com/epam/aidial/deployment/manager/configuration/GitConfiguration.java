@@ -13,7 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +22,9 @@ import java.util.Map;
 public class GitConfiguration {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private static final String AUTH_TYPE_SSH = "SSH";
+    private static final String AUTH_TYPE_HTTP = "HTTPS/HTTP";
 
     @Bean
     public GitProperties gitProperties(
@@ -48,28 +51,30 @@ public class GitConfiguration {
         if (StringUtils.isBlank(trustedPrivateReposJson)) {
             properties.setTrustedPrivateRepos(new ArrayList<>());
         } else {
+            List<GitPropertiesDto.TrustedPrivateGitRepoDto> repoDtos;
             try {
-                List<GitPropertiesDto.TrustedPrivateGitRepoDto> repoDtos = MAPPER.readValue(trustedPrivateReposJson, new TypeReference<>() {
+                repoDtos = MAPPER.readValue(trustedPrivateReposJson, new TypeReference<>() {
                 });
-
-                // Validate configuration rules, read SSH key files, and convert to processed model
-                List<GitProperties.TrustedPrivateGitRepo> processedRepos = new ArrayList<>();
-                for (GitPropertiesDto.TrustedPrivateGitRepoDto repoDto : repoDtos) {
-                    validateRepoConfiguration(repoDto);
-                    String sshKeyContent = readSshKeyFile(repoDto);
-                    String sshKnownHostsContent = readSshKnownHostsFile(repoDto);
-                    GitProperties.TrustedPrivateGitRepo processedRepo = convertToProcessedModel(repoDto, sshKeyContent, sshKnownHostsContent);
-                    processedRepos.add(processedRepo);
-                }
-
-                validateNoDuplicateScopes(processedRepos);
-
-                properties.setTrustedPrivateRepos(processedRepos);
-                log.debug("Successfully deserialized and processed {} trusted private git repo configurations", processedRepos.size());
             } catch (Exception e) {
                 log.error("Failed to parse trusted-private-repos JSON: {}", e.getMessage(), e);
                 throw new IllegalArgumentException("Invalid JSON format for trusted-private-repos: " + e.getMessage(), e);
             }
+
+            // Validate configuration rules, read SSH key files, and convert to processed model.
+            // Validation failures propagate as-is: they are configuration errors, not JSON syntax errors.
+            List<GitProperties.TrustedPrivateGitRepo> processedRepos = new ArrayList<>();
+            for (GitPropertiesDto.TrustedPrivateGitRepoDto repoDto : repoDtos) {
+                validateRepoConfiguration(repoDto);
+                String sshKeyContent = readSshKeyFile(repoDto);
+                String sshKnownHostsContent = readSshKnownHostsFile(repoDto);
+                GitProperties.TrustedPrivateGitRepo processedRepo = convertToProcessedModel(repoDto, sshKeyContent, sshKnownHostsContent);
+                processedRepos.add(processedRepo);
+            }
+
+            validateNoDuplicateScopes(processedRepos);
+
+            properties.setTrustedPrivateRepos(processedRepos);
+            log.debug("Successfully deserialized and processed {} trusted private git repo configurations", processedRepos.size());
         }
 
         return properties;
@@ -126,31 +131,63 @@ public class GitConfiguration {
     }
 
     /**
-     * Rejects configurations where two or more entries define the identical normalized (host, path) scope,
-     * since credential resolution could not otherwise pick between them unambiguously.
+     * Rejects configurations where two or more entries define the identical normalized (host, path) scope
+     * <em>for the same authentication type</em>, since credential resolution could not otherwise pick
+     * between them unambiguously. Entries sharing a (host, path) scope are allowed when their
+     * authentication types differ: SSH URLs only ever resolve to SSH-key entries and HTTPS/HTTP URLs only
+     * ever resolve to user/token entries, so such a pair stays unambiguous (see
+     * {@code GitService.matchRank}). An entry carrying both an SSH key and user/token credentials occupies
+     * both authentication types at its scope.
      *
      * @param repos The processed repository configurations to check for duplicate scopes
-     * @throws IllegalArgumentException if two or more entries share the same scope
+     * @throws IllegalArgumentException if two or more entries share the same scope and authentication type
      */
     private void validateNoDuplicateScopes(List<GitProperties.TrustedPrivateGitRepo> repos) {
-        Map<String, List<Integer>> scopeToEntryIndices = new HashMap<>();
+        Map<CredentialScope, List<Integer>> scopeToEntryIndices = new LinkedHashMap<>();
         for (int i = 0; i < repos.size(); i++) {
             GitProperties.TrustedPrivateGitRepo repo = repos.get(i);
-            String scopeKey = repo.getHost() + "|" + StringUtils.defaultString(repo.getPath());
-            scopeToEntryIndices.computeIfAbsent(scopeKey, key -> new ArrayList<>()).add(i);
+            for (String authType : authTypes(repo)) {
+                CredentialScope scope = new CredentialScope(repo.getHost(), repo.getPath(), authType);
+                scopeToEntryIndices.computeIfAbsent(scope, key -> new ArrayList<>()).add(i);
+            }
         }
 
-        for (Map.Entry<String, List<Integer>> scopeEntry : scopeToEntryIndices.entrySet()) {
+        for (Map.Entry<CredentialScope, List<Integer>> scopeEntry : scopeToEntryIndices.entrySet()) {
             List<Integer> entryIndices = scopeEntry.getValue();
             if (entryIndices.size() > 1) {
-                String[] hostAndPath = scopeEntry.getKey().split("\\|", 2);
-                String path = StringUtils.isBlank(hostAndPath[1]) ? "(domain-wide)" : hostAndPath[1];
-                String errorMsg = "Duplicate trusted-private-repos scope for host '%s' and path '%s' at entries %s"
-                        .formatted(hostAndPath[0], path, entryIndices);
+                CredentialScope scope = scopeEntry.getKey();
+                String path = scope.path() == null ? "(domain-wide)" : scope.path();
+                String errorMsg = "Duplicate trusted-private-repos scope for host '%s', path '%s' and %s authentication at entries %s"
+                        .formatted(scope.host(), path, scope.authType(), entryIndices);
                 log.error(errorMsg);
                 throw new IllegalArgumentException(errorMsg);
             }
         }
+    }
+
+    /**
+     * Returns the authentication types an entry can serve, using exactly the same predicates as
+     * {@code GitService.matchRank} so validation and resolution agree on when two entries could collide.
+     *
+     * @param repo The processed repository configuration
+     * @return The authentication types the entry provides material for (never empty for a valid entry)
+     */
+    private List<String> authTypes(GitProperties.TrustedPrivateGitRepo repo) {
+        List<String> authTypes = new ArrayList<>();
+        if (repo.getSshKey() != null) {
+            authTypes.add(AUTH_TYPE_SSH);
+        }
+        if (repo.getUser() != null || repo.getToken() != null) {
+            authTypes.add(AUTH_TYPE_HTTP);
+        }
+        return authTypes;
+    }
+
+    /**
+     * The scope one configured entry occupies: a normalized host, an optional normalized path
+     * (null = domain-wide) and the authentication type the entry serves at that scope.
+     */
+    private record CredentialScope(String host, String path, String authType) {
     }
 
     /**

@@ -322,6 +322,109 @@ class GitConfigurationTest {
     }
 
     @Test
+    void gitProperties_shouldReportDuplicateScope_asConfigurationErrorNotJsonError() throws Exception {
+        var repo1 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo1.setHost("github.com");
+        repo1.setUser("user1");
+        repo1.setToken("token1");
+
+        var repo2 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        repo2.setHost("github.com");
+        repo2.setUser("user2");
+        repo2.setToken("token2");
+
+        var json = toJson(List.of(repo1, repo2));
+
+        assertThatThrownBy(() -> new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageNotContaining("Invalid JSON format");
+    }
+
+    @Test
+    void gitProperties_shouldAcceptIdenticalScope_whenAuthenticationTypesDiffer(@TempDir Path tempDir) throws Exception {
+        var sshKeyFile = tempDir.resolve("id_rsa");
+        Files.writeString(sshKeyFile, "-----BEGIN RSA PRIVATE KEY-----\nkey content\n-----END RSA PRIVATE KEY-----");
+        var sshKnownHostsFile = tempDir.resolve("known_hosts");
+        Files.writeString(sshKnownHostsFile, "git.example.com ssh-rsa AAABBBCCC\n");
+
+        var sshEntry = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        sshEntry.setHost("git.example.com");
+        sshEntry.setPath("team/service-a");
+        sshEntry.setSshKeyPath(sshKeyFile.toString());
+        sshEntry.setSshKnownHostsPath(sshKnownHostsFile.toString());
+
+        var httpsEntry = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        httpsEntry.setHost("git.example.com");
+        httpsEntry.setPath("team/service-a");
+        httpsEntry.setUser("svc");
+        httpsEntry.setToken("repo-token");
+
+        var json = toJson(List.of(sshEntry, httpsEntry));
+
+        var properties = new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root");
+
+        assertThat(properties.getTrustedPrivateRepos()).hasSize(2);
+    }
+
+    @Test
+    void gitProperties_shouldThrow_whenTwoSshEntriesShareIdenticalScope(@TempDir Path tempDir) throws Exception {
+        var sshKeyFile = tempDir.resolve("id_rsa");
+        Files.writeString(sshKeyFile, "-----BEGIN RSA PRIVATE KEY-----\nkey content\n-----END RSA PRIVATE KEY-----");
+        var sshKnownHostsFile = tempDir.resolve("known_hosts");
+        Files.writeString(sshKnownHostsFile, "git.example.com ssh-rsa AAABBBCCC\n");
+
+        var sshEntry1 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        sshEntry1.setHost("git.example.com");
+        sshEntry1.setSshKeyPath(sshKeyFile.toString());
+        sshEntry1.setSshKnownHostsPath(sshKnownHostsFile.toString());
+
+        var sshEntry2 = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        sshEntry2.setHost("git.example.com");
+        sshEntry2.setSshKeyPath(sshKeyFile.toString());
+        sshEntry2.setSshKnownHostsPath(sshKnownHostsFile.toString());
+
+        var json = toJson(List.of(sshEntry1, sshEntry2));
+
+        assertThatThrownBy(() -> new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate trusted-private-repos scope")
+                .hasMessageContaining("SSH authentication");
+    }
+
+    @Test
+    void gitProperties_shouldThrow_whenEntryWithBothAuthTypesCollidesWithSshOnlyEntry(@TempDir Path tempDir) throws Exception {
+        var sshKeyFile = tempDir.resolve("id_rsa");
+        Files.writeString(sshKeyFile, "-----BEGIN RSA PRIVATE KEY-----\nkey content\n-----END RSA PRIVATE KEY-----");
+        var sshKnownHostsFile = tempDir.resolve("known_hosts");
+        Files.writeString(sshKnownHostsFile, "git.example.com ssh-rsa AAABBBCCC\n");
+
+        var bothAuthTypes = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        bothAuthTypes.setHost("git.example.com");
+        bothAuthTypes.setPath("team");
+        bothAuthTypes.setUser("svc");
+        bothAuthTypes.setToken("project-token");
+        bothAuthTypes.setSshKeyPath(sshKeyFile.toString());
+        bothAuthTypes.setSshKnownHostsPath(sshKnownHostsFile.toString());
+
+        var sshOnly = new GitPropertiesDto.TrustedPrivateGitRepoDto();
+        sshOnly.setHost("git.example.com");
+        sshOnly.setPath("team");
+        sshOnly.setSshKeyPath(sshKeyFile.toString());
+        sshOnly.setSshKnownHostsPath(sshKnownHostsFile.toString());
+
+        var json = toJson(List.of(bothAuthTypes, sshOnly));
+
+        assertThatThrownBy(() -> new GitConfiguration().gitProperties(
+                json, ".git-credentials", ".gitconfig", "id_rsa", "known_hosts", "git-secret-volume", "/root"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Duplicate trusted-private-repos scope")
+                .hasMessageContaining("SSH authentication");
+    }
+
+    @Test
     void gitProperties_shouldNotFlagOverlappingButDistinctScopes_asDuplicates() throws Exception {
         var projectScoped = new GitPropertiesDto.TrustedPrivateGitRepoDto();
         projectScoped.setHost("git.example.com");
