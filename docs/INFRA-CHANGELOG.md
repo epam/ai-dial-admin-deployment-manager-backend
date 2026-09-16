@@ -1,5 +1,23 @@
 # Infra Changelog
 
+## 0.21.0
+
+### Added
+
+#### Git Repository Credentials
+
+- `TRUSTED_PRIVATE_GIT_REPOS` — optional `path` field per entry, scoping a credential to a repository or project/group path under `host` instead of the whole domain, so several entries can share a `host` (`path` is matched case-sensitively)
+
+---
+
+### Changed
+
+#### Git Repository Credentials
+
+- `TRUSTED_PRIVATE_GIT_REPOS` — credential resolution is now most-specific-wins instead of array order, and entries redundant at the same `(host, path, authentication type)` scope are rejected at startup instead of silently ignored
+
+---
+
 ## 0.20.0
 
 ### Added
