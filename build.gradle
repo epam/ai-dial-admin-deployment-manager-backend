@@ -7,10 +7,10 @@ buildscript {
             classpath ('com.fasterxml.jackson.core:jackson-core:2.21.6') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('io.netty:netty-codec-http2:4.2.16.Final') {
+            classpath ('io.netty:netty-codec-http2:4.2.18.Final') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('io.netty:netty-codec-http:4.2.16.Final') {
+            classpath ('io.netty:netty-codec-http:4.2.18.Final') {
                 because("previous versions have vulnerabilities")
             }
         }
@@ -69,7 +69,8 @@ dependencies {
     // overrides the Boot-BOM-managed OpenTelemetry 1.55.0 — unbounded memory allocation in W3C baggage propagation, patched in 1.62.0
     implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
     // aligns every io.netty module (overriding the Boot BOM) to one patched version — covers multiple HIGH CVEs
-    implementation platform('io.netty:netty-bom:4.2.16.Final')
+    // plus CVE-2026-75595 (CRITICAL, netty-handler) patched in 4.2.17.Final; 4.2.18.Final is the latest 4.2.x patch
+    implementation platform('io.netty:netty-bom:4.2.18.Final')
     // overrides the Boot-BOM-managed Jackson 3 (3.1.4) — @JsonView bypassed for @JsonUnwrapped container
     // properties on deserialization (CVE-2026-59889), patched in 3.1.5; 3.1.6 is the latest 3.1.x patch
     implementation platform('tools.jackson:jackson-bom:3.1.6')
@@ -164,8 +165,14 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     constraints {
-        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.22') {
-            because("previous versions have vulnerabilities")
+        implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.25') {
+            because("CVE-2026-65182, CVE-2026-65905, CVE-2026-68525 — previous versions have vulnerabilities")
+        }
+        implementation ('org.apache.tomcat.embed:tomcat-embed-el:11.0.25') {
+            because("keep in lockstep with tomcat-embed-core")
+        }
+        implementation ('org.apache.tomcat.embed:tomcat-embed-websocket:11.0.25') {
+            because("keep in lockstep with tomcat-embed-core")
         }
         implementation ('com.nimbusds:nimbus-jose-jwt:10.3.1') {
             because("previous versions have vulnerabilities")
