@@ -186,8 +186,14 @@ dependencies {
         implementation ('com.fasterxml.jackson.core:jackson-core:2.21.6') {
             because("transitive Jackson 2 from fabric8/MCP/jib — previous versions have vulnerabilities")
         }
-        implementation("org.bouncycastle:bcprov-jdk18on:1.84") {
-            because("previous versions have vulnerabilities")
+        implementation("org.bouncycastle:bcprov-jdk18on:1.85") {
+            because("CVE-2026-8763 (CRITICAL, name constraints bypass via trailing dot), CVE-2026-13506 — previous versions have vulnerabilities")
+        }
+        implementation("org.bouncycastle:bcpkix-jdk18on:1.85") {
+            because("CVE-2026-8763 — previous versions have vulnerabilities")
+        }
+        implementation("org.bouncycastle:bcutil-jdk18on:1.85") {
+            because("keep in lockstep with bcprov/bcpkix")
         }
         checkstyle ('org.codehaus.plexus:plexus-utils:4.0.3') {
             because("previous versions have vulnerabilities")
