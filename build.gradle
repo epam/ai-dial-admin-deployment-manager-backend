@@ -1,10 +1,14 @@
 buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
     dependencies {
         constraints {
             classpath ('org.apache.commons:commons-lang3:3.18.0') {
                 because("previous versions have vulnerabilities")
             }
-            classpath ('com.fasterxml.jackson.core:jackson-core:2.21.6') {
+            classpath ('com.fasterxml.jackson.core:jackson-core:2.21.7') {
                 because("previous versions have vulnerabilities")
             }
             classpath ('io.netty:netty-codec-http2:4.2.18.Final') {
@@ -21,7 +25,7 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '4.0.7'
+    id 'org.springframework.boot' version '4.0.8'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
@@ -71,9 +75,13 @@ dependencies {
     // aligns every io.netty module (overriding the Boot BOM) to one patched version — covers multiple HIGH CVEs
     // plus CVE-2026-75595 (CRITICAL, netty-handler) patched in 4.2.17.Final; 4.2.18.Final is the latest 4.2.x patch
     implementation platform('io.netty:netty-bom:4.2.18.Final')
-    // overrides the Boot-BOM-managed Jackson 3 (3.1.4) — @JsonView bypassed for @JsonUnwrapped container
-    // properties on deserialization (CVE-2026-59889), patched in 3.1.5; 3.1.6 is the latest 3.1.x patch
-    implementation platform('tools.jackson:jackson-bom:3.1.6')
+    // overrides the Boot-BOM-managed Jackson 3 (3.1.5) — regex-backtracking and unbounded StringBuilder DoS in
+    // jackson-core (CVE-2026-89407, CVE-2026-89425), unbounded TypeDeserializerBase cache growth and quadratic
+    // forward-reference completion in jackson-databind (CVE-2026-91776, CVE-2026-91777), all patched in 3.1.7
+    implementation platform('tools.jackson:jackson-bom:3.1.7')
+    // aligns every io.vertx module (transitive from fabric8 kubernetes-httpclient-vertx) — DoS via TLS handshake
+    // with wildcard server name in vertx-core (CVE-2026-6860), patched in 4.5.27
+    implementation platform('io.vertx:vertx-dependencies:4.5.27')
 
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
@@ -118,9 +126,9 @@ dependencies {
     implementation('org.springframework.boot:spring-boot-starter-log4j2') {
         exclude group: 'org.apache.logging.log4j'
     }
-    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4'
-    implementation 'org.apache.logging.log4j:log4j-core:2.25.4'
-    implementation 'org.apache.logging.log4j:log4j-jul:2.25.4'
+    implementation 'org.apache.logging.log4j:log4j-slf4j2-impl:2.25.5'
+    implementation 'org.apache.logging.log4j:log4j-core:2.25.5'
+    implementation 'org.apache.logging.log4j:log4j-jul:2.25.5'
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
@@ -133,11 +141,11 @@ dependencies {
     // executing the exact code they shipped with (db.migration.MigrationJsonMapper), and Hibernate's
     // JSON column mapping (@JdbcTypeCode(SqlTypes.JSON)) still uses Jackson 2 with
     // constructor-parameter-name detection, which spring-boot-starter-json used to provide before Jackson 3.
-    // Held above the Boot-BOM-managed 2.21.4, which is affected by the same @JsonUnwrapped/@JsonView bypasses
-    // as Jackson 3 (CVE-2026-59889, GHSA-mhm7-754m-9p8w), both patched in 2.21.5
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.6'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.6'
-    runtimeOnly 'com.fasterxml.jackson.module:jackson-module-parameter-names:2.21.6'
+    // Held above the Boot-BOM-managed 2.21.5, which is affected by the same jackson-core/jackson-databind DoS issues
+    // as Jackson 3 (CVE-2026-89407, CVE-2026-89425, CVE-2026-91776, CVE-2026-91777), all patched in 2.21.7
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.21.7'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.7'
+    runtimeOnly 'com.fasterxml.jackson.module:jackson-module-parameter-names:2.21.7'
     implementation 'com.github.f4b6a3:uuid-creator:6.0.0'
 
     implementation 'org.mapstruct:mapstruct:1.6.3'
@@ -183,7 +191,7 @@ dependencies {
         implementation("io.grpc:grpc-netty-shaded:1.75.0") {
             because("previous versions have vulnerabilities")
         }
-        implementation ('com.fasterxml.jackson.core:jackson-core:2.21.6') {
+        implementation ('com.fasterxml.jackson.core:jackson-core:2.21.7') {
             because("transitive Jackson 2 from fabric8/MCP/jib — previous versions have vulnerabilities")
         }
         implementation("org.bouncycastle:bcprov-jdk18on:1.85") {
