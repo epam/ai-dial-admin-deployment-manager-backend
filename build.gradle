@@ -1,4 +1,8 @@
 buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
     dependencies {
         constraints {
             classpath ('org.apache.commons:commons-lang3:3.18.0') {
