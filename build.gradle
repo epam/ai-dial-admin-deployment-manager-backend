@@ -32,16 +32,9 @@ plugins {
 group = 'com.epam.aidial'
 version = "0.0.0"
 
-def runningInOrt = file('/opt/ort').exists()
-
 java {
-    if (runningInOrt) {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    } else {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(21)
-        }
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
