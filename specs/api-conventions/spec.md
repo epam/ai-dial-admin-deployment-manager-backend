@@ -48,6 +48,10 @@ Status: **Implemented**
 - **WHEN** a request fails bean validation (`@Valid` / constraint violations)
 - **THEN** the response is HTTP 400 with an `ErrorView` body listing all field-level violations
 
+#### Scenario: Unconvertible request parameter
+- **WHEN** a path or query parameter cannot be converted to its declared type (e.g. `GET /api/v1/deployments?type=NOT_A_TYPE`)
+- **THEN** the system responds with 400 and an `ErrorView` whose `message` is `Invalid value '<value>' for parameter '<name>'`
+
 #### Scenario: Not found
 - **WHEN** a requested resource does not exist (`EntityNotFoundException` or `NoResourceFoundException`)
 - **THEN** the response is HTTP 404 with an `ErrorView` body
