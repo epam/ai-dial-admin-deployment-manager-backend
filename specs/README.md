@@ -60,7 +60,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [adapter-deployments](adapter-deployments/spec.md) | Implemented | Adapter deployment — extends image-based deployments with type ADAPTER as the sole distinction |
 | [application-deployments](application-deployments/spec.md) | Implemented | Application deployment — extends image-based deployments with type APPLICATION as the sole distinction |
 | [inference-deployments](inference-deployments/spec.md) | Implemented | Inference model deployment — KServe-backed, HuggingFace model source, scaling configuration (PENDING_REQUESTS / ACTIVE_REQUESTS / HARDWARE_USAGE) |
-| [nim-deployments](nim-deployments/spec.md) | Implemented | NVIDIA NIM model deployment — NIM-backed, NGC registry source, GPU configuration, optional gRPC port |
+| [nim-deployments](nim-deployments/spec.md) | Removed (0.22.0) | NVIDIA NIM model deployment — removed; tombstone links to historical specs |
 | [deployment-metrics](deployment-metrics/spec.md) | Implemented | Unified deployment metrics API — live snapshot of replica counts and per-pod CPU/memory for any deployment type, plus engine serving/operational metrics (vLLM/TGI/SGLang) for inference deployments normalized to one schema; pod-proxy scrape, lifetime window, graceful degradation |
 | [mcp-servers](mcp-servers/spec.md) | Implemented | MCP server management — list tools, resources, and prompts from running MCP deployments |
 | [topics](topics/spec.md) | Implemented | Topic listing — read-only enumeration of distinct topics across image definitions |
@@ -76,7 +76,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 
 | Capability | Status | Summary |
 |---|---|---|
-| [kubernetes-manifests](kubernetes-manifests/spec.md) | Implemented | Kubernetes manifest generation — KNative (serverless), NIM (NVIDIA GPU), KServe (model serving); env var injection; probe converters |
+| [kubernetes-manifests](kubernetes-manifests/spec.md) | Implemented | Kubernetes manifest generation — KNative (serverless), KServe (model serving); env var injection; probe converters |
 | [kubernetes-events](kubernetes-events/spec.md) | Implemented | Real-time Kubernetes event streaming to clients via Server-Sent Events |
 | [kubernetes-cleanup](kubernetes-cleanup/spec.md) | Implemented | Disposable Kubernetes resource lifecycle tracking and scheduled cleanup via ShedLock |
 

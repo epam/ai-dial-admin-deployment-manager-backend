@@ -41,7 +41,6 @@ The **untrusted cluster** is dedicated to running model-serving and deployment w
 | **Istio** | Yes | Service mesh for traffic management and security |
 | **Knative Serving** | Yes | Serverless runtime for MCP deployments |
 | **KServe** | Optional | Kubernetes-native model serving framework |
-| **NIM (NVIDIA Inference Microservices)** | Optional | GPU-accelerated inference with NVIDIA NIM Operator |
 | **Cilium** | Optional | eBPF-based network policies for fine-grained traffic control |
 
 #### Installation Guides
@@ -51,7 +50,6 @@ Before proceeding, ensure the required components are installed on the untrusted
 - **Istio**: [Official Istio Installation Guide](https://istio.io/latest/docs/setup/install/)
 - **Knative Serving**: [Official Knative Serving Installation Guide](https://knative.dev/docs/install/)
 - **KServe**: [Official KServe Installation Guide](https://kserve.github.io/website/docs/admin-guide/kubernetes-deployment) (see also [`kserve.md`](kserve.md) in this repository)
-- **NVIDIA NIM Operator**: [Official NIM Operator Installation Guide](https://docs.nvidia.com/nim-operator/latest/install.html)
 - **Cilium**: [Official Cilium Installation Guide](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/)
 
 ---
@@ -275,56 +273,6 @@ roleRef:
   kind: Role
   name: dial-deployment-manager-knative-role
 ---
-# NIM namespace — permissions to manage NVIDIA NIMService resources (optional)
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: dial-deployment-manager-nim-role
-  namespace: <K8S_NIM_DEPLOYMENT_NAMESPACE>
-rules:
-  - verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-    apiGroups:
-      - apps.nvidia.com
-    resources:
-      - nimservices
-  - verbs:
-      - get
-      - list
-      - watch
-    apiGroups:
-      - ""
-    resources:
-      - pods
-      - pods/log
-      - events
-  - verbs:
-      - get
-      - create
-      - delete
-    apiGroups:
-      - ""
-    resources:
-      - secrets
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: dial-deployment-manager-nim-rb
-  namespace: <K8S_NIM_DEPLOYMENT_NAMESPACE>
-subjects:
-  - kind: ServiceAccount
-    name: dial-deployment-manager
-    namespace: <K8S_BUILD_NAMESPACE>
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: dial-deployment-manager-nim-role
----
 # KServe namespace — permissions to manage InferenceService resources (optional)
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -384,14 +332,14 @@ If Cilium is installed on the untrusted cluster and you want the Deployment Mana
 CILIUM_NETWORK_POLICIES_ENABLED=true
 ```
 
-In this mode, the `dial-deployment-manager` ServiceAccount also needs permissions to create and manage `CiliumNetworkPolicy` and `CiliumClusterwideNetworkPolicy` resources. Apply the following in **each target namespace** (`<K8S_BUILD_NAMESPACE>`, `<K8S_KNATIVE_DEPLOYMENT_NAMESPACE>`, `<K8S_NIM_DEPLOYMENT_NAMESPACE>`, `<K8S_KSERVE_DEPLOYMENT_NAMESPACE>`):
+In this mode, the `dial-deployment-manager` ServiceAccount also needs permissions to create and manage `CiliumNetworkPolicy` and `CiliumClusterwideNetworkPolicy` resources. Apply the following in **each target namespace** (`<K8S_BUILD_NAMESPACE>`, `<K8S_KNATIVE_DEPLOYMENT_NAMESPACE>`, `<K8S_KSERVE_DEPLOYMENT_NAMESPACE>`):
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: deployment-manager-cilium-role
-  namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
+  namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 rules:
   - verbs:
       - create
@@ -420,7 +368,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: deployment-manager-cilium-role
-  namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_NIM_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
+  namespace: <K8S_KSERVE_DEPLOYMENT_NAMESPACE|K8S_KNATIVE_DEPLOYMENT_NAMESPACE|K8S_BUILD_NAMESPACE>
 subjects:
   - kind: ServiceAccount
     name: dial-deployment-manager
@@ -446,8 +394,6 @@ Key settings for the dual-cluster security model (set as environment variables o
 | `K8S_BUILD_NAMESPACE` | `dm-build` | Namespace on the untrusted cluster for build jobs |
 | `K8S_KNATIVE_ENABLED` | `true` | Enable Knative service deployment support |
 | `K8S_KNATIVE_DEPLOYMENT_NAMESPACE` | `dm-mcp` | Namespace for Knative (MCP) deployments |
-| `K8S_NIM_ENABLED` | `false` | Enable NIM deployment support (optional) |
-| `K8S_NIM_DEPLOYMENT_NAMESPACE` | `dm-nim` | Namespace for NIM deployments (optional) |
 | `K8S_KSERVE_ENABLED` | `true` | Enable KServe deployment support (optional) |
 | `K8S_KSERVE_DEPLOYMENT_NAMESPACE` | `dm-kserve` | Namespace for KServe deployments (optional) |
 | `CILIUM_NETWORK_POLICIES_ENABLED` | `false` | Enable Cilium network policies (optional) |

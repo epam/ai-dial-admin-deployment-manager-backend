@@ -24,4 +24,4 @@ Top-level utilities (`AbstractK8sResourceClient`, `K8sClient`, `JobRunner`, `Pod
 - `specs/kubernetes-events/spec.md`
 - `specs/kubernetes-manifests/spec.md`
 - `specs/kubernetes-cleanup/spec.md`
-- `specs/inference-deployments/spec.md`, `specs/nim-deployments/spec.md` for KServe / NIM specifics.
+- `specs/inference-deployments/spec.md` for KServe specifics.

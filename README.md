@@ -11,7 +11,6 @@ The DIAL Deployment Manager Backend makes complex Kubernetes-based AI deployment
 **Current Focus:**
 - MCP (Model Context Protocol) servers
 - DIAL interceptors
-- NIM support for simplified inference deployment
 
 **Roadmap:**
 - KServe support for simplified inference deployment
@@ -27,7 +26,6 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 - [Features](#features)
 - [Configuration](#configuration)
 - [Getting Started](#getting-started)
-- [Deploying NVIDIA NIM Models](#deploying-nvidia-nim-models)
 - [Security](#security)
 - [Spec-Driven Development](#spec-driven-development)
 - [Contributing](#contributing)
@@ -117,14 +115,6 @@ Import ([Postman](docs/rest-collection/dm_postman_collection.json)) collection t
 ### H2 Database Credentials
 
 For local development with H2 database, default credentials are provided in the `docker-compose.yml` file. For details on generating new credentials, see the [Development Guide](docs/Development.md#h2-database-credentials).
-
-## Deploying NVIDIA NIM Models
-
-NVIDIA NIM (NVIDIA Inference Microservices) is a technology that provides optimized, containerized AI inference microservices for deploying large language models and other AI workloads. NIM models are pre-optimized containers that enable fast, efficient inference deployment with minimal configuration, leveraging NVIDIA's GPU acceleration and optimization technologies.
-
-The DIAL Deployment Manager Backend supports deploying NIM models through Kubernetes Custom Resource Definitions (CRDs), allowing you to manage NIM-based inference services alongside other deployment types.
-
-**Legal Notice:** NIM models and the NIM operator are available only with an NVIDIA Enterprise License Key for production use. For evaluation, development, and production deployment of NIM models, you must obtain the appropriate NVIDIA enterprise license and configure the necessary authentication credentials (NGC secrets). Please refer to the [NVIDIA NIM documentation](https://www.nvidia.com/en-us/ai-data-science/products/nim-microservices/) for licensing information, setup instructions, and the latest requirements.
 
 ## Documentation
 

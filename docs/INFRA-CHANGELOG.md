@@ -1,5 +1,30 @@
 # Infra Changelog
 
+## 0.22.0
+
+### Removed
+
+#### NIM Deployments
+
+NVIDIA NIM deployment support was removed. The following variables are no longer read and can be deleted from deployments (leaving them set is harmless):
+
+- `K8S_NIM_ENABLED`
+- `K8S_NIM_DEPLOYMENT_NAMESPACE`
+- `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`
+- `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC`
+- `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`
+- `K8S_NIM_CLUSTER_HOST`
+- `K8S_NIM_DEPLOYMENT_URL_SCHEMA`
+- `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED`
+- `K8S_NIM_INGRESS_CLASS_NAME`
+- `NIM_SERVICE_NGC_SECRET`
+- `NIM_SERVICE_NGC_AUTH_SECRET`
+- `RESOURCES_STORAGE_MAX_SIZE` — only validated NIM PVC sizes
+
+RBAC for `nimservices` (`apps.nvidia.com`) in the NIM namespace is no longer required.
+
+---
+
 ## 0.21.0
 
 ### Added
