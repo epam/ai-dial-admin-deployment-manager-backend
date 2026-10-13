@@ -13,7 +13,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
 
 /**
- * Base class for model serving deployments (e.g., KServe and NIM).
+ * Base class for model serving deployments (KServe).
  * Holds common logic for pod readiness checks and container resolution.
  */
 public abstract class AbstractModelDeploymentManager<D extends Deployment, S extends HasMetadata>

@@ -10,8 +10,6 @@ import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReader;
 import com.epam.aidial.deployment.manager.kubernetes.PodLogReaderConfiguration;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
-import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
-import com.epam.aidial.deployment.manager.kubernetes.nim.NimClient;
 import com.epam.aidial.deployment.manager.service.security.SecurityClaimsExtractor;
 import io.fabric8.knative.client.DefaultKnativeClient;
 import io.fabric8.knative.client.KnativeClient;
@@ -67,16 +65,6 @@ public class K8sLocalConfiguration {
     @Bean
     public K8sKnativeClient k8sKnativeClient(KnativeClient knativeClient, K8sClient k8sClient) {
         return new K8sKnativeClient(knativeClient, k8sClient);
-    }
-
-    @Bean
-    public NimClient nimClient(KubernetesClient kubernetesClient) {
-        return new NimClient(kubernetesClient);
-    }
-
-    @Bean
-    public K8sNimClient k8sNimClient(NimClient nimClient, K8sClient k8sClient) {
-        return new K8sNimClient(nimClient, k8sClient);
     }
 
     @Bean

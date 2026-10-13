@@ -197,29 +197,7 @@
       "topics": []
     }
   },
-  "nimDeployments": {
-    "nim-dep-exp": {
-      "$type": "nim",
-      "id": "nim-dep-exp",
-      "displayName": "NIM deployment export test",
-      "description": "NIM deployment for import test",
-      "metadata": {"envs": []},
-      "resources": {"limits": {}, "requests": {}},
-      "probeProperties": {
-        "enabled": true,
-        "initialDelaySeconds": 5,
-        "periodSeconds": 10,
-        "timeoutSeconds": 3,
-        "failureThreshold": 2,
-        "probe": {"$type": "tcpSocket", "port": 8000}
-      },
-      "containerPort": 8000,
-      "allowedDomains": [],
-      "topics": [],
-      "source": {"$type": "ngc_registry", "imageRef": "nvcr.io/nim/test-model:latest"},
-      "containerGrpcPort": 50051
-    }
-  },
+  "nimDeployments": {},
   "inferenceDeployments": {
     "inference-dep-exp": {
       "$type": "inference",

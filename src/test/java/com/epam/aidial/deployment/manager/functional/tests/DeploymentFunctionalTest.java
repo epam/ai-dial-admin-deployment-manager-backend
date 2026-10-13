@@ -42,6 +42,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -79,12 +80,22 @@ public abstract class DeploymentFunctionalTest {
     private DeploymentManagerProvider deploymentManagerProvider;
     @Autowired
     private DisposableResourceManager disposableResourceManager;
+    @Autowired
+    private ApplicationContext applicationContext;
 
     private ObjectMeta secretMetaData;
 
     private UUID imageDefinitionId;
     private String imageDefinitionName;
     private String imageDefinitionVersion;
+
+    @Test
+    public void shouldNotRegisterAnyNimBeans_evenWhenLegacyNimFlagIsSet() {
+        assertThat(applicationContext.getEnvironment().getProperty("app.nim.enabled")).isEqualTo("true");
+        assertThat(applicationContext.getBeanDefinitionNames())
+                .filteredOn(name -> !name.contains("imbus"))
+                .noneMatch(name -> name.startsWith("nim") || name.contains("Nim") || name.contains("NIM"));
+    }
 
     @SuppressWarnings("unchecked")
     @BeforeEach

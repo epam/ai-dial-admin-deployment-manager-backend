@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.docker.DockerRegistryClient;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
-import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,8 +43,6 @@ public class DisposableResourceCleanerTest {
     @Mock
     private K8sKnativeClient k8sKnativeClient;
     @Mock
-    private K8sNimClient k8sNimClient;
-    @Mock
     private K8sKserveClient k8sKserveClient;
     @Mock
     private DockerRegistryClient registryClient;
@@ -63,8 +60,6 @@ public class DisposableResourceCleanerTest {
                 buildDisposableResource(buildK8sResourceReference(K8sResourceKind.CONFIGMAP, "cm-0")),
                 buildDisposableResource(buildK8sResourceReference(K8sResourceKind.JOB, "job-1")),
                 buildDisposableResource(buildK8sResourceReference(K8sResourceKind.JOB, "job-2")),
-                buildDisposableResource(buildK8sResourceReference(K8sResourceKind.NIM_SERVICE, "nim-1")),
-                buildDisposableResource(buildK8sResourceReference(K8sResourceKind.NIM_SERVICE, "nim-2")),
                 buildDisposableResource(buildK8sResourceReference(K8sResourceKind.INFERENCE_SERVICE, "inference-1")),
                 buildDisposableResource(buildK8sResourceReference(K8sResourceKind.INFERENCE_SERVICE, "inference-2")),
                 buildDisposableResource(buildK8sResourceReference(K8sResourceKind.KNATIVE_SERVICE, "knative-1")),
@@ -87,8 +82,6 @@ public class DisposableResourceCleanerTest {
         // Then
         verify(k8sKnativeClient).deleteService(NAMESPACE, "knative-1");
         verify(k8sKnativeClient).deleteService(NAMESPACE, "knative-2");
-        verify(k8sNimClient).deleteService(NAMESPACE, "nim-1");
-        verify(k8sNimClient).deleteService(NAMESPACE, "nim-2");
         verify(k8sKserveClient).deleteService(NAMESPACE, "inference-1");
         verify(k8sKserveClient).deleteService(NAMESPACE, "inference-2");
         verify(k8sClient).deleteJob(NAMESPACE, "job-1");
@@ -104,7 +97,7 @@ public class DisposableResourceCleanerTest {
 
         verify(disposableResourceManager).deleteAll(any());
 
-        verifyNoMoreInteractions(disposableResourceManager, k8sClient, k8sKnativeClient, k8sNimClient, k8sKserveClient, registryClient);
+        verifyNoMoreInteractions(disposableResourceManager, k8sClient, k8sKnativeClient, k8sKserveClient, registryClient);
     }
 
     private static DisposableResource buildDisposableResource(ResourceReference reference) {
