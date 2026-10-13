@@ -2,8 +2,8 @@
 
 -- Activity feed and audit trail
 DELETE FROM audit_activity WHERE resource_type = 'NimDeployment';
-DELETE FROM deployment_topics_aud WHERE deployment_id IN (SELECT id FROM nim_deployment_aud);
-DELETE FROM deployment_aud WHERE id IN (SELECT id FROM nim_deployment_aud);
+DELETE FROM deployment_topics_aud WHERE EXISTS (SELECT 1 FROM nim_deployment_aud n WHERE n.id = deployment_topics_aud.deployment_id AND n.rev = deployment_topics_aud.rev);
+DELETE FROM deployment_aud WHERE EXISTS (SELECT 1 FROM nim_deployment_aud n WHERE n.id = deployment_aud.id AND n.rev = deployment_aud.rev);
 DROP TABLE nim_deployment_aud;
 
 -- Live rows. nim_deployment.id -> deployment.id is ON DELETE RESTRICT and the FK name differs per vendor,

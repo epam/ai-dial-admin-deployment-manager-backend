@@ -43,6 +43,23 @@ class PoolPrimitivesConverterTest {
     }
 
     @Test
+    void shouldRoundTripTolerationsToKserveSpecTypePreservingFields() {
+        var fabric8Tolerations = List.of(
+                new TolerationBuilder().withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule").build(),
+                new TolerationBuilder().withKey("workload").withOperator("Exists").withEffect("PreferNoSchedule").build()
+        );
+
+        var converted = converter.convertTolerations(fabric8Tolerations, Tolerations.class);
+
+        assertThat(converted).isNotNull().hasSize(2);
+        assertThat(converted.get(0).getKey()).isEqualTo("dedicated");
+        assertThat(converted.get(0).getValue()).isEqualTo("gpu");
+        assertThat(converted.get(0).getEffect()).isEqualTo("NoSchedule");
+        assertThat(converted.get(1).getKey()).isEqualTo("workload");
+        assertThat(converted.get(1).getEffect()).isEqualTo("PreferNoSchedule");
+    }
+
+    @Test
     void shouldRoundTripAffinityToKserveSpecType() {
         var fabric8Affinity = new AffinityBuilder()
                 .withNewNodeAffinity()

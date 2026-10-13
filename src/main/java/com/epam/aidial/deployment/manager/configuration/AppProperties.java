@@ -39,7 +39,6 @@ public class AppProperties {
     private Service knativeServiceConfig;
     private Container knativeServiceContainerConfig;
 
-
     private InferenceService inferenceServiceConfig;
     private Container inferenceServiceContainerConfig;
 
