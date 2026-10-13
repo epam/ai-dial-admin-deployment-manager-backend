@@ -22,7 +22,7 @@ NVIDIA NIM models are no longer used. Remove every NIM-specific API contract, do
 | Rollout | Single release, full removal (no deprecation phase, no feature-flag-only removal) |
 | Existing NIM data | Deleted by a new migration; NIM tables dropped |
 | Live `NIMService` CRs | Not touched by the app; operators remove them before upgrading (documented) |
-| Importing old export ZIPs containing NIM | Rejected as a whole with 400 (no legacy shim) |
+| Importing old export ZIPs containing NIM | Silently ignored — the `nimDeployments` block is dropped, everything else imports (no legacy shim). Originally chosen as "reject with 400"; revised after discovering `FAIL_ON_UNKNOWN_PROPERTIES` is globally disabled, so rejection would need an explicit guard |
 | `specs/nim-deployments/spec.md` | Reduced to a tombstone (`Status: Removed`) to keep links from historical specs valid |
 
 ## Out of scope (kept intentionally)
@@ -39,7 +39,9 @@ NVIDIA NIM models are no longer used. Remove every NIM-specific API contract, do
 ### API / web
 - `DeploymentTypeDto.NIM`; `"nim"` subtype registrations in `CreateDeploymentRequestDto`, `DeploymentDto`, `DeploymentInternalDto`.
 - Delete `CreateNimDeploymentRequestDto`, `NimDeploymentDto`, `NimDeploymentSourceDto`, `NimDeploymentNgcRegistrySourceDto`, `NimDeploymentInternalDto`.
-- Remove NIM branches from `DeploymentDtoMapper`, `ImportConfigDtoMapper`, `ExportConfigMapper`, `ImportConfigValidator`, `DeploymentSourceValidator`.
+- Remove NIM branches from `DeploymentDtoMapper`, `ImportConfigDtoMapper`, `ExportConfigMapper`, `ImportConfigValidator`, `DeploymentSourceValidator`; drop `nimDeployments` from `ImportConfigPreviewDto` and `NIM_DEPLOYMENT` from `ExportConfigComponentTypeDto`.
+- Delete the storage-size validation chain, used only by `CreateNimDeploymentRequestDto.storageSize`: `ValidStorageSize`, `StorageSizeValidator`, `utils/KubernetesQuantityParser` (no other callers) and their tests; remove `app.validation.resources.max-storage-size` (`RESOURCES_STORAGE_MAX_SIZE`).
+- Add a `MethodArgumentTypeMismatchException` → **400** handler to `DefaultExceptionHandler`. Today an unconvertible query param (e.g. `GET /api/v1/deployments?type=NIM` from a not-yet-updated frontend) falls into the catch-all `Exception` handler and returns 500.
 
 ### Domain / service
 - Delete `NimDeployment`, `CreateNimDeployment`, `NgcRegistrySource` (and its `"ngc_registry"` registration in `Source`), `NimDeploymentManager`, `NimMappers`.
@@ -62,8 +64,9 @@ NVIDIA NIM models are no longer used. Remove every NIM-specific API contract, do
 ## 2. Runtime behaviour after removal
 
 - `POST`/`PUT /api/v1/deployments` with `type: NIM` / `$type: "nim"` (or a `"ngc_registry"` source) fails Jackson deserialization → existing `HttpMessageNotReadableException` handler → **400** `ErrorView` ("Could not resolve type id 'nim' …"). No new handler.
-- Config import and import preview with a ZIP containing `"nim"` entries: `ConfigTransferService.parseAndSanitizeExportConfig` wraps the parse failure in `IllegalArgumentException` → **400**; nothing is imported.
-- Export requests selecting component type `NIM_DEPLOYMENT` → **400** (unknown enum value).
+- Config import and import preview with an old ZIP containing a top-level `"nimDeployments"` map: `JsonMapperConfiguration` disables `FAIL_ON_UNKNOWN_PROPERTIES`, so the now-unknown property is ignored. NIM entries are silently dropped; all other components import / preview normally. No code is kept for this.
+- Export requests selecting component type `NIM_DEPLOYMENT` → **400** (unknown enum value in the JSON body → `HttpMessageNotReadableException`).
+- `GET /api/v1/deployments?type=NIM` → **400** via the new `MethodArgumentTypeMismatchException` handler.
 - Activity feed and revision endpoints no longer return `NimDeployment` resources (rows deleted by migration).
 
 ## 3. Data migration — `V1.60__RemoveNimDeployment`
@@ -72,8 +75,8 @@ One migration per vendor (`H2`, `POSTGRES`, `MS_SQL_SERVER`), SQL unless vendor 
 
 1. **Activity feed**: `DELETE FROM audit_activity WHERE resource_type = 'NimDeployment'`.
 2. **Audit trail**: delete rows in `deployment_topics_aud` and `deployment_aud` whose id/deployment_id appears in `nim_deployment_aud`; then `DROP TABLE nim_deployment_aud`. `revinfo` rows are kept (revisions may be shared with other entities; empty revisions are harmless to Envers).
-3. **Live rows**: delete rows of any child table referencing NIM deployments that lacks `ON DELETE CASCADE` (to be enumerated in the plan; `deployment_topics` cascades), then `DELETE FROM deployment WHERE id IN (SELECT id FROM nim_deployment)`; then `DROP TABLE nim_deployment`.
-4. **Cleanup queue**: delete `disposable_resource` rows whose `resource_reference` JSON has kind `NIM_SERVICE`. Required: once `K8sResourceKind.NIM_SERVICE` is removed, these rows would fail deserialization in the scheduled `DisposableResourceCleaner`. Vendor-specific text match: PostgreSQL `resource_reference::text LIKE '%"NIM_SERVICE"%'`, H2 `CAST(resource_reference AS VARCHAR) LIKE …`, SQL Server `resource_reference LIKE …`.
+3. **Live rows**: `nim_deployment.id` → `deployment.id` is `ON DELETE RESTRICT` and the FK has a different (or generated) name per vendor, so instead of dropping the constraint: copy NIM ids into a staging table `nim_removed_ids`, `DROP TABLE nim_deployment` (its FK goes with it), then delete from `deployment_topics`, `component_removal` (`type = 'DEPLOYMENT'`) and `deployment` where id is in `nim_removed_ids`; finally drop `nim_removed_ids`. No other table references `deployment.id`.
+4. **Cleanup queue**: delete `disposable_resource` rows whose `resource_reference` JSON has kind `NIM_SERVICE`. Required: once `K8sResourceKind.NIM_SERVICE` is removed, these rows would fail deserialization in the scheduled `DisposableResourceCleaner`. Vendor-specific text match on the serialized `K8sResourceReference` (`{"$type":"k8s","kind":"NIM_SERVICE",…}`): PostgreSQL `resource_reference::text LIKE '%NIM_SERVICE%'`, H2 `CAST(resource_reference AS VARCHAR) LIKE '%NIM_SERVICE%'`, SQL Server `resource_reference LIKE '%NIM_SERVICE%'` (column is `VARCHAR(MAX)`). Other disposable resources of a NIM deployment's group (secrets, Cilium policies) are kept so the cleaner still removes them.
 
 `docs/db-schema.md` is regenerated by the existing tooling, not hand-edited.
 
@@ -90,7 +93,7 @@ One migration per vendor (`H2`, `POSTGRES`, `MS_SQL_SERVER`), SQL unless vendor 
 ## 5. Testing
 
 - **New**: functional migration test on H2, PostgreSQL, SQL Server — seed a NIM deployment with topics, audit revisions, an activity row and a `NIM_SERVICE` disposable resource plus a non-NIM deployment; assert V1.60 removes only the NIM data and the app context starts.
-- **New**: regression tests — `POST /api/v1/deployments` with `type: NIM` → 400; config import with a ZIP containing a `"nim"` deployment → 400.
+- **New**: regression tests — `POST /api/v1/deployments` with `type: NIM` → 400; config import of a ZIP containing a legacy `"nimDeployments"` block plus an MCP deployment → succeeds, MCP deployment imported, no NIM data persisted.
 - **Delete**: `NimDeploymentManagerTest`, `NimManifestGeneratorTest`, `NimProbeConverterTest`, `K8sNimClientTest`, `NimServiceEventHandlerTest`, `manifest/nim_service_*.json` fixtures.
 - **Update**: remove NIM cases from functional (`DeploymentFunctionalTest`, `ConfigExportImportFunctionalTest`, `DeploymentMetricsFunctionalTest`, `ImageDefinitionFunctionalTest`, …), mapper, validator, node-pool, cleanup and audit tests; `K8sLocalConfiguration`, `FunctionalTestHelper`, `TestSecurityConfig`, `expected_export_config_for_import.json`.
 - **ArchUnit**: refresh the frozen violation store via the project's standard freeze workflow, not by hand.
