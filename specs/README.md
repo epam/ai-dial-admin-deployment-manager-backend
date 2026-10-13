@@ -93,7 +93,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 
 | Capability | Status | Summary |
 |---|---|---|
-| [database-and-migrations](database-and-migrations/spec.md) | Implemented | Multi-vendor database support (H2 / PostgreSQL / SQL Server) with Flyway migrations; SQL and Java migration paths; current schema V1.46 |
+| [database-and-migrations](database-and-migrations/spec.md) | Implemented | Multi-vendor database support (H2 / PostgreSQL / SQL Server) with Flyway migrations; SQL and Java migration paths; current schema V1.60 |
 | [health](health/spec.md) | Implemented | Health check endpoint for liveness/readiness probes |
 
 ## External Integrations

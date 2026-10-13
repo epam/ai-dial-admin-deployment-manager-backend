@@ -11,18 +11,25 @@ import com.epam.aidial.deployment.manager.functional.tests.GlobalWhitelistRollba
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionRollbackFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.NimRemovalMigrationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import org.junit.jupiter.api.Nested;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.UUID;
+import javax.sql.DataSource;
 
 @DataJpaTest
 @TestPropertySource(properties = {
@@ -102,5 +109,29 @@ public class PostgresFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class GlobalWhitelistRollbackTests extends GlobalWhitelistRollbackFunctionalTest {
+    }
+
+    @Nested
+    class NimRemovalMigrationTests extends NimRemovalMigrationFunctionalTest {
+        @Override
+        protected DataSource freshDataSource() throws SQLException {
+            String dbName = "nim_removal_" + UUID.randomUUID().toString().replace("-", "");
+            try (var connection = DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+                    var statement = connection.createStatement()) {
+                statement.execute("CREATE DATABASE " + dbName);
+            }
+            String url = POSTGRES.getJdbcUrl().replace("/" + POSTGRES.getDatabaseName(), "/" + dbName);
+            return new DriverManagerDataSource(url, POSTGRES.getUsername(), POSTGRES.getPassword());
+        }
+
+        @Override
+        protected String vendor() {
+            return "POSTGRES";
+        }
+
+        @Override
+        protected String jsonParam() {
+            return "CAST(? AS jsonb)";
+        }
     }
 }
