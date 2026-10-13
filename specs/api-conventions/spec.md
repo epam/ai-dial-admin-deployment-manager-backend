@@ -51,6 +51,7 @@ Status: **Implemented**
 #### Scenario: Unconvertible request parameter
 - **WHEN** a path or query parameter cannot be converted to its declared type (e.g. `GET /api/v1/deployments?type=NOT_A_TYPE`)
 - **THEN** the system responds with 400 and an `ErrorView` whose `message` is `Invalid value '<value>' for parameter '<name>'`
+- Implemented via 028-remove-nim-deployments
 
 #### Scenario: Not found
 - **WHEN** a requested resource does not exist (`EntityNotFoundException` or `NoResourceFoundException`)

@@ -78,6 +78,7 @@ Status: **Implemented**
 #### Scenario: Legacy NIM entries in an imported archive are ignored
 - **WHEN** an archive produced by a release before 0.22.0 contains a top-level `nimDeployments` map
 - **THEN** the map is ignored (unknown properties are not rejected), no NIM data is persisted, and all other components are previewed and imported normally
+- Implemented via 028-remove-nim-deployments
 
 #### Scenario: Global domain whitelist exported and imported
 - **WHEN** the global domain whitelist is included in the export
