@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
 import org.junit.jupiter.api.Test;
@@ -207,9 +206,6 @@ class DeploymentImporterTest {
         AdapterDeployment adapter = AdapterDeployment.builder()
                 .id("adapter-1")
                 .build();
-        NimDeployment nim = NimDeployment.builder()
-                .id("nim-1")
-                .build();
         InferenceDeployment inference = InferenceDeployment.builder()
                 .id("inference-1")
                 .build();
@@ -219,7 +215,6 @@ class DeploymentImporterTest {
         config.getMcpDeployments().put(mcp2.getId(), mcp2);
         config.getInterceptorDeployments().put(interceptor.getId(), interceptor);
         config.getAdapterDeployments().put(adapter.getId(), adapter);
-        config.getNimDeployments().put(nim.getId(), nim);
         config.getInferenceDeployments().put(inference.getId(), inference);
 
         CreateMcpDeployment createRequestMcp1 = CreateMcpDeployment.builder()
@@ -233,7 +228,6 @@ class DeploymentImporterTest {
         when(deploymentService.getDeployment(mcp2.getId(), false)).thenReturn(Optional.empty());
         when(deploymentService.getDeployment(interceptor.getId(), false)).thenReturn(Optional.empty());
         when(deploymentService.getDeployment(adapter.getId(), false)).thenReturn(Optional.empty());
-        when(deploymentService.getDeployment(nim.getId(), false)).thenReturn(Optional.empty());
         when(deploymentService.getDeployment(inference.getId(), false)).thenReturn(Optional.empty());
 
         // When
@@ -243,7 +237,6 @@ class DeploymentImporterTest {
         verify(deploymentMapper, times(2)).toCreateDeployment(any(McpDeployment.class));
         verify(deploymentMapper).toCreateDeployment(any(InterceptorDeployment.class));
         verify(deploymentMapper).toCreateDeployment(any(AdapterDeployment.class));
-        verify(deploymentMapper).toCreateDeployment(any(NimDeployment.class));
         verify(deploymentMapper).toCreateDeployment(any(InferenceDeployment.class));
 
         verify(deploymentService).createDeployment(createRequestMcp1);

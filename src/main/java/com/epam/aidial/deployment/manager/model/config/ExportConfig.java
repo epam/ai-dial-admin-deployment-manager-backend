@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -52,8 +51,6 @@ public class ExportConfig {
     private Map<String, ApplicationDeployment> applicationDeployments = new LinkedHashMap<>();
     @Builder.Default
     private Map<String, InterceptorDeployment> interceptorDeployments = new LinkedHashMap<>();
-    @Builder.Default
-    private Map<String, NimDeployment> nimDeployments = new LinkedHashMap<>();
     @Builder.Default
     private Map<String, InferenceDeployment> inferenceDeployments = new LinkedHashMap<>();
 }

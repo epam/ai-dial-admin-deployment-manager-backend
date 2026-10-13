@@ -12,7 +12,7 @@ Status: **Implemented**
 - **Activity feed**: The denormalized, query-optimized table that powers `/api/v1/activities`; complements raw Envers history.
 
 ## Audited resource types
-`AdapterDeployment`, `ApplicationDeployment`, `InterceptorDeployment`, `McpDeployment`, `NimDeployment`, `InferenceDeployment`, `AdapterImageDefinition`, `ApplicationImageDefinition`, `InterceptorImageDefinition`, `McpImageDefinition`, and `DomainWhitelist`.
+`AdapterDeployment`, `ApplicationDeployment`, `InterceptorDeployment`, `McpDeployment`, `InferenceDeployment`, `AdapterImageDefinition`, `ApplicationImageDefinition`, `InterceptorImageDefinition`, `McpImageDefinition`, and `DomainWhitelist`.
 
 `DisposableResource` and `ComponentRemoval` are excluded as internal housekeeping. Base types (`Deployment`, `ImageDefinition`) are audited at the database level via Envers but are not exposed as activity resource types — entities are persisted as concrete subtypes only.
 
@@ -159,4 +159,4 @@ Status: **Implemented** (Implemented via 020-revision-rollback)
 - Service layer: `service/audit/AuditActivityService.java` (activity feed queries), `service/audit/HistoryService.java` (revision and entity-snapshot queries).
 - Controllers: `web/controller/AuditActivityController.java` (`/api/v1/activities`), `web/controller/HistoryController.java` (`/api/v1/history`); per-resource snapshot endpoints live on each entity's existing controller.
 - Authorization: activity / history endpoints are accessible to all authenticated users (no `@FullAdminOnly` restriction).
-- Related specs: `deployments`, `mcp-deployments`, `interceptor-deployments`, `adapter-deployments`, `application-deployments`, `inference-deployments`, `nim-deployments`, `image-definitions`, `mcp-image-definitions`, `interceptor-image-definitions`, `adapter-image-definitions`, `application-image-definitions`, `domain-whitelist`, `security`, `api-conventions`.
+- Related specs: `deployments`, `mcp-deployments`, `interceptor-deployments`, `adapter-deployments`, `application-deployments`, `inference-deployments`, `image-definitions`, `mcp-image-definitions`, `interceptor-image-definitions`, `adapter-image-definitions`, `application-image-definitions`, `domain-whitelist`, `security`, `api-conventions`.

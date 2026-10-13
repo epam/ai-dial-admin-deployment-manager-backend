@@ -10,7 +10,6 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.ApplicationDeplo
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
 import com.epam.aidial.deployment.manager.model.audit.ActivityResourceType;
 import com.epam.aidial.deployment.manager.model.audit.ActivityType;
 import org.hibernate.envers.RevisionType;
@@ -34,7 +33,6 @@ class AuditActivityMapperTest {
                 Arguments.of(ApplicationDeploymentEntity.class, ActivityResourceType.ApplicationDeployment),
                 Arguments.of(InterceptorDeploymentEntity.class, ActivityResourceType.InterceptorDeployment),
                 Arguments.of(McpDeploymentEntity.class, ActivityResourceType.McpDeployment),
-                Arguments.of(NimDeploymentEntity.class, ActivityResourceType.NimDeployment),
                 Arguments.of(InferenceDeploymentEntity.class, ActivityResourceType.InferenceDeployment),
                 Arguments.of(AdapterImageDefinitionEntity.class, ActivityResourceType.AdapterImageDefinition),
                 Arguments.of(ApplicationImageDefinitionEntity.class, ActivityResourceType.ApplicationImageDefinition),

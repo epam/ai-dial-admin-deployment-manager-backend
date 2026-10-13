@@ -46,7 +46,6 @@ public class ImportConfigValidator {
         validateDeployments(config.getAdapterDeployments(), ExportConfigComponentType.ADAPTER_DEPLOYMENT, errors);
         validateDeployments(config.getApplicationDeployments(), ExportConfigComponentType.APPLICATION_DEPLOYMENT, errors);
         validateDeployments(config.getInterceptorDeployments(), ExportConfigComponentType.INTERCEPTOR_DEPLOYMENT, errors);
-        validateDeployments(config.getNimDeployments(), ExportConfigComponentType.NIM_DEPLOYMENT, errors);
         validateDeployments(config.getInferenceDeployments(), ExportConfigComponentType.INFERENCE_DEPLOYMENT, errors);
         validateImageDefinitions(config.getMcpImageDefinitions(), ExportConfigComponentType.MCP_IMAGE_DEFINITION, errors);
         validateImageDefinitions(config.getAdapterImageDefinitions(), ExportConfigComponentType.ADAPTER_IMAGE_DEFINITION, errors);

@@ -5,6 +5,5 @@ public enum DeploymentTypeDto {
     ADAPTER,
     APPLICATION,
     INTERCEPTOR,
-    NIM,
     INFERENCE,
 }

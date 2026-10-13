@@ -26,7 +26,6 @@ import org.springframework.test.context.TestPropertySource;
 @DataJpaTest
 @TestPropertySource(properties = {
         "datasource.vendor=H2",
-        "app.nim.enabled=false",
         "app.kserve.enabled=false",
 })
 @ActiveProfiles("k8s-local")

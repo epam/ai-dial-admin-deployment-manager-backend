@@ -5,7 +5,6 @@ public enum ActivityResourceType {
     ApplicationDeployment,
     InterceptorDeployment,
     McpDeployment,
-    NimDeployment,
     InferenceDeployment,
     AdapterImageDefinition,
     ApplicationImageDefinition,

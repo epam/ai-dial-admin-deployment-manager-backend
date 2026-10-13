@@ -8,7 +8,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +33,6 @@ class DeploymentExportMixInTest {
                 new AdapterDeployment(),
                 new ApplicationDeployment(),
                 new InterceptorDeployment(),
-                new NimDeployment(),
                 new InferenceDeployment()
         );
     }

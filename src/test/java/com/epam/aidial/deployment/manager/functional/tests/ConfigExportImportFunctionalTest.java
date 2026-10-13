@@ -87,6 +87,7 @@ import static org.mockito.Mockito.when;
 
 public abstract class ConfigExportImportFunctionalTest {
 
+    private static final String LEGACY_NIM_KEY = "nimDeployments";
     private static final String EXPECTED_EXPORT_CONFIG_RESOURCE = "/config/expected_export_config_for_import.json";
 
     private static final List<String> EXPORT_WHITELIST = List.of("test-export-a.com", "test-export-b.com");
@@ -185,6 +186,9 @@ public abstract class ConfigExportImportFunctionalTest {
         // Compare each exported key to expected
         expectedTree.properties().forEach(entry -> {
             String key = entry.getKey();
+            if (LEGACY_NIM_KEY.equals(key)) {
+                return; // legacy-only block kept in the fixture to exercise import; no longer exported
+            }
             JsonNode expectedNode = actualTree.get(key);
             assertThat(expectedNode).as("Exported JSON should contain key: " + key).isNotNull();
             assertThat(entry.getValue()).as("Exported JSON for key '%s' should match expected export config".formatted(key)).isEqualTo(expectedNode);
@@ -675,7 +679,6 @@ public abstract class ConfigExportImportFunctionalTest {
         assertThat(preview.getMcpDeployments()).isEmpty();
         assertThat(preview.getAdapterDeployments()).isEmpty();
         assertThat(preview.getInterceptorDeployments()).isEmpty();
-        assertThat(preview.getNimDeployments()).isEmpty();
         assertThat(preview.getInferenceDeployments()).isEmpty();
         assertThat(preview.getGlobalImageBuildDomainWhitelist()).isNull();
 
@@ -693,6 +696,19 @@ public abstract class ConfigExportImportFunctionalTest {
                 configTransferService.getImportConfigPreview(badZipFile, ConflictResolutionPolicy.OVERWRITE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No valid export configuration file");
+    }
+
+    @Test
+    void import_ignoresLegacyNimDeploymentsBlock() throws Exception {
+        MultipartFile zipFile = buildImportZipFromResource();
+
+        ImportConfigPreview preview = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertThat(preview.getMcpDeployments()).isNotEmpty();
+
+        configTransferService.importConfig(zipFile, ConflictResolutionPolicy.OVERWRITE);
+
+        assertThat(deploymentService.getDeployment("mcp-dep-exp")).isPresent();
+        assertThat(deploymentService.getDeployment("nim-dep-exp")).isEmpty();
     }
 
     private MultipartFile buildImportZipFromResource() throws Exception {

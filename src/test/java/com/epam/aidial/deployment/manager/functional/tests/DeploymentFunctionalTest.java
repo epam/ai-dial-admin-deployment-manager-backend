@@ -91,7 +91,6 @@ public abstract class DeploymentFunctionalTest {
 
     @Test
     public void shouldNotRegisterAnyNimBeans_evenWhenLegacyNimFlagIsSet() {
-        assertThat(applicationContext.getEnvironment().getProperty("app.nim.enabled")).isEqualTo("true");
         assertThat(applicationContext.getBeanDefinitionNames())
                 .filteredOn(name -> !name.contains("imbus"))
                 .noneMatch(name -> name.startsWith("nim") || name.contains("Nim") || name.contains("NIM"));

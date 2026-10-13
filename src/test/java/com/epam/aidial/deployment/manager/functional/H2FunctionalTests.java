@@ -28,6 +28,7 @@ import org.springframework.test.context.TestPropertySource;
         "app.config.export.file-name=config.json",
         "app.config.export.zip-name=export.zip",
         "app.knative.enabled=true",
+        // Legacy flag deliberately kept: NIM was removed in 0.22.0 and the property must be ignored
         "app.nim.enabled=true",
         "app.kserve.enabled=true",
         "DOCKER_REGISTRY=test-docker-registry",

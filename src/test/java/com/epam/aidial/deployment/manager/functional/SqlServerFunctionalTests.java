@@ -36,7 +36,6 @@ import java.sql.Statement;
         "app.config.export.file-name=config.json",
         "app.config.export.zip-name=export.zip",
         "app.knative.enabled=true",
-        "app.nim.enabled=true",
         "app.kserve.enabled=true",
         "DOCKER_REGISTRY=test-docker-registry",
         "DOCKER_REGISTRY_AUTH=BASIC",

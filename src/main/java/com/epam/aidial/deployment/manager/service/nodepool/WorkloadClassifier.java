@@ -6,7 +6,6 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 
 public final class WorkloadClassifier {
 
@@ -18,7 +17,6 @@ public final class WorkloadClassifier {
     // (in tests / at runtime) instead of silently routing the new type to NODE_POOL_DEFAULT.
     public static boolean isModelWorkload(CreateDeployment deployment) {
         return switch (deployment) {
-            case CreateNimDeployment ignored -> true;
             case CreateInferenceDeployment ignored -> true;
             case CreateMcpDeployment ignored -> false;
             case CreateAdapterDeployment ignored -> false;

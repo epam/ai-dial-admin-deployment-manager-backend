@@ -30,7 +30,6 @@ public class DeploymentImporter {
         importMap(config.getAdapterDeployments(), policy);
         importMap(config.getApplicationDeployments(), policy);
         importMap(config.getInterceptorDeployments(), policy);
-        importMap(config.getNimDeployments(), policy);
         importMap(config.getInferenceDeployments(), policy);
     }
 
