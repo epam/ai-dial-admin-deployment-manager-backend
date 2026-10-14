@@ -76,7 +76,7 @@ Status: **Implemented**
 - **THEN** they are serialized/deserialized including their model source, scaling (Inference), and all configuration fields
 
 #### Scenario: Legacy NIM entries in an imported archive are ignored
-- **WHEN** an archive produced by a release before 0.22.0 contains a top-level `nimDeployments` map
+- **WHEN** an archive produced by a release before 0.23.0 contains a top-level `nimDeployments` map
 - **THEN** the map is ignored (unknown properties are not rejected), no NIM data is persisted, and all other components are previewed and imported normally
 - Implemented via 028-remove-nim-deployments
 

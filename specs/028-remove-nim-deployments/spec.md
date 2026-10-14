@@ -80,7 +80,7 @@ As an administrator moving configuration from an older installation, I can impor
 - **FR-005**: The service MUST contain no NIM Kubernetes integration (CRD, client, informer, manifest generation, deployment manager) and no NIM configuration properties; leftover NIM environment variables MUST be ignored.
 - **FR-006**: Import and import preview of archives containing a `nimDeployments` block MUST succeed and ignore that block.
 - **FR-007**: Already-applied migrations (V1.1–V1.59, SQL and Java) MUST remain unchanged.
-- **FR-008**: Operator documentation MUST list the removed environment variables (0.22.0 changelog), the data deletion, the pre-upgrade `NIMService` cleanup, and the single-replica upgrade requirement (`docs/upgrade-plans/0.22.0.md`).
+- **FR-008**: Operator documentation MUST list the removed environment variables (0.23.0 changelog), the data deletion, the pre-upgrade `NIMService` cleanup, and the single-replica upgrade requirement (`docs/upgrade-plans/0.23.0.md`).
 
 ### Key Entities
 

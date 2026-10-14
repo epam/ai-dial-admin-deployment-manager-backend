@@ -5,7 +5,7 @@
 
 ## Summary
 
-Pure removal of the NIM deployment subtype in one release (0.22.0): delete the NIM API types, domain/persistence model, Kubernetes integration (NIMService CRD + crd2java-generated classes, client, informer, manifest generator, manager) and configuration; add one Flyway migration per vendor that deletes NIM data and drops the NIM tables; retire the `nim-deployments` capability spec to a tombstone and document the upgrade. A small, general fix (`MethodArgumentTypeMismatchException` → 400) is included so stale `type=NIM` filters return 400 rather than 500.
+Pure removal of the NIM deployment subtype in one release (0.23.0): delete the NIM API types, domain/persistence model, Kubernetes integration (NIMService CRD + crd2java-generated classes, client, informer, manifest generator, manager) and configuration; add one Flyway migration per vendor that deletes NIM data and drops the NIM tables; retire the `nim-deployments` capability spec to a tombstone and document the upgrade. A small, general fix (`MethodArgumentTypeMismatchException` → 400) is included so stale `type=NIM` filters return 400 rather than 500.
 
 ## Technical Context
 
@@ -54,7 +54,7 @@ Vendor-neutral SQL, FK-safe order:
 
 ### Docs
 
-Tombstone `specs/nim-deployments/spec.md`; update affected capability specs and `specs/README.md`; remove NIM from `README.md`, `CLAUDE.md` files, constitution, `docs/configuration.md`, `docs/deployment_guide_full_security_model.md`, the `.drawio` diagram; add `docs/upgrade-plans/0.22.0.md` and a 0.22.0 **Removed** section in `docs/INFRA-CHANGELOG.md`.
+Tombstone `specs/nim-deployments/spec.md`; update affected capability specs and `specs/README.md`; remove NIM from `README.md`, `CLAUDE.md` files, constitution, `docs/configuration.md`, `docs/deployment_guide_full_security_model.md`, the `.drawio` diagram; add `docs/upgrade-plans/0.23.0.md` and a 0.23.0 **Removed** section in `docs/INFRA-CHANGELOG.md`.
 
 ## Project Structure
 

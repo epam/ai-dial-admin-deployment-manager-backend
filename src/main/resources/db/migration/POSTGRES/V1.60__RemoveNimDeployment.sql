@@ -1,4 +1,4 @@
--- NIM deployment support was removed in 0.22.0. Delete every row that belongs to a NIM deployment and drop the NIM tables.
+-- NIM deployment support was removed in 0.23.0. Delete every row that belongs to a NIM deployment and drop the NIM tables.
 
 -- Activity feed and audit trail
 DELETE FROM audit_activity WHERE resource_type = 'NimDeployment';

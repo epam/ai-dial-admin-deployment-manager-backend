@@ -5,7 +5,7 @@ This spec describes the deployment lifecycle — creating, configuring, activati
 
 Status: **Implemented**
 
-NIM deployment type removed in 0.22.0 — Implemented via 028-remove-nim-deployments (see `specs/028-remove-nim-deployments/spec.md`).
+NIM deployment type removed in 0.23.0 — Implemented via 028-remove-nim-deployments (see `specs/028-remove-nim-deployments/spec.md`).
 
 ## Key Terms
 - **Deployment**: A persistent configuration record representing a deployed (or deployable) AI component in Kubernetes, identified by a UUID.
