@@ -80,7 +80,7 @@ As an administrator moving configuration from an older installation, I can impor
 - **FR-005**: The service MUST contain no NIM Kubernetes integration (CRD, client, informer, manifest generation, deployment manager) and no NIM configuration properties; leftover NIM environment variables MUST be ignored.
 - **FR-006**: Import and import preview of archives containing a `nimDeployments` block MUST succeed and ignore that block.
 - **FR-007**: Already-applied migrations (V1.1–V1.59, SQL and Java) MUST remain unchanged.
-- **FR-008**: Operator documentation MUST list the removed environment variables (0.23.0 changelog), the data deletion, the pre-upgrade `NIMService` cleanup, and the single-replica upgrade requirement (`docs/upgrade-plans/0.23.0.md`).
+- **FR-008**: Operator documentation MUST list the removed environment variables (0.23.0 changelog), the data deletion, the mandatory pre-upgrade database backup (`V1.60` is irreversible; rollback = restore backup + 0.22.x), the pre-upgrade `NIMService` cleanup, the post-upgrade cleanup of leftover NIM PVCs and NGC secrets (plus NGC key revocation), and the single-replica upgrade requirement (`docs/upgrade-plans/0.23.0.md`).
 
 ### Key Entities
 
@@ -101,4 +101,3 @@ As an administrator moving configuration from an older installation, I can impor
 
 - No installation still needs NIM; permanent deletion of NIM data and history is accepted.
 - The admin frontend ships a matching change removing the NIM type.
-- The infrastructure diagram PNG is re-exported from the updated `.drawio` source outside this change.

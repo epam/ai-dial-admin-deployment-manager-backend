@@ -45,10 +45,7 @@
 
 - [X] T018 Tombstone `specs/nim-deployments/spec.md`; update `specs/README.md` rows
 - [X] T019 [P] Remove NIM from `README.md`, root/`service`/`kubernetes` `CLAUDE.md`, `.specify/memory/constitution.md`
-- [X] T020 [P] Remove NIM from `docs/configuration.md`, `docs/deployment_guide_full_security_model.md`, the infrastructure `.drawio`
+- [X] T020 [P] Remove NIM from `docs/configuration.md`, `docs/deployment_guide_full_security_model.md`, the infrastructure `.drawio`; re-export its PNG
 - [X] T021 [P] Add `docs/upgrade-plans/0.23.0.md` and the 0.23.0 **Removed** section in `docs/INFRA-CHANGELOG.md`
 - [X] T022 Final case-insensitive NIM audit grep; `./gradlew clean build`
 
-## Follow-ups (out of scope)
-
-- [ ] T023 Re-export `docs/diagramms/infrastructure_component/infrastrucutre-component-diagramm.png` from the updated `.drawio` (no draw.io available in the implementation environment)
