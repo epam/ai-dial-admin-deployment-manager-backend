@@ -21,8 +21,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
@@ -175,7 +173,6 @@ class ConfigExporterTest {
         // Given
         String adapterDepId = "dep-adapter";
         String interceptorDepId = "dep-interceptor";
-        String nimDepId = "dep-nim";
         String inferenceDepId = "dep-inference";
 
         McpDeployment mcpDeployment = McpDeployment.builder()
@@ -188,10 +185,6 @@ class ConfigExporterTest {
         InterceptorDeployment interceptorDeployment = InterceptorDeployment.builder()
                 .id(interceptorDepId)
                 .build();
-        NimDeployment nimDeployment = NimDeployment.builder()
-                .id(nimDepId)
-                .source(new NgcRegistrySource("ngc://img"))
-                .build();
         InferenceDeployment inferenceDeployment = InferenceDeployment.builder()
                 .id(inferenceDepId)
                 .source(new HuggingFaceSource("model-1"))
@@ -203,14 +196,12 @@ class ConfigExporterTest {
                 new ExportConfigComponent(DEPLOYMENT_ID, ExportConfigComponentType.MCP_DEPLOYMENT),
                 new ExportConfigComponent(adapterDepId, ExportConfigComponentType.ADAPTER_DEPLOYMENT),
                 new ExportConfigComponent(interceptorDepId, ExportConfigComponentType.INTERCEPTOR_DEPLOYMENT),
-                new ExportConfigComponent(nimDepId, ExportConfigComponentType.NIM_DEPLOYMENT),
                 new ExportConfigComponent(inferenceDepId, ExportConfigComponentType.INFERENCE_DEPLOYMENT)
         ));
 
         when(deploymentService.getDeployment(DEPLOYMENT_ID, true)).thenReturn(Optional.of(mcpDeployment));
         when(deploymentService.getDeployment(adapterDepId, true)).thenReturn(Optional.of(adapterDeployment));
         when(deploymentService.getDeployment(interceptorDepId, true)).thenReturn(Optional.of(interceptorDeployment));
-        when(deploymentService.getDeployment(nimDepId, true)).thenReturn(Optional.of(nimDeployment));
         when(deploymentService.getDeployment(inferenceDepId, true)).thenReturn(Optional.of(inferenceDeployment));
         when(exportSanitizer.sanitizeDeploymentForExport(any(Deployment.class), eq(true)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -222,15 +213,13 @@ class ConfigExporterTest {
         assertThat(config.getMcpDeployments()).containsKey(DEPLOYMENT_ID);
         assertThat(config.getAdapterDeployments()).containsKey(adapterDepId);
         assertThat(config.getInterceptorDeployments()).containsKey(interceptorDepId);
-        assertThat(config.getNimDeployments()).containsKey(nimDepId);
         assertThat(config.getInferenceDeployments()).containsKey(inferenceDepId);
 
         verify(deploymentService).getDeployment(DEPLOYMENT_ID, true);
         verify(deploymentService).getDeployment(adapterDepId, true);
         verify(deploymentService).getDeployment(interceptorDepId, true);
-        verify(deploymentService).getDeployment(nimDepId, true);
         verify(deploymentService).getDeployment(inferenceDepId, true);
-        verify(exportSanitizer, times(5)).sanitizeDeploymentForExport(any(Deployment.class), eq(true));
+        verify(exportSanitizer, times(4)).sanitizeDeploymentForExport(any(Deployment.class), eq(true));
     }
 
     @Test

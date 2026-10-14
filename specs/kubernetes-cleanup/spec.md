@@ -14,7 +14,7 @@ Status: **Implemented**
 - **ResourceReference**: Sealed type hierarchy for resource identity. Subtypes:
   - `K8sResourceReference` — identifies a Kubernetes resource by `kind` (`K8sResourceKind`), `namespace`, and `name`
   - `ContainerRegistryResourceReference` — identifies a container image by name in the managed registry
-- **K8sResourceKind**: Enum of tracked Kubernetes resource types: `JOB`, `CONFIGMAP`, `SECRET`, `KNATIVE_SERVICE`, `NIM_SERVICE`, `INFERENCE_SERVICE`, `CILIUM_NETWORK_POLICY`
+- **K8sResourceKind**: Enum of tracked Kubernetes resource types: `JOB`, `CONFIGMAP`, `SECRET`, `KNATIVE_SERVICE`, `INFERENCE_SERVICE`, `CILIUM_NETWORK_POLICY`
 - **Component removal**: A tracked removal operation persisted across restarts to ensure idempotent cleanup.
 - **ShedLock**: Distributed locking mechanism used to prevent concurrent cleanup runs in multi-instance deployments.
 
@@ -88,21 +88,21 @@ Status: **Implemented**
 
 #### Scenario: Services deleted before jobs
 - **WHEN** cleanup runs for a group containing both service resources and job/configmap/secret resources
-- **THEN** KNative Services, NIM Services, and Inference Services are deleted before Jobs, ConfigMaps, Secrets, and CiliumNetworkPolicies
+- **THEN** KNative Services and Inference Services are deleted before Jobs, ConfigMaps, Secrets, and CiliumNetworkPolicies
 
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.DisposableResourceController`
   - `POST /api/v1/disposable/clean`
 - Cleanup components (in `com.epam.aidial.deployment.manager.cleanup`):
   - `DisposableResourceManager`           — JPA-backed resource state management (save, mark, delete, query by lifecycle state and group). Accepts the stored `serviceName` as a parameter for resource tracking (no longer generates service names internally).
-  - `DisposableResourceCleaner`           — dispatches physical deletion per resource type; deletion order: KNATIVE_SERVICE → NIM_SERVICE → INFERENCE_SERVICE → JOB → CONFIGMAP → SECRET → CILIUM_NETWORK_POLICY → IMAGE
+  - `DisposableResourceCleaner`           — dispatches physical deletion per resource type; deletion order: KNATIVE_SERVICE → INFERENCE_SERVICE → JOB → CONFIGMAP → SECRET → CILIUM_NETWORK_POLICY → IMAGE
   - `DisposableResourceScheduledCleaner`  — `@Scheduled` + `@SchedulerLock` wrapper
   - `ContextRefreshedEventBasedDisposableResourceCleaner` — triggers cleanup on application startup
 - Resource reference model (in `com.epam.aidial.deployment.manager.cleanup.resource.model`):
   - `K8sResourceReference`               — kind, namespace, name
   - `ContainerRegistryResourceReference` — image name
   - `ResourceLifecycleState`             — STABLE, TEMPORARY, TO_CLEANUP
-  - `K8sResourceKind`                    — JOB, CONFIGMAP, SECRET, KNATIVE_SERVICE, NIM_SERVICE, INFERENCE_SERVICE, CILIUM_NETWORK_POLICY
+  - `K8sResourceKind`                    — JOB, CONFIGMAP, SECRET, KNATIVE_SERVICE, INFERENCE_SERVICE, CILIUM_NETWORK_POLICY
 - JPA repositories:
   - `com.epam.aidial.deployment.manager.dao.jpa.DisposableResourceJpaRepository`
   - `com.epam.aidial.deployment.manager.dao.jpa.ComponentRemovalJpaRepository`

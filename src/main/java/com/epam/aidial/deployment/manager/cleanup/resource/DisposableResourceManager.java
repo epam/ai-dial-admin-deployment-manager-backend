@@ -73,11 +73,6 @@ public class DisposableResourceManager {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<DisposableResource> markNimServiceResourceForCleanup(String id, String serviceName, String namespace) {
-        return markServiceResourceForCleanup(id, serviceName, namespace, K8sResourceKind.NIM_SERVICE);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<DisposableResource> markInferenceServiceResourceForCleanup(String id, String serviceName, String namespace) {
         return markServiceResourceForCleanup(id, serviceName, namespace, K8sResourceKind.INFERENCE_SERVICE);
     }
@@ -184,11 +179,6 @@ public class DisposableResourceManager {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void saveKnativeServiceResource(String id, String serviceName, String namespace) {
         saveServiceResource(id, serviceName, namespace, K8sResourceKind.KNATIVE_SERVICE);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void saveNimServiceResource(String id, String serviceName, String namespace) {
-        saveServiceResource(id, serviceName, namespace, K8sResourceKind.NIM_SERVICE);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

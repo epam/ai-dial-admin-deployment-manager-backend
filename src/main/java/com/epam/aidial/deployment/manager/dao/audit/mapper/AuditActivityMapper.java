@@ -11,7 +11,6 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.ApplicationDeplo
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
 import com.epam.aidial.deployment.manager.model.audit.ActivityResourceType;
 import com.epam.aidial.deployment.manager.model.audit.ActivityType;
 import org.hibernate.envers.RevisionType;
@@ -28,7 +27,6 @@ public class AuditActivityMapper {
             Map.entry(ApplicationDeploymentEntity.class, ActivityResourceType.ApplicationDeployment),
             Map.entry(InterceptorDeploymentEntity.class, ActivityResourceType.InterceptorDeployment),
             Map.entry(McpDeploymentEntity.class, ActivityResourceType.McpDeployment),
-            Map.entry(NimDeploymentEntity.class, ActivityResourceType.NimDeployment),
             Map.entry(InferenceDeploymentEntity.class, ActivityResourceType.InferenceDeployment),
             Map.entry(AdapterImageDefinitionEntity.class, ActivityResourceType.AdapterImageDefinition),
             Map.entry(ApplicationImageDefinitionEntity.class, ActivityResourceType.ApplicationImageDefinition),

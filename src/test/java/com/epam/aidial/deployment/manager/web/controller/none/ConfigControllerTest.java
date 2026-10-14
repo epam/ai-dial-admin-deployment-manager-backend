@@ -138,7 +138,7 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
         // Given
         var previewDto = new ImportConfigPreviewDto(
                 List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
                 null, List.of()
         );
 
@@ -166,7 +166,7 @@ class ConfigControllerTest extends AbstractControllerNoneSecureTest {
         );
         var previewDto = new ImportConfigPreviewDto(
                 List.of(), List.of(), List.of(), List.of(),
-                List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(), List.of(),
                 null, validationErrors
         );
 

@@ -34,14 +34,11 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.model.probe.HttpGetProbe;
 import com.epam.aidial.deployment.manager.model.probe.ProbeProperties;
@@ -90,6 +87,7 @@ import static org.mockito.Mockito.when;
 
 public abstract class ConfigExportImportFunctionalTest {
 
+    private static final String LEGACY_NIM_KEY = "nimDeployments";
     private static final String EXPECTED_EXPORT_CONFIG_RESOURCE = "/config/expected_export_config_for_import.json";
 
     private static final List<String> EXPORT_WHITELIST = List.of("test-export-a.com", "test-export-b.com");
@@ -99,7 +97,6 @@ public abstract class ConfigExportImportFunctionalTest {
     private static final String MCP_DEP_ID = "mcp-dep-exp";
     private static final String ADAPTER_DEP_ID = "adapter-dep-exp";
     private static final String INTERCEPTOR_DEP_ID = "interceptor-dep-exp";
-    private static final String NIM_DEP_ID = "nim-dep-exp";
     private static final String INFERENCE_DEP_ID = "inference-dep-exp";
     private static final String VERSION = "1.0.0";
     private static final String TEST_SECRET_B = "TEST_SECRET_B";
@@ -189,6 +186,9 @@ public abstract class ConfigExportImportFunctionalTest {
         // Compare each exported key to expected
         expectedTree.properties().forEach(entry -> {
             String key = entry.getKey();
+            if (LEGACY_NIM_KEY.equals(key)) {
+                return; // legacy-only block kept in the fixture to exercise import; no longer exported
+            }
             JsonNode expectedNode = actualTree.get(key);
             assertThat(expectedNode).as("Exported JSON should contain key: " + key).isNotNull();
             assertThat(entry.getValue()).as("Exported JSON for key '%s' should match expected export config".formatted(key)).isEqualTo(expectedNode);
@@ -268,7 +268,7 @@ public abstract class ConfigExportImportFunctionalTest {
 
         var deploymentIds = preview.deployments().stream().map(ExportComponentInfoDto::id).toList();
         assertThat(deploymentIds.containsAll(
-                List.of(MCP_DEP_ID, ADAPTER_DEP_ID, INTERCEPTOR_DEP_ID, NIM_DEP_ID, INFERENCE_DEP_ID)))
+                List.of(MCP_DEP_ID, ADAPTER_DEP_ID, INTERCEPTOR_DEP_ID, INFERENCE_DEP_ID)))
                 .as("deployments should contain all selected deployment ids").isTrue();
 
         // Assert all fields of a deployment (MCP)
@@ -277,13 +277,6 @@ public abstract class ConfigExportImportFunctionalTest {
         assertThat(mcpDep.version()).as("deployment version should be null").isNull();
         assertThat(mcpDep.description()).as("deployment description").isEqualTo("MCP deployment for import test");
         assertThat(mcpDep.type()).as("deployment type").isEqualTo(ExportConfigComponentTypeDto.MCP_DEPLOYMENT);
-
-        // Assert all fields of a deployment (NIM)
-        var nimDep = findById(preview.deployments(), NIM_DEP_ID);
-        assertThat(nimDep.displayName()).as("nim deployment displayName").isEqualTo("NIM deployment export test");
-        assertThat(nimDep.version()).as("nim deployment version should be null").isNull();
-        assertThat(nimDep.description()).as("nim deployment description").isEqualTo("NIM deployment for import test");
-        assertThat(nimDep.type()).as("nim deployment type").isEqualTo(ExportConfigComponentTypeDto.NIM_DEPLOYMENT);
 
         preview.deployments().forEach(d ->
                 assertThat(d.version()).as("deployment version should be null").isNull());
@@ -365,20 +358,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 .allowedDomains(List.of("test-domain-2.com"))
                 .build();
 
-        var nimProbe = new ProbeProperties(true, 5, 10, 3, 2, new TcpSocketProbe(8000));
-        var nimDep = CreateNimDeployment.builder()
-                .id(NIM_DEP_ID)
-                .displayName("NIM deployment export test")
-                .description("NIM deployment for import test")
-                .metadata(new DeploymentMetadata(List.of()))
-                .resources(EMPTY_RESOURCES)
-                .probeProperties(nimProbe)
-                .containerPort(8000)
-                .allowedDomains(List.of())
-                .source(new NgcRegistrySource("nvcr.io/nim/test-model:latest"))
-                .containerGrpcPort(50051)
-                .build();
-
         var inferenceProbe = new ProbeProperties(true, 5, 10, 3, 2, new HttpGetProbe("/health", 8080));
         var inferenceDep = CreateInferenceDeployment.builder()
                 .id(INFERENCE_DEP_ID)
@@ -393,7 +372,7 @@ public abstract class ConfigExportImportFunctionalTest {
                 .source(new HuggingFaceSource("test-org/export-test-model"))
                 .build();
 
-        return List.of(mcpDep, adapterDep, interceptorDep, nimDep, inferenceDep);
+        return List.of(mcpDep, adapterDep, interceptorDep, inferenceDep);
     }
 
     private static List<ImageDefinition> buildExportImageDefinitions() {
@@ -457,7 +436,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 new ExportConfigComponent(MCP_DEP_ID, ExportConfigComponentType.MCP_DEPLOYMENT),
                 new ExportConfigComponent(ADAPTER_DEP_ID, ExportConfigComponentType.ADAPTER_DEPLOYMENT),
                 new ExportConfigComponent(INTERCEPTOR_DEP_ID, ExportConfigComponentType.INTERCEPTOR_DEPLOYMENT),
-                new ExportConfigComponent(NIM_DEP_ID, ExportConfigComponentType.NIM_DEPLOYMENT),
                 new ExportConfigComponent(INFERENCE_DEP_ID, ExportConfigComponentType.INFERENCE_DEPLOYMENT)
         ));
         return request;
@@ -554,10 +532,6 @@ public abstract class ConfigExportImportFunctionalTest {
                 assertThat(actMcp.getTransport()).as("transport").isEqualTo(expMcp.getTransport());
                 assertThat(actMcp.getMcpEndpointPath()).as("mcpEndpointPath").isEqualTo(expMcp.getMcpEndpointPath());
             }
-            case NimDeployment expNim when actual instanceof NimDeployment actNim -> {
-                assertThat(actNim.getContainerGrpcPort()).as("containerGrpcPort").isEqualTo(expNim.getContainerGrpcPort());
-                assertNimSourceEquals(expNim.getSource(), actNim.getSource());
-            }
             case InferenceDeployment expInf when actual instanceof InferenceDeployment actInf -> {
                 assertThat(actInf.getModelFormat()).as("modelFormat").isEqualTo(expInf.getModelFormat());
                 assertInferenceSourceEquals(expInf.getSource(), actInf.getSource());
@@ -606,14 +580,6 @@ public abstract class ConfigExportImportFunctionalTest {
             if (exp.getValue() != null && act.getValue() != null && exp.getValue() instanceof SimpleEnvVarValue expVal && act.getValue() instanceof SimpleEnvVarValue actVal) {
                 assertThat(actVal.getValue()).as("metadata.envs[%d].value".formatted(i)).isEqualTo(expVal.getValue());
             }
-        }
-    }
-
-    private static void assertNimSourceEquals(Source expected, Source actual) {
-        if (expected instanceof NgcRegistrySource(String ref) && actual instanceof NgcRegistrySource(String imageRef)) {
-            assertThat(imageRef).as("source.imageRef").isEqualTo(ref);
-        } else {
-            assertThat(actual).as("source").isEqualTo(expected);
         }
     }
 
@@ -713,7 +679,6 @@ public abstract class ConfigExportImportFunctionalTest {
         assertThat(preview.getMcpDeployments()).isEmpty();
         assertThat(preview.getAdapterDeployments()).isEmpty();
         assertThat(preview.getInterceptorDeployments()).isEmpty();
-        assertThat(preview.getNimDeployments()).isEmpty();
         assertThat(preview.getInferenceDeployments()).isEmpty();
         assertThat(preview.getGlobalImageBuildDomainWhitelist()).isNull();
 
@@ -733,6 +698,19 @@ public abstract class ConfigExportImportFunctionalTest {
                 .hasMessageContaining("No valid export configuration file");
     }
 
+    @Test
+    void import_ignoresLegacyNimDeploymentsBlock() throws Exception {
+        MultipartFile zipFile = buildImportZipFromResource();
+
+        ImportConfigPreview preview = configTransferService.getImportConfigPreview(zipFile, ConflictResolutionPolicy.OVERWRITE);
+        assertThat(preview.getMcpDeployments()).isNotEmpty();
+
+        configTransferService.importConfig(zipFile, ConflictResolutionPolicy.OVERWRITE);
+
+        assertThat(deploymentService.getDeployment("mcp-dep-exp")).isPresent();
+        assertThat(deploymentService.getDeployment("nim-dep-exp")).isEmpty();
+    }
+
     private MultipartFile buildImportZipFromResource() throws Exception {
         String exportConfigJson = ResourceUtils.readResource(EXPECTED_EXPORT_CONFIG_RESOURCE);
         byte[] zipBytes = ConfigExportImportTestHelper.buildZipFromJson(configExportProperties.getFileName(), exportConfigJson);
@@ -746,7 +724,6 @@ public abstract class ConfigExportImportFunctionalTest {
         assertComponentListAction(preview.getMcpDeployments(), expectedAction, "mcpDeployments");
         assertComponentListAction(preview.getAdapterDeployments(), expectedAction, "adapterDeployments");
         assertComponentListAction(preview.getInterceptorDeployments(), expectedAction, "interceptorDeployments");
-        assertComponentListAction(preview.getNimDeployments(), expectedAction, "nimDeployments");
         assertComponentListAction(preview.getInferenceDeployments(), expectedAction, "inferenceDeployments");
     }
 

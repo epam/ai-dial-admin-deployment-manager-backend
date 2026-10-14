@@ -13,11 +13,11 @@ The application uses Spring Boot configuration with YAML format. Configuration p
 
 ### Externalized configuration via SPRING_CONFIG_ADDITIONAL_LOCATION
 
-You can point the application to one or more external YAML/Properties files using the `SPRING_CONFIG_ADDITIONAL_LOCATION` environment variable. Any property in this document (and any nested structures) can be overridden through this mechanism, including full Knative and NIM service specifications.
+You can point the application to one or more external YAML/Properties files using the `SPRING_CONFIG_ADDITIONAL_LOCATION` environment variable. Any property in this document (and any nested structures) can be overridden through this mechanism, including full Knative and KServe service specifications.
 
 - Set `SPRING_CONFIG_ADDITIONAL_LOCATION` to a file or directory location (e.g., `file:/config/override.yml` or `file:/config/`).
 - Values from these files are loaded by Spring and override defaults from `application.yml` and environment variables according to Spring’s property precedence.
-- This allows you to change any Knative/NIM service configuration field, even ones not explicitly listed in the tables below (for example, `serviceAccountName`, `automountServiceAccountToken`, or additional annotations/labels).
+- This allows you to change any Knative/KServe service configuration field, even ones not explicitly listed in the tables below (for example, `serviceAccountName`, `automountServiceAccountToken`, or additional annotations/labels).
 
 Example minimal override (only serviceAccountName):
 
@@ -155,7 +155,7 @@ app:
 
 KNative has a default progress deadline of 600 seconds (10 minutes). If a Revision does not become ready within this window, KNative marks it as **Failed** and terminates the pod. This can cause deployments of large models to fail if they need more time to download or initialize.
 
-The application automatically sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative, when a startup probe is configured), the InferenceService metadata (for KServe), or `NIMService.spec.annotations` (for NIM in kserve mode — the NIM operator propagates only `spec.annotations` to the KServe InferenceService; in legacy standalone mode the annotation stays on NIMService metadata and has no effect):
+The application automatically sets the `serving.knative.dev/progress-deadline` annotation on the Revision template (for KNative, when a startup probe is configured), or the InferenceService metadata (for KServe):
 
 **When a startup probe is configured**, the deadline is computed from the probe parameters:
 
@@ -165,13 +165,13 @@ progressDeadline = initialDelaySeconds + ((failureThreshold - 1) × periodSecond
 
 If the startup probe does not specify `initialDelaySeconds`, `periodSeconds`, or `failureThreshold`, the corresponding default values from the properties above are used (matching Kubernetes defaults).
 
-**When no startup probe is configured** (KServe and NIM only), the deadline falls back to the deployment type's `startup-timeout` value plus `buffer-seconds`. This ensures that the Kubernetes-level timeout aligns with the application-level health check timeout:
+**When no startup probe is configured** (KServe only), the deadline falls back to the deployment type's `startup-timeout` value plus `buffer-seconds`. This ensures that the Kubernetes-level timeout aligns with the application-level health check timeout:
 
 ```
 progressDeadline = startupTimeout + bufferSeconds
 ```
 
-For example, with KServe's or NIM's default `startup-timeout` of 3600s and `buffer-seconds` of 30, the progress deadline will be `3630s`.
+For example, with KServe's default `startup-timeout` of 3600s and `buffer-seconds` of 30, the progress deadline will be `3630s`.
 
 For KNative deployments (MCP servers, interceptors, adapters, applications), when no startup probe is configured, no annotation is set and KNative's built-in default of 600s applies.
 
@@ -201,36 +201,21 @@ To customize the proxy (e.g. add tooling, change the base image), fork the upstr
 | `app.knative.deploy.ready-grace-period`       | `K8S_KNATIVE_DEPLOYMENT_READY_GRACE_PERIOD_SEC`       | `15`          | No                                                | -            | Grace period in seconds after Ready=False before reporting CRASHED status. Set to 0 to disable |
 
 
-#### NIM (NVIDIA Inference Microservices) Configuration
-
-
-| Property                                  | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                                                                                                                                                                             |
-|-------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `app.nim.enabled`                         | `K8S_NIM_ENABLED`                                 | `false`       | No                                                | -            | Enable or disable NIM deployment support                                                                                                                                                                                |
-| `app.nim.deploy.namespace`                | `K8S_NIM_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for NIM deployments                                                                                                                                                                                |
-| `app.nim.deploy.startup-timeout`          | `K8S_NIM_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | NIM service startup timeout in seconds (1 hour). Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration).                                 |
-| `app.nim.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for NIM deployments                                                                                                                                                      |
-| `app.nim.deploy.use-cluster-internal-url` | `K8S_NIM_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | When `true`, NIM services use cluster-internal URL. When `false`, external URL is used.                                                                            |
-| `app.nim.deploy.cluster-host`             | `K8S_NIM_CLUSTER_HOST`                            | -             | Yes, when `use-cluster-internal-url=false` and `kserve-mode-enabled=false` | NIM deploy | Cluster host used to construct the ingress host for NIM services in legacy (standalone) mode. Unused when `kserve-mode-enabled=true`. |
-| `app.nim.deploy.url-schema`               | `K8S_NIM_DEPLOYMENT_URL_SCHEMA`                   | -             | No                                                | NIM deploy   | Override URL schema prefix for resolved NIM service URLs. When empty, defaults apply: `http` for cluster-internal, `https` for external. Accepts values with or without `://` (e.g., both `https` and `https://` work). |
-| `app.nim.deploy.kserve-mode-enabled`      | `K8S_NIM_DEPLOYMENT_KSERVE_MODE_ENABLED`          | `false`       | No                                                | NIM deploy   | When `true`, generates NIMService manifests with `inferencePlatform: kserve`, Knative `expose.router`, and Knative autoscaling annotations. When `false` (default), uses standalone mode with ingress-based external exposure. |
-| `app.nim-service-expose-ingress-config.spec.ingressClassName` | `K8S_NIM_INGRESS_CLASS_NAME`                              | `nginx` | No | NIM deploy (legacy mode with external URL) | Ingress class name applied to the generated NIM Ingress resource (e.g., `nginx`, `traefik`).            |
-
 #### KServe Configuration
 
 
-| Property                                     | Environment Variable                              | Default Value | Required                                          | Applied when | Description                                                                                                                                                                                  |
-|----------------------------------------------|---------------------------------------------------|---------------|---------------------------------------------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `app.kserve.enabled`                         | `K8S_KSERVE_ENABLED`                              | `false`       | No                                                | -            | Enable or disable KServe deployment support                                                                                                                                                  |
-| `app.kserve.deploy.namespace`                | `K8S_KSERVE_DEPLOYMENT_NAMESPACE`                 | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for KServe deployments (max 14 chars due to [https://github.com/kserve/kserve/issues/4807](https://github.com/kserve/kserve/issues/4807)).                              |
-| `app.kserve.deploy.startup-timeout`          | `K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`       | `3600`        | No                                                | -            | Seconds to wait for a KServe service to become ready. Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration). |
-| `app.kserve.deploy.informer-resync-interval` | `K8S_NIM_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `60`          | No                                                | -            | Kubernetes informer resync interval in seconds for KServe deployments                                                                                                                        |
-| `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`  | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
+| Property                                     | Environment Variable                                 | Default Value | Required                                          | Applied when | Description                                                                                                                                                                                  |
+|----------------------------------------------|------------------------------------------------------|---------------|---------------------------------------------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `app.kserve.enabled`                         | `K8S_KSERVE_ENABLED`                                 | `false`       | No                                                | -            | Enable or disable KServe deployment support                                                                                                                                                  |
+| `app.kserve.deploy.namespace`                | `K8S_KSERVE_DEPLOYMENT_NAMESPACE`                    | `default`     | No (recommended to adjust for target environment) | -            | Kubernetes namespace for KServe deployments (max 14 chars due to [https://github.com/kserve/kserve/issues/4807](https://github.com/kserve/kserve/issues/4807)).                              |
+| `app.kserve.deploy.startup-timeout`          | `K8S_KSERVE_DEPLOYMENT_STARTUP_TIMEOUT_SEC`          | `3600`        | No                                                | -            | Seconds to wait for a KServe service to become ready. Used as the fallback progress deadline when no startup probe is configured. See [Progress Deadline](#progress-deadline-configuration). |
+| `app.kserve.deploy.informer-resync-interval` | `K8S_KSERVE_DEPLOYMENT_INFORMER_RESYNC_INTERVAL_SEC` | `600`         | No                                                | -            | Kubernetes informer resync interval in seconds for KServe deployments                                                                                                                        |
+| `app.kserve.deploy.use-cluster-internal-url` | `K8S_KSERVE_DEPLOYMENT_USE_CLUSTER_INTERNAL_URL`     | `true`        | No (recommended to adjust for target environment) | -            | Whether to use cluster-internal URL for KServe services.                                                                                                                                     |
 
 
 #### Deployment Metrics Scrape Configuration
 
-Powers `GET /api/v1/deployments/{id}/metrics` — the on-demand live metrics snapshot for **any** deployment type (see `specs/deployment-metrics/spec.md`). Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type. Engine-specific model metrics — both serving-quality (TTFT, inter-token latency, tokens/second, queue depth, KV-cache usage, …) and operational (request error ratio, end-to-end latency) — are additionally scraped only for **INFERENCE** deployments; for all other types (MCP/adapter/application/interceptor and **NIM**) the serving and operational blocks are reported unavailable with a reason, so NIM model metrics are not supported. For INFERENCE deployments the engine's Prometheus `/metrics` is read from the Ready predictor pod through the Kubernetes API-server pod proxy; collection is request-triggered only (never background polling). GPU metrics (per-pod utilization and framebuffer memory used/total) are read for deployments that request `nvidia.com/gpu`, from the NVIDIA **DCGM exporter** DaemonSet — a **cluster prerequisite** deployed on GPU node pools — by scraping only the exporter pods co-located on the deployment's nodes through the same pod proxy. Requires read-only RBAC on `pods/proxy` (and `metrics.k8s.io` pods when the resource-usage block is enabled); when GPU metrics are enabled it additionally requires read-only RBAC on `pods` and `pods/proxy` in the DCGM exporter namespace (default `gpu-operator`). A missing/unreachable exporter, or a non-GPU deployment, degrades gracefully (the `resources.gpu` block is reported unavailable with a reason — never an error).
+Powers `GET /api/v1/deployments/{id}/metrics` — the on-demand live metrics snapshot for **any** deployment type (see `specs/deployment-metrics/spec.md`). Resource metrics (replica counts and per-pod CPU/memory) are reported for every deployment type. Engine-specific model metrics — both serving-quality (TTFT, inter-token latency, tokens/second, queue depth, KV-cache usage, …) and operational (request error ratio, end-to-end latency) — are additionally scraped only for **INFERENCE** deployments; for all other types (MCP/adapter/application/interceptor) the serving and operational blocks are reported unavailable with a reason. For INFERENCE deployments the engine's Prometheus `/metrics` is read from the Ready predictor pod through the Kubernetes API-server pod proxy; collection is request-triggered only (never background polling). GPU metrics (per-pod utilization and framebuffer memory used/total) are read for deployments that request `nvidia.com/gpu`, from the NVIDIA **DCGM exporter** DaemonSet — a **cluster prerequisite** deployed on GPU node pools — by scraping only the exporter pods co-located on the deployment's nodes through the same pod proxy. Requires read-only RBAC on `pods/proxy` (and `metrics.k8s.io` pods when the resource-usage block is enabled); when GPU metrics are enabled it additionally requires read-only RBAC on `pods` and `pods/proxy` in the DCGM exporter namespace (default `gpu-operator`). A missing/unreachable exporter, or a non-GPU deployment, degrades gracefully (the `resources.gpu` block is reported unavailable with a reason — never an error).
 
 | Property                                     | Environment Variable                       | Default Value | Required | Applied when                  | Description                                                                                                                                              |
 |----------------------------------------------|--------------------------------------------|---------------|----------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -278,7 +263,7 @@ Each pool entry has the following fields:
 |----------|---------------------|---------|----------|-------------|
 | `app.node-pools.pools` | `NODE_POOLS`  | _(empty)_ | No | YAML list of pool entries. Per-entry field schema described above. |
 | `app.node-pools.default` | `NODE_POOL_DEFAULT` | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
-| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL`  | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for NIM and KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
+| `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL`  | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
 Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
 
@@ -369,18 +354,6 @@ NODE_POOL_DEFAULT_MODEL=gpu-pool
 | `app.knative-service-container-config.resources.limits.ephemeral-storage`   | -                    | `1G`            | No       | -            | Default Ephemeral storage limit     |
 
 
-#### NIM Service Configuration
-
-
-| Property                                                        | Environment Variable          | Default Value    | Required | Applied when | Description                          |
-| --------------------------------------------------------------- | ----------------------------- | ---------------- | -------- | ------------ | ------------------------------------ |
-| `app.nim-service-config.spec.image.pullSecrets[0]`              | `NIM_SERVICE_NGC_SECRET`      | `ngc-secret`     | No       | -            | NGC (NVIDIA GPU Cloud) secret name   |
-| `app.nim-service-config.spec.authSecret`                        | `NIM_SERVICE_NGC_AUTH_SECRET` | `ngc-api-secret` | No       | -            | NGC authentication secret            |
-| `app.nim-service-config.spec.replicas`                          | -                             | `1`              | No       | -            | Number of NIM service replicas       |
-| `app.nim-service-config.spec.storage.pvc.size`                  | -                             | `20Gi`           | No       | -            | Default Persistent volume claim size |
-| `app.nim-service-config.spec.resources.limits.[nvidia.com/gpu]` | -                             | `1`              | No       | -            | Default GPU resource limit           |
-
-
 ### MCP Registry Configuration
 
 
@@ -410,7 +383,6 @@ NODE_POOL_DEFAULT_MODEL=gpu-pool
 | `app.validation.resources.max-cpu-in-cores`    | `RESOURCES_MAX_CPU_IN_CORES`    | `10`                                        | No       | -            | Maximum allowed value for CPU resource (in cores) |
 | `app.validation.resources.max-memory-in-mb`    | `RESOURCES_MAX_MEMORY_IN_MB`    | `100000`                                    | No       | -            | Maximum allowed value for memory resource (in mb) |
 | `app.validation.resources.max-nvidia-gpu`      | `RESOURCES_MAX_NVIDIA_GPU`      | `5`                                         | No       | -            | Maximum allowed value for nvidia.com/gpu resource |
-| `app.validation.resources.max-storage-size` | `RESOURCES_STORAGE_MAX_SIZE` | `200Gi`                                  | No       | -            | Maximum allowed storage size for NIM deployments. Accepts Kubernetes quantity format (e.g., '200Gi', '500Mi', '1Ti') or plain bytes |
 
 
 ### Export/import Configuration
@@ -749,18 +721,16 @@ The service will automatically extract and propagate the trace context. If no tr
 
 ## Required Kubernetes RBAC
 
-The application needs scoped permissions in four namespaces:
+The application needs scoped permissions in three namespaces:
 
 - Build namespace: where Jobs run to build, analyze, and copy images
 - Knative namespace: where `Knative` Services are created/managed
-- NIM namespace: where NVIDIA `NIMService` resources are created/managed
 - KServe namespace: where `InferenceService` resources are created/managed
 
 Map these namespaces via configuration:
 
 - Build namespace → `app.build-namespace` (`K8S_BUILD_NAMESPACE`)
 - Knative namespace → `app.knative.deploy.namespace` (`K8S_KNATIVE_DEPLOYMENT_NAMESPACE`)
-- NIM namespace → `app.nim.deploy.namespace` (`K8S_NIM_DEPLOYMENT_NAMESPACE`)
 - KServe namespace → `app.kserve.deploy.namespace` (`K8S_KSERVE_DEPLOYMENT_NAMESPACE`)
 
 Example Roles (replace placeholders with your namespaces):
@@ -802,26 +772,6 @@ rules:
     resources: ["pods","pods/log","events"]
     verbs: ["get","list","watch","delete"]
   # Secrets for Knative Services
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get","create","delete"]
----
-# NIM namespace Role (NVIDIA NIMService CRD)
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: ai-dial-admin-deployment-manager-role
-  namespace: <nim namespace>
-rules:
-  # NIM Services
-  - apiGroups: ["apps.nvidia.com"]
-    resources: ["nimservices"]
-    verbs: ["get","list","watch","create","delete"]
-  # Read NIM workload pod logs
-  - apiGroups: [""]
-    resources: ["pods","pods/log","events"]
-    verbs: ["get","list","watch"]
-  # Secrets for NIM services
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get","create","delete"]

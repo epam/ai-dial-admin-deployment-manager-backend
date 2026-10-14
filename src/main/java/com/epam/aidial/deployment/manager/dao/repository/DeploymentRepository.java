@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInternalImageSource;
 import com.epam.aidial.deployment.manager.dao.jpa.DeploymentJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
@@ -84,7 +83,6 @@ public class DeploymentRepository {
             case ADAPTER -> AdapterDeploymentEntity.class;
             case APPLICATION -> ApplicationDeploymentEntity.class;
             case INTERCEPTOR -> InterceptorDeploymentEntity.class;
-            case NIM -> NimDeploymentEntity.class;
             case INFERENCE -> InferenceDeploymentEntity.class;
         };
     }

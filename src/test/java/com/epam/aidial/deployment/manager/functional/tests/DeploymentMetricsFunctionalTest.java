@@ -9,10 +9,8 @@ import com.epam.aidial.deployment.manager.model.Resources;
 import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
 import com.epam.aidial.deployment.manager.utils.ResourceUtils;
@@ -52,7 +50,6 @@ public abstract class DeploymentMetricsFunctionalTest {
 
     private static final String NAMESPACE = "default";
     private static final String KSERVE_SERVICE_LABEL = "serving.kserve.io/inferenceservice";
-    private static final String NIM_SERVICE_LABEL = "app.kubernetes.io/name";
 
     @Autowired
     private DeploymentService deploymentService;
@@ -192,33 +189,6 @@ public abstract class DeploymentMetricsFunctionalTest {
     }
 
     @Test
-    void shouldReturnResourceOnlySnapshotForNimDeployment() {
-        // Given — a NIM deployment (not INFERENCE): resource metrics apply, serving does not
-        var id = "metrics-nim-deployment";
-        createNimDeployment(id, "metrics-nim-svc");
-        stubPods(NIM_SERVICE_LABEL, "metrics-nim-svc", readyPod("metrics-nim-pod-0"));
-        stubPodUsage("metrics-nim-pod-0", "100m", "512Mi");
-
-        // When
-        var metrics = deploymentController.getMetrics(id);
-
-        // Then — resource block populated, serving block honestly unavailable, no scrape attempted
-        assertThat(metrics.engine()).isEqualTo("UNKNOWN");
-        assertThat(metrics.scrapedPod()).isNull();
-        assertThat(metrics.serving()).isNull();
-        assertThat(metrics.operational()).isNull();
-        assertThat(metrics.resources().replicas().total()).isEqualTo(1);
-        assertThat(metrics.resources().replicas().ready()).isEqualTo(1);
-        assertThat(metrics.resources().pods()).hasSize(1);
-        assertThat(metrics.resources().pods().getFirst().cpuMillicores()).isEqualTo(100.0);
-        assertThat(metrics.availability().get("resources").available()).isTrue();
-        assertThat(metrics.availability().get("resources.usage").available()).isTrue();
-        assertThat(metrics.availability().get("serving").available()).isFalse();
-        assertThat(metrics.availability().get("serving").reason()).contains("inference");
-        Mockito.verify(kubernetesClient, Mockito.never()).raw(anyString());
-    }
-
-    @Test
     void shouldReturnPartialSnapshot_whenNoReadyPods() {
         // Given — deployment exists but no pods are running
         var id = "metrics-no-pods-deployment";
@@ -322,21 +292,6 @@ public abstract class DeploymentMetricsFunctionalTest {
                 .source(new HuggingFaceSource("test-org/metrics-test-model"))
                 .allowedDomains(List.of())
                 .containerPort(8080)
-                .build();
-        deploymentService.createDeployment(request);
-        deploymentRepository.updateServiceName(id, serviceName);
-    }
-
-    private void createNimDeployment(String id, String serviceName) {
-        CreateDeployment request = CreateNimDeployment.builder()
-                .id(id)
-                .displayName("Metrics test " + id)
-                .metadata(new DeploymentMetadata(List.of()))
-                .resources(new Resources(Map.of(), Map.of()))
-                .source(new NgcRegistrySource("nvcr.io/nim/test-model:latest"))
-                .allowedDomains(List.of())
-                .containerPort(8000)
-                .containerGrpcPort(50051)
                 .build();
         deploymentService.createDeployment(request);
         deploymentRepository.updateServiceName(id, serviceName);

@@ -23,8 +23,8 @@ Business logic, transaction boundaries, pipelines, caching, scheduled jobs. See 
 |---|---|
 | `audit/` | Audit activity recording, history queries (Hibernate Envers integration) |
 | `config/` | Configuration import/export orchestration (ZIP archive build/parse, conflict resolution) |
-| `deployment/` | Deployment lifecycle services — base, mcp, interceptor, adapter, application, inference, nim |
-| `manifest/` | KNative / KServe / NIM manifest generation; env var injection; probe converters |
+| `deployment/` | Deployment lifecycle services — base, mcp, interceptor, adapter, application, inference |
+| `manifest/` | KNative / KServe manifest generation; env var injection; probe converters |
 | `nodepool/` | Node-pool selector resolution for K8s scheduling |
 | `pipeline/` | Image build pipeline — multi-step chain in `pipeline/step/`, specifications in `pipeline/specification/` |
 | `security/` | Security mode resolution, JWT provider selection (azure / keycloak / auth0 / okta / cognito) |

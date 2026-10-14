@@ -11,6 +11,7 @@ import com.epam.aidial.deployment.manager.functional.tests.GlobalWhitelistRollba
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionRollbackFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.NimRemovalMigrationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
 import com.zaxxer.hikari.HikariConfig;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Nested;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -26,8 +28,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mssqlserver.MSSQLServerContainer;
 
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
+import javax.sql.DataSource;
 
 @DataJpaTest
 @TestPropertySource(properties = {
@@ -36,7 +41,6 @@ import java.sql.Statement;
         "app.config.export.file-name=config.json",
         "app.config.export.zip-name=export.zip",
         "app.knative.enabled=true",
-        "app.nim.enabled=true",
         "app.kserve.enabled=true",
         "DOCKER_REGISTRY=test-docker-registry",
         "DOCKER_REGISTRY_AUTH=BASIC",
@@ -125,5 +129,29 @@ public class SqlServerFunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class GlobalWhitelistRollbackTests extends GlobalWhitelistRollbackFunctionalTest {
+    }
+
+    @Nested
+    class NimRemovalMigrationTests extends NimRemovalMigrationFunctionalTest {
+        @Override
+        protected DataSource freshDataSource() throws SQLException {
+            String dbName = "nim_removal_" + UUID.randomUUID().toString().replace("-", "");
+            try (var connection = DriverManager.getConnection(MS_SQL_SERVER.getJdbcUrl(), MS_SQL_SERVER.getUsername(), MS_SQL_SERVER.getPassword());
+                    var statement = connection.createStatement()) {
+                statement.execute("CREATE DATABASE [%s] COLLATE SQL_Latin1_General_CP1_CS_AS;".formatted(dbName));
+            }
+            return new DriverManagerDataSource(MS_SQL_SERVER.getJdbcUrl() + ";databaseName=" + dbName,
+                    MS_SQL_SERVER.getUsername(), MS_SQL_SERVER.getPassword());
+        }
+
+        @Override
+        protected String vendor() {
+            return "MS_SQL_SERVER";
+        }
+
+        @Override
+        protected String jsonParam() {
+            return "?";
+        }
     }
 }

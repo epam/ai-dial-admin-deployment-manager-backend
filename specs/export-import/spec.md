@@ -7,7 +7,7 @@ Status: **Implemented**
 
 ## Key Terms
 - **ExportConfig**: The root export structure. Contains maps of all exportable components keyed by name.
-- **ExportConfigComponentType**: The enum of exportable entity types: `MCP_IMAGE_DEFINITION`, `ADAPTER_IMAGE_DEFINITION`, `INTERCEPTOR_IMAGE_DEFINITION`, `APPLICATION_IMAGE_DEFINITION`, `MCP_DEPLOYMENT`, `ADAPTER_DEPLOYMENT`, `INTERCEPTOR_DEPLOYMENT`, `APPLICATION_DEPLOYMENT`, `NIM_DEPLOYMENT`, `INFERENCE_DEPLOYMENT`.
+- **ExportConfigComponentType**: The enum of exportable entity types: `MCP_IMAGE_DEFINITION`, `ADAPTER_IMAGE_DEFINITION`, `INTERCEPTOR_IMAGE_DEFINITION`, `APPLICATION_IMAGE_DEFINITION`, `MCP_DEPLOYMENT`, `ADAPTER_DEPLOYMENT`, `INTERCEPTOR_DEPLOYMENT`, `APPLICATION_DEPLOYMENT`, `INFERENCE_DEPLOYMENT`.
 - **ConflictResolutionPolicy**: Controls what happens when an imported entity already exists: `OVERWRITE` (replace; for the global domain whitelist this means *merge* — existing entries are preserved and incoming entries are appended, deduplicated) or `SKIP_IF_EXISTS` (skip).
 - **ExportSanitizer**: Service that removes or masks sensitive environment variable values before export, ensuring exported ZIPs are safe to share or commit. System-managed deployment fields (`serviceName`, `url`, `status`, `author`, `createdAt`, `updatedAt`, `imageDefinitionId`) are also excluded via `DeploymentExportMixIn`.
 - **Import order**: Image definitions are always imported before deployments to satisfy foreign-key constraints; global domain whitelist follows.
@@ -72,8 +72,13 @@ Status: **Implemented**
 - **THEN** they are serialized/deserialized including their image definition reference and all configuration fields
 
 #### Scenario: Model-source deployment types
-- **WHEN** NIM or Inference deployments are included in an export/import
+- **WHEN** Inference deployments are included in an export/import
 - **THEN** they are serialized/deserialized including their model source, scaling (Inference), and all configuration fields
+
+#### Scenario: Legacy NIM entries in an imported archive are ignored
+- **WHEN** an archive produced by a release before 0.23.0 contains a top-level `nimDeployments` map
+- **THEN** the map is ignored (unknown properties are not rejected), no NIM data is persisted, and all other components are previewed and imported normally
+- Implemented via 028-remove-nim-deployments
 
 #### Scenario: Global domain whitelist exported and imported
 - **WHEN** the global domain whitelist is included in the export

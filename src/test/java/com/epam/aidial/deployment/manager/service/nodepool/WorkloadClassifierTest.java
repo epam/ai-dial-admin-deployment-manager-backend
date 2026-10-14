@@ -5,17 +5,11 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateApplicationDepl
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class WorkloadClassifierTest {
-
-    @Test
-    void shouldClassifyNimAsModelWorkload() {
-        assertThat(WorkloadClassifier.isModelWorkload(new CreateNimDeployment())).isTrue();
-    }
 
     @Test
     void shouldClassifyKserveInferenceAsModelWorkload() {

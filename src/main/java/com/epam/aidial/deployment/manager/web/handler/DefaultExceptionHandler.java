@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Optional;
@@ -94,6 +95,14 @@ public class DefaultExceptionHandler {
     public ErrorView handleMissingRequestValueError(HttpServletRequest req, Exception ex) {
         logUncaught(ex);
         return new ErrorView(req, HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ErrorView handleArgumentTypeMismatchError(HttpServletRequest req, MethodArgumentTypeMismatchException ex) {
+        logUncaught(ex);
+        return new ErrorView(req, HttpStatus.BAD_REQUEST,
+                "Invalid value '%s' for parameter '%s'".formatted(ex.getValue(), ex.getName()));
     }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

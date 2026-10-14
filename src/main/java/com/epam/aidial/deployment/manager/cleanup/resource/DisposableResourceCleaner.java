@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.docker.DockerRegistryClient;
 import com.epam.aidial.deployment.manager.kubernetes.K8sClient;
 import com.epam.aidial.deployment.manager.kubernetes.knative.K8sKnativeClient;
 import com.epam.aidial.deployment.manager.kubernetes.kserve.K8sKserveClient;
-import com.epam.aidial.deployment.manager.kubernetes.nim.K8sNimClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,7 +35,6 @@ public class DisposableResourceCleaner {
     private final DisposableResourceManager disposableResourceManager;
     private final K8sClient k8sClient;
     private final K8sKnativeClient k8sKnativeClient;
-    private final K8sNimClient k8sNimClient;
     private final K8sKserveClient k8sKserveClient;
     private final DockerRegistryClient registryClient;
 
@@ -98,7 +96,6 @@ public class DisposableResourceCleaner {
 
         // order is important
         resourcesToDelete.addAll(clean(resourcesByKind.get(K8sResourceKind.KNATIVE_SERVICE.name())));
-        resourcesToDelete.addAll(clean(resourcesByKind.get(K8sResourceKind.NIM_SERVICE.name())));
         resourcesToDelete.addAll(clean(resourcesByKind.get(K8sResourceKind.INFERENCE_SERVICE.name())));
         resourcesToDelete.addAll(clean(resourcesByKind.get(K8sResourceKind.JOB.name())));
         resourcesToDelete.addAll(clean(resourcesByKind.get(K8sResourceKind.CONFIGMAP.name())));
@@ -150,10 +147,6 @@ public class DisposableResourceCleaner {
             case KNATIVE_SERVICE -> {
                 k8sKnativeClient.deleteService(namespace, name);
                 log.debug(CLEANED_UP_MESSAGE_FORMAT, "Knative Service", name, namespace);
-            }
-            case NIM_SERVICE -> {
-                k8sNimClient.deleteService(namespace, name);
-                log.debug(CLEANED_UP_MESSAGE_FORMAT, "NIM Service", name, namespace);
             }
             case INFERENCE_SERVICE -> {
                 k8sKserveClient.deleteService(namespace, name);

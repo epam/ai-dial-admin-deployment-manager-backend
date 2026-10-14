@@ -13,10 +13,8 @@ import java.util.List;
 
 /**
  * Bridges the canonical Fabric8 pool primitives (Affinity, Toleration) used in NodePoolProperties
- * into CRD-specific types generated for NIM (com.nvidia.apps.v1alpha1.nimservicespec.Affinity etc.)
- * and KServe (io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity etc.). Both target
- * type families are JSON-equivalent to the Fabric8 model, so a Jackson convertValue round-trip is
- * lossless.
+ * into CRD-specific types generated for KServe (io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity etc.).
+ * The target types are JSON-equivalent to the Fabric8 model, so a Jackson convertValue round-trip is lossless.
  */
 @Component
 @LogExecution

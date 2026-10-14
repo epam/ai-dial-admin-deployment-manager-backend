@@ -13,12 +13,17 @@ import com.epam.aidial.deployment.manager.functional.tests.ImageBuildRunnerFunct
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.ImageDefinitionRollbackFunctionalTest;
+import com.epam.aidial.deployment.manager.functional.tests.NimRemovalMigrationFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.StopImageBuildFunctionalTest;
 import com.epam.aidial.deployment.manager.functional.tests.TopicFunctionalTest;
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Nested;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
+
+import java.util.UUID;
+import javax.sql.DataSource;
 
 @DataJpaTest
 @TestPropertySource(properties = {
@@ -28,6 +33,7 @@ import org.springframework.test.context.TestPropertySource;
         "app.config.export.file-name=config.json",
         "app.config.export.zip-name=export.zip",
         "app.knative.enabled=true",
+        // Legacy flag deliberately kept: NIM was removed in 0.23.0 and the property must be ignored
         "app.nim.enabled=true",
         "app.kserve.enabled=true",
         "DOCKER_REGISTRY=test-docker-registry",
@@ -93,5 +99,26 @@ public class H2FunctionalTests extends FunctionalTestSuite {
 
     @Nested
     class GlobalWhitelistRollbackTests extends GlobalWhitelistRollbackFunctionalTest {
+    }
+
+    @Nested
+    class NimRemovalMigrationTests extends NimRemovalMigrationFunctionalTest {
+        @Override
+        protected DataSource freshDataSource() {
+            var dataSource = new JdbcDataSource();
+            dataSource.setURL("jdbc:h2:mem:nim_removal_" + UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1");
+            dataSource.setUser("sa");
+            return dataSource;
+        }
+
+        @Override
+        protected String vendor() {
+            return "H2";
+        }
+
+        @Override
+        protected String jsonParam() {
+            return "? FORMAT JSON";
+        }
     }
 }

@@ -25,7 +25,6 @@ import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComp
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.INTERCEPTOR_IMAGE_DEFINITION;
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.MCP_DEPLOYMENT;
 import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.MCP_IMAGE_DEFINITION;
-import static com.epam.aidial.deployment.manager.web.dto.config.ExportConfigComponentTypeDto.NIM_DEPLOYMENT;
 import static org.mapstruct.SubclassExhaustiveStrategy.RUNTIME_EXCEPTION;
 
 @Mapper(componentModel = "spring")
@@ -56,8 +55,6 @@ public abstract class ExportConfigMapper {
                         .map(d -> toComponentInfoDto(d, INTERCEPTOR_DEPLOYMENT)),
                 config.getApplicationDeployments().values().stream()
                         .map(d -> toComponentInfoDto(d, APPLICATION_DEPLOYMENT)),
-                config.getNimDeployments().values().stream()
-                        .map(d -> toComponentInfoDto(d, NIM_DEPLOYMENT)),
                 config.getInferenceDeployments().values().stream()
                         .map(d -> toComponentInfoDto(d, INFERENCE_DEPLOYMENT))
         ).flatMap(s -> s).toList();

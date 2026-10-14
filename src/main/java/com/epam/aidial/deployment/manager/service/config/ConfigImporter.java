@@ -48,7 +48,6 @@ public class ConfigImporter {
                 + config.getAdapterDeployments().size()
                 + config.getInterceptorDeployments().size()
                 + config.getApplicationDeployments().size()
-                + config.getNimDeployments().size()
                 + config.getInferenceDeployments().size();
     }
 }

@@ -4,7 +4,6 @@ import com.epam.aidial.deployment.manager.configuration.NodePoolProperties;
 import com.epam.aidial.deployment.manager.configuration.NodePoolProperties.PoolConfig;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.Toleration;
 import org.junit.jupiter.api.Test;
@@ -63,7 +62,7 @@ class NodePoolServiceTest {
     void shouldResolveModelOverrideForModelWorkload() {
         doReturn("gpu_pool").when(nodePoolProperties).getDefaultModelPoolId();
 
-        var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
+        var result = nodePoolService.resolveForCreate(new CreateInferenceDeployment());
 
         assertThat(result).isEqualTo("gpu_pool");
     }
@@ -91,7 +90,7 @@ class NodePoolServiceTest {
         doReturn(null).when(nodePoolProperties).getDefaultModelPoolId();
         doReturn("cpu_pool").when(nodePoolProperties).getDefaultPoolId();
 
-        var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
+        var result = nodePoolService.resolveForCreate(new CreateInferenceDeployment());
 
         assertThat(result).isEqualTo("cpu_pool");
     }
@@ -110,7 +109,7 @@ class NodePoolServiceTest {
         doReturn(null).when(nodePoolProperties).getDefaultModelPoolId();
         doReturn(null).when(nodePoolProperties).getDefaultPoolId();
 
-        var result = nodePoolService.resolveForCreate(new CreateNimDeployment());
+        var result = nodePoolService.resolveForCreate(new CreateInferenceDeployment());
 
         assertThat(result).isNull();
     }

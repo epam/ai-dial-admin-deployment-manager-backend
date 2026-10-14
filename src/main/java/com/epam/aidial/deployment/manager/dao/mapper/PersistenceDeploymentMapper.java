@@ -12,11 +12,9 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InferenceDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceHuggingFaceSource;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceImageReferenceSource;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInternalImageSource;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceNgcRegistrySource;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceSource;
 import com.epam.aidial.deployment.manager.model.DeploymentStatus;
 import com.epam.aidial.deployment.manager.model.EnvVar;
@@ -34,8 +32,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import org.apache.commons.collections4.MapUtils;
 import org.mapstruct.AfterMapping;
@@ -56,13 +52,11 @@ public abstract class PersistenceDeploymentMapper {
     @SubclassMapping(source = AdapterDeploymentEntity.class, target = AdapterDeployment.class)
     @SubclassMapping(source = ApplicationDeploymentEntity.class, target = ApplicationDeployment.class)
     @SubclassMapping(source = InterceptorDeploymentEntity.class, target = InterceptorDeployment.class)
-    @SubclassMapping(source = NimDeploymentEntity.class, target = NimDeployment.class)
     @SubclassMapping(source = InferenceDeploymentEntity.class, target = InferenceDeployment.class)
     public abstract Deployment toDomain(DeploymentEntity entity);
 
     @SubclassMapping(source = PersistenceInternalImageSource.class, target = InternalImageSource.class)
     @SubclassMapping(source = PersistenceImageReferenceSource.class, target = ImageReferenceSource.class)
-    @SubclassMapping(source = PersistenceNgcRegistrySource.class, target = NgcRegistrySource.class)
     @SubclassMapping(source = PersistenceHuggingFaceSource.class, target = HuggingFaceSource.class)
     protected abstract Source toDomain(PersistenceSource entity);
 
@@ -73,13 +67,11 @@ public abstract class PersistenceDeploymentMapper {
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentEntity.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentEntity.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentEntity.class)
-    @SubclassMapping(source = NimDeployment.class, target = NimDeploymentEntity.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentEntity.class)
     public abstract DeploymentEntity toEntity(Deployment domain);
 
     @SubclassMapping(source = InternalImageSource.class, target = PersistenceInternalImageSource.class)
     @SubclassMapping(source = ImageReferenceSource.class, target = PersistenceImageReferenceSource.class)
-    @SubclassMapping(source = NgcRegistrySource.class, target = PersistenceNgcRegistrySource.class)
     @SubclassMapping(source = HuggingFaceSource.class, target = PersistenceHuggingFaceSource.class)
     protected abstract PersistenceSource toEntity(Source domain);
 
@@ -157,12 +149,6 @@ public abstract class PersistenceDeploymentMapper {
                 && updatedEntity instanceof McpDeploymentEntity updatedMcp) {
             existingMcp.setTransport(updatedMcp.getTransport());
             existingMcp.setMcpEndpointPath(updatedMcp.getMcpEndpointPath());
-        }
-
-        if (existingEntity instanceof NimDeploymentEntity existingNim
-                && updatedEntity instanceof NimDeploymentEntity updatedNim) {
-            existingNim.setContainerGrpcPort(updatedNim.getContainerGrpcPort());
-            existingNim.setStorageSize(updatedNim.getStorageSize());
         }
 
         if (existingEntity instanceof InferenceDeploymentEntity existingInference

@@ -141,6 +141,13 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
     }
 
     @Test
+    void testGetAllDeployments_withUnknownType_returnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/deployments").param("type", "NOT_A_TYPE"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("NOT_A_TYPE")));
+    }
+
+    @Test
     void testGetDeploymentById_found() throws Exception {
         var dtoJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id_response.json");
         var modelJson = ResourceUtils.readResource("/mcp/deployment/deployment_by_id.json");
@@ -793,4 +800,28 @@ class DeploymentControllerTest extends AbstractControllerNoneSecureTest {
         );
     }
 
+    @Test
+    void testCreateDeployment_withLegacyNimType_returnsBadRequest() throws Exception {
+        var nimRequestJson = """
+                {
+                  "$type": "nim",
+                  "name": "legacy-nim",
+                  "displayName": "Legacy NIM",
+                  "source": {"$type": "ngc_registry", "imageRef": "nvcr.io/nim/meta/llama3:1.0.0"},
+                  "resources": {"limits": {}, "requests": {}}
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/deployments")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(nimRequestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("Could not resolve type id 'nim'")));
+    }
+
+    @Test
+    void testGetAllDeployments_withLegacyNimTypeFilter_returnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/deployments").param("type", "NIM"))
+                .andExpect(status().isBadRequest());
+    }
 }

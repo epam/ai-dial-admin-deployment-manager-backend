@@ -5,12 +5,14 @@ This spec describes the deployment lifecycle — creating, configuring, activati
 
 Status: **Implemented**
 
+NIM deployment type removed in 0.23.0 — Implemented via 028-remove-nim-deployments (see `specs/028-remove-nim-deployments/spec.md`).
+
 ## Key Terms
 - **Deployment**: A persistent configuration record representing a deployed (or deployable) AI component in Kubernetes, identified by a UUID.
 - **`name`**: The stable, immutable string identifier for a deployment (2–36 chars, `^[a-z0-9-]+`). Used as the Kubernetes resource name and in API paths that reference a deployment by name. Separate from `displayName`.
-- **Source**: A polymorphic typed object (`$type` discriminator) representing where a deployment's container image or model comes from. All deployment types carry a `source` field. Four variants exist: `InternalImageSource` (`$type: "internal_image"` — references a managed image definition), `ImageReferenceSource` (`$type: "image_reference"` — direct Docker image URI), `HuggingFaceSource` (`$type: "huggingface"` — HuggingFace model), `NgcRegistrySource` (`$type: "ngc_registry"` — NVIDIA NGC image).
+- **Source**: A polymorphic typed object (`$type` discriminator) representing where a deployment's container image or model comes from. All deployment types carry a `source` field. Three variants exist: `InternalImageSource` (`$type: "internal_image"` — references a managed image definition), `ImageReferenceSource` (`$type: "image_reference"` — direct Docker image URI), `HuggingFaceSource` (`$type: "huggingface"` — HuggingFace model).
 - **Image-based deployment (Knative)**: A deployment type (MCP, Interceptor, Adapter, Application) that runs on KNative. Accepts two source types: `internal_image` (referencing an image definition by ID or type+name+version triple) or `image_reference` (direct Docker image name, no image definition required).
-- **Model-source deployment**: A deployment type (Inference, NIM) that references a model source directly. Inference uses `HuggingFaceSource`; NIM uses `NgcRegistrySource`.
+- **Model-source deployment**: A deployment type (Inference) that references a model source directly. Inference uses `HuggingFaceSource`.
 - **Deploy / Undeploy**: Activating or deactivating the Kubernetes resources for a deployment, while preserving the configuration record.
 - **Reconciliation**: Process run at startup to align actual Kubernetes state with the desired state stored in the database.
 - **`DeploymentMetadataDto`**: A container object holding the deployment's environment variable definitions (`envs`).
@@ -44,7 +46,7 @@ For Knative-based deployments (MCP, Interceptor, Adapter, Application), a config
 
 During the grace period after the `Ready` condition transitions to `False`, the system reports `PENDING` instead of `CRASHED`. Once the grace period expires and the condition is still `False`, the status transitions to `CRASHED`. Setting the grace period to `0` disables this behavior.
 
-This does not apply to NIM or KServe deployments, which have distinct failure states in their respective operators and only map definitive failures to `CRASHED`.
+This does not apply to KServe deployments, which have distinct failure states in their operator and only map definitive failures to `CRASHED`.
 
 ## Requirements
 
@@ -90,7 +92,7 @@ Status: **Implemented**
 
 #### Scenario: Create-time node-pool defaults cascade — Implemented via 019-explicit-pool-scheduling
 - **WHEN** `POST /api/v1/deployments` is called with a `nodePoolId` value of null (whether omitted or explicit null in the payload)
-- **THEN** the system resolves a value via the cascade `NODE_POOL_DEFAULT_MODEL` (for NIM / KServe-Inference workloads, when set) → `NODE_POOL_DEFAULT` (when set) → null, stamps the resolved value onto the deployment record, and returns the stamped value in the create response — the caller sees exactly which pool the workload will use without re-fetching
+- **THEN** the system resolves a value via the cascade `NODE_POOL_DEFAULT_MODEL` (for KServe-Inference workloads, when set) → `NODE_POOL_DEFAULT` (when set) → null, stamps the resolved value onto the deployment record, and returns the stamped value in the create response — the caller sees exactly which pool the workload will use without re-fetching
 
 #### Scenario: Explicit non-null nodePoolId on create
 - **WHEN** `POST /api/v1/deployments` is called with `nodePoolId` set to the id of a pool currently in `NODE_POOLS`
@@ -117,7 +119,7 @@ Status: **Implemented**
 - **THEN** the system responds with 400 (`@AssertTrue` validation on `isValidImageReference()`)
 
 #### Scenario: Incompatible source type rejected
-- **WHEN** `POST /api/v1/deployments` is called with a source type that does not match the deployment type (e.g., `ngc_registry` for an MCP deployment, or `image_reference` for an Inference deployment)
+- **WHEN** `POST /api/v1/deployments` is called with a source type that does not match the deployment type (e.g., `huggingface` for an MCP deployment, or `image_reference` for an Inference deployment)
 - **THEN** the system responds with 400 with a source type validation error
 
 #### Scenario: Image type does not match deployment type rejected
@@ -125,7 +127,7 @@ Status: **Implemented**
 - **THEN** the system responds with 400; the check applies whether the image is referenced by `imageDefinitionId` or by the `(imageDefinitionType, imageDefinitionName, imageDefinitionVersion)` triple, and a declared `imageDefinitionType` that conflicts with the deployment type is rejected before any database lookup
 
 #### Scenario: Create model-source deployment
-- **WHEN** `POST /api/v1/deployments` is called with `type: INFERENCE|NIM` and a model source reference
+- **WHEN** `POST /api/v1/deployments` is called with `type: INFERENCE` and a model source reference
 - **THEN** a new deployment is persisted in `NOT_DEPLOYED` status with the model source; HTTP 201 is returned
 
 #### Scenario: Missing required fields
@@ -426,8 +428,7 @@ DeploymentDto (abstract)
 │   ├── InterceptorDeploymentDto
 │   ├── AdapterDeploymentDto
 │   └── ApplicationDeploymentDto
-├── InferenceDeploymentDto — source: InferenceDeploymentSourceDto (huggingface)
-└── NimDeploymentDto — source: NimDeploymentSourceDto (ngc_registry)
+└── InferenceDeploymentDto — source: InferenceDeploymentSourceDto (huggingface)
 ```
 
 **Domain model** — unified `Source` sealed interface:
@@ -435,8 +436,7 @@ DeploymentDto (abstract)
 Source (sealed interface, $type discriminator)
 ├── InternalImageSource (internal_image) — imageDefinitionId, imageDefinitionType, imageDefinitionName, imageDefinitionVersion
 ├── ImageReferenceSource (image_reference) — imageReference
-├── HuggingFaceSource (huggingface) — modelName
-└── NgcRegistrySource (ngc_registry) — imageRef
+└── HuggingFaceSource (huggingface) — modelName
 ```
 
 **Entity layer** (flat — all extend base directly):
@@ -446,11 +446,10 @@ DeploymentEntity (@Inheritance JOINED) — source: PersistenceSource (JSON), ima
 ├── InterceptorDeploymentEntity
 ├── AdapterDeploymentEntity
 ├── ApplicationDeploymentEntity
-├── InferenceDeploymentEntity
-└── NimDeploymentEntity
+└── InferenceDeploymentEntity
 ```
 
-The `source` JSON column lives on the base `DeploymentEntity`, storing a `PersistenceSource` (sealed interface mirroring the domain `Source` hierarchy). The `imageDefinitionId` is retained as a separate indexed column for efficient query filtering. The `imageDefinitionType`, `imageDefinitionName`, `imageDefinitionVersion` columns have been removed from the entity (moved into `PersistenceInternalImageSource` within the JSON). NIM and Inference subtype entities no longer carry their own `source` columns.
+The `source` JSON column lives on the base `DeploymentEntity`, storing a `PersistenceSource` (sealed interface mirroring the domain `Source` hierarchy). The `imageDefinitionId` is retained as a separate indexed column for efficient query filtering. The `imageDefinitionType`, `imageDefinitionName`, `imageDefinitionVersion` columns have been removed from the entity (moved into `PersistenceInternalImageSource` within the JSON). Inference subtype entities no longer carry their own `source` columns.
 
 ## Implementation Notes
 - Controller: `com.epam.aidial.deployment.manager.web.controller.DeploymentController`
@@ -482,9 +481,9 @@ The `source` JSON column lives on the base `DeploymentEntity`, storing a `Persis
   - `CreateInternalImageDeploymentSourceRequestDto` — imageDefinitionId or (imageDefinitionType + imageDefinitionName + imageDefinitionVersion)
   - `CreateImageReferenceDeploymentSourceRequestDto` — imageReference (`@ValidDockerImageName`)
 - Domain source model: `com.epam.aidial.deployment.manager.model.deployment.Source` (sealed interface)
-  - `InternalImageSource`, `ImageReferenceSource`, `HuggingFaceSource`, `NgcRegistrySource`
+  - `InternalImageSource`, `ImageReferenceSource`, `HuggingFaceSource`
 - Persistence source model: `com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceSource` (sealed interface, stored as JSON)
-  - `PersistenceInternalImageSource`, `PersistenceImageReferenceSource`, `PersistenceHuggingFaceSource`, `PersistenceNgcRegistrySource`
+  - `PersistenceInternalImageSource`, `PersistenceImageReferenceSource`, `PersistenceHuggingFaceSource`
 - Source validation: `com.epam.aidial.deployment.manager.service.deployment.DeploymentSourceValidator` — enforces source-to-deployment-type compatibility and image-type-to-deployment-type compatibility for `internal_image` sources; invoked by `DeploymentService` on create, update, and bulk image change
 - Image resolution: `KnativeDeploymentManager.resolveImageName()` — pattern-matches on Source variant
 - Export mix-in: `com.epam.aidial.deployment.manager.configuration.export.InternalImageSourceExportMixIn` — excludes `imageDefinitionId` from config export

@@ -11,12 +11,10 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -47,7 +45,6 @@ public class DeploymentManagerProvider {
             case CreateInterceptorDeployment ignored -> InterceptorDeployment.class;
             case CreateAdapterDeployment ignored -> AdapterDeployment.class;
             case CreateApplicationDeployment ignored -> ApplicationDeployment.class;
-            case CreateNimDeployment ignored -> NimDeployment.class;
             case CreateInferenceDeployment ignored -> InferenceDeployment.class;
             default -> throw new IllegalArgumentException("Deployment type is not supported: %s. Deployment displayName: %s"
                     .formatted(request.getClass(), request.getDisplayName()));

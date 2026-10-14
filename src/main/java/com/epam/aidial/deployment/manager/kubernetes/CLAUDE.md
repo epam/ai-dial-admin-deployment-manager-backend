@@ -16,7 +16,6 @@ The only place in the codebase that may import Fabric8 / `io.kubernetes` API typ
 | `informer/` | Fabric8 informer registration + handlers; the canonical state-watching mechanism |
 | `knative/` | Knative Serving client, manifest generation for serverless workloads |
 | `kserve/` | KServe client and manifest generation for inference deployments |
-| `nim/` | NVIDIA NIM CRD (`NIMService`) client |
 
 Top-level utilities (`AbstractK8sResourceClient`, `K8sClient`, `JobRunner`, `PodLogReader`, etc.) are shared across subpackages.
 
@@ -25,4 +24,4 @@ Top-level utilities (`AbstractK8sResourceClient`, `K8sClient`, `JobRunner`, `Pod
 - `specs/kubernetes-events/spec.md`
 - `specs/kubernetes-manifests/spec.md`
 - `specs/kubernetes-cleanup/spec.md`
-- `specs/inference-deployments/spec.md`, `specs/nim-deployments/spec.md` for KServe / NIM specifics.
+- `specs/inference-deployments/spec.md` for KServe specifics.
