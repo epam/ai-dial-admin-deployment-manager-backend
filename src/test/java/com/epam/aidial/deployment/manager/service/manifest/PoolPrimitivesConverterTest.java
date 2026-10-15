@@ -1,10 +1,10 @@
 package com.epam.aidial.deployment.manager.service.manifest;
 
 import com.epam.aidial.deployment.manager.configuration.JsonMapperConfiguration;
-import com.nvidia.apps.v1alpha1.nimservicespec.Affinity;
-import com.nvidia.apps.v1alpha1.nimservicespec.Tolerations;
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity;
+import io.kserve.serving.v1beta1.inferenceservicespec.predictor.Tolerations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,34 +43,7 @@ class PoolPrimitivesConverterTest {
     }
 
     @Test
-    void shouldRoundTripAffinityToNimSpecTypePreservingMatchExpressions() {
-        var fabric8Affinity = new AffinityBuilder()
-                .withNewNodeAffinity()
-                .withNewRequiredDuringSchedulingIgnoredDuringExecution()
-                .addNewNodeSelectorTerm()
-                .addNewMatchExpression()
-                .withKey("accelerator-type").withOperator("In").addToValues("nvidia-a100", "nvidia-h100")
-                .endMatchExpression()
-                .endNodeSelectorTerm()
-                .endRequiredDuringSchedulingIgnoredDuringExecution()
-                .endNodeAffinity()
-                .build();
-
-        var converted = converter.convertAffinity(fabric8Affinity, Affinity.class);
-
-        assertThat(converted).isNotNull();
-        assertThat(converted.getNodeAffinity()).isNotNull();
-        var required = converted.getNodeAffinity().getRequiredDuringSchedulingIgnoredDuringExecution();
-        assertThat(required).isNotNull();
-        assertThat(required.getNodeSelectorTerms()).hasSize(1);
-        var match = required.getNodeSelectorTerms().get(0).getMatchExpressions().get(0);
-        assertThat(match.getKey()).isEqualTo("accelerator-type");
-        assertThat(match.getOperator()).isEqualTo("In");
-        assertThat(match.getValues()).containsExactly("nvidia-a100", "nvidia-h100");
-    }
-
-    @Test
-    void shouldRoundTripTolerationsToNimSpecTypePreservingFields() {
+    void shouldRoundTripTolerationsToKserveSpecTypePreservingFields() {
         var fabric8Tolerations = List.of(
                 new TolerationBuilder().withKey("dedicated").withOperator("Equal").withValue("gpu").withEffect("NoSchedule").build(),
                 new TolerationBuilder().withKey("workload").withOperator("Exists").withEffect("PreferNoSchedule").build()
@@ -101,7 +74,7 @@ class PoolPrimitivesConverterTest {
                 .build();
 
         var converted = converter.convertAffinity(
-                fabric8Affinity, io.kserve.serving.v1beta1.inferenceservicespec.predictor.Affinity.class);
+                fabric8Affinity, Affinity.class);
 
         assertThat(converted).isNotNull();
         assertThat(converted.getNodeAffinity()).isNotNull();

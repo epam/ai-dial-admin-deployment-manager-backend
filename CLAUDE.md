@@ -61,7 +61,7 @@ Numbered feature specs under `specs/NNN-<short-name>/` are managed by speckit bu
 **Capability**: <slug>
 ```
 
-Where `<slug>` is the directory name under `specs/` that the feature belongs to (e.g. `nim-deployments`, `image-builds`, `mcp-deployments`). Conventions:
+Where `<slug>` is the directory name under `specs/` that the feature belongs to (e.g. `inference-deployments`, `image-builds`, `mcp-deployments`). Conventions:
 - For cross-cutting features that touch several capabilities, use a comma-separated list: `**Capability**: deployments, kubernetes-manifests`.
 - For features that introduce a brand-new capability: `**Capability**: N/A — creates new capability <new-slug>`.
 - Use `specs/README.md` as the source of valid slugs.

@@ -9,12 +9,10 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import org.apache.commons.collections4.ListUtils;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -40,7 +38,6 @@ public abstract class DeploymentMapper {
     @SubclassMapping(source = CreateAdapterDeployment.class, target = AdapterDeployment.class)
     @SubclassMapping(source = CreateApplicationDeployment.class, target = ApplicationDeployment.class)
     @SubclassMapping(source = CreateInterceptorDeployment.class, target = InterceptorDeployment.class)
-    @SubclassMapping(source = CreateNimDeployment.class, target = NimDeployment.class)
     @SubclassMapping(source = CreateInferenceDeployment.class, target = InferenceDeployment.class)
     public abstract Deployment toDeployment(CreateDeployment createDeployment);
 
@@ -69,7 +66,6 @@ public abstract class DeploymentMapper {
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeployment.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = CreateInterceptorDeployment.class)
-    @SubclassMapping(source = NimDeployment.class, target = CreateNimDeployment.class)
     @SubclassMapping(source = InferenceDeployment.class, target = CreateInferenceDeployment.class)
     public abstract CreateDeployment toCreateDeployment(Deployment deployment);
 

@@ -51,7 +51,7 @@ The codebase MUST follow this dependency direction with no exceptions:
 web (controller / handler / dto / mapper)
   → service (business logic, @Transactional)
     → dao (entity / repository / jpa / mapper)
-    → kubernetes (informer / knative / nim / kserve / event)
+    → kubernetes (informer / knative / kserve / event)
 ```
 
 - `web` layer MUST NOT call `dao` or `kubernetes` directly. — *(ArchUnit)*

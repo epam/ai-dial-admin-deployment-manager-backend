@@ -41,6 +41,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [025-auto-pull-secrets](025-auto-pull-secrets/spec.md) | Implemented | kubernetes-manifests, deployments, inference-deployments | Auto-provision a docker pull secret and wire it into the generated CRD when a deployment's image (image-based) or chained transformer image comes from a configured trusted/primary credentialed registry; admins configure trusted registries once instead of hand-creating pull secrets + patching service accounts. Includes deterministic naming + idempotent create-or-replace so scale-to-zero deployments auto-resume (#387) |
 | [026-gpu-metrics](026-gpu-metrics/spec.md) | Implemented | deployment-metrics | Wire real GPU telemetry (NVIDIA DCGM exporter) into the metrics snapshot: populate per-pod gpuUtilization/gpuMemoryBytes, add gpuMemoryTotalBytes for the gauge, flip resources.gpu to available; co-located pod-proxy scrape gated on nvidia.com/gpu>0, graceful degrade when the exporter is absent |
 | [027-multi-git-credentials](027-multi-git-credentials/spec.md) | Implemented | N/A — creates new capability git-credentials | Allow multiple trusted-private-repo git credentials per host, scoped to a repository, project/group, or the whole domain, with automatic most-specific-match resolution |
+| [028-remove-nim-deployments](028-remove-nim-deployments/spec.md) | Implemented | nim-deployments, deployments, kubernetes-manifests, kubernetes-cleanup, export-import, auditing, deployment-metrics, image-definitions, api-conventions, database-and-migrations | Remove NVIDIA NIM deployment support: API type, domain/persistence, NIMService integration and config; V1.60 deletes NIM data and drops NIM tables; legacy export archives still import |
 
 ---
 
@@ -60,7 +61,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 | [adapter-deployments](adapter-deployments/spec.md) | Implemented | Adapter deployment — extends image-based deployments with type ADAPTER as the sole distinction |
 | [application-deployments](application-deployments/spec.md) | Implemented | Application deployment — extends image-based deployments with type APPLICATION as the sole distinction |
 | [inference-deployments](inference-deployments/spec.md) | Implemented | Inference model deployment — KServe-backed, HuggingFace model source, scaling configuration (PENDING_REQUESTS / ACTIVE_REQUESTS / HARDWARE_USAGE) |
-| [nim-deployments](nim-deployments/spec.md) | Implemented | NVIDIA NIM model deployment — NIM-backed, NGC registry source, GPU configuration, optional gRPC port |
+| [nim-deployments](nim-deployments/spec.md) | Removed (0.23.0) | NVIDIA NIM model deployment — removed; tombstone links to historical specs |
 | [deployment-metrics](deployment-metrics/spec.md) | Implemented | Unified deployment metrics API — live snapshot of replica counts and per-pod CPU/memory for any deployment type, plus engine serving/operational metrics (vLLM/TGI/SGLang) for inference deployments normalized to one schema; pod-proxy scrape, lifetime window, graceful degradation |
 | [mcp-servers](mcp-servers/spec.md) | Implemented | MCP server management — list tools, resources, and prompts from running MCP deployments |
 | [topics](topics/spec.md) | Implemented | Topic listing — read-only enumeration of distinct topics across image definitions |
@@ -76,7 +77,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 
 | Capability | Status | Summary |
 |---|---|---|
-| [kubernetes-manifests](kubernetes-manifests/spec.md) | Implemented | Kubernetes manifest generation — KNative (serverless), NIM (NVIDIA GPU), KServe (model serving); env var injection; probe converters |
+| [kubernetes-manifests](kubernetes-manifests/spec.md) | Implemented | Kubernetes manifest generation — KNative (serverless), KServe (model serving); env var injection; probe converters |
 | [kubernetes-events](kubernetes-events/spec.md) | Implemented | Real-time Kubernetes event streaming to clients via Server-Sent Events |
 | [kubernetes-cleanup](kubernetes-cleanup/spec.md) | Implemented | Disposable Kubernetes resource lifecycle tracking and scheduled cleanup via ShedLock |
 
@@ -93,7 +94,7 @@ Numbered specs created via `/speckit.specify`. `Status` reflects the value in ea
 
 | Capability | Status | Summary |
 |---|---|---|
-| [database-and-migrations](database-and-migrations/spec.md) | Implemented | Multi-vendor database support (H2 / PostgreSQL / SQL Server) with Flyway migrations; SQL and Java migration paths; current schema V1.46 |
+| [database-and-migrations](database-and-migrations/spec.md) | Implemented | Multi-vendor database support (H2 / PostgreSQL / SQL Server) with Flyway migrations; SQL and Java migration paths; current schema V1.60 |
 | [health](health/spec.md) | Implemented | Health check endpoint for liveness/readiness probes |
 
 ## External Integrations

@@ -9,7 +9,6 @@ import com.epam.aidial.deployment.manager.model.deployment.ApplicationDeployment
 import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -41,8 +40,6 @@ public class ImportConfigPreview {
     private List<ImportComponent<InterceptorDeployment>> interceptorDeployments = new ArrayList<>();
     @Builder.Default
     private List<ImportComponent<ApplicationDeployment>> applicationDeployments = new ArrayList<>();
-    @Builder.Default
-    private List<ImportComponent<NimDeployment>> nimDeployments = new ArrayList<>();
     @Builder.Default
     private List<ImportComponent<InferenceDeployment>> inferenceDeployments = new ArrayList<>();
 

@@ -31,7 +31,7 @@ Status: **Implemented** *(Implemented via 023-deployment-metrics-api)*
 - **AND** when the model is idle (no requests served yet) the `serving`/`operational` blocks remain available with null fields rather than reporting engine `UNKNOWN`
 
 #### Scenario: Resource metrics for any deployment type
-- **WHEN** the endpoint is called for a non-inference deployment (MCP/adapter/application/interceptor/NIM) with at least one pod
+- **WHEN** the endpoint is called for a non-inference deployment (MCP/adapter/application/interceptor) with at least one pod
 - **THEN** the response uses the same schema, reports total/ready replica counts and per-pod CPU/memory usage, reports engine `UNKNOWN`, and marks the `serving`/`operational` blocks unavailable with a reason — the request succeeds (no scrape is attempted)
 
 #### Scenario: Unknown deployment
@@ -170,4 +170,4 @@ Scale events are not duplicated here — they are served by the existing k8s eve
 - Ports: `deployment.containerPort` with fallback to the manager default exposed via `DeploymentManager.getDefaultContainerPort()` (8080 for KServe inference)
 - RBAC (runbook/Helm, read-only): `pods`, `pods/proxy` get/list; `metrics.k8s.io` pods get/list when the resource-usage block is enabled; `pods` + `pods/proxy` get/list in the DCGM exporter namespace when the GPU block is enabled
 - Test fixtures: `src/test/resources/metrics-fixtures/*` — `vllm.txt` (real dev-cluster vLLM V1 capture, KServe pod) is a live capture; `vllm-v0.txt` preserves V0-vocabulary coverage with hand-computed percentile expectations; `tgi.txt`/`sglang.txt` and the `kserve-modelserver-predictor.txt`/`kserve-modelserver-transformer.txt` pair (KServe Python ModelServer vocabulary, modelled on the live deberta exposition) remain synthetic until captured live; `dcgm.txt` (DCGM exporter vocabulary — multi-GPU pod, cross-namespace noise) is synthetic until captured live
-- Related specs: `deployments` (pod introspection), `inference-deployments`, `nim-deployments`, `api-conventions` (ErrorView), `observability-and-logging` (trace pivot scenario), `kubernetes-events` (scale events are cross-referenced, not duplicated)
+- Related specs: `deployments` (pod introspection), `inference-deployments`, `api-conventions` (ErrorView), `observability-and-logging` (trace pivot scenario), `kubernetes-events` (scale events are cross-referenced, not duplicated)

@@ -18,7 +18,6 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
@@ -27,8 +26,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceTask;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import com.epam.aidial.deployment.manager.service.McpEndpointPathResolver;
 import com.epam.aidial.deployment.manager.service.nodepool.NodePoolService;
@@ -54,7 +51,6 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.CreateInferenceDepl
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateInterceptorDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateInternalImageDeploymentSourceRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.CreateMcpDeploymentRequestDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.CreateNimDeploymentRequestDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.DeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.ImageBasedDeploymentDto;
@@ -64,15 +60,12 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeployment
 import com.epam.aidial.deployment.manager.web.dto.deployment.InterceptorDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InternalImageDeploymentSourceDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentNgcRegistrySourceDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.AdapterDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.ApplicationDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.DeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.InferenceDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.InterceptorDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.internal.McpDeploymentInternalDto;
-import com.epam.aidial.deployment.manager.web.dto.internal.NimDeploymentInternalDto;
 import com.epam.aidial.deployment.manager.web.dto.value.EnvVarValueDto;
 import com.epam.aidial.deployment.manager.web.utils.CommandLineUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -117,7 +110,6 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = CreateMcpDeploymentRequestDto.class, target = CreateMcpDeployment.class)
     @SubclassMapping(source = CreateAdapterDeploymentRequestDto.class, target = CreateAdapterDeployment.class)
     @SubclassMapping(source = CreateInterceptorDeploymentRequestDto.class, target = CreateInterceptorDeployment.class)
-    @SubclassMapping(source = CreateNimDeploymentRequestDto.class, target = CreateNimDeployment.class)
     @SubclassMapping(source = CreateInferenceDeploymentRequestDto.class, target = CreateInferenceDeployment.class)
     @SubclassMapping(source = CreateApplicationDeploymentRequestDto.class, target = CreateApplicationDeployment.class)
     public abstract CreateDeployment toCreateDeployment(CreateDeploymentRequestDto dto);
@@ -129,7 +121,6 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = AdapterDeployment.class, target = CreateAdapterDeploymentRequestDto.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = CreateApplicationDeploymentRequestDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = CreateInterceptorDeploymentRequestDto.class)
-    @SubclassMapping(source = NimDeployment.class, target = CreateNimDeploymentRequestDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = CreateInferenceDeploymentRequestDto.class)
     public abstract CreateDeploymentRequestDto toCreateDeploymentRequestDto(Deployment model);
 
@@ -142,7 +133,6 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentDto.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentDto.class)
-    @SubclassMapping(source = NimDeployment.class, target = NimDeploymentDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentDto.class)
     public abstract DeploymentDto toDeploymentDto(Deployment model);
 
@@ -151,7 +141,6 @@ public abstract class DeploymentDtoMapper {
     @SubclassMapping(source = AdapterDeployment.class, target = AdapterDeploymentInternalDto.class)
     @SubclassMapping(source = ApplicationDeployment.class, target = ApplicationDeploymentInternalDto.class)
     @SubclassMapping(source = InterceptorDeployment.class, target = InterceptorDeploymentInternalDto.class)
-    @SubclassMapping(source = NimDeployment.class, target = NimDeploymentInternalDto.class)
     @SubclassMapping(source = InferenceDeployment.class, target = InferenceDeploymentInternalDto.class)
     public abstract DeploymentInternalDto toDeploymentInternalDto(Deployment model);
 
@@ -176,16 +165,6 @@ public abstract class DeploymentDtoMapper {
     }
 
     @AfterMapping
-    protected void setCreateNimSource(@MappingTarget CreateNimDeployment model, CreateNimDeploymentRequestDto dto) {
-        switch (dto.getSource()) {
-            case NimDeploymentNgcRegistrySourceDto(String imageRef) ->
-                    model.setSource(new NgcRegistrySource(imageRef));
-            default -> throw new IllegalArgumentException(
-                    "Unsupported NIM deployment source type: " + dto.getSource().getClass().getName());
-        }
-    }
-
-    @AfterMapping
     protected void setCreateInferenceSource(@MappingTarget CreateInferenceDeployment model, CreateInferenceDeploymentRequestDto dto) {
         switch (dto.getSource()) {
             case InferenceDeploymentHuggingFaceSourceDto(String modelName) ->
@@ -199,13 +178,6 @@ public abstract class DeploymentDtoMapper {
     protected void setImageSourceRequestDto(@MappingTarget CreateImageBasedDeploymentRequestDto dto, Deployment model) {
         if (model.getSource() != null) {
             dto.setSource(toCreateDeploymentSourceRequestDto(model.getSource()));
-        }
-    }
-
-    @AfterMapping
-    protected void setNimRequestDtoSource(@MappingTarget CreateNimDeploymentRequestDto dto, NimDeployment model) {
-        if (model.getSource() instanceof NgcRegistrySource(String imageRef)) {
-            dto.setSource(new NimDeploymentNgcRegistrySourceDto(imageRef));
         }
     }
 
@@ -231,13 +203,6 @@ public abstract class DeploymentDtoMapper {
     @AfterMapping
     protected void setImageSource(@MappingTarget ImageBasedDeploymentDto dto, Deployment model) {
         dto.setSource(toDeploymentSourceDto(model));
-    }
-
-    @AfterMapping
-    protected void setNimDtoSource(@MappingTarget NimDeploymentDto dto, NimDeployment model) {
-        if (model.getSource() instanceof NgcRegistrySource(String imageRef)) {
-            dto.setSource(new NimDeploymentNgcRegistrySourceDto(imageRef));
-        }
     }
 
     @AfterMapping
@@ -331,8 +296,6 @@ public abstract class DeploymentDtoMapper {
             return DeploymentTypeDto.APPLICATION;
         } else if (deployment instanceof InterceptorDeployment) {
             return DeploymentTypeDto.INTERCEPTOR;
-        } else if (deployment instanceof NimDeployment) {
-            return DeploymentTypeDto.NIM;
         } else if (deployment instanceof InferenceDeployment) {
             return DeploymentTypeDto.INFERENCE;
         }

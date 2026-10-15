@@ -10,7 +10,6 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.ApplicationDeployme
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InterceptorDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto;
 
 import java.util.List;
 
@@ -23,7 +22,6 @@ public record ImportConfigPreviewDto(
         List<ImportComponentDto<AdapterDeploymentDto>> adapterDeployments,
         List<ImportComponentDto<InterceptorDeploymentDto>> interceptorDeployments,
         List<ImportComponentDto<ApplicationDeploymentDto>> applicationDeployments,
-        List<ImportComponentDto<NimDeploymentDto>> nimDeployments,
         List<ImportComponentDto<InferenceDeploymentDto>> inferenceDeployments,
         ImportComponentDto<List<String>> globalImageBuildDomainWhitelist,
         List<ImportValidationError> validationErrors

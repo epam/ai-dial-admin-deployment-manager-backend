@@ -9,14 +9,12 @@ import com.epam.aidial.deployment.manager.model.deployment.CreateDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateInterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.CreateMcpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.CreateNimDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.Deployment;
 import com.epam.aidial.deployment.manager.model.deployment.HuggingFaceSource;
 import com.epam.aidial.deployment.manager.model.deployment.ImageReferenceSource;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NgcRegistrySource;
 import com.epam.aidial.deployment.manager.model.deployment.Source;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -33,7 +31,6 @@ public final class DeploymentSourceValidator {
         }
 
         boolean valid = switch (request) {
-            case CreateNimDeployment ignored -> source instanceof NgcRegistrySource;
             case CreateInferenceDeployment ignored -> source instanceof HuggingFaceSource;
             default -> source instanceof InternalImageSource || source instanceof ImageReferenceSource;
         };

@@ -5,7 +5,6 @@ public enum K8sResourceKind {
     CONFIGMAP,
     JOB,
     KNATIVE_SERVICE,
-    NIM_SERVICE,
     INFERENCE_SERVICE,
     CILIUM_NETWORK_POLICY,
 }

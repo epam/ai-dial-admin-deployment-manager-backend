@@ -766,7 +766,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
     /**
      * Apply the deferred pull-secret plan produced by {@link #prepareServiceSpec}, in the post-commit
      * phase right before the CRD is applied — mirroring how the {@code CiliumNetworkPolicy} is applied.
-     * No-op by default (e.g. NIM, which keeps its own NGC pull secret); overridden by managers that
+     * No-op by default; overridden by managers that
      * auto-provision pull secrets.
      */
     protected void applyPullSecretPlan(D deployment, PullSecretPlan pullSecretPlan) {
@@ -778,7 +778,7 @@ public abstract class AbstractDeploymentManager<D extends Deployment, S> impleme
      * of them when the image needs no credentials). Invoked only <b>after</b> the CRD apply succeeded so
      * a failed deploy/rolling update never condemns a secret the still-live revision references; a
      * failure here is tolerated (logged, not rethrown) — the stale secret is reclaimed on the next
-     * successful redeploy. No-op by default (e.g. NIM); overridden together with
+     * successful redeploy. No-op by default; overridden together with
      * {@link #applyPullSecretPlan}.
      */
     protected void condemnStalePullSecrets(D deployment, PullSecretPlan pullSecretPlan) {

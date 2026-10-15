@@ -12,7 +12,7 @@ Status: **Implemented**
 - **Build status**: The latest build outcome for a given image definition version (`buildStatus` field).
 - **Semantic version**: The `version` field must follow semantic versioning (e.g., `1.0.0`).
 - **Grouped view**: An `ImageDefinitionViewDto` that groups all versions of the same image definition name under a single entry, with a `selectedId` and an `availableVersions` list.
-- **ImageType**: Domain enum with values MCP, ADAPTER, INTERCEPTOR, APPLICATION — there are no NIM or INFERENCE image definition subtypes.
+- **ImageType**: Domain enum with values MCP, ADAPTER, INTERCEPTOR, APPLICATION — there is no INFERENCE image definition subtype.
 
 ## Base Fields
 

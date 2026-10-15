@@ -10,7 +10,6 @@ import com.epam.aidial.deployment.manager.dao.entity.deployment.AdapterDeploymen
 import com.epam.aidial.deployment.manager.dao.entity.deployment.DeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.InterceptorDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.McpDeploymentEntity;
-import com.epam.aidial.deployment.manager.dao.entity.deployment.NimDeploymentEntity;
 import com.epam.aidial.deployment.manager.dao.entity.deployment.PersistenceInternalImageSource;
 import com.epam.aidial.deployment.manager.dao.jpa.DeploymentJpaRepository;
 import com.epam.aidial.deployment.manager.dao.mapper.PersistenceDeploymentMapper;
@@ -138,8 +137,7 @@ class DeploymentRepositoryTest {
         return Stream.of(
                 Arguments.of(DeploymentTypeDto.MCP, McpDeploymentEntity.class),
                 Arguments.of(DeploymentTypeDto.ADAPTER, AdapterDeploymentEntity.class),
-                Arguments.of(DeploymentTypeDto.INTERCEPTOR, InterceptorDeploymentEntity.class),
-                Arguments.of(DeploymentTypeDto.NIM, NimDeploymentEntity.class)
+                Arguments.of(DeploymentTypeDto.INTERCEPTOR, InterceptorDeploymentEntity.class)
         );
     }
 

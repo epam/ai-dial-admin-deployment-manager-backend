@@ -20,7 +20,6 @@ import com.epam.aidial.deployment.manager.model.deployment.InferenceDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InterceptorDeployment;
 import com.epam.aidial.deployment.manager.model.deployment.InternalImageSource;
 import com.epam.aidial.deployment.manager.model.deployment.McpDeployment;
-import com.epam.aidial.deployment.manager.model.deployment.NimDeployment;
 import com.epam.aidial.deployment.manager.service.GlobalDomainWhitelistService;
 import com.epam.aidial.deployment.manager.service.ImageDefinitionService;
 import com.epam.aidial.deployment.manager.service.deployment.DeploymentService;
@@ -75,7 +74,7 @@ public class ConfigExporter {
                         APPLICATION_IMAGE_DEFINITION ->
                         addImageDefinition(config, imageDefinitionService.getImageDefinition(UUID.fromString(name)));
                 case MCP_DEPLOYMENT, ADAPTER_DEPLOYMENT, INTERCEPTOR_DEPLOYMENT, APPLICATION_DEPLOYMENT,
-                        NIM_DEPLOYMENT, INFERENCE_DEPLOYMENT ->
+                        INFERENCE_DEPLOYMENT ->
                         addDeployment(config, deploymentService.getDeployment(name, addSecrets), addSecrets);
                 default -> throw new IllegalArgumentException("Unsupported export component type: " + type);
             }
@@ -129,7 +128,6 @@ public class ConfigExporter {
             case McpDeployment ignored -> config.getMcpDeployments().put(key, (McpDeployment) sanitized);
             case AdapterDeployment ignored -> config.getAdapterDeployments().put(key, (AdapterDeployment) sanitized);
             case InterceptorDeployment ignored -> config.getInterceptorDeployments().put(key, (InterceptorDeployment) sanitized);
-            case NimDeployment ignored -> config.getNimDeployments().put(key, (NimDeployment) sanitized);
             case InferenceDeployment ignored -> config.getInferenceDeployments().put(key, (InferenceDeployment) sanitized);
             case ApplicationDeployment ignored -> config.getApplicationDeployments().put(key, (ApplicationDeployment) sanitized);
             default -> throw new IllegalArgumentException("Unsupported deployment type: " + deployment.getClass());

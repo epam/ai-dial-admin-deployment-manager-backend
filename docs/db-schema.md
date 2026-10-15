@@ -1,7 +1,7 @@
 # Database Schema
 
 > Auto-generated from H2 Flyway migrations. Do not edit manually.
-> Generated at: 2026-06-30T13:12:31.609715Z
+> Generated at: 2026-10-13T08:59:37.803330800Z
 
 ## Tables
 
@@ -37,8 +37,6 @@
 - [MCP_DEPLOYMENT_AUD](#mcp_deployment_aud)
 - [MCP_IMAGE_DEFINITION](#mcp_image_definition)
 - [MCP_IMAGE_DEFINITION_AUD](#mcp_image_definition_aud)
-- [NIM_DEPLOYMENT](#nim_deployment)
-- [NIM_DEPLOYMENT_AUD](#nim_deployment_aud)
 - [REVINFO](#revinfo)
 
 ## ADAPTER_DEPLOYMENT
@@ -433,27 +431,6 @@
 **Indexes:**
 
 - `FK_MCP_IMAGE_DEFINITION_AUD_REV_INDEX_8` on (REV)
-
-## NIM_DEPLOYMENT
-
-| Column | Type | Nullable | Default | Key |
-|--------|------|----------|---------|-----|
-| ID | VARCHAR(36) | No |  | PK, FK → DEPLOYMENT.ID |
-| CONTAINER_GRPC_PORT | INTEGER | Yes |  |  |
-| STORAGE_SIZE | VARCHAR(64) | Yes |  |  |
-
-## NIM_DEPLOYMENT_AUD
-
-| Column | Type | Nullable | Default | Key |
-|--------|------|----------|---------|-----|
-| ID | VARCHAR(36) | No |  | PK |
-| REV | INTEGER | No |  | PK, FK → REVINFO.ID |
-| CONTAINER_GRPC_PORT | INTEGER | Yes |  |  |
-| STORAGE_SIZE | VARCHAR(64) | Yes |  |  |
-
-**Indexes:**
-
-- `FK_NIM_DEPLOYMENT_AUD_REV_INDEX_9` on (REV)
 
 ## REVINFO
 

@@ -15,7 +15,6 @@ import com.epam.aidial.deployment.manager.web.dto.deployment.ApplicationDeployme
 import com.epam.aidial.deployment.manager.web.dto.deployment.InferenceDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.InterceptorDeploymentDto;
 import com.epam.aidial.deployment.manager.web.dto.deployment.McpDeploymentDto;
-import com.epam.aidial.deployment.manager.web.dto.deployment.NimDeploymentDto;
 import org.mapstruct.Mapper;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -50,8 +49,6 @@ public abstract class ImportConfigDtoMapper {
                         dep -> (InterceptorDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getApplicationDeployments(),
                         dep -> (ApplicationDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
-                mapList(preview.getNimDeployments(),
-                        dep -> (NimDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 mapList(preview.getInferenceDeployments(),
                         dep -> (InferenceDeploymentDto) deploymentDtoMapper.toDeploymentDto(dep)),
                 toComponentDto(preview.getGlobalImageBuildDomainWhitelist(), c -> c),
