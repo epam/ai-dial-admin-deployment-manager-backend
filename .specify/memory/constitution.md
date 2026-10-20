@@ -1,11 +1,8 @@
 <!-- Sync Impact Report
-Version change: 1.5.0 → 1.5.1 (PATCH: version-pin refresh, no rule changes)
+Version change: 1.5.1 → 1.5.2 (PATCH: version-pin refresh, no rule changes)
 Modified sections:
-  - Tech Stack (Spring Boot 4.0.6 → 4.0.7 — maintenance release with two auto-configuration CVE fixes
-    (CVE-2026-40992, CVE-2026-41001) and dependency upgrades, among them Hibernate ORM 7.2.12 → 7.2.19; PostgreSQL
-    driver 42.7.11 → 42.7.12, aligning the pin with build.gradle after #393; Jackson 2 security floor 2.21.1 →
-    2.21.6 and Jackson 3 held at 3.1.6 over the Boot-BOM 3.1.4 — CVE-2026-59889 / GHSA-mhm7-754m-9p8w affect both
-    generations)
+  - Tech Stack (Spring Boot 4.0.8 → 4.1.1 — Spring Framework 7.0.9, Hibernate ORM 7.2.x → 7.4.5; the document
+    still said 4.0.7, so this also realigns it with build.gradle)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -24,7 +21,7 @@ The base package for all production sources MUST be `com.epam.aidial.deployment.
 
 Constitutionally-significant libraries (any upgrade MUST go through a PR with a security or feature rationale):
 
-- **Runtime**: Java 21, Spring Boot 4.0.7 (Spring Framework 7), Gradle 8.14.5
+- **Runtime**: Java 21, Spring Boot 4.1.1 (Spring Framework 7), Gradle 8.14.5
 - **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.3
 - **Database migrations**: Flyway via `spring-boot-starter-flyway` (version BOM-managed) plus `flyway-database-postgresql` and `flyway-sqlserver`
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, `io.kubernetes:client-java` 22.0.0
@@ -305,10 +302,11 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 
 | Version | Date | Summary |
 |---|---|---|
+| 1.5.2 | 2026-10-20 | Version-pin refresh: Spring Boot 4.0.8 → 4.1.1 (Framework 7.0.9, Hibernate ORM 7.4.5); realigns the Runtime pin with build.gradle |
 | 1.5.1 | 2026-08-19 | Version-pin refresh: Spring Boot 4.0.6 → 4.0.7 (pulls Hibernate ORM 7.2.12 → 7.2.19, which required `SqlServerJsonAsVarcharTypeContributor` to keep JSON columns on `varchar(max)`); PostgreSQL driver pin 42.7.11 → 42.7.12 aligning the document with build.gradle; Jackson floors raised to 2.21.6 / 3.1.6 for CVE-2026-59889 and GHSA-mhm7-754m-9p8w |
 | 1.5.0 | 2026-06-03 | Spring Boot 4 platform upgrade: Boot 4.0.6 / Framework 7 / Hibernate ORM 7 / Jackson 3 (`tools.jackson`); Gradle 8.14.5; removed actuator BOM-override note; spring-retry → Framework 7 core retry; community OTel starter → official `spring-boot-starter-opentelemetry`; ShedLock 7.7.0; SpringDoc 3.0.3; ArchUnit 1.4.2; Testcontainers 2.x; jjwt 0.13.0 (test) and jaxb 2.x removal |
 | 1.4.0 | 2026-04-30 | Reframed Tech Stack (build.gradle canonical); added inline enforcement tags; softened CONFIG_REST_SECURITY_MODE to SHOULD; aligned `@LogExecution` Spring-component list with ArchUnit; deduped Anti-pattern #4; clarified K8s-API polling vs scheduled tasks; expanded numbered-spec lifecycle (Cancelled, Superseded); added Out of Scope and Amendment History sections |
 | 1.3.0 | 2026-04-29 | Per-directory CLAUDE.md acknowledgment; added Capability ↔ numbered-spec cross-link rule |
 | ≤1.2.2 | — | See `git log .specify/memory/constitution.md` |
 
-**Version**: 1.5.1 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-08-19
+**Version**: 1.5.2 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-10-20

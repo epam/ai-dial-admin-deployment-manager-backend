@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapVolumeSource;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarSource;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
@@ -39,6 +40,7 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.SELinuxOptions;
 import io.fabric8.kubernetes.api.model.SeccompProfileBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretKeySelector;
@@ -525,6 +527,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
                         .withPrivileged(false)
                         .withRunAsUser(1000L)
                         .withRunAsGroup(1000L)
+                        .withSeLinuxOptions(new SELinuxOptions())
                         .withRunAsNonRoot(true)
                         .withReadOnlyRootFilesystem(true)
                         .withAllowPrivilegeEscalation(false)
@@ -571,6 +574,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         var imageBuildVolume = new Volume();
         imageBuildVolume.setName("build-volume");
+        imageBuildVolume.setEmptyDir(new EmptyDirVolumeSource());
         imageBuildVolume.setAdditionalProperties(new HashMap<>());
 
         // Secret volume
@@ -586,6 +590,7 @@ public abstract class FullWorkflowWithMockedK8sClientFunctionalTest {
 
         var workspaceVolume = new Volume();
         workspaceVolume.setName("workspace-volume");
+        workspaceVolume.setEmptyDir(new EmptyDirVolumeSource());
         workspaceVolume.setAdditionalProperties(new HashMap<>());
 
         // PodSpec
