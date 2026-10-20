@@ -2,7 +2,9 @@
 Version change: 1.5.1 → 1.5.2 (PATCH: version-pin refresh, no rule changes)
 Modified sections:
   - Tech Stack (Spring Boot 4.0.8 → 4.1.1 — Spring Framework 7.0.9, Hibernate ORM 7.2.x → 7.4.5; the document
-    still said 4.0.7, so this also realigns it with build.gradle)
+    still said 4.0.7, so this also realigns it with build.gradle. The `opentelemetry-bom` override is dropped —
+    Boot 4.1.1 manages OpenTelemetry 1.62.0 itself. Also realigns the Jackson 2 floor (2.21.7) and Log4j2
+    (2.25.5) pins with build.gradle)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -25,10 +27,10 @@ Constitutionally-significant libraries (any upgrade MUST go through a PR with a 
 - **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.3
 - **Database migrations**: Flyway via `spring-boot-starter-flyway` (version BOM-managed) plus `flyway-database-postgresql` and `flyway-sqlserver`
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, `io.kubernetes:client-java` 22.0.0
-- **Serialization**: Jackson 3 (`tools.jackson`, BOM-managed) is the application serialization stack; `com.fasterxml.jackson.annotation` annotations are shared by both generations. Jackson 2 is retained deliberately for two frozen consumers — legacy Java Flyway migrations (`db.migration.MigrationJsonMapper`; see `src/main/java/db/migration/CLAUDE.md`) and Hibernate's JSON column mapping — plus transitively via third-party SDKs (Fabric8, MCP SDK, jib); its security floor is enforced via the `jackson-core` 2.21.6 constraint.
+- **Serialization**: Jackson 3 (`tools.jackson`, BOM-managed) is the application serialization stack; `com.fasterxml.jackson.annotation` annotations are shared by both generations. Jackson 2 is retained deliberately for two frozen consumers — legacy Java Flyway migrations (`db.migration.MigrationJsonMapper`; see `src/main/java/db/migration/CLAUDE.md`) and Hibernate's JSON column mapping — plus transitively via third-party SDKs (Fabric8, MCP SDK, jib); its security floor is enforced via the `jackson-core` 2.21.7 constraint.
 - **Retry**: Spring Framework 7 core retry (`org.springframework.core.retry`); `spring-retry` MUST NOT be reintroduced
-- **Logging**: Log4j2 2.25.4 (`log4j-core`, `log4j-slf4j2-impl`, `log4j-jul`); `spring-boot-starter-logging` MUST be excluded globally. `commons-logging` MUST NOT be excluded — Spring Framework 7 depends on it directly.
-- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-log4j-appender-2.17` (version aligned with the OpenTelemetry API pinned via the `opentelemetry-bom` platform in build.gradle — a security floor over the Boot-BOM-managed version; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
+- **Logging**: Log4j2 2.25.5 (`log4j-core`, `log4j-slf4j2-impl`, `log4j-jul`); `spring-boot-starter-logging` MUST be excluded globally. `commons-logging` MUST NOT be excluded — Spring Framework 7 depends on it directly.
+- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-log4j-appender-2.17` (version aligned with the Boot-BOM-managed OpenTelemetry API; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
 - **Caching**: Caffeine 3.2.3 via `spring-boot-starter-cache`
 - **Distributed locking**: ShedLock 7.7.0 (JDBC provider)
 - **API docs**: SpringDoc OpenAPI 3.0.3
@@ -302,7 +304,7 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 
 | Version | Date | Summary |
 |---|---|---|
-| 1.5.2 | 2026-10-20 | Version-pin refresh: Spring Boot 4.0.8 → 4.1.1 (Framework 7.0.9, Hibernate ORM 7.4.5); realigns the Runtime pin with build.gradle |
+| 1.5.2 | 2026-10-20 | Version-pin refresh: Spring Boot 4.0.8 → 4.1.1 (Framework 7.0.9, Hibernate ORM 7.4.5); dropped the `opentelemetry-bom` override (Boot now manages OpenTelemetry 1.62.0); realigns the Runtime, Jackson 2 floor and Log4j2 pins with build.gradle |
 | 1.5.1 | 2026-08-19 | Version-pin refresh: Spring Boot 4.0.6 → 4.0.7 (pulls Hibernate ORM 7.2.12 → 7.2.19, which required `SqlServerJsonAsVarcharTypeContributor` to keep JSON columns on `varchar(max)`); PostgreSQL driver pin 42.7.11 → 42.7.12 aligning the document with build.gradle; Jackson floors raised to 2.21.6 / 3.1.6 for CVE-2026-59889 and GHSA-mhm7-754m-9p8w |
 | 1.5.0 | 2026-06-03 | Spring Boot 4 platform upgrade: Boot 4.0.6 / Framework 7 / Hibernate ORM 7 / Jackson 3 (`tools.jackson`); Gradle 8.14.5; removed actuator BOM-override note; spring-retry → Framework 7 core retry; community OTel starter → official `spring-boot-starter-opentelemetry`; ShedLock 7.7.0; SpringDoc 3.0.3; ArchUnit 1.4.2; Testcontainers 2.x; jjwt 0.13.0 (test) and jaxb 2.x removal |
 | 1.4.0 | 2026-04-30 | Reframed Tech Stack (build.gradle canonical); added inline enforcement tags; softened CONFIG_REST_SECURITY_MODE to SHOULD; aligned `@LogExecution` Spring-component list with ArchUnit; deduped Anti-pattern #4; clarified K8s-API polling vs scheduled tasks; expanded numbered-spec lifecycle (Cancelled, Superseded); added Out of Scope and Amendment History sections |
