@@ -24,7 +24,8 @@ COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-RUN apk add --no-cache zlib=1.3.2-r1 libcrypto3=3.5.8-r0 libssl3=3.5.8-r0
+RUN apk add --no-cache zlib=1.3.2-r1 libcrypto3=3.5.9-r0 libssl3=3.5.9-r0 \
+    libx11=1.8.14-r0 libxi=1.8.4-r0 libxrender=0.9.13-r0 libxtst=1.2.6-r0
 
 USER appuser
 
