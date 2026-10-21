@@ -20,8 +20,7 @@ import java.util.Optional;
 @NoArgsConstructor
 public class NodePoolProperties {
 
-    @Valid
-    private List<PoolConfig> pools;
+    private List<@Valid PoolConfig> pools;
 
     @Nullable
     private String defaultPoolId;

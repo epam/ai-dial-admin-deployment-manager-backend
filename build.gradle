@@ -25,7 +25,7 @@ plugins {
     id 'java'
     id 'checkstyle'
     id 'io.freefair.lombok' version '8.10'
-    id 'org.springframework.boot' version '4.0.8'
+    id 'org.springframework.boot' version '4.1.1'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
 
@@ -70,8 +70,6 @@ repositories {
 
 dependencies {
     implementation platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
-    // overrides the Boot-BOM-managed OpenTelemetry 1.55.0 — unbounded memory allocation in W3C baggage propagation, patched in 1.62.0
-    implementation platform('io.opentelemetry:opentelemetry-bom:1.62.0')
     // aligns every io.netty module (overriding the Boot BOM) to one patched version — covers multiple HIGH CVEs
     // plus CVE-2026-75595 (CRITICAL, netty-handler) patched in 4.2.17.Final; 4.2.18.Final is the latest 4.2.x patch
     implementation platform('io.netty:netty-bom:4.2.18.Final')
@@ -133,7 +131,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
-    // version aligned with the OpenTelemetry API 1.62.0 pinned via opentelemetry-bom above (instrumentation 2.28.x <-> SDK 1.62.x)
+    // version aligned with the Boot-BOM-managed OpenTelemetry API 1.62.0 (instrumentation 2.28.x <-> SDK 1.62.x)
     implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.28.1-alpha'
 
     implementation 'org.hibernate.orm:hibernate-envers'

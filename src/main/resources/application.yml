@@ -457,6 +457,9 @@ management:
   server:
     port: 9464
   opentelemetry:
+    # Spring Boot 4.1+ maps standard OTEL_* SDK env vars (OTEL_SDK_DISABLED, OTEL_*_EXPORTER, OTEL_EXPORTER_OTLP_PROTOCOL, ...)
+    # with precedence over this file; disabled so the OTEL_*_EXPORT_ENABLED / OTEL_EXPORTER_OTLP_TRANSPORT contract stays the only one
+    map-environment-variables: false
     resource-attributes:
       "service.name": ${OTEL_SERVICE_NAME:dial-deployment-manager-backend}
     tracing:

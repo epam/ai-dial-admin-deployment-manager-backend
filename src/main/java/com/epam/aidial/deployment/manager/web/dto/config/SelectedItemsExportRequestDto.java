@@ -14,6 +14,5 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 public class SelectedItemsExportRequestDto extends ExportRequestDto {
 
-    @Valid
-    private List<ExportConfigComponentDto> components;
+    private List<@Valid ExportConfigComponentDto> components;
 }

@@ -17,14 +17,12 @@ RUN adduser -u 1001 --disabled-password --gecos "" appuser && \
     mkdir -p /app/data && \
     chown -R appuser:appuser /app
 
-RUN apk add --no-cache bash
+RUN apk upgrade --no-cache && apk add --no-cache bash
 
 COPY --from=builder --chown=appuser:appuser /build-workspace/build/libs/ai-dial-admin-deployment-manager-backend*.jar ./app.jar
 COPY --chown=appuser:appuser docker-entrypoint.sh /usr/local/bin/
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-RUN apk add --no-cache zlib=1.3.2-r1 libcrypto3=3.5.8-r0 libssl3=3.5.8-r0
 
 USER appuser
 
