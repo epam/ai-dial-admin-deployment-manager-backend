@@ -80,6 +80,9 @@ dependencies {
     // aligns every io.vertx module (transitive from fabric8 kubernetes-httpclient-vertx) — DoS via TLS handshake
     // with wildcard server name in vertx-core (CVE-2026-6860), patched in 4.5.27
     implementation platform('io.vertx:vertx-dependencies:4.5.27')
+    // aligns every io.opentelemetry module (overriding the Boot-BOM-managed 1.62.0) — quadratic CPU consumption
+    // in W3C tracestate parsing in opentelemetry-api (CVE-2026-118259), patched in 1.67.0
+    implementation platform('io.opentelemetry:opentelemetry-bom:1.67.0')
 
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
@@ -131,8 +134,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
-    // version aligned with the Boot-BOM-managed OpenTelemetry API 1.62.0 (instrumentation 2.28.x <-> SDK 1.62.x)
-    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.28.1-alpha'
+    // version aligned with the opentelemetry-bom-managed OpenTelemetry API 1.67.0 (instrumentation 2.33.x <-> SDK 1.67.x)
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.33.1-alpha'
 
     implementation 'org.hibernate.orm:hibernate-envers'
     // Jackson 2 is intentionally kept: legacy Java Flyway migrations are pinned to it so they keep
