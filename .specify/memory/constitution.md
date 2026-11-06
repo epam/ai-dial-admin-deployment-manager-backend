@@ -1,10 +1,8 @@
 <!-- Sync Impact Report
-Version change: 1.5.1 → 1.5.2 (PATCH: version-pin refresh, no rule changes)
+Version change: 1.5.2 → 1.5.3 (PATCH: version-pin refresh, no rule changes)
 Modified sections:
-  - Tech Stack (Spring Boot 4.0.8 → 4.1.1 — Spring Framework 7.0.9, Hibernate ORM 7.2.x → 7.4.5; the document
-    still said 4.0.7, so this also realigns it with build.gradle. The `opentelemetry-bom` override is dropped —
-    Boot 4.1.1 manages OpenTelemetry 1.62.0 itself. Also realigns the Jackson 2 floor (2.21.7) and Log4j2
-    (2.25.5) pins with build.gradle)
+  - Tech Stack (Observability: `opentelemetry-bom` 1.67.0 override reinstated over the Boot-managed 1.62.0 for
+    CVE-2026-118259; the log4j appender now follows that BOM's OpenTelemetry API version)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -30,7 +28,7 @@ Constitutionally-significant libraries (any upgrade MUST go through a PR with a 
 - **Serialization**: Jackson 3 (`tools.jackson`, BOM-managed) is the application serialization stack; `com.fasterxml.jackson.annotation` annotations are shared by both generations. Jackson 2 is retained deliberately for two frozen consumers — legacy Java Flyway migrations (`db.migration.MigrationJsonMapper`; see `src/main/java/db/migration/CLAUDE.md`) and Hibernate's JSON column mapping — plus transitively via third-party SDKs (Fabric8, MCP SDK, jib); its security floor is enforced via the `jackson-core` 2.21.7 constraint.
 - **Retry**: Spring Framework 7 core retry (`org.springframework.core.retry`); `spring-retry` MUST NOT be reintroduced
 - **Logging**: Log4j2 2.25.5 (`log4j-core`, `log4j-slf4j2-impl`, `log4j-jul`); `spring-boot-starter-logging` MUST be excluded globally. `commons-logging` MUST NOT be excluded — Spring Framework 7 depends on it directly.
-- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-log4j-appender-2.17` (version aligned with the Boot-BOM-managed OpenTelemetry API; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
+- **Observability**: official `spring-boot-starter-opentelemetry`, Micrometer + Prometheus, `opentelemetry-bom` 1.67.0 (overrides the Boot-managed OpenTelemetry for CVE-2026-118259), `opentelemetry-log4j-appender-2.17` (version aligned with that BOM's OpenTelemetry API; installed programmatically by `OpenTelemetryLogAppenderConfiguration`)
 - **Caching**: Caffeine 3.2.3 via `spring-boot-starter-cache`
 - **Distributed locking**: ShedLock 7.7.0 (JDBC provider)
 - **API docs**: SpringDoc OpenAPI 3.0.3
@@ -304,6 +302,7 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 
 | Version | Date | Summary |
 |---|---|---|
+| 1.5.3 | 2026-11-06 | Version-pin refresh: reinstated the `opentelemetry-bom` override at 1.67.0 (Boot 4.1.1 manages 1.62.0, affected by CVE-2026-118259); `opentelemetry-log4j-appender-2.17` 2.28.1-alpha → 2.33.1-alpha to match |
 | 1.5.2 | 2026-10-20 | Version-pin refresh: Spring Boot 4.0.8 → 4.1.1 (Framework 7.0.9, Hibernate ORM 7.4.5); dropped the `opentelemetry-bom` override (Boot now manages OpenTelemetry 1.62.0); realigns the Runtime, Jackson 2 floor and Log4j2 pins with build.gradle |
 | 1.5.1 | 2026-08-19 | Version-pin refresh: Spring Boot 4.0.6 → 4.0.7 (pulls Hibernate ORM 7.2.12 → 7.2.19, which required `SqlServerJsonAsVarcharTypeContributor` to keep JSON columns on `varchar(max)`); PostgreSQL driver pin 42.7.11 → 42.7.12 aligning the document with build.gradle; Jackson floors raised to 2.21.6 / 3.1.6 for CVE-2026-59889 and GHSA-mhm7-754m-9p8w |
 | 1.5.0 | 2026-06-03 | Spring Boot 4 platform upgrade: Boot 4.0.6 / Framework 7 / Hibernate ORM 7 / Jackson 3 (`tools.jackson`); Gradle 8.14.5; removed actuator BOM-override note; spring-retry → Framework 7 core retry; community OTel starter → official `spring-boot-starter-opentelemetry`; ShedLock 7.7.0; SpringDoc 3.0.3; ArchUnit 1.4.2; Testcontainers 2.x; jjwt 0.13.0 (test) and jaxb 2.x removal |
@@ -311,4 +310,4 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 | 1.3.0 | 2026-04-29 | Per-directory CLAUDE.md acknowledgment; added Capability ↔ numbered-spec cross-link rule |
 | ≤1.2.2 | — | See `git log .specify/memory/constitution.md` |
 
-**Version**: 1.5.2 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-10-20
+**Version**: 1.5.3 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-11-06
