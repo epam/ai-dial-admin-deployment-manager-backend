@@ -201,6 +201,9 @@ dependencies {
         implementation("org.bouncycastle:bcutil-jdk18on:1.85") {
             because("keep in lockstep with bcprov/bcpkix")
         }
+        implementation("com.google.guava:guava:33.7.2-jre") {
+            because("transitive from Cloud SQL socket factory/jib/kubernetes client-java — CVE-2026-102554")
+        }
         checkstyle ('org.codehaus.plexus:plexus-utils:4.0.3') {
             because("previous versions have vulnerabilities")
         }
