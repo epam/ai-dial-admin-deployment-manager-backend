@@ -4,17 +4,19 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
+        // Gradle plugin classpath is not covered by the project-level BOMs below, so align it separately.
+        // Netty: fabric8 java-generator -> kubernetes-httpclient-vertx -> vertx-core pulls netty 4.1.130.Final
+        // (netty-codec, netty-codec-dns, netty-resolver-dns, netty-handler-proxy DoS / DNS cache poisoning issues)
+        classpath platform('io.netty:netty-bom:4.2.18.Final')
+        // Vert.x: vertx-core 4.5.24 from fabric8 java-generator — unbounded SNI SslContext cache DoS, patched in 4.5.27
+        classpath platform('io.vertx:vertx-dependencies:4.5.27')
+        // Jackson 3: spring-boot-buildpack-platform pulls 3.1.5 — jackson-core/jackson-databind DoS issues, patched in 3.1.7
+        classpath platform('tools.jackson:jackson-bom:3.1.7')
         constraints {
             classpath ('org.apache.commons:commons-lang3:3.18.0') {
                 because("previous versions have vulnerabilities")
             }
             classpath ('com.fasterxml.jackson.core:jackson-core:2.21.7') {
-                because("previous versions have vulnerabilities")
-            }
-            classpath ('io.netty:netty-codec-http2:4.2.18.Final') {
-                because("previous versions have vulnerabilities")
-            }
-            classpath ('io.netty:netty-codec-http:4.2.18.Final') {
                 because("previous versions have vulnerabilities")
             }
         }
@@ -212,6 +214,18 @@ dependencies {
         }
         checkstyle ('org.apache.commons:commons-lang3:3.18.0') {
             because("previous versions have vulnerabilities")
+        }
+        checkstyle ('com.google.guava:guava:33.7.2-jre') {
+            because("checkstyle pulls 33.4.0-jre — CompactHashMap/CompactHashSet deserialization memory allocation DoS")
+        }
+        checkstyle ('org.apache.httpcomponents.client5:httpclient5:5.6.5') {
+            because("checkstyle pulls 5.1.3 — connection leak on Content-Encoding decode error, patched in 5.6.3")
+        }
+        checkstyle ('org.apache.httpcomponents.core5:httpcore5:5.4.4') {
+            because("checkstyle pulls 5.1.3 — HTTP/1 header parsing memory-exhaustion DoS, patched in 5.4.3")
+        }
+        checkstyle ('org.apache.httpcomponents.core5:httpcore5-h2:5.4.4') {
+            because("checkstyle pulls 5.1.3 — HPackDecoder unlimited header list size, patched in 5.4.3")
         }
     }
 }
