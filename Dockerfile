@@ -10,7 +10,7 @@ COPY src/ src/
 RUN gradle --no-daemon clean bootJar
 
 # Runtime stage
-FROM eclipse-temurin:21.0.13.1_2-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
 
 RUN adduser -u 1001 --disabled-password --gecos "" appuser && \
