@@ -258,7 +258,7 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
 | `./gradlew bootRun` | Run the service locally on the JVM |
 | `./gradlew generateDbSchema` | Regenerate `docs/db-schema.md` from H2 Flyway migrations — run after any migration change |
-| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.14.5-jdk21-alpine` → `amazoncorretto:21-alpine`) |
+| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.14.5-jdk21-alpine` → `eclipse-temurin:21-jre-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
 considering the task done. Use `./gradlew testFast` to run tests during development; a clean
