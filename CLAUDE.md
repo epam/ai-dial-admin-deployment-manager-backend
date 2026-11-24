@@ -24,7 +24,7 @@ All architecture rules, naming conventions, code style, patterns, and domain kno
 
 Run a single test class:
 ```bash
-./gradlew testFast --tests "com.epam.aidial.deployment.manager.functional.h2.DeploymentFunctionalTest"
+./gradlew testFast --tests "com.epam.aidial.deployment.manager.functional.H2FunctionalTests"
 ```
 
 ## Spec-Driven Development

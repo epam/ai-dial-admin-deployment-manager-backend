@@ -1,22 +1,24 @@
 # DIAL Deployment Manager Backend
 
 [![Java Version](https://img.shields.io/badge/Java-21-blue.svg)](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.x-green.svg)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-green.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 Backend service module that extends the [AI DIAL Admin Panel](https://github.com/epam/ai-dial-admin-backend), simplifying and democratizing the building and deployment of AI applications and deployments inside Kubernetes. This service is deployed alongside the main admin app and is used by both the admin backend and frontend (feature-flagged).
 
 The DIAL Deployment Manager Backend makes complex Kubernetes-based AI deployments accessible without requiring deep Kubernetes expertise. It provides a streamlined interface for managing container image builds, deployments, and lifecycle operations for AI workloads.
 
-**Current Focus:**
-- MCP (Model Context Protocol) servers
-- DIAL interceptors
+**Supported workloads:**
 
-**Roadmap:**
-- KServe support for simplified inference deployment
-- Agile network rules management in untrusted clusters
-- DIAL adapters
-- DIAL applications
+| Workload | Runtime | Source |
+|---|---|---|
+| MCP (Model Context Protocol) servers | Knative Serving | Image definition or existing image reference; STDIO servers are wrapped with an HTTP-to-STDIO proxy |
+| DIAL interceptors | Knative Serving | Image definition or existing image reference |
+| DIAL adapters | Knative Serving | Image definition or existing image reference |
+| DIAL applications | Knative Serving | Image definition or existing image reference |
+| Inference models | KServe | HuggingFace model served by KServe; text-classification models get an auto-chained transformer |
+
+Image definitions are built by the Deployment Manager either from a Git repository with a Dockerfile or from an existing Docker image.
 
 For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-admin-backend repository](https://github.com/epam/ai-dial-admin-backend) or [DIAL Documentation](https://docs.dialx.ai/).
 
@@ -26,35 +28,51 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 - [Features](#features)
 - [Configuration](#configuration)
 - [Getting Started](#getting-started)
+- [Documentation](#documentation)
+- [Architecture Diagram](#architecture-diagram)
 - [Security](#security)
 - [Spec-Driven Development](#spec-driven-development)
 - [Contributing](#contributing)
 - [License](#license)
-- [Documentation](#documentation)
 
 ## Prerequisites
 
-- Java 21 or higher
-- Gradle 7.x or higher
-- Docker and Docker Compose (for containerized deployment)
-- Kubernetes cluster (for production deployments)
-- Database (H2/PostgreSQL/SQL Server) - H2 is sufficient for local development
+- Java 21
+- Gradle — use the bundled wrapper (`./gradlew`), no local installation needed
+- Docker and Docker Compose (for containerized local runs and for the Postgres/SQL Server test suites)
+- Kubernetes cluster with [Knative Serving](https://knative.dev/docs/install/) (all image-based deployments) and, optionally, [KServe](docs/kserve.md) (inference deployments) and [Cilium](https://docs.cilium.io/) (network policies)
+- Database: PostgreSQL or SQL Server for production; H2 is sufficient for local development
 
 ## Features
 
-- **MCP Deployment Management**: Complete lifecycle management for Model Context Protocol servers
-- **Container Image Building**: Automated image building with [BuildKit](https://github.com/moby/buildkit) in Kubernetes jobs, supporting both root and rootless containers.
-- **Image Definition Management**: Support for multiple image definition types (MCP, DIAL Interceptor) with versioning
-- **Knative-Based Deployments**: Serverless container deployments with auto-scaling and automatic HTTPS endpoints
-- **Real-Time Status Updates**: Server-Sent Events (SSE) for real-time build status and deployment monitoring
-- **Kubernetes Event Streaming**: Real-time event streaming for deployment monitoring and troubleshooting
-- **Disposable Resource Management**: Automatic tracking and cleanup of Kubernetes resources with lifecycle state management
-- **Multi-Database Support**: Flexible database options (H2, PostgreSQL, SQL Server) for different deployment scenarios
-- **Multiple Authentication Methods**: Support for JWT and Basic Auth authentication
-- **Identity Providers Support** Integration of different providers (Keycloak, AzureAD and others) for identity management
-- **Health Monitoring**: Comprehensive health checks and metrics endpoints (Prometheus)
-- **Private Registry Support**: Support for private Git repositories and Docker registries in image builds
-- **Environment Variable Management**: Sophisticated handling of environment variables with automatic conversion of sensitive vars to Kubernetes Secrets
+**Deployments**
+- **Knative-Based Deployments**: Serverless MCP, interceptor, adapter and application deployments with auto-scaling
+- **KServe Inference Deployments**: Deploy HuggingFace models with automatic task detection (text-generation, text-classification); text-classification models get a chained KServe transformer
+- **Deployment Lifecycle**: Create, deploy/undeploy, duplicate, change image, custom `command`/`args`, probes, startup and periodic state reconciliation with the cluster
+- **Node Pools**: Explicit `nodeSelector` / affinity / tolerations per pool, with create-time defaults for regular and model workloads
+- **Deployment Metrics**: Live snapshot of replica counts, per-pod CPU/memory, GPU telemetry (NVIDIA DCGM) and normalized vLLM/TGI/SGLang serving metrics
+- **MCP Server Introspection**: List tools, resources and prompts of running MCP deployments and call tools
+- **Real-Time Status Updates**: Server-Sent Events (SSE) for build logs, deployment status and Kubernetes events
+
+**Images**
+- **Container Image Building**: Automated image building with [BuildKit](https://github.com/moby/buildkit) in Kubernetes jobs, supporting both root and rootless modes; in-flight builds can be stopped
+- **Image Definition Management**: MCP, interceptor, adapter and application image definitions with versioning and topics
+- **Private Sources**: Private Git repositories (multiple credentials per host, scoped to a repository, group or domain) and trusted private Docker registries
+- **Automatic Pull Secrets**: Pull secrets are provisioned and wired into workloads when images come from a credentialed registry
+
+**Integrations**
+- **MCP Registry Browser**: Browse and filter MCP servers from the public MCP registry
+- **HuggingFace Browser**: Search models and fetch their metadata
+
+**Governance & Operations**
+- **Network Controls**: Global domain whitelist restricting network egress of image builds, and optional per-deployment Cilium network policies
+- **Auditing & Rollback**: Activity feed and per-resource revision history (Hibernate Envers), with rollback to a past revision
+- **Export / Import**: Move deployments and image definitions between environments as a ZIP archive, with previews before export and import
+- **Environment Variable Management**: Sensitive environment variables are stored as Kubernetes Secrets and excluded from exports
+- **Disposable Resource Management**: Automatic tracking and scheduled cleanup of Kubernetes resources
+- **Multi-Database Support**: H2 (development only), PostgreSQL and SQL Server, with Flyway migrations
+- **Authentication & Authorization**: Basic auth or OIDC/JWT (Azure AD, Keycloak, Auth0, Okta, Cognito), DIAL Core API keys, `FULL_ADMIN` and `READ_ONLY_ADMIN` roles
+- **Observability**: Health endpoint, Prometheus metrics, OpenTelemetry traces/logs/metrics export
 
 ## Configuration
 
@@ -66,12 +84,11 @@ Complete list of configuration properties can be found in the [Configuration Doc
 - **Docker Registry**: Configure registry URL, protocol, and authentication (`DOCKER_REGISTRY`, `DOCKER_REGISTRY_AUTH`)
 - **Database**: Support for H2, PostgreSQL, and SQL Server via `DATASOURCE_VENDOR` environment variable. H2 is the default but is intended for **development and testing only** — its backup/restore procedures are unreliable, so running it in production is very strongly discouraged; use PostgreSQL or SQL Server instead. See [Datasource Configuration](docs/configuration.md#datasource-configuration).
 - **Security/Authentication**: Configure via `CONFIG_REST_SECURITY_MODE` (none, basic, oidc)
-- **Knative Deployment**: Configure namespaces, timeouts, and scaling parameters
+- **Knative / KServe**: Enable runtimes (`K8S_KNATIVE_ENABLED`, `K8S_KSERVE_ENABLED`), namespaces, timeouts, and scaling parameters
 - **Build Pipeline**: Configure build namespaces, images, and resource limits
+- **Node Pools**: `NODE_POOLS`, `NODE_POOL_DEFAULT`, `NODE_POOL_DEFAULT_MODEL`
 
-### Environment Variables
-
-The application supports extensive configuration via environment variables. See [Configuration Documentation](docs/configuration.md) for the complete list.
+Infrastructure-relevant changes between releases are tracked in the [Infra Changelog](docs/INFRA-CHANGELOG.md), with step-by-step [upgrade plans](docs/upgrade-plans/) for releases that need them.
 
 ## Getting Started
 
@@ -83,18 +100,27 @@ From the project's root directory:
 ./gradlew bootRun
 ```
 
-### Run with Docker
+With the default H2 datasource, `H2_DATASOURCE_PASSWORD`, `H2_DATASOURCE_MASTER_KEY` and `H2_DATASOURCE_ENCRYPTED_FILE_KEY` have no defaults and must be set, otherwise the application fails to start (see [H2 Database Credentials](#h2-database-credentials)).
 
-#### Build Docker Image
+### Run with Docker Compose
+
+`local_env/docker-compose.yml` builds the image and starts the application together with PostgreSQL and SQL Server containers (Keycloak is available via the `keycloak` profile). It mounts `~/.kube` so the application can reach your current cluster:
+
+```bash
+cd local_env
+docker compose up
+```
+
+### Run with Docker
 
 ```bash
 docker build -t aidial/ai-dial-admin-deployment-manager-backend:latest .
-```
-
-#### Run Container
-
-```bash
-docker run -p 8080:8080 aidial/ai-dial-admin-deployment-manager-backend:latest
+docker run -p 8080:8080 \
+  -e H2_DATASOURCE_PASSWORD=... \
+  -e H2_DATASOURCE_MASTER_KEY=... \
+  -e H2_DATASOURCE_ENCRYPTED_FILE_KEY=... \
+  -v ~/.kube:/home/appuser/.kube \
+  aidial/ai-dial-admin-deployment-manager-backend:latest
 ```
 
 Verify the installation:
@@ -110,15 +136,23 @@ Expected response:
 }
 ```
 
-Import ([Postman](docs/rest-collection/dm_postman_collection.json)) collection to test other requests. 
+The OpenAPI UI is available at `http://localhost:8080/swagger-ui/index.html`. A [Postman collection](docs/rest-collection/dm_postman_collection.json) is also provided.
 
 ### H2 Database Credentials
 
-For local development with H2 database, default credentials are provided in the `docker-compose.yml` file. For details on generating new credentials, see the [Development Guide](docs/Development.md#h2-database-credentials).
+For local development with H2 database, default credentials are provided in `local_env/docker-compose.yml`. For details on generating new credentials, see the [Development Guide](docs/Development.md#h2-database-credentials).
 
 ## Documentation
 
-For detailed developer documentation, including REST API endpoints, development commands, architecture details, and configuration guides, see the [Development Guide](docs/Development.md).
+| Document | Contents |
+|---|---|
+| [Development Guide](docs/Development.md) | REST API overview, build/test commands, architecture |
+| [Configuration](docs/configuration.md) | All configuration properties and environment variables |
+| [KServe Installation](docs/kserve.md) | Installing KServe and the RBAC needed for inference deployments |
+| [Full Security Model Deployment Guide](docs/deployment_guide_full_security_model.md) | Dual-cluster (trusted/untrusted) setup with optional Cilium |
+| [Infra Changelog](docs/INFRA-CHANGELOG.md) / [Upgrade Plans](docs/upgrade-plans/) | Per-release infrastructure changes and upgrade steps |
+| [DB Schema](docs/db-schema.md) | Auto-generated database schema (`./gradlew generateDbSchema`) |
+| [Capability Specs](specs/README.md) | Per-capability behaviour and contracts |
 
 ## Architecture Diagram
 
@@ -130,17 +164,19 @@ For detailed developer documentation, including REST API endpoints, development 
 
 For information about security practices and reporting security issues, please refer to our [SECURITY.md](SECURITY.md) document.
 
-**Security is disabled for default configuration. It's highly not recommended to use default configuration
+**Security is disabled for default configuration (`CONFIG_REST_SECURITY_MODE=none`). It's highly not recommended to use default configuration
 for production environment.**
 
 For production environment:
 - Set `CONFIG_REST_SECURITY_MODE` environment variable with either `oidc` or `basic` value
 - (optional) Set `MS_SQL_SERVER_OPS` environment variable with `encrypt=true;` value if application is launched with SQL Server.
 
-The system supports two authentication methods:
+In `basic` and `oidc` modes, `/api/v1/health` and `/api/internal/**` stay unauthenticated (as do `/swagger-ui/**` and `/v3/api-docs/**` when `DISABLE_SWAGGER_AUTHORIZATION=true`); restrict access to the internal endpoints at the network level.
 
-1. **Basic Authentication** (Default)
-    - Configure username and password in `application.yml`:
+The system supports the following authentication methods:
+
+1. **Basic Authentication**
+    - Configure username and password via Spring Boot's standard properties:
       ```properties
       spring.security.user.name=your_username
       spring.security.user.password=your_password
@@ -151,28 +187,33 @@ The system supports two authentication methods:
       ```
 
 2. **JWT Authentication**
-- Configure Identity Provider settings using environment variables or with the `providers.{provider_name}.*` format.
-  Each provider is configured separately (example for Azure Provider):
-   ```bash
-   # Required properties
-   providers.azure.issuer=your_issuer
-   providers.azure.jwk-set-uri=your_jwk_set_uri
-   providers.azure.audiences=your_audiences
-   
-   # Optional properties
-   providers.azure.aliases=your_aliases  # Azure-specific
-   providers.azure.role-claims=your_role_claims
-   ```
-- Enable with:
-  ```properties
-  config.rest.security.mode=oidc
-  ```
-- Supported providers: azure, keycloak, auth0, okta, cognito
-- See [Configuration Documentation](docs/configuration.md) for complete provider configuration details.
+    - Configure Identity Provider settings using environment variables or with the `providers.{provider_name}.*` format.
+      Each provider is configured separately (example for Azure Provider):
+      ```bash
+      # Required properties
+      providers.azure.issuer=your_issuer
+      providers.azure.jwk-set-uri=your_jwk_set_uri
+      providers.azure.audiences=your_audiences
+
+      # Optional properties
+      providers.azure.aliases=your_aliases  # Azure-specific
+      providers.azure.role-claims=your_role_claims
+      ```
+    - Enable with:
+      ```properties
+      config.rest.security.mode=oidc
+      ```
+    - Supported providers: azure, keycloak, auth0, okta, cognito
+    - Map IdP roles to application roles (`FULL_ADMIN`, `READ_ONLY_ADMIN`) with `SECURITY_ROLES_MAPPING` or per provider with `providers.*.roles-mapping`.
+
+3. **DIAL Core API Key** (in `oidc` mode)
+    - Set `API_KEY_ENABLED=true` and `API_KEY_CORE_URL` to accept the `Api-Key` header; keys are validated against DIAL Core's `/v1/user/info`.
+
+See [Security Configuration](docs/configuration.md#security-configuration) for complete details.
 
 ### Keycloak
 
-Keycloak can be used as a simple IDP replacement for local test/development.
+Keycloak can be used as a simple IDP replacement for local test/development (`docker compose --profile keycloak up` in `local_env`).
 Please refer to the [Keycloak setup guide](https://github.com/epam/ai-dial-admin-backend/blob/development/docs/keycloak_configuration.md) for more information.
 
 
@@ -201,7 +242,7 @@ uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 | `/speckit.analyze` | Cross-artifact consistency check before implementation |
 | `/speckit.checklist` | Generate quality checklists for the plan |
 
-Feature specs land in `specs/N-feature-name/`. The constitution is at `.specify/memory/constitution.md`.
+Feature specs land in `specs/N-feature-name/`; long-lived per-capability specs live in `specs/<capability>/spec.md` (index in [specs/README.md](specs/README.md)). The constitution is at `.specify/memory/constitution.md`.
 
 ## Contributing
 

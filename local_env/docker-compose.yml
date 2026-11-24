@@ -17,7 +17,8 @@ services:
       DEBUG_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5006"
       DISABLE_SWAGGER_AUTHORIZATION: true
       DATASOURCE_VENDOR: H2 # could be: H2, POSTGRES, MS_SQL_SERVER
-      # H2 database
+      # H2 database (file kept under the ./data volume so it survives container re-creation)
+      H2_FILE: ./data/deployment_manager
       H2_DATASOURCE_MASTER_KEY: t8+npcgNMiipR+kHMb8zXAjgA3IedCXC
       H2_DATASOURCE_ENCRYPTED_FILE_KEY: 9vW1l/Eg+1J3YXpCsyR6AUI4ptMtI6pjkktePuUQts+wKVAauoP5CG21z5WTzp91xBcEww==
       H2_DATASOURCE_PASSWORD: password
