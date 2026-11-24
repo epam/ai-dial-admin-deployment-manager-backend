@@ -265,6 +265,8 @@ Each pool entry has the following fields:
 | `app.node-pools.default` | `NODE_POOL_DEFAULT` | _(empty)_ | No | Catch-all default **pool id**. Stamped onto deployments created without an explicit `nodePoolId`. Must match an `id` in `NODE_POOLS`. |
 | `app.node-pools.default-model` | `NODE_POOL_DEFAULT_MODEL`  | _(empty)_ | No | Model-workload default **pool id**. Takes precedence over `NODE_POOL_DEFAULT` for KServe-Inference deployments. Must match an `id` in `NODE_POOLS`. |
 
+> **Knative prerequisite:** for Knative-based deployments (and KServe inference deployments, which run on Knative in KServe's Serverless mode), set the matching pod-spec features to `enabled` in the Knative `config-features` ConfigMap (`knative-serving` namespace): `kubernetes.podspec-nodeselector`, `kubernetes.podspec-affinity`, `kubernetes.podspec-tolerations`. While a feature is disabled, the Knative admission webhook rejects Services that set the corresponding field.
+
 Defaults are stamped at create time and persisted on the record; updates never re-run the cascade. Operators may freely rename a pool's `name` afterwards — the FE will start showing the new label on the next deployment read.
 
 **Operator note — admin-edit asymmetry**: edits to a pool's `nodeSelector` / `affinity` / `tolerations` are picked up by every existing deployment that references the pool **automatically on the next redeploy** — pool primitives are re-tunable. In contrast, changes to `NODE_POOL_DEFAULT` or `NODE_POOL_DEFAULT_MODEL` apply only to deployments **created after the change**; existing deployments retain whichever pool id was stamped at their creation time. To migrate an existing deployment to a new pool, edit its `nodePoolId` field via the standard update endpoint — there is no batch migration. Pool identity (`id`) is immutable by design; pool contents are mutable. The legacy `NODE_POOL_LABEL_KEY` env variable is ignored if still set — it has no effect on scheduling.
@@ -644,7 +646,7 @@ ai-dial-admin-backend/secrets-utils/generate_h2_secrets.sh can help to generate 
 | `app.customizable-trace-interceptor.messages.ENTER`    | `CUSTOMIZABLE_TRACE_INTERCEPTOR_ENTER_MESSAGE`     | `'Enter:$[methodName](): $[arguments]'`                                            | No       | -                                                                              | Message template for method entry     |
 | `app.customizable-trace-interceptor.messages.EXIT`     | `CUSTOMIZABLE_INTERCEPTOR_EXIT_MESSAGE`            | `'Exit:$[methodName]():in $[invocationTime] ms, returnValue: $[returnValue]'`      | No       | -                                                                              | Message template for method exit      |
 | `app.customizable-trace-interceptor.messages.EXCEPTION` | `CUSTOMIZABLE_TRACE_INTERCEPTOR_EXCEPTION_MESSAGE` | `'Exception:$[methodName](): in $[invocationTime] ms'`                             | No       | -                                                                              | Message template for method exception |
-| `app.trace-log-advisor.expression`                     | -                                                  | @annotation(logging.configuration.com.epam.aidial.deployment.manager.LogExecution) |          | @within(logging.configuration.com.epam.aidial.deployment.manager.LogExecution) | No                                    |
+| `app.trace-log-advisor.expression`                     | -                                                  | `@annotation(com.epam.aidial.deployment.manager.configuration.logging.LogExecution) \|\| @within(com.epam.aidial.deployment.manager.configuration.logging.LogExecution)` | No       | -            | AOP pointcut selecting methods/classes for execution logging |
 
 
 ## OpenTelemetry Configuration
@@ -754,10 +756,10 @@ metadata:
   name: ai-dial-admin-mcp-role
   namespace: <build namespace>
 rules:
-  # Jobs for building/copying images
+  # Jobs for building/copying images (deletecollection: stopping an in-flight build deletes its Jobs by label)
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get","list","watch","create","delete"]
+    verbs: ["get","list","watch","create","delete","deletecollection"]
   # Read job pod logs
   - apiGroups: [""]
     resources: ["pods","pods/log"]
@@ -782,10 +784,14 @@ rules:
   - apiGroups: [""]
     resources: ["pods","pods/log","events"]
     verbs: ["get","list","watch","delete"]
-  # Secrets for Knative Services
+  # Env-var secrets and auto-provisioned image pull secrets (AUTO_PULL_SECRET_ENABLED)
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get","create","delete"]
+    verbs: ["get","create","update","delete"]
+  # Per-pod CPU/memory usage for deployment metrics (METRICS_SCRAPE_RESOURCE_USAGE_ENABLED, requires metrics-server)
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get","list"]
 ---
 # KServe namespace Role (InferenceService CRD)
 apiVersion: rbac.authorization.k8s.io/v1
@@ -797,18 +803,28 @@ rules:
   # KServe InferenceServices lifecycle (create/update/delete/watch)
   - apiGroups: ["serving.kserve.io"]
     resources: ["inferenceservices"]
-    verbs: ["get","list","watch","create","delete"]
+    verbs: ["get","list","watch","create","update","delete"]
   # Pods and logs for deployed inference services
   - apiGroups: [""]
     resources: ["pods","pods/log","events"]
     verbs: ["get","list","watch"]
-  # Access to referenced Secrets (if env vars point to K8s secrets)
+  # Serving-engine metrics scrape through the API-server pod proxy (deployment metrics)
+  - apiGroups: [""]
+    resources: ["pods/proxy"]
+    verbs: ["get"]
+  # Env-var secrets and auto-provisioned image pull secrets (AUTO_PULL_SECRET_ENABLED)
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get"]
+    verbs: ["get","create","update","delete"]
+  # Per-pod CPU/memory usage for deployment metrics (METRICS_SCRAPE_RESOURCE_USAGE_ENABLED, requires metrics-server)
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get","list"]
 ```
 
 Note: Create corresponding RoleBindings to bind each Role to the ServiceAccount used by this application in each namespace.
+
+GPU metrics (`get`/`list` on `pods` and `get` on `pods/proxy` in `METRICS_SCRAPE_GPU_DCGM_NAMESPACE`) and Cilium network policies (`CILIUM_NETWORK_POLICIES_ENABLED=true`) need additional Roles — see [sections 3.1 and 4 of the full security model guide](deployment_guide_full_security_model.md#31-gpu-metrics-rbac-optional).
 
 ## Notes
 

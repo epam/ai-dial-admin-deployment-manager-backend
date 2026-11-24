@@ -12,11 +12,13 @@ The DIAL Deployment Manager Backend makes complex Kubernetes-based AI deployment
 
 | Workload | Runtime | Source |
 |---|---|---|
-| MCP (Model Context Protocol) servers | Knative Serving | Image built from Git / Docker image / STDIO wrapper, or an existing image reference |
-| DIAL interceptors | Knative Serving | Image definition or image reference |
-| DIAL adapters | Knative Serving | Image definition or image reference |
-| DIAL applications | Knative Serving | Image definition or image reference |
-| Inference models | KServe | HuggingFace model (text-generation, text-classification with an auto-chained transformer) |
+| MCP (Model Context Protocol) servers | Knative Serving | Image definition or existing image reference; STDIO servers are wrapped with an HTTP-to-STDIO proxy |
+| DIAL interceptors | Knative Serving | Image definition or existing image reference |
+| DIAL adapters | Knative Serving | Image definition or existing image reference |
+| DIAL applications | Knative Serving | Image definition or existing image reference |
+| Inference models | KServe | HuggingFace model served by KServe; text-classification models get an auto-chained transformer |
+
+Image definitions are built by the Deployment Manager either from a Git repository with a Dockerfile or from an existing Docker image.
 
 For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-admin-backend repository](https://github.com/epam/ai-dial-admin-backend) or [DIAL Documentation](https://docs.dialx.ai/).
 
@@ -98,6 +100,8 @@ From the project's root directory:
 ./gradlew bootRun
 ```
 
+With the default H2 datasource, `H2_DATASOURCE_PASSWORD`, `H2_DATASOURCE_MASTER_KEY` and `H2_DATASOURCE_ENCRYPTED_FILE_KEY` have no defaults and must be set, otherwise the application fails to start (see [H2 Database Credentials](#h2-database-credentials)).
+
 ### Run with Docker Compose
 
 `local_env/docker-compose.yml` builds the image and starts the application together with PostgreSQL and SQL Server containers (Keycloak is available via the `keycloak` profile). It mounts `~/.kube` so the application can reach your current cluster:
@@ -111,7 +115,12 @@ docker compose up
 
 ```bash
 docker build -t aidial/ai-dial-admin-deployment-manager-backend:latest .
-docker run -p 8080:8080 aidial/ai-dial-admin-deployment-manager-backend:latest
+docker run -p 8080:8080 \
+  -e H2_DATASOURCE_PASSWORD=... \
+  -e H2_DATASOURCE_MASTER_KEY=... \
+  -e H2_DATASOURCE_ENCRYPTED_FILE_KEY=... \
+  -v ~/.kube:/home/appuser/.kube \
+  aidial/ai-dial-admin-deployment-manager-backend:latest
 ```
 
 Verify the installation:
@@ -162,7 +171,7 @@ For production environment:
 - Set `CONFIG_REST_SECURITY_MODE` environment variable with either `oidc` or `basic` value
 - (optional) Set `MS_SQL_SERVER_OPS` environment variable with `encrypt=true;` value if application is launched with SQL Server.
 
-`/api/v1/health` and `/api/internal/**` are always unauthenticated; restrict access to the internal endpoints at the network level.
+In `basic` and `oidc` modes, `/api/v1/health` and `/api/internal/**` stay unauthenticated (as do `/swagger-ui/**` and `/v3/api-docs/**` when `DISABLE_SWAGGER_AUTHORIZATION=true`); restrict access to the internal endpoints at the network level.
 
 The system supports the following authentication methods:
 

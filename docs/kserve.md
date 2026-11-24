@@ -108,7 +108,6 @@ rules:
       - get
       - create
       - update
-      - patch
       - delete
   # Per-pod CPU/memory usage (METRICS_SCRAPE_RESOURCE_USAGE_ENABLED, requires metrics-server)
   - apiGroups:

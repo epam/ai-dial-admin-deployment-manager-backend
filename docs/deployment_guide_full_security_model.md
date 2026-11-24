@@ -55,7 +55,7 @@ Before proceeding, ensure the required components are installed on the untrusted
 - **KServe**: [Official KServe Installation Guide](https://kserve.github.io/website/docs/admin-guide/kubernetes-deployment) (see also [`kserve.md`](kserve.md) in this repository)
 - **Cilium**: [Official Cilium Installation Guide](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/)
 
-> **Node pools with Knative:** if you configure `NODE_POOLS`, enable the pod-spec scheduling features in the Knative `config-features` ConfigMap (`kubernetes.podspec-affinity`, `kubernetes.podspec-nodeselector`, `kubernetes.podspec-tolerations`); otherwise Knative silently drops the scheduling hints. See [upgrade plan 0.17.0](upgrade-plans/0.17.0.md) and [Node Pool Configuration](configuration.md#node-pool-configuration).
+> **Node pools with Knative:** if you configure `NODE_POOLS`, set the pod-spec scheduling features used by your pools to `enabled` in the Knative `config-features` ConfigMap (`knative-serving` namespace): `kubernetes.podspec-nodeselector`, `kubernetes.podspec-affinity`, `kubernetes.podspec-tolerations`. While a feature is disabled, the Knative admission webhook rejects Services that set the corresponding field. See [Node Pool Configuration](configuration.md#node-pool-configuration).
 
 ---
 
@@ -261,7 +261,6 @@ rules:
       - get
       - create
       - update
-      - patch
       - delete
     apiGroups:
       - ""
@@ -330,7 +329,6 @@ rules:
       - get
       - create
       - update
-      - patch
       - delete
     apiGroups:
       - ""
