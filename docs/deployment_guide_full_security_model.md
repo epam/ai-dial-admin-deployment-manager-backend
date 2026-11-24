@@ -13,6 +13,7 @@
    - [2.3 Get the Cluster API Endpoint](#23-get-the-cluster-api-endpoint)
    - [2.4 Generate a kubeconfig for the Untrusted Cluster](#24-generate-a-kubeconfig-for-the-untrusted-cluster)
 3. [RBAC Configuration on the Untrusted Cluster](#3-rbac-configuration-on-the-untrusted-cluster)
+   - [3.1 GPU Metrics RBAC (optional)](#31-gpu-metrics-rbac-optional)
 4. [Cilium Network Policy RBAC (optional)](#4-cilium-network-policy-rbac-optional)
 5. [Deployment Manager Configuration](#5-deployment-manager-configuration)
 
@@ -39,8 +40,10 @@ The **untrusted cluster** is dedicated to running model-serving and deployment w
 | Workload | Required | Notes |
 |----------|----------|-------|
 | **Istio** | Yes | Service mesh for traffic management and security |
-| **Knative Serving** | Yes | Serverless runtime for MCP deployments |
-| **KServe** | Optional | Kubernetes-native model serving framework |
+| **Knative Serving** | Yes | Serverless runtime for MCP, interceptor, adapter and application deployments |
+| **KServe** | Optional | Model serving framework for inference deployments |
+| **metrics-server** | Optional | Per-pod CPU/memory in deployment metrics |
+| **NVIDIA GPU Operator (DCGM exporter)** | Optional | GPU telemetry in deployment metrics |
 | **Cilium** | Optional | eBPF-based network policies for fine-grained traffic control |
 
 #### Installation Guides
@@ -51,6 +54,8 @@ Before proceeding, ensure the required components are installed on the untrusted
 - **Knative Serving**: [Official Knative Serving Installation Guide](https://knative.dev/docs/install/)
 - **KServe**: [Official KServe Installation Guide](https://kserve.github.io/website/docs/admin-guide/kubernetes-deployment) (see also [`kserve.md`](kserve.md) in this repository)
 - **Cilium**: [Official Cilium Installation Guide](https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/)
+
+> **Node pools with Knative:** if you configure `NODE_POOLS`, enable the pod-spec scheduling features in the Knative `config-features` ConfigMap (`kubernetes.podspec-affinity`, `kubernetes.podspec-nodeselector`, `kubernetes.podspec-tolerations`); otherwise Knative silently drops the scheduling hints. See [upgrade plan 0.17.0](upgrade-plans/0.17.0.md) and [Node Pool Configuration](configuration.md#node-pool-configuration).
 
 ---
 
@@ -184,6 +189,7 @@ rules:
       - watch
       - create
       - delete
+      - deletecollection
     apiGroups:
       - batch
     resources:
@@ -250,14 +256,25 @@ rules:
       - pods
       - pods/log
       - events
+  # Env-var secrets and auto-provisioned image pull secrets (AUTO_PULL_SECRET_ENABLED)
   - verbs:
       - get
       - create
+      - update
+      - patch
       - delete
     apiGroups:
       - ""
     resources:
       - secrets
+  # Per-pod CPU/memory usage for deployment metrics (METRICS_SCRAPE_RESOURCE_USAGE_ENABLED)
+  - verbs:
+      - get
+      - list
+    apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -285,6 +302,7 @@ rules:
       - list
       - watch
       - create
+      - update
       - delete
     apiGroups:
       - serving.kserve.io
@@ -300,12 +318,32 @@ rules:
       - pods
       - pods/log
       - events
+  # Engine metrics scrape through the API-server pod proxy (deployment metrics)
   - verbs:
       - get
     apiGroups:
       - ""
     resources:
+      - pods/proxy
+  # Env-var secrets and auto-provisioned image pull secrets (AUTO_PULL_SECRET_ENABLED)
+  - verbs:
+      - get
+      - create
+      - update
+      - patch
+      - delete
+    apiGroups:
+      - ""
+    resources:
       - secrets
+  # Per-pod CPU/memory usage for deployment metrics (METRICS_SCRAPE_RESOURCE_USAGE_ENABLED)
+  - verbs:
+      - get
+      - list
+    apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -320,6 +358,46 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: dial-deployment-manager-kserve-role
+```
+
+### 3.1 GPU Metrics RBAC (optional)
+
+When `METRICS_SCRAPE_GPU_ENABLED=true` (default) and the NVIDIA DCGM exporter runs on the untrusted cluster, the Deployment Manager reads GPU telemetry from the exporter pods through the API-server pod proxy. Grant read-only access in the exporter namespace (`METRICS_SCRAPE_GPU_DCGM_NAMESPACE`, default `gpu-operator`). Without it, GPU metrics are reported as unavailable.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dial-deployment-manager-gpu-metrics-role
+  namespace: <METRICS_SCRAPE_GPU_DCGM_NAMESPACE>
+rules:
+  - verbs:
+      - get
+      - list
+    apiGroups:
+      - ""
+    resources:
+      - pods
+  - verbs:
+      - get
+    apiGroups:
+      - ""
+    resources:
+      - pods/proxy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dial-deployment-manager-gpu-metrics-rb
+  namespace: <METRICS_SCRAPE_GPU_DCGM_NAMESPACE>
+subjects:
+  - kind: ServiceAccount
+    name: dial-deployment-manager
+    namespace: <K8S_BUILD_NAMESPACE>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: dial-deployment-manager-gpu-metrics-role
 ```
 
 ---
@@ -393,7 +471,7 @@ Key settings for the dual-cluster security model (set as environment variables o
 | `K8S_DEPLOY_CONTEXT` | `untrusted` | Context name in the generated kubeconfig |
 | `K8S_BUILD_NAMESPACE` | `dm-build` | Namespace on the untrusted cluster for build jobs |
 | `K8S_KNATIVE_ENABLED` | `true` | Enable Knative service deployment support |
-| `K8S_KNATIVE_DEPLOYMENT_NAMESPACE` | `dm-mcp` | Namespace for Knative (MCP) deployments |
+| `K8S_KNATIVE_DEPLOYMENT_NAMESPACE` | `dm-mcp` | Namespace for Knative deployments (MCP, interceptors, adapters, applications) |
 | `K8S_KSERVE_ENABLED` | `true` | Enable KServe deployment support (optional) |
 | `K8S_KSERVE_DEPLOYMENT_NAMESPACE` | `dm-kserve` | Namespace for KServe deployments (optional) |
 | `CILIUM_NETWORK_POLICIES_ENABLED` | `false` | Enable Cilium network policies (optional) |

@@ -1,4 +1,6 @@
- # KServe Installation Guide
+# KServe Installation Guide
+
+KServe is required only for **inference deployments** (HuggingFace models); enable it in the Deployment Manager with `K8S_KSERVE_ENABLED=true` and set `K8S_KSERVE_DEPLOYMENT_NAMESPACE` (see [configuration.md](configuration.md#kserve-configuration)).
 
 This document provides a step-by-step guide for installing KServe on your Kubernetes cluster. The steps are based on the official KServe documentation and include the installation of necessary components like Cert Manager and an Ingress Controller.
 
@@ -78,6 +80,7 @@ rules:
       - list
       - watch
       - create
+      - update
       - delete
   - apiGroups:
       - ''
@@ -89,6 +92,14 @@ rules:
       - get
       - list
       - watch
+  # Engine metrics scrape through the API-server pod proxy (deployment metrics)
+  - apiGroups:
+      - ''
+    resources:
+      - pods/proxy
+    verbs:
+      - get
+  # Env-var secrets and auto-provisioned image pull secrets (AUTO_PULL_SECRET_ENABLED)
   - apiGroups:
       - ''
     resources:
@@ -96,7 +107,17 @@ rules:
     verbs:
       - get
       - create
+      - update
+      - patch
       - delete
+  # Per-pod CPU/memory usage (METRICS_SCRAPE_RESOURCE_USAGE_ENABLED, requires metrics-server)
+  - apiGroups:
+      - 'metrics.k8s.io'
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
 ```
 
 ## RoleBinding Configuration
@@ -113,13 +134,15 @@ metadata:
   namespace: <model-namespace>
 subjects:
   - kind: ServiceAccount
-    name: ai-dial-test-admin-deployment-manager-backend
-    namespace: ai-dial-test
+    name: <deployment-manager-service-account>
+    namespace: <deployment-manager-namespace>
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: ai-dial-admin-deployment-role
 ```
+
+If Cilium network policies are enabled (`CILIUM_NETWORK_POLICIES_ENABLED=true`) or GPU metrics are scraped from the DCGM exporter, additional permissions are required — see [sections 3 and 4 of the full security model guide](deployment_guide_full_security_model.md#3-rbac-configuration-on-the-untrusted-cluster).
 
 ### Applying the Role and RoleBinding
 
