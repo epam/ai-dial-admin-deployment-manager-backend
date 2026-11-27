@@ -1,5 +1,5 @@
 # Build stage
-FROM gradle:8.14.5-jdk21-alpine AS builder
+FROM gradle:9.9.2-jdk25-alpine AS builder
 WORKDIR /build-workspace
 
 COPY build.gradle .
@@ -10,7 +10,7 @@ COPY src/ src/
 RUN gradle --no-daemon clean bootJar
 
 # Runtime stage
-FROM eclipse-temurin:21.0.13.1_2-jre-alpine AS runtime
+FROM eclipse-temurin:25.0.5.1_2-jre-alpine AS runtime
 WORKDIR /app
 
 RUN adduser -u 1001 --disabled-password --gecos "" appuser && \

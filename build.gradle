@@ -26,7 +26,7 @@ buildscript {
 plugins {
     id 'java'
     id 'checkstyle'
-    id 'io.freefair.lombok' version '8.10'
+    id 'io.freefair.lombok' version '9.8.3'
     id 'org.springframework.boot' version '4.1.1'
     id 'io.fabric8.java-generator' version "${fabric8_kubernetes_client_version}"
 }
@@ -36,19 +36,24 @@ version = "0.0.0"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
+def crdGeneratedSourcesDir = layout.buildDirectory.dir("generated/sources/fabric8JavaGenerator/java/main")
+
 javaGen {
     source = file('src/main/resources/kubernetes/crd')
-    target = file("${layout.buildDirectory.get().asFile}/generated/sources/fabric8JavaGenerator/java/main")
+    target = crdGeneratedSourcesDir.get().asFile
 }
 
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+    // Mockito jar attached as a -javaagent to test JVMs (see the Test task configuration below). The 'test' prefix keeps
+    // it under the ORT 'test.*' scope exclusion in .ort.yml
+    testMockitoAgent
     configureEach {
         exclude group: "org.springframework.boot", module: "spring-boot-starter-logging"
         resolutionStrategy {
@@ -174,6 +179,10 @@ dependencies {
     testImplementation 'org.testcontainers:testcontainers-postgresql'
     testImplementation 'org.testcontainers:testcontainers-mssqlserver'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testMockitoAgent platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+    testMockitoAgent('org.mockito:mockito-core') {
+        transitive = false
+    }
 
     constraints {
         implementation ('org.apache.tomcat.embed:tomcat-embed-core:11.0.25') {
@@ -230,17 +239,25 @@ dependencies {
     }
 }
 
-tasks.named('test') {
+tasks.withType(Test).configureEach {
     useJUnitPlatform()
+    // Load Mockito's inline mock maker as an explicit agent: self-attaching at runtime triggers the JDK's dynamic agent
+    // loading warning (JEP 451) and will be disallowed by default in a future JDK release
+    def mockitoAgent = configurations.testMockitoAgent
+    jvmArgumentProviders.add({ ["-javaagent:${mockitoAgent.singleFile}".toString()] } as CommandLineArgumentProvider)
 }
 
 tasks.register('testFast', Test) {
     description = 'Runs all tests except Postgres and SQL Server functional tests (testcontainers).'
     group = 'verification'
-    useJUnitPlatform()
+    // Gradle 9 no longer wires custom Test tasks to the 'test' source set by convention — without these two
+    // lines the task is NO-SOURCE and silently runs nothing
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     filter {
-        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.PostgresFunctionalTests'
-        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.SqlServerFunctionalTests'
+        // trailing '*' also excludes the suites' @Nested classes (Outer$Inner), which Gradle 9 filters individually
+        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.PostgresFunctionalTests*'
+        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.SqlServerFunctionalTests*'
     }
 }
 
@@ -259,7 +276,7 @@ tasks.withType(JavaCompile).configureEach {
 sourceSets {
     main {
         java {
-            srcDir(file("${buildDir}/generated/sources/fabric8JavaGenerator/java/main"))
+            srcDir(crdGeneratedSourcesDir)
         }
     }
 }
