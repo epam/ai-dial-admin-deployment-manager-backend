@@ -1,6 +1,6 @@
 # DIAL Deployment Manager Backend
 
-[![Java Version](https://img.shields.io/badge/Java-21-blue.svg)](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)
+[![Java Version](https://img.shields.io/badge/Java-25-blue.svg)](https://www.oracle.com/java/technologies/downloads/#java25)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.x-green.svg)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -37,7 +37,7 @@ For more information about the parent AI DIAL Admin Panel, visit the [ai-dial-ad
 
 ## Prerequisites
 
-- Java 21
+- Java 25
 - Gradle — use the bundled wrapper (`./gradlew`), no local installation needed
 - Docker and Docker Compose (for containerized local runs and for the Postgres/SQL Server test suites)
 - Kubernetes cluster with [Knative Serving](https://knative.dev/docs/install/) (all image-based deployments) and, optionally, [KServe](docs/kserve.md) (inference deployments) and [Cilium](https://docs.cilium.io/) (network policies)

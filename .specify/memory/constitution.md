@@ -1,8 +1,8 @@
 <!-- Sync Impact Report
-Version change: 1.5.2 → 1.5.3 (PATCH: version-pin refresh, no rule changes)
+Version change: 1.5.3 → 1.6.0 (MINOR: platform upgrade, no rule changes)
 Modified sections:
-  - Tech Stack (Observability: `opentelemetry-bom` 1.67.0 override reinstated over the Boot-managed 1.62.0 for
-    CVE-2026-118259; the log4j appender now follows that BOM's OpenTelemetry API version)
+  - Tech Stack (Runtime: Java 21 → 25 LTS, Gradle 8.14.5 → 9.9.2)
+  - Commands (Docker build stages: `gradle:9.9.2-jdk25-alpine` → `eclipse-temurin:25.0.5.1_2-jre-alpine`)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -21,7 +21,7 @@ The base package for all production sources MUST be `com.epam.aidial.deployment.
 
 Constitutionally-significant libraries (any upgrade MUST go through a PR with a security or feature rationale):
 
-- **Runtime**: Java 21, Spring Boot 4.1.1 (Spring Framework 7), Gradle 8.14.5
+- **Runtime**: Java 25, Spring Boot 4.1.1 (Spring Framework 7), Gradle 9.9.2
 - **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.3
 - **Database migrations**: Flyway via `spring-boot-starter-flyway` (version BOM-managed) plus `flyway-database-postgresql` and `flyway-sqlserver`
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, `io.kubernetes:client-java` 22.0.0
@@ -258,7 +258,7 @@ The following MUST NOT appear in new code. PRs introducing these patterns MUST b
 | `./gradlew clean bootJar` | Build executable JAR without running tests |
 | `./gradlew bootRun` | Run the service locally on the JVM |
 | `./gradlew generateDbSchema` | Regenerate `docs/db-schema.md` from H2 Flyway migrations — run after any migration change |
-| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:8.14.5-jdk21-alpine` → `eclipse-temurin:21.0.13.1_2-jre-alpine`) |
+| `docker build -t deployment-manager .` | Build Docker image (two-stage: `gradle:9.9.2-jdk25-alpine` → `eclipse-temurin:25.0.5.1_2-jre-alpine`) |
 
 After any code change, always verify with `./gradlew checkstyleMain checkstyleTest` before
 considering the task done. Use `./gradlew testFast` to run tests during development; a clean
@@ -302,6 +302,7 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 
 | Version | Date | Summary |
 |---|---|---|
+| 1.6.0 | 2026-11-27 | Platform upgrade: Java 21 → 25 (LTS) toolchain and runtime image (`eclipse-temurin:25.0.5.1_2-jre-alpine`); Gradle 8.14.5 → 9.9.2; `io.freefair.lombok` 8.10 → 9.8.3 (Lombok 1.18.48, required for JDK 25) |
 | 1.5.3 | 2026-11-06 | Version-pin refresh: reinstated the `opentelemetry-bom` override at 1.67.0 (Boot 4.1.1 manages 1.62.0, affected by CVE-2026-118259); `opentelemetry-log4j-appender-2.17` 2.28.1-alpha → 2.33.1-alpha to match |
 | 1.5.2 | 2026-10-20 | Version-pin refresh: Spring Boot 4.0.8 → 4.1.1 (Framework 7.0.9, Hibernate ORM 7.4.5); dropped the `opentelemetry-bom` override (Boot now manages OpenTelemetry 1.62.0); realigns the Runtime, Jackson 2 floor and Log4j2 pins with build.gradle |
 | 1.5.1 | 2026-08-19 | Version-pin refresh: Spring Boot 4.0.6 → 4.0.7 (pulls Hibernate ORM 7.2.12 → 7.2.19, which required `SqlServerJsonAsVarcharTypeContributor` to keep JSON columns on `varchar(max)`); PostgreSQL driver pin 42.7.11 → 42.7.12 aligning the document with build.gradle; Jackson floors raised to 2.21.6 / 3.1.6 for CVE-2026-59889 and GHSA-mhm7-754m-9p8w |
@@ -310,4 +311,4 @@ Per-directory `CLAUDE.md` files exist for each architectural layer (`web/`, `ser
 | 1.3.0 | 2026-04-29 | Per-directory CLAUDE.md acknowledgment; added Capability ↔ numbered-spec cross-link rule |
 | ≤1.2.2 | — | See `git log .specify/memory/constitution.md` |
 
-**Version**: 1.5.3 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-11-06
+**Version**: 1.6.0 | **Ratified**: 2026-03-04 | **Last Amended**: 2026-11-27
