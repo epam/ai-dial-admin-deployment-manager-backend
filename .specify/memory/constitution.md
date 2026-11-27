@@ -1,8 +1,9 @@
 <!-- Sync Impact Report
 Version change: 1.5.3 → 1.6.0 (MINOR: platform upgrade, no rule changes)
 Modified sections:
-  - Tech Stack (Runtime: Java 21 → 25 LTS, Gradle 8.14.5 → 9.9.2)
-  - Commands (Docker build stages: `gradle:9.9.2-jdk25-alpine` → `eclipse-temurin:25.0.5.1_2-jre-alpine`)
+  - Tech Stack (Runtime: Java 21 → 25 LTS, Gradle 8.14.5 → 9.9.2; Code generation: `io.freefair.lombok` 8.10 → 9.8.3)
+  - Commands (Docker build stages: `gradle:8.14.5-jdk21-alpine` → `gradle:9.9.2-jdk25-alpine`,
+    `eclipse-temurin:21.0.13.1_2-jre-alpine` → `eclipse-temurin:25.0.5.1_2-jre-alpine`)
 Templates requiring updates:
   ✅ .specify/memory/constitution.md (this file)
   ✅ No template changes needed — speckit reads constitution directly
@@ -22,7 +23,7 @@ The base package for all production sources MUST be `com.epam.aidial.deployment.
 Constitutionally-significant libraries (any upgrade MUST go through a PR with a security or feature rationale):
 
 - **Runtime**: Java 25, Spring Boot 4.1.1 (Spring Framework 7), Gradle 9.9.2
-- **Code generation**: Lombok via `io.freefair.lombok` plugin 8.10, MapStruct 1.6.3
+- **Code generation**: Lombok via `io.freefair.lombok` plugin 9.8.3, MapStruct 1.6.3
 - **Database migrations**: Flyway via `spring-boot-starter-flyway` (version BOM-managed) plus `flyway-database-postgresql` and `flyway-sqlserver`
 - **Kubernetes**: Fabric8 Kubernetes Client 7.5.2, Fabric8 Knative Client 7.5.2, `io.kubernetes:client-java` 22.0.0
 - **Serialization**: Jackson 3 (`tools.jackson`, BOM-managed) is the application serialization stack; `com.fasterxml.jackson.annotation` annotations are shared by both generations. Jackson 2 is retained deliberately for two frozen consumers — legacy Java Flyway migrations (`db.migration.MigrationJsonMapper`; see `src/main/java/db/migration/CLAUDE.md`) and Hibernate's JSON column mapping — plus transitively via third-party SDKs (Fabric8, MCP SDK, jib); its security floor is enforced via the `jackson-core` 2.21.7 constraint.

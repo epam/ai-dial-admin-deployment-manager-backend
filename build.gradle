@@ -42,7 +42,7 @@ java {
 
 javaGen {
     source = file('src/main/resources/kubernetes/crd')
-    target = file("${layout.buildDirectory.get().asFile}/generated/sources/fabric8JavaGenerator/java/main")
+    target = layout.buildDirectory.dir("generated/sources/fabric8JavaGenerator/java/main").get().asFile
 }
 
 configurations {
@@ -237,10 +237,15 @@ tasks.named('test') {
 tasks.register('testFast', Test) {
     description = 'Runs all tests except Postgres and SQL Server functional tests (testcontainers).'
     group = 'verification'
+    // Gradle 9 no longer wires custom Test tasks to the 'test' source set by convention — without these two
+    // lines the task is NO-SOURCE and silently runs nothing
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     useJUnitPlatform()
     filter {
-        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.PostgresFunctionalTests'
-        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.SqlServerFunctionalTests'
+        // trailing '*' also excludes the suites' @Nested classes (Outer$Inner), which Gradle 9 filters individually
+        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.PostgresFunctionalTests*'
+        excludeTestsMatching 'com.epam.aidial.deployment.manager.functional.SqlServerFunctionalTests*'
     }
 }
 
